@@ -215,6 +215,29 @@ const galleryItems = Array.from({ length: 5 }, (_, index) => ({
   title: `Galeri ${index + 1}`,
 }));
 
+const partnerItems = [
+  {
+    icon: 'house',
+    label: 'Sekolah',
+  },
+  {
+    icon: 'graduation',
+    label: 'Universitas',
+  },
+  {
+    icon: 'users',
+    label: 'Komunitas',
+  },
+  {
+    icon: 'cpu',
+    label: 'Partner IT',
+  },
+  {
+    icon: 'layers',
+    label: 'Institusi',
+  },
+];
+
 function WhatIsIcon({ type }) {
   const common = {
     width: '24',
@@ -594,6 +617,72 @@ function GalleryMessageIcon() {
   );
 }
 
+function PartnerIcon({ type }) {
+  const common = {
+    width: '24',
+    height: '24',
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    xmlns: 'http://www.w3.org/2000/svg',
+  };
+
+  if (type === 'house') {
+    return (
+      <svg {...common}>
+        <path d="M3 10.5L12 3L21 10.5" />
+        <path d="M5 9V21H19V9" />
+        <path d="M10 21V14H14V21" />
+      </svg>
+    );
+  }
+
+  if (type === 'graduation') {
+    return (
+      <svg {...common}>
+        <path d="M22 10L12 5L2 10L12 15L22 10Z" />
+        <path d="M6 12.5V17C9.8 19 14.2 19 18 17V12.5" />
+        <path d="M22 10V16" />
+      </svg>
+    );
+  }
+
+  if (type === 'users') {
+    return (
+      <svg {...common}>
+        <path d="M17 21V19A4 4 0 0 0 13 15H5A4 4 0 0 0 1 19V21" />
+        <path d="M9 11A4 4 0 1 0 9 3A4 4 0 0 0 9 11Z" />
+        <path d="M23 21V19A4 4 0 0 0 20 15.13" />
+        <path d="M16 3.13A4 4 0 0 1 16 10.87" />
+      </svg>
+    );
+  }
+
+  if (type === 'cpu') {
+    return (
+      <svg {...common}>
+        <path d="M8 8H16V16H8V8Z" />
+        <path d="M4 4H20V20H4V4Z" />
+        <path d="M9 1V4" />
+        <path d="M15 1V4" />
+        <path d="M9 20V23" />
+        <path d="M15 20V23" />
+        <path d="M20 9H23" />
+        <path d="M20 15H23" />
+        <path d="M1 9H4" />
+        <path d="M1 15H4" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg {...common}>
+      <path d="M12 3L3 8L12 13L21 8L12 3Z" />
+      <path d="M3 12L12 17L21 12" />
+      <path d="M3 16L12 21L21 16" />
+    </svg>
+  );
+}
+
 function VisualStepPreview({ type }) {
   return (
     <div className={`visual-preview ${type}`}>
@@ -811,6 +900,20 @@ export function Home() {
             </article>
           </div>
           <a className="gallery-all-button" href="/galeri">Lihat Galeri Lengkap</a>
+        </div>
+      </section>
+      <section className="partners-section">
+        <div className="partners-inner">
+          <h2>Komunitas / Partner</h2>
+          <div className="partners-list">
+            {partnerItems.map((partner) => (
+              <article className="partner-item" key={partner.label}>
+                <PartnerIcon type={partner.icon} />
+                <span>{partner.label}</span>
+              </article>
+            ))}
+          </div>
+          <a className="partners-button" href="/partner">Jadi Partner Arduflow</a>
         </div>
       </section>
     </>
