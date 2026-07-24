@@ -155,6 +155,39 @@ const programItems = [
   },
 ];
 
+const tutorialItems = [
+  {
+    icon: 'help',
+    title: 'Apa itu Arduflow',
+    duration: '5 Menit',
+  },
+  {
+    icon: 'file',
+    title: 'Cara Daftar & Token',
+    duration: '3 Menit',
+  },
+  {
+    icon: 'monitor',
+    title: 'Pengenalan IDE Visual',
+    duration: '8 Menit',
+  },
+  {
+    icon: 'lightbulb',
+    title: 'Tutorial LED Dasar',
+    duration: '10 Menit',
+  },
+  {
+    icon: 'thermometer',
+    title: 'Suhu & Kelembapan',
+    duration: '15 Menit',
+  },
+  {
+    icon: 'zap',
+    title: 'Koneksi IoT Dasar',
+    duration: '20 Menit',
+  },
+];
+
 function WhatIsIcon({ type }) {
   const common = {
     width: '24',
@@ -424,6 +457,90 @@ function ProgramIcon({ type }) {
   );
 }
 
+function TutorialIcon({ type }) {
+  const common = {
+    width: '24',
+    height: '24',
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    xmlns: 'http://www.w3.org/2000/svg',
+  };
+
+  if (type === 'file') {
+    return (
+      <svg {...common}>
+        <path d="M14 2H6A2 2 0 0 0 4 4V20A2 2 0 0 0 6 22H18A2 2 0 0 0 20 20V8L14 2Z" />
+        <path d="M14 2V8H20" />
+        <path d="M8 13H16" />
+        <path d="M8 17H16" />
+        <path d="M8 9H10" />
+      </svg>
+    );
+  }
+
+  if (type === 'monitor') {
+    return (
+      <svg {...common}>
+        <path d="M3 4H21V16H3V4Z" />
+        <path d="M8 21H16" />
+        <path d="M12 16V21" />
+      </svg>
+    );
+  }
+
+  if (type === 'lightbulb') {
+    return (
+      <svg {...common}>
+        <path d="M9 18H15" />
+        <path d="M10 22H14" />
+        <path d="M12 2A6 6 0 0 0 8 12.46C8.6 13.09 9 14 9 15H15C15 14 15.4 13.09 16 12.46A6 6 0 0 0 12 2Z" />
+      </svg>
+    );
+  }
+
+  if (type === 'thermometer') {
+    return (
+      <svg {...common}>
+        <path d="M14 14.76V5A2 2 0 1 0 10 5V14.76A4 4 0 1 0 14 14.76Z" />
+      </svg>
+    );
+  }
+
+  if (type === 'zap') {
+    return (
+      <svg {...common}>
+        <path d="M13 2L4 14H11L10 22L20 9H13L13 2Z" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg {...common}>
+      <path d="M12 22A10 10 0 1 0 12 2A10 10 0 0 0 12 22Z" />
+      <path d="M9.1 9A3 3 0 1 1 14.9 10.2C14.1 11.4 12 11.8 12 14" />
+      <path d="M12 17H12.01" />
+    </svg>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 22A10 10 0 1 0 12 2A10 10 0 0 0 12 22Z" />
+      <path d="M12 6V12L16 14" />
+    </svg>
+  );
+}
+
+function ArrowRightIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M5 12H19" />
+      <path d="M13 6L19 12L13 18" />
+    </svg>
+  );
+}
+
 function VisualStepPreview({ type }) {
   return (
     <div className={`visual-preview ${type}`}>
@@ -581,6 +698,29 @@ export function Home() {
             <a className="program-primary" href="/workshop">Daftar Workshop</a>
             <a className="program-secondary" href="/kontak">Ajukan Kerja Sama</a>
           </div>
+        </div>
+      </section>
+      <section className="tutorial-section">
+        <div className="tutorial-inner">
+          <h2>Tutorial & Dokumentasi</h2>
+          <div className="tutorial-grid">
+            {tutorialItems.map((tutorial) => (
+              <a className="tutorial-card" href="/tutorial" key={tutorial.title}>
+                <div className="tutorial-icon">
+                  <TutorialIcon type={tutorial.icon} />
+                </div>
+                <div className="tutorial-content">
+                  <h3>{tutorial.title}</h3>
+                  <span>
+                    <ClockIcon />
+                    {tutorial.duration}
+                  </span>
+                </div>
+                <ArrowRightIcon />
+              </a>
+            ))}
+          </div>
+          <a className="tutorial-all-button" href="/tutorial">Lihat Seluruh Tutorial</a>
         </div>
       </section>
     </>
