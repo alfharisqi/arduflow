@@ -188,6 +188,29 @@ const tutorialItems = [
   },
 ];
 
+const projectItems = [
+  {
+    title: 'Nama Produk',
+    tag: 'TAG',
+  },
+  {
+    title: 'Nama Produk',
+    tag: 'TAG',
+  },
+  {
+    title: 'Nama Produk',
+    tag: 'TAG',
+  },
+  {
+    title: 'Nama Produk',
+    tag: 'TAG',
+  },
+  {
+    title: 'Nama Produk',
+    tag: 'TAG',
+  },
+];
+
 function WhatIsIcon({ type }) {
   const common = {
     width: '24',
@@ -541,6 +564,15 @@ function ArrowRightIcon() {
   );
 }
 
+function ProjectImagePlaceholder() {
+  return (
+    <svg width="74" height="46" viewBox="0 0 74 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M1 45L25 15L39 31L51 7L73 45H1Z" fill="#d1d5db" />
+      <circle cx="29" cy="7" r="7" fill="#d1d5db" />
+    </svg>
+  );
+}
+
 function VisualStepPreview({ type }) {
   return (
     <div className={`visual-preview ${type}`}>
@@ -721,6 +753,23 @@ export function Home() {
             ))}
           </div>
           <a className="tutorial-all-button" href="/tutorial">Lihat Seluruh Tutorial</a>
+        </div>
+      </section>
+      <section className="projects-section">
+        <div className="projects-inner">
+          <h2>Contoh Proyek</h2>
+          <div className="projects-grid">
+            {projectItems.map((project, index) => (
+              <article className="project-card" key={`${project.title}-${index}`}>
+                <div className="project-image">
+                  <ProjectImagePlaceholder />
+                  <span>{project.tag}</span>
+                </div>
+                <h3>{project.title}</h3>
+              </article>
+            ))}
+          </div>
+          <a className="projects-all-button" href="/project">Lihat Semua Proyek</a>
         </div>
       </section>
     </>
