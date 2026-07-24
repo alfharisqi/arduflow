@@ -1,4 +1,13 @@
 .env
-storage/sqlite/*.sqlite
 node_modules
 dist
+.vite
+storage
+
+FE/.env
+FE/node_modules
+FE/dist
+
+BE/.env
+BE/node_modules
+BE/storage/sqlite/*.sqlite

@@ -4,6 +4,19 @@ import { health, insertLead } from './database.js';
 
 const app = express();
 
+app.use((request, response, next) => {
+  response.setHeader('Access-Control-Allow-Origin', process.env.CORS_ORIGIN || 'http://127.0.0.1:5173');
+  response.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (request.method === 'OPTIONS') {
+    response.sendStatus(204);
+    return;
+  }
+
+  next();
+});
+
 app.use(express.json());
 
 app.get('/api/health', (_request, response) => {
