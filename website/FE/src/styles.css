@@ -294,6 +294,13 @@ a {
   height: 484px;
 }
 
+.landing-visual-gif {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .node-card {
   position: absolute;
   box-sizing: border-box;
