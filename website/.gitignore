@@ -1,2 +1,4 @@
 .env
 storage/sqlite/*.sqlite
+node_modules
+dist

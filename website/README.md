@@ -1,24 +1,27 @@
-# Website Arduflow
+# Website Arduflow React + Vite
 
 Scaffold website Arduflow berdasarkan halaman Notion "Pengembangan Website Arduflow".
 
 ## Struktur
 
-- `app/Pages`: halaman publik terpisah.
-- `app/Components`: komponen UI reusable.
-- `app/Features`: fitur/domain website.
-- `app/Support`: helper konfigurasi, render, routing, dan database.
+- `src/pages`: halaman publik terpisah.
+- `src/components`: komponen UI reusable.
+- `src/features`: fitur/domain website.
+- `server`: API Express untuk leads dan koneksi database.
 - `database/sqlite`: schema SQLite.
 - `database/mysql`: schema MySQL.
-- `public`: document root untuk web server.
+- `public`: aset statis Vite.
 
 ## Menjalankan
 
 ```bash
 cd website
-cp .env.example .env
-php scripts/init-sqlite.php
-php -S 127.0.0.1:8080 -t public
+npm install
+copy .env.example .env
+npm run db:sqlite
+npm run dev
 ```
 
-Ganti `DB_CONNECTION=mysql` di `.env` bila ingin memakai MySQL, lalu import `database/mysql/schema.sql`.
+Frontend berjalan di `http://127.0.0.1:5173`, API di `http://127.0.0.1:3001`.
+
+Ganti `DB_CONNECTION=mysql` di `.env` bila ingin memakai MySQL, lalu import `database/mysql/schema.sql` ke database `arduflow`.
