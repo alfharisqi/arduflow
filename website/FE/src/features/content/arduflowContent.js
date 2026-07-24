@@ -1,11 +1,9 @@
 export const navigation = [
   { label: 'Beranda', path: '/' },
-  { label: 'IDE', path: '/ide' },
-  { label: 'Akses', path: '/akses' },
-  { label: 'Program', path: '/program' },
   { label: 'Tutorial', path: '/tutorial' },
-  { label: 'Project', path: '/project' },
-  { label: 'Partner', path: '/partner' },
+  { label: 'Proyek', path: '/project' },
+  { label: 'Workshop', path: '/program' },
+  { label: 'Tentang Kami', path: '/partner' },
   { label: 'Kontak', path: '/kontak' },
 ];
 
