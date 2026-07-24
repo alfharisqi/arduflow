@@ -1,6 +1,4 @@
-import { CardGrid } from '../components/CardGrid.jsx';
 import { Hero } from '../components/Hero.jsx';
-import { programs } from '../features/content/arduflowContent.js';
 
 const whatIsCards = [
   {
@@ -119,6 +117,41 @@ const ideAccessSteps = [
     icon: 'monitor',
     step: 'Step 5',
     label: 'Login ke Arduflow IDE',
+  },
+];
+
+const programItems = [
+  {
+    icon: 'graduation',
+    title: 'IoT Workshop untuk Sekolah',
+  },
+  {
+    icon: 'user',
+    title: 'Teacher Training Program',
+  },
+  {
+    icon: 'users',
+    title: 'Community Workshop',
+  },
+  {
+    icon: 'book',
+    title: 'Beginner Arduino Class',
+  },
+  {
+    icon: 'monitor',
+    title: 'Campus Program',
+  },
+  {
+    icon: 'message',
+    title: 'Private Class',
+  },
+  {
+    icon: 'settings',
+    title: 'Corporate Training',
+  },
+  {
+    icon: 'cpu',
+    title: 'Custom IoT Solutions',
   },
 ];
 
@@ -300,6 +333,97 @@ function IdeAccessIcon({ type }) {
   );
 }
 
+function ProgramIcon({ type }) {
+  const common = {
+    width: '40',
+    height: '40',
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    xmlns: 'http://www.w3.org/2000/svg',
+  };
+
+  if (type === 'graduation') {
+    return (
+      <svg {...common}>
+        <path d="M22 10L12 5L2 10L12 15L22 10Z" />
+        <path d="M6 12.5V17C9.8 19 14.2 19 18 17V12.5" />
+        <path d="M22 10V16" />
+      </svg>
+    );
+  }
+
+  if (type === 'user') {
+    return (
+      <svg {...common}>
+        <path d="M20 21V19A4 4 0 0 0 16 15H8A4 4 0 0 0 4 19V21" />
+        <path d="M12 11A4 4 0 1 0 12 3A4 4 0 0 0 12 11Z" />
+      </svg>
+    );
+  }
+
+  if (type === 'users') {
+    return (
+      <svg {...common}>
+        <path d="M17 21V19A4 4 0 0 0 13 15H5A4 4 0 0 0 1 19V21" />
+        <path d="M9 11A4 4 0 1 0 9 3A4 4 0 0 0 9 11Z" />
+        <path d="M23 21V19A4 4 0 0 0 20 15.13" />
+        <path d="M16 3.13A4 4 0 0 1 16 10.87" />
+      </svg>
+    );
+  }
+
+  if (type === 'book') {
+    return (
+      <svg {...common}>
+        <path d="M2 4.5A3.5 3.5 0 0 1 5.5 3H11V21H5.5A3.5 3.5 0 0 0 2 22.5V4.5Z" />
+        <path d="M22 4.5A3.5 3.5 0 0 0 18.5 3H13V21H18.5A3.5 3.5 0 0 1 22 22.5V4.5Z" />
+      </svg>
+    );
+  }
+
+  if (type === 'monitor') {
+    return (
+      <svg {...common}>
+        <path d="M3 4H21V16H3V4Z" />
+        <path d="M8 21H16" />
+        <path d="M12 16V21" />
+      </svg>
+    );
+  }
+
+  if (type === 'message') {
+    return (
+      <svg {...common}>
+        <path d="M21 15A4 4 0 0 1 17 19H7L3 23V7A4 4 0 0 1 7 3H17A4 4 0 0 1 21 7V15Z" />
+      </svg>
+    );
+  }
+
+  if (type === 'settings') {
+    return (
+      <svg {...common}>
+        <path d="M12 8.5A3.5 3.5 0 1 0 12 15.5A3.5 3.5 0 0 0 12 8.5Z" />
+        <path d="M19.4 15A1.65 1.65 0 0 0 19.73 16.82L19.79 16.88A2 2 0 1 1 16.96 19.71L16.9 19.65A1.65 1.65 0 0 0 15.08 19.32A1.65 1.65 0 0 0 14.08 20.83V21A2 2 0 1 1 10.08 21V20.91A1.65 1.65 0 0 0 9 19.4A1.65 1.65 0 0 0 7.18 19.73L7.12 19.79A2 2 0 1 1 4.29 16.96L4.35 16.9A1.65 1.65 0 0 0 4.68 15.08A1.65 1.65 0 0 0 3.17 14.08H3A2 2 0 1 1 3 10.08H3.09A1.65 1.65 0 0 0 4.6 9A1.65 1.65 0 0 0 4.27 7.18L4.21 7.12A2 2 0 1 1 7.04 4.29L7.1 4.35A1.65 1.65 0 0 0 8.92 4.68H9A1.65 1.65 0 0 0 10 3.17V3A2 2 0 1 1 14 3V3.09A1.65 1.65 0 0 0 15 4.6A1.65 1.65 0 0 0 16.82 4.27L16.88 4.21A2 2 0 1 1 19.71 7.04L19.65 7.1A1.65 1.65 0 0 0 19.32 8.92V9A1.65 1.65 0 0 0 20.83 10H21A2 2 0 1 1 21 14H20.91A1.65 1.65 0 0 0 19.4 15Z" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg {...common}>
+      <path d="M8 8H16V16H8V8Z" />
+      <path d="M4 4H20V20H4V4Z" />
+      <path d="M9 1V4" />
+      <path d="M15 1V4" />
+      <path d="M9 20V23" />
+      <path d="M15 20V23" />
+      <path d="M20 9H23" />
+      <path d="M20 15H23" />
+      <path d="M1 9H4" />
+      <path d="M1 15H4" />
+    </svg>
+  );
+}
+
 function VisualStepPreview({ type }) {
   return (
     <div className={`visual-preview ${type}`}>
@@ -440,10 +564,24 @@ export function Home() {
           </div>
         </div>
       </section>
-      <section className="section">
-        <p className="eyebrow">Program Pendukung</p>
-        <h2>Workshop dan training sebagai jalur belajar terstruktur.</h2>
-        <CardGrid items={programs} />
+      <section className="program-section">
+        <div className="program-inner">
+          <h2>Program / Workshop</h2>
+          <div className="program-grid">
+            {programItems.map((program) => (
+              <article className="program-card" key={program.title}>
+                <div className="program-icon">
+                  <ProgramIcon type={program.icon} />
+                </div>
+                <h3>{program.title}</h3>
+              </article>
+            ))}
+          </div>
+          <div className="program-actions">
+            <a className="program-primary" href="/workshop">Daftar Workshop</a>
+            <a className="program-secondary" href="/kontak">Ajukan Kerja Sama</a>
+          </div>
+        </div>
       </section>
     </>
   );
