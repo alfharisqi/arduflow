@@ -211,6 +211,10 @@ const projectItems = [
   },
 ];
 
+const galleryItems = Array.from({ length: 5 }, (_, index) => ({
+  title: `Galeri ${index + 1}`,
+}));
+
 function WhatIsIcon({ type }) {
   const common = {
     width: '24',
@@ -573,6 +577,23 @@ function ProjectImagePlaceholder() {
   );
 }
 
+function GalleryImagePlaceholder() {
+  return (
+    <svg width="96" height="61" viewBox="0 0 96 61" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M1 60L32 20L51 42L66 9L95 60H1Z" fill="#d1d5db" />
+      <circle cx="47" cy="10" r="10" fill="#d1d5db" />
+    </svg>
+  );
+}
+
+function GalleryMessageIcon() {
+  return (
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M21 15A4 4 0 0 1 17 19H7L3 23V7A4 4 0 0 1 7 3H17A4 4 0 0 1 21 7V15Z" />
+    </svg>
+  );
+}
+
 function VisualStepPreview({ type }) {
   return (
     <div className={`visual-preview ${type}`}>
@@ -770,6 +791,26 @@ export function Home() {
             ))}
           </div>
           <a className="projects-all-button" href="/project">Lihat Semua Proyek</a>
+        </div>
+      </section>
+      <section className="gallery-section">
+        <div className="gallery-inner">
+          <h2>Kredibilitas / Galeri</h2>
+          <div className="gallery-grid">
+            {galleryItems.map((item) => (
+              <article className="gallery-image-card" key={item.title}>
+                <GalleryImagePlaceholder />
+              </article>
+            ))}
+            <article className="gallery-testimonial-card">
+              <GalleryMessageIcon />
+              <div>
+                <h3>Testimoni Guru & Siswa</h3>
+                <p>"Belajar IoT jadi jauh lebih cepat sejak menggunakan Arduflow..."</p>
+              </div>
+            </article>
+          </div>
+          <a className="gallery-all-button" href="/galeri">Lihat Galeri Lengkap</a>
         </div>
       </section>
     </>
