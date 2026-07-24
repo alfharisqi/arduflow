@@ -1,4 +1,11 @@
 import { Hero } from '../components/Hero.jsx';
+import connectComponentGif from '../assets/gif/gif-connect2component-idearduflow.gif';
+import inputValueComponentGif from '../assets/gif/gif-inputvaluecomponent-idearduflow.gif';
+import putComponentGif from '../assets/gif/gif-putcomponent-idearduflow.gif';
+import trafficLightsGif from '../assets/gif/gif-trafficlights-idearduflow.gif';
+import lineOneIcon from '../assets/icons/line-1.svg';
+import lineTwoIcon from '../assets/icons/line-2.svg';
+import lineThreeIcon from '../assets/icons/line-3.svg';
 
 const whatIsCards = [
   {
@@ -684,6 +691,54 @@ function PartnerIcon({ type }) {
 }
 
 function VisualStepPreview({ type }) {
+  if (type === 'components') {
+    return (
+      <div className="visual-preview components">
+        <img
+          className="visual-preview-gif"
+          src={putComponentGif}
+          alt="Demo memilih komponen di IDE visual Arduflow"
+        />
+      </div>
+    );
+  }
+
+  if (type === 'flow') {
+    return (
+      <div className="visual-preview flow">
+        <img
+          className="visual-preview-gif"
+          src={connectComponentGif}
+          alt="Demo menyusun alur program di IDE visual Arduflow"
+        />
+      </div>
+    );
+  }
+
+  if (type === 'config') {
+    return (
+      <div className="visual-preview config">
+        <img
+          className="visual-preview-gif"
+          src={inputValueComponentGif}
+          alt="Demo konfigurasi input output di IDE visual Arduflow"
+        />
+      </div>
+    );
+  }
+
+  if (type === 'upload') {
+    return (
+      <div className="visual-preview upload">
+        <img
+          className="visual-preview-gif"
+          src={trafficLightsGif}
+          alt="Demo upload program ke board di IDE visual Arduflow"
+        />
+      </div>
+    );
+  }
+
   return (
     <div className={`visual-preview ${type}`}>
       <div className="visual-sidebar">
@@ -738,9 +793,9 @@ export function Home() {
         <div className="visual-work-inner">
           <h2>Cara Kerja Visual Programming</h2>
           <div className="visual-work-cards">
-            <span className="flow-line line-one" />
-            <span className="flow-line line-two" />
-            <span className="flow-line line-three" />
+            <img className="flow-line line-one" src={lineOneIcon} alt="" aria-hidden="true" />
+            <img className="flow-line line-two" src={lineTwoIcon} alt="" aria-hidden="true" />
+            <img className="flow-line line-three" src={lineThreeIcon} alt="" aria-hidden="true" />
             {visualSteps.map((step) => (
               <article className={`visual-work-card ${step.visual}`} key={step.title}>
                 <VisualStepPreview type={step.visual} />
