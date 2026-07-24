@@ -1287,6 +1287,175 @@ a {
   top: 33px;
 }
 
+.ide-access-section {
+  position: relative;
+  width: 100%;
+  height: 589px;
+  overflow: hidden;
+  background:
+    radial-gradient(118.15% 96.06% at -3.4% 47.54%, rgba(255, 106, 0, 0.4) 0%, rgba(255, 106, 0, 0) 40%),
+    linear-gradient(0deg, #030b1e, #030b1e),
+    #fff;
+}
+
+.ide-access-inner {
+  position: absolute;
+  left: 50%;
+  top: calc(50% - 190px + 0.5px);
+  width: min(673px, calc(100% - 48px));
+  height: 380px;
+  transform: translateX(-50%);
+}
+
+.ide-access-inner > h2 {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 376px;
+  margin: 0;
+  transform: translateX(-50%);
+  color: #fff;
+  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 40px;
+  text-align: center;
+  letter-spacing: -0.32px;
+}
+
+.ide-access-steps {
+  position: absolute;
+  left: 50%;
+  top: calc(50% - 80.5px - 14.5px);
+  display: block;
+  width: 673px;
+  max-width: 100%;
+  height: 161px;
+  transform: translateX(-50%);
+}
+
+.ide-access-step {
+  position: absolute;
+  left: 139px;
+  top: 0;
+  width: 128px;
+  height: 136px;
+  color: #fff;
+  text-align: center;
+  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
+}
+
+.ide-access-step:first-child {
+  left: 0;
+  width: 106px;
+}
+
+.ide-access-step:nth-child(2) {
+  left: 139px;
+}
+
+.ide-access-step:nth-child(3) {
+  left: calc(50% - 52.5px + 16px);
+  width: 105px;
+  height: 161px;
+}
+
+.ide-access-step:nth-child(4) {
+  left: 438px;
+  width: 103px;
+  height: 144px;
+}
+
+.ide-access-step:nth-child(5) {
+  right: 0;
+  left: auto;
+  width: 99px;
+  height: 144px;
+}
+
+.ide-access-icon {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto;
+  border: 3px solid #ff5a00;
+}
+
+.ide-access-icon svg {
+  width: 32px;
+  height: 32px;
+}
+
+.ide-access-icon path {
+  stroke: #ff5a00;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ide-access-label {
+  margin-top: 13px;
+}
+
+.ide-access-label strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.ide-access-label p {
+  margin: 0;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.ide-access-actions {
+  position: absolute;
+  left: 50%;
+  top: 289px;
+  width: 308px;
+  height: 91px;
+  transform: translateX(-50%);
+  text-align: center;
+  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
+}
+
+.ide-token-button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 308px;
+  height: 48px;
+  color: #fff;
+  background: #ff5a00;
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.1);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 22px;
+}
+
+.ide-access-actions p {
+  margin: 17px 0 0;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+}
+
+.ide-access-actions a:not(.ide-token-button) {
+  color: #ff5a00;
+  font-weight: 700;
+}
+
 @media (max-width: 1180px) {
   .landing-hero {
     height: auto;
@@ -1491,6 +1660,45 @@ a {
   .benefit-card {
     width: 100%;
     flex-basis: auto;
+  }
+
+  .ide-access-section {
+    height: auto;
+    padding: 72px 24px;
+  }
+
+  .ide-access-inner,
+  .ide-access-inner > h2,
+  .ide-access-steps,
+  .ide-access-actions {
+    position: static;
+    width: 100%;
+    height: auto;
+    transform: none;
+  }
+
+  .ide-access-inner {
+    display: grid;
+    gap: 52px;
+  }
+
+  .ide-access-inner > h2 {
+    justify-self: center;
+  }
+
+  .ide-access-steps {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(96px, 1fr));
+    gap: 24px;
+  }
+
+  .ide-access-step:nth-child(n) {
+    width: 100%;
+  }
+
+  .ide-access-actions {
+    justify-self: center;
+    width: 308px;
   }
 }
 
@@ -1945,5 +2153,19 @@ a {
 
   .benefit-card p {
     width: calc(100% - 84px);
+  }
+
+  .ide-access-steps {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .ide-access-step:nth-child(n) {
+    max-width: 180px;
+  }
+
+  .ide-access-actions,
+  .ide-token-button {
+    width: 100%;
   }
 }

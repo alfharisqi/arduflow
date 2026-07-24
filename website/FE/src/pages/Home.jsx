@@ -1,7 +1,6 @@
-import { AccessSteps } from '../components/AccessSteps.jsx';
 import { CardGrid } from '../components/CardGrid.jsx';
 import { Hero } from '../components/Hero.jsx';
-import { accessSteps, programs } from '../features/content/arduflowContent.js';
+import { programs } from '../features/content/arduflowContent.js';
 
 const whatIsCards = [
   {
@@ -93,6 +92,34 @@ const benefitRows = [
     'Cocok untuk pemula, siswa, guru, dan seluruh komunitas.',
     'Menyediakan learning path dari tingkat dasar hingga mahir.',
   ],
+];
+
+const ideAccessSteps = [
+  {
+    icon: 'file',
+    step: 'Step 1',
+    label: 'Daftar Melalui Formulir',
+  },
+  {
+    icon: 'layers',
+    step: 'Step 2',
+    label: 'Pilih Program atau Paket Akses',
+  },
+  {
+    icon: 'zap',
+    step: 'Step 3',
+    label: 'Lakukan Pembayaran / Konfirmasi',
+  },
+  {
+    icon: 'message',
+    step: 'Step 4',
+    label: 'Terima Token dari Admin',
+  },
+  {
+    icon: 'monitor',
+    step: 'Step 5',
+    label: 'Login ke Arduflow IDE',
+  },
 ];
 
 function WhatIsIcon({ type }) {
@@ -217,6 +244,62 @@ function BenefitCheckIcon() {
   );
 }
 
+function IdeAccessIcon({ type }) {
+  const common = {
+    width: '32',
+    height: '32',
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    xmlns: 'http://www.w3.org/2000/svg',
+  };
+
+  if (type === 'layers') {
+    return (
+      <svg {...common}>
+        <path d="M12 3L3 8L12 13L21 8L12 3Z" />
+        <path d="M3 12L12 17L21 12" />
+        <path d="M3 16L12 21L21 16" />
+      </svg>
+    );
+  }
+
+  if (type === 'zap') {
+    return (
+      <svg {...common}>
+        <path d="M13 2L4 14H11L10 22L20 9H13L13 2Z" />
+      </svg>
+    );
+  }
+
+  if (type === 'message') {
+    return (
+      <svg {...common}>
+        <path d="M21 15A4 4 0 0 1 17 19H7L3 23V7A4 4 0 0 1 7 3H17A4 4 0 0 1 21 7V15Z" />
+      </svg>
+    );
+  }
+
+  if (type === 'monitor') {
+    return (
+      <svg {...common}>
+        <path d="M3 4H21V16H3V4Z" />
+        <path d="M8 21H16" />
+        <path d="M12 16V21" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg {...common}>
+      <path d="M14 2H6A2 2 0 0 0 4 4V20A2 2 0 0 0 6 22H18A2 2 0 0 0 20 20V8L14 2Z" />
+      <path d="M14 2V8H20" />
+      <path d="M8 13H16" />
+      <path d="M8 17H16" />
+      <path d="M8 9H10" />
+    </svg>
+  );
+}
+
 function VisualStepPreview({ type }) {
   return (
     <div className={`visual-preview ${type}`}>
@@ -333,10 +416,29 @@ export function Home() {
           ))}
         </div>
       </section>
-      <section className="section">
-        <p className="eyebrow">Akses IDE</p>
-        <h2>Cara mendapatkan token ArduFlow IDE.</h2>
-        <AccessSteps steps={accessSteps} />
+      <section className="ide-access-section">
+        <div className="ide-access-inner">
+          <h2>Cara Mendapatkan Akses IDE</h2>
+          <div className="ide-access-steps">
+            {ideAccessSteps.map((item) => (
+              <article className="ide-access-step" key={item.step}>
+                <div className="ide-access-icon">
+                  <IdeAccessIcon type={item.icon} />
+                </div>
+                <div className="ide-access-label">
+                  <strong>{item.step}</strong>
+                  <p>{item.label}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+          <div className="ide-access-actions">
+            <a className="ide-token-button" href="/akses">Daftar untuk Mendapatkan Token</a>
+            <p>
+              Sudah punya token? <a href="/ide">Masuk ke IDE</a>
+            </p>
+          </div>
+        </div>
       </section>
       <section className="section">
         <p className="eyebrow">Program Pendukung</p>
