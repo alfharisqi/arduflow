@@ -6,6 +6,16 @@
   height: 65px;
   background: var(--navy);
   font-family: "Rajdhani", Arial, Helvetica, sans-serif;
+﻿.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  width: 100%;
+  height: 65px;
+  padding: 0;
+  background: var(--nav-bg);
+  border-bottom: 0;
+  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
 }
 
 .brand {
@@ -19,11 +29,13 @@
   font-size: 20px;
   font-weight: 700;
   line-height: 28px;
+  letter-spacing: -0.5px;
   text-transform: uppercase;
 }
 
 .brand span span {
   color: var(--orange);
+  color: var(--nav-orange);
 }
 
 .nav {
@@ -41,6 +53,10 @@
 .nav a,
 .nav-ide {
   color: var(--blue);
+.nav a {
+  padding: 0;
+  color: var(--nav-blue);
+  border-radius: 0;
   font-size: 14px;
   font-weight: 600;
   line-height: 20px;
@@ -50,6 +66,9 @@
 .nav a:hover,
 .nav-ide:hover {
   color: var(--orange);
+.nav a:hover {
+  color: var(--nav-orange);
+  background: transparent;
   font-weight: 700;
 }
 
@@ -59,6 +78,14 @@
   top: 22px;
   width: 59px;
   height: 20px;
+  color: var(--nav-blue);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.nav-ide:hover {
+  color: var(--nav-orange);
 }
 
 .navbar-button {
@@ -81,6 +108,10 @@
       rgba(255, 255, 255, 0) 100%
     ),
     var(--orange);
+  border-top-color: rgba(255, 255, 255, 0.24);
+  border-radius: 6px;
+  color: #fff;
+  background: radial-gradient(100% 100% at 50% 0%, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0) 100%), var(--nav-orange);
   box-shadow: 0 4px 8px -2px rgba(255, 98, 65, 0.48);
   font-size: 12px;
   font-weight: 700;

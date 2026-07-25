@@ -1,4 +1,5 @@
 .site-footer {
+﻿.site-footer {
   position: relative;
   width: 100%;
   height: 407px;
@@ -6,6 +7,7 @@
   color: #fff;
   background: linear-gradient(0deg, #010f30 0%, #011648 51.72%);
   font-family: "Rajdhani", Arial, Helvetica, sans-serif;
+  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
 }
 
 .footer-inner {
@@ -33,6 +35,7 @@
   font-size: 24px;
   font-weight: 700;
   line-height: 32px;
+  letter-spacing: -0.6px;
 }
 
 .footer-logo span {
@@ -146,6 +149,8 @@
 }
 
 .footer-contact svg {
+.footer-contact svg,
+.footer-contact .footer-asset-icon {
   opacity: 0.7;
 }
 
