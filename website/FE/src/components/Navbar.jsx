@@ -6,8 +6,7 @@ export function Navbar() {
   return (
     <header className="site-header">
       <a className="brand" href="/">
-        <span className="brand-mark">AF</span>
-        <span>Arduflow</span>
+        <span>ARDU<span>FLOW</span></span>
       </a>
       <nav className="nav" aria-label="Navigasi utama">
         {navigation.map((item) => (
@@ -16,7 +15,8 @@ export function Navbar() {
           </a>
         ))}
       </nav>
-      <a className="button small" href="/akses">Daftar Akses</a>
+      <a className="nav-ide" href="/ide">Masuk IDE</a>
+      <a className="navbar-button" href="/akses">Daftar Akses</a>
     </header>
   );
 }

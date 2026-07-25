@@ -1,34 +1,34 @@
+import servoIdeGif from '../assets/gif/gif-servonobg-idearduflow.gif';
+
 export function Hero() {
   return (
-    <section className="hero">
-      <div className="hero-copy">
-        <p className="eyebrow">Platform Edukasi IoT</p>
-        <h1>Belajar IoT dan Arduino lebih mudah dengan Arduflow.</h1>
-        <p>
-          Arduflow membantu pemula memahami IoT dari dasar hingga membuat project nyata melalui IDE visual,
-          tutorial terarah, contoh project, dan workshop terstruktur.
-        </p>
-        <div className="actions">
-          <a className="button" href="/akses">Daftar untuk Mendapatkan Akses</a>
-          <a className="button secondary" href="/program">Lihat Program Arduflow</a>
+    <section className="landing-hero">
+      <div className="landing-inner">
+        <div className="landing-copy">
+          <div className="landing-tag">FLOW. CONNECT. INNOVATE.</div>
+          <div className="landing-text">
+            <h1>
+              <span>IoT Development</span>
+              <span className="heading-light">with</span>
+              <span>Visual Programming</span>
+            </h1>
+            <p>
+              Arduflow membantu siswa, guru, komunitas, dan pemula belajar Arduino serta membuat proyek IoT
+              melalui IDE visual, tutorial, workshop, dan akses berbasis token.
+            </p>
+          </div>
+          <div className="landing-actions">
+            <a className="landing-primary" href="/akses">Daftar untuk Mendapatkan Akses</a>
+            <a className="landing-secondary" href="/program">Lihat Cara Kerja Arduflow</a>
+          </div>
+          <div className="landing-token">
+            <span>Sudah punya token?</span>
+            <a href="/ide">Masuk ke IDE</a>
+          </div>
         </div>
-      </div>
-      <div className="ide-preview" aria-label="Preview ArduFlow IDE">
-        <div className="preview-topbar">
-          <span />
-          <span />
-          <span />
-        </div>
-        <div className="preview-body">
-          <div className="block sensor">Sensor cahaya</div>
-          <div className="connector" />
-          <div className="block logic">Jika gelap</div>
-          <div className="connector" />
-          <div className="block action">Nyalakan lampu</div>
-        </div>
-        <div className="device-card">
-          <span className="status-dot" />
-          Smart Home Mini aktif
+
+        <div className="landing-visual" aria-label="Visual programming Arduflow">
+          <img className="landing-visual-gif" src={servoIdeGif} alt="Demo servo di IDE visual Arduflow" />
         </div>
       </div>
     </section>
