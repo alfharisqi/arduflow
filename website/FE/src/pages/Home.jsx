@@ -3,9 +3,61 @@ import connectComponentGif from '../assets/gif/gif-connect2component-idearduflow
 import inputValueComponentGif from '../assets/gif/gif-inputvaluecomponent-idearduflow.gif';
 import putComponentGif from '../assets/gif/gif-putcomponent-idearduflow.gif';
 import trafficLightsGif from '../assets/gif/gif-trafficlights-idearduflow.gif';
+import arrowRightIcon from '../assets/icons/icon-arrow-right-1.svg';
+import bookIcon from '../assets/icons/icon-book-1.svg';
+import chevronRightIcon from '../assets/icons/icon-chevron-right-1.svg';
+import checkIcon from '../assets/icons/icon-circle-check-1.svg';
+import helpIcon from '../assets/icons/icon-circle-help-1.svg';
+import clockIcon from '../assets/icons/icon-clock-1.svg';
+import cpuIcon from '../assets/icons/icon-cpu-1.svg';
+import fileTextIcon from '../assets/icons/icon-file-text-1.svg';
+import graduationIcon from '../assets/icons/icon-graduation-cap-1.svg';
+import houseIcon from '../assets/icons/icon-house-1.svg';
+import imagePlaceholderIcon from '../assets/icons/icon-image-placeholder-1.svg';
+import layersIcon from '../assets/icons/icon-layers-1.svg';
+import lightbulbIcon from '../assets/icons/icon-lightbulb-1.svg';
+import messageIcon from '../assets/icons/icon-message-square-1.svg';
+import monitorIcon from '../assets/icons/icon-monitor-1.svg';
+import settingsIcon from '../assets/icons/icon-settings-1.svg';
+import thermometerIcon from '../assets/icons/icon-thermometer-1.svg';
+import userIcon from '../assets/icons/icon-user-2.svg';
+import usersIcon from '../assets/icons/icon-users-1.svg';
+import workflowIcon from '../assets/icons/icon-workflow-1.svg';
+import zapIcon from '../assets/icons/icon-zap-1.svg';
 import lineOneIcon from '../assets/icons/line-1.svg';
 import lineTwoIcon from '../assets/icons/line-2.svg';
 import lineThreeIcon from '../assets/icons/line-3.svg';
+
+const iconAssets = {
+  arrowRight: arrowRightIcon,
+  book: bookIcon,
+  chevronRight: chevronRightIcon,
+  check: checkIcon,
+  clock: clockIcon,
+  cpu: cpuIcon,
+  file: fileTextIcon,
+  graduation: graduationIcon,
+  help: helpIcon,
+  house: houseIcon,
+  image: imagePlaceholderIcon,
+  layers: layersIcon,
+  lightbulb: lightbulbIcon,
+  message: messageIcon,
+  monitor: monitorIcon,
+  settings: settingsIcon,
+  thermometer: thermometerIcon,
+  user: userIcon,
+  users: usersIcon,
+  workflow: workflowIcon,
+  zap: zapIcon,
+};
+
+function AssetIcon({ type, className = '' }) {
+  const src = iconAssets[type] || iconAssets.book;
+  const classes = ['asset-icon', className].filter(Boolean).join(' ');
+
+  return <img className={classes} src={src} alt="" aria-hidden="true" />;
+}
 
 const whatIsCards = [
   {
@@ -780,7 +832,7 @@ export function Home() {
             {whatIsCards.map((card) => (
               <article className="what-card" key={card.title}>
                 <div className="what-icon">
-                  <WhatIsIcon type={card.icon} />
+                  <AssetIcon type={card.icon} />
                 </div>
                 <h3>{card.title}</h3>
                 <p>{card.text}</p>
@@ -808,7 +860,7 @@ export function Home() {
           </div>
           <a className="project-link-button" href="/project">
             Lihat Contoh Proyek
-            <span aria-hidden="true">&gt;</span>
+            <AssetIcon type="chevronRight" className="project-link-icon" />
           </a>
         </div>
       </section>
@@ -819,7 +871,7 @@ export function Home() {
             {problemRows[0].map((problem) => (
               <article className="problem-item" key={problem.text}>
                 <div className="problem-icon">
-                  <ProblemIcon type={problem.icon} />
+                  <AssetIcon type={problem.icon} />
                 </div>
                 <p>{problem.text}</p>
               </article>
@@ -829,7 +881,7 @@ export function Home() {
             {problemRows[1].map((problem) => (
               <article className="problem-item" key={problem.text}>
                 <div className="problem-icon">
-                  <ProblemIcon type={problem.icon} />
+                  <AssetIcon type={problem.icon} />
                 </div>
                 <p>{problem.text}</p>
               </article>
@@ -845,7 +897,7 @@ export function Home() {
               {row.map((benefit) => (
                 <article className="benefit-card" key={benefit}>
                   <div className="benefit-icon">
-                    <BenefitCheckIcon />
+                    <AssetIcon type="check" />
                   </div>
                   <p>{benefit}</p>
                 </article>
@@ -861,7 +913,7 @@ export function Home() {
             {ideAccessSteps.map((item) => (
               <article className="ide-access-step" key={item.step}>
                 <div className="ide-access-icon">
-                  <IdeAccessIcon type={item.icon} />
+                  <AssetIcon type={item.icon} />
                 </div>
                 <div className="ide-access-label">
                   <strong>{item.step}</strong>
@@ -885,7 +937,7 @@ export function Home() {
             {programItems.map((program) => (
               <article className="program-card" key={program.title}>
                 <div className="program-icon">
-                  <ProgramIcon type={program.icon} />
+                  <AssetIcon type={program.icon} />
                 </div>
                 <h3>{program.title}</h3>
               </article>
@@ -904,16 +956,16 @@ export function Home() {
             {tutorialItems.map((tutorial) => (
               <a className="tutorial-card" href="/tutorial" key={tutorial.title}>
                 <div className="tutorial-icon">
-                  <TutorialIcon type={tutorial.icon} />
+                  <AssetIcon type={tutorial.icon} />
                 </div>
                 <div className="tutorial-content">
                   <h3>{tutorial.title}</h3>
                   <span>
-                    <ClockIcon />
+                    <AssetIcon type="clock" className="tutorial-duration-icon" />
                     {tutorial.duration}
                   </span>
                 </div>
-                <ArrowRightIcon />
+                <AssetIcon type="arrowRight" className="tutorial-arrow-icon" />
               </a>
             ))}
           </div>
@@ -927,7 +979,7 @@ export function Home() {
             {projectItems.map((project, index) => (
               <article className="project-card" key={`${project.title}-${index}`}>
                 <div className="project-image">
-                  <ProjectImagePlaceholder />
+                  <AssetIcon type="image" className="project-placeholder-icon" />
                   <span>{project.tag}</span>
                 </div>
                 <h3>{project.title}</h3>
@@ -943,11 +995,11 @@ export function Home() {
           <div className="gallery-grid">
             {galleryItems.map((item) => (
               <article className="gallery-image-card" key={item.title}>
-                <GalleryImagePlaceholder />
+                <AssetIcon type="image" className="gallery-placeholder-icon" />
               </article>
             ))}
             <article className="gallery-testimonial-card">
-              <GalleryMessageIcon />
+              <AssetIcon type="message" className="gallery-message-icon" />
               <div>
                 <h3>Testimoni Guru & Siswa</h3>
                 <p>"Belajar IoT jadi jauh lebih cepat sejak menggunakan Arduflow..."</p>
@@ -963,7 +1015,7 @@ export function Home() {
           <div className="partners-list">
             {partnerItems.map((partner) => (
               <article className="partner-item" key={partner.label}>
-                <PartnerIcon type={partner.icon} />
+                <AssetIcon type={partner.icon} />
                 <span>{partner.label}</span>
               </article>
             ))}

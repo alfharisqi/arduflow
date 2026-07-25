@@ -31,6 +31,36 @@ a {
   text-decoration: none;
 }
 
+.asset-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
+.what-icon .asset-icon,
+.problem-icon .asset-icon,
+.ide-access-icon .asset-icon,
+.tutorial-icon .asset-icon,
+.tutorial-duration-icon,
+.tutorial-arrow-icon,
+.footer-asset-icon {
+  filter: invert(42%) sepia(95%) saturate(2557%) hue-rotate(2deg) brightness(103%) contrast(104%);
+}
+
+.project-link-icon,
+.benefit-icon .asset-icon,
+.program-icon .asset-icon,
+.partner-item .asset-icon {
+  filter: invert(47%) sepia(99%) saturate(2010%) hue-rotate(168deg) brightness(105%) contrast(104%);
+}
+
+.project-placeholder-icon,
+.gallery-placeholder-icon {
+  filter: invert(88%) sepia(7%) saturate(196%) hue-rotate(179deg) brightness(94%) contrast(91%);
+}
+
 .site-header {
   position: sticky;
   top: 0;
@@ -630,7 +660,8 @@ a {
   height: 40px;
 }
 
-.what-icon svg {
+.what-icon svg,
+.what-icon .asset-icon {
   width: 24px;
   height: 24px;
 }
@@ -1072,6 +1103,11 @@ a {
   line-height: 16px;
 }
 
+.project-link-icon {
+  width: 16px;
+  height: 16px;
+}
+
 .problems-section {
   position: relative;
   width: 100%;
@@ -1168,7 +1204,8 @@ a {
   border: 2px solid #ff6a00;
 }
 
-.problem-icon svg {
+.problem-icon svg,
+.problem-icon .asset-icon {
   width: 24px;
   height: 24px;
 }
@@ -1275,7 +1312,8 @@ a {
   height: 16px;
 }
 
-.benefit-icon svg {
+.benefit-icon svg,
+.benefit-icon .asset-icon {
   width: 16px;
   height: 16px;
 }
@@ -1401,7 +1439,8 @@ a {
   border: 3px solid #ff5a00;
 }
 
-.ide-access-icon svg {
+.ide-access-icon svg,
+.ide-access-icon .asset-icon {
   width: 32px;
   height: 32px;
 }
@@ -1542,7 +1581,8 @@ a {
   height: 40px;
 }
 
-.program-icon svg {
+.program-icon svg,
+.program-icon .asset-icon {
   width: 40px;
   height: 40px;
 }
@@ -1674,7 +1714,8 @@ a {
   height: 48px;
 }
 
-.tutorial-icon svg {
+.tutorial-icon svg,
+.tutorial-icon .asset-icon {
   width: 24px;
   height: 24px;
 }
@@ -1713,7 +1754,13 @@ a {
   line-height: 17px;
 }
 
-.tutorial-card > svg {
+.tutorial-duration-icon {
+  width: 12px;
+  height: 12px;
+}
+
+.tutorial-card > svg,
+.tutorial-arrow-icon {
   position: absolute;
   right: 20px;
   top: 36px;
@@ -1832,6 +1879,11 @@ a {
   line-height: 16px;
 }
 
+.project-placeholder-icon {
+  width: 74px;
+  height: 46px;
+}
+
 .project-card h3 {
   position: absolute;
   left: 16px;
@@ -1940,10 +1992,20 @@ a {
   text-align: center;
 }
 
-.gallery-testimonial-card > svg {
+.gallery-placeholder-icon {
+  width: 96px;
+  height: 61px;
+}
+
+.gallery-testimonial-card > svg,
+.gallery-message-icon {
   width: 40px;
   height: 40px;
   opacity: 0.4;
+}
+
+.gallery-message-icon {
+  filter: brightness(0) invert(1);
 }
 
 .gallery-testimonial-card > svg path {
@@ -2059,7 +2121,8 @@ a {
   white-space: nowrap;
 }
 
-.partner-item svg {
+.partner-item svg,
+.partner-item .asset-icon {
   width: 24px;
   height: 24px;
   flex: 0 0 auto;
@@ -2951,7 +3014,8 @@ a {
   min-height: 20px;
 }
 
-.footer-contact svg {
+.footer-contact svg,
+.footer-contact .footer-asset-icon {
   opacity: 0.7;
 }
 
