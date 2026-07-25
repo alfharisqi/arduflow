@@ -1,3 +1,4 @@
+.site-footer {
 ﻿.site-footer {
   position: relative;
   width: 100%;
@@ -5,6 +6,7 @@
   overflow: hidden;
   color: #fff;
   background: linear-gradient(0deg, #010f30 0%, #011648 51.72%);
+  font-family: "Rajdhani", Arial, Helvetica, sans-serif;
   font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
 }
 
@@ -146,6 +148,7 @@
   min-height: 20px;
 }
 
+.footer-contact svg {
 .footer-contact svg,
 .footer-contact .footer-asset-icon {
   opacity: 0.7;
@@ -167,5 +170,10 @@
   font-weight: 400;
   line-height: 16px;
   text-align: center;
+}
+
+.anchor-target {
+  min-height: 1px;
+  scroll-margin-top: 80px;
 }
 

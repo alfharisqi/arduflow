@@ -1,3 +1,213 @@
+.project-hero {
+  position: relative;
+  min-height: 653px;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(
+      94.74% 149.33% at 80% 20%,
+      rgba(0, 162, 255, 0.3) 6.23%,
+      rgba(0, 162, 255, 0) 40%
+    ),
+    radial-gradient(
+      94.74% 149.33% at 20% 80%,
+      rgba(255, 106, 0, 0.4) 0%,
+      rgba(255, 106, 0, 0) 40%
+    ),
+    var(--navy);
+}
+
+.project-hero__inner {
+  position: relative;
+  width: 100%;
+  min-height: 653px;
+}
+
+.project-hero__content {
+  position: relative;
+  z-index: 3;
+  width: 650px;
+  padding-top: 52px;
+  margin-left: clamp(32px, 5.56vw, 80px);
+}
+
+.project-hero__eyebrow {
+  width: 240px;
+  margin: 0 0 25px;
+  color: var(--blue);
+  font: 600 11px/13px "Inter", sans-serif;
+}
+
+.project-hero__title {
+  margin: 0;
+  color: var(--white);
+  font-family: "Rajdhani", sans-serif;
+  font-size: 54px;
+  font-weight: 700;
+  line-height: 69px;
+}
+
+.project-hero__title span,
+.project-hero__title strong {
+  display: block;
+}
+
+.project-hero__title strong {
+  margin-top: -5px;
+  color: var(--orange);
+  font-family: "Orbitron", sans-serif;
+  font-size: 54px;
+  line-height: 68px;
+}
+
+.project-hero__description {
+  max-width: 600px;
+  margin: 5px 0 0;
+  color: var(--muted);
+  font: 700 18px/23px "Rajdhani", sans-serif;
+}
+
+.project-hero__actions {
+  display: flex;
+  gap: 20px;
+  margin-top: 32px;
+}
+
+.button {
+  display: inline-flex;
+  height: 48px;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 6px;
+  color: #fff;
+  font: 700 14px/22px "Rajdhani", sans-serif;
+  text-align: center;
+  text-decoration: none;
+  text-transform: uppercase;
+  box-shadow: 0 4px 8px -2px rgba(255, 98, 65, 0.48);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    filter 180ms ease;
+}
+
+.button:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+  box-shadow: 0 8px 18px -5px rgba(255, 98, 65, 0.68);
+}
+
+.button:focus-visible,
+.nav a:focus-visible,
+.nav-ide:focus-visible,
+.brand:focus-visible,
+.navbar-button:focus-visible {
+  outline: 3px solid rgba(0, 168, 255, 0.8);
+  outline-offset: 3px;
+}
+
+.button--primary {
+  width: 180px;
+  background:
+    radial-gradient(
+      100% 100% at 50% 0%,
+      rgba(255, 255, 255, 0.3) 0%,
+      rgba(255, 255, 255, 0) 100%
+    ),
+    var(--orange);
+}
+
+.button--secondary {
+  width: 238px;
+  color: var(--orange);
+  font-weight: 600;
+  background: radial-gradient(
+    100% 100% at 50% 0%,
+    rgba(255, 106, 0, 0.3) 0%,
+    rgba(255, 106, 0, 0) 100%
+  );
+  border-color: rgba(255, 106, 0, 0.42);
+}
+
+.project-hero__visual {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  right: 0;
+  width: 755px;
+  height: 504px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.project-hero__visual img {
+  position: absolute;
+  top: 0;
+  left: -681px;
+  width: 1440px;
+  max-width: none;
+  height: 513px;
+  object-fit: fill;
+}
+
+.key-metrics {
+  position: absolute;
+  z-index: 4;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 136px;
+  background: var(--navy-2);
+}
+
+.key-metrics__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: clamp(48px, 9.38vw, 135px);
+  width: min(100%, 1440px);
+  height: 100%;
+  padding-inline: clamp(32px, 11.25vw, 162px);
+  margin-inline: auto;
+}
+
+.metric-group {
+  display: contents;
+}
+
+.metric {
+  width: max-content;
+  min-width: 54px;
+  height: 66px;
+  font-family: "Rajdhani", sans-serif;
+}
+
+.metric strong,
+.metric span {
+  display: block;
+}
+
+.metric strong {
+  color: var(--white);
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 38px;
+}
+
+.metric span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 14px;
+}
+
+.metric-divider {
+  width: 1px;
+  height: 66px;
+  background: var(--line);
 ﻿.landing-hero {
   position: relative;
   width: 100%;
