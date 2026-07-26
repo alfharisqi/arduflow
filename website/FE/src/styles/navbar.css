@@ -1,11 +1,3 @@
-.site-header {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  width: 100%;
-  height: 65px;
-  background: var(--navy);
-  font-family: "Rajdhani", Arial, Helvetica, sans-serif;
 ﻿.site-header {
   position: sticky;
   top: 0;
@@ -34,7 +26,6 @@
 }
 
 .brand span span {
-  color: var(--orange);
   color: var(--nav-orange);
 }
 
@@ -50,9 +41,6 @@
   gap: 41px;
 }
 
-.nav a,
-.nav-ide {
-  color: var(--blue);
 .nav a {
   padding: 0;
   color: var(--nav-blue);
@@ -63,9 +51,6 @@
 }
 
 .nav a.active,
-.nav a:hover,
-.nav-ide:hover {
-  color: var(--orange);
 .nav a:hover {
   color: var(--nav-orange);
   background: transparent;
@@ -99,15 +84,6 @@
   height: 36px;
   padding: 6px 12px;
   border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 6px;
-  color: #fff;
-  background:
-    radial-gradient(
-      100% 100% at 50% 0%,
-      rgba(255, 255, 255, 0.3) 0%,
-      rgba(255, 255, 255, 0) 100%
-    ),
-    var(--orange);
   border-top-color: rgba(255, 255, 255, 0.24);
   border-radius: 6px;
   color: #fff;

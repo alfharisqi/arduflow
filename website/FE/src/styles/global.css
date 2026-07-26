@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@600&family=Orbitron:wght@700&family=Rajdhani:wght@600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Orbitron:wght@400;700&family=Plus+Jakarta+Sans:wght@600&family=Rajdhani:wght@400;500;600;700&display=swap");
 
 :root {
   --navy: #030b1e;
@@ -8,20 +8,15 @@
   --line: #17324f;
   --blue: #00a8ff;
   --orange: #ff6a00;
-﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400&family=Orbitron:wght@400&family=Plus+Jakarta+Sans:wght@600&family=Rajdhani:wght@400;500;600;700&display=swap');
-
-:root {
   --ink: #16201c;
-  --muted: #5d6a64;
-  --line: #dfe7e2;
   --panel: #f6faf7;
   --brand: #0c7c59;
   --brand-dark: #07543d;
   --accent: #f2b441;
   --surface: #ffffff;
-  --nav-bg: #030b1e;
+  --nav-bg: var(--navy);
   --nav-blue: #00a2ff;
-  --nav-orange: #ff6a00;
+  --nav-orange: var(--orange);
 }
 
 * {
@@ -37,17 +32,12 @@ body {
   min-width: 320px;
   color: var(--white);
   background: var(--navy);
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 #root {
   min-height: 100vh;
   background: var(--navy);
-body {
-  margin: 0;
-  color: var(--ink);
-  background: #fbfdfb;
-  font-family: Arial, Helvetica, sans-serif;
-  line-height: 1.6;
 }
 
 a {
@@ -84,4 +74,3 @@ a {
 .gallery-placeholder-icon {
   filter: invert(88%) sepia(7%) saturate(196%) hue-rotate(179deg) brightness(94%) contrast(91%);
 }
-
