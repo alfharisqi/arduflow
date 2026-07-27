@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@600&family=Orbitron:wght@700&family=Rajdhani:wght@600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Orbitron:wght@400;700&family=Plus+Jakarta+Sans:wght@600&family=Rajdhani:wght@400;500;600;700&display=swap");
 
 :root {
   --navy: #030b1e;
@@ -8,6 +8,15 @@
   --line: #17324f;
   --blue: #00a8ff;
   --orange: #ff6a00;
+  --ink: #16201c;
+  --panel: #f6faf7;
+  --brand: #0c7c59;
+  --brand-dark: #07543d;
+  --accent: #f2b441;
+  --surface: #ffffff;
+  --nav-bg: var(--navy);
+  --nav-blue: #00a2ff;
+  --nav-orange: var(--orange);
 }
 
 * {
@@ -23,6 +32,7 @@ body {
   min-width: 320px;
   color: var(--white);
   background: var(--navy);
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 #root {
@@ -35,3 +45,32 @@ a {
   text-decoration: none;
 }
 
+.asset-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
+.what-icon .asset-icon,
+.problem-icon .asset-icon,
+.ide-access-icon .asset-icon,
+.tutorial-icon .asset-icon,
+.tutorial-duration-icon,
+.tutorial-arrow-icon,
+.footer-asset-icon {
+  filter: invert(42%) sepia(95%) saturate(2557%) hue-rotate(2deg) brightness(103%) contrast(104%);
+}
+
+.project-link-icon,
+.benefit-icon .asset-icon,
+.program-icon .asset-icon,
+.partner-item .asset-icon {
+  filter: invert(47%) sepia(99%) saturate(2010%) hue-rotate(168deg) brightness(105%) contrast(104%);
+}
+
+.project-placeholder-icon,
+.gallery-placeholder-icon {
+  filter: invert(88%) sepia(7%) saturate(196%) hue-rotate(179deg) brightness(94%) contrast(91%);
+}

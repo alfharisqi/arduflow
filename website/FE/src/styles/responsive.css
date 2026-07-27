@@ -1,4 +1,4 @@
-@media (max-width: 1160px) {
+﻿@media (max-width: 1160px) {
   .site-header {
     display: flex;
     align-items: center;
@@ -597,3 +597,4 @@
     transition: none;
   }
 }
+
