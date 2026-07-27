@@ -61,7 +61,7 @@ export function SignIn() {
               />
             </label>
 
-            <a className="signin-forgot" href="/akses">Lupa Kata sandi</a>
+            <a className="signin-forgot" href="/reset-password">Lupa Kata sandi</a>
 
             <div className="signin-submit-group">
               <button className="signin-submit" type="submit">Masuk</button>
