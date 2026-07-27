@@ -4,6 +4,40 @@ import hideIcon from '../../assets/icons/icon-hide-1.svg';
 import { AuthImageSlider } from '../../components/auth/AuthImageSlider.jsx';
 import { registerUser } from '../../services/authApi.js';
 
+const phoneCountries = [
+  { code: 'ID', name: 'Indonesia', dial: '+62', flag: '🇮🇩' },
+  { code: 'MY', name: 'Malaysia', dial: '+60', flag: '🇲🇾' },
+  { code: 'SG', name: 'Singapore', dial: '+65', flag: '🇸🇬' },
+  { code: 'BN', name: 'Brunei', dial: '+673', flag: '🇧🇳' },
+  { code: 'TH', name: 'Thailand', dial: '+66', flag: '🇹🇭' },
+  { code: 'PH', name: 'Philippines', dial: '+63', flag: '🇵🇭' },
+  { code: 'VN', name: 'Vietnam', dial: '+84', flag: '🇻🇳' },
+  { code: 'US', name: 'United States', dial: '+1', flag: '🇺🇸' },
+  { code: 'GB', name: 'United Kingdom', dial: '+44', flag: '🇬🇧' },
+  { code: 'AU', name: 'Australia', dial: '+61', flag: '🇦🇺' },
+  { code: 'JP', name: 'Japan', dial: '+81', flag: '🇯🇵' },
+  { code: 'KR', name: 'South Korea', dial: '+82', flag: '🇰🇷' },
+  { code: 'CN', name: 'China', dial: '+86', flag: '🇨🇳' },
+  { code: 'IN', name: 'India', dial: '+91', flag: '🇮🇳' },
+  { code: 'SA', name: 'Saudi Arabia', dial: '+966', flag: '🇸🇦' },
+  { code: 'AE', name: 'United Arab Emirates', dial: '+971', flag: '🇦🇪' },
+  { code: 'DE', name: 'Germany', dial: '+49', flag: '🇩🇪' },
+  { code: 'FR', name: 'France', dial: '+33', flag: '🇫🇷' },
+  { code: 'NL', name: 'Netherlands', dial: '+31', flag: '🇳🇱' },
+  { code: 'BR', name: 'Brazil', dial: '+55', flag: '🇧🇷' },
+];
+
+function normalizeWhatsapp(dialCode, phone) {
+  const cleanDialCode = String(dialCode || '').replace(/[^\d+]/g, '');
+  const cleanPhone = String(phone || '').replace(/[^\d]/g, '').replace(/^0+/, '');
+
+  if (!cleanPhone) {
+    return '';
+  }
+
+  return `${cleanDialCode}${cleanPhone}`;
+}
+
 function SignUpField({ label, name, type = 'text', placeholder, children }) {
   return (
     <label className="signup-field">
@@ -15,8 +49,10 @@ function SignUpField({ label, name, type = 'text', placeholder, children }) {
 
 export function SignUp() {
   const [showPassword, setShowPassword] = useState(false);
+  const [selectedCountryCode, setSelectedCountryCode] = useState('ID');
   const [status, setStatus] = useState({ type: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const selectedCountry = phoneCountries.find((country) => country.code === selectedCountryCode) || phoneCountries[0];
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -29,7 +65,7 @@ export function SignUp() {
       const data = await registerUser({
         name: String(form.get('name') || ''),
         email: String(form.get('email') || ''),
-        whatsapp: String(form.get('whatsapp') || ''),
+        whatsapp: normalizeWhatsapp(form.get('whatsapp_dial'), form.get('whatsapp')),
         occupation: String(form.get('occupation') || ''),
         password: String(form.get('password') || ''),
       });
@@ -57,14 +93,33 @@ export function SignUp() {
 
             <SignUpField label="Nomor Whatsapp" name="whatsapp">
               <div className="signup-phone-input">
-                <div className="signup-country-code" aria-hidden="true">
-                  <span className="signup-flag">
-                    <span />
-                  </span>
-                  <img src={arrowDownIcon} alt="" />
-                  <strong>+1</strong>
+                <div className="signup-country-code">
+                  <span className="signup-flag" aria-hidden="true">{selectedCountry.flag}</span>
+                  <select
+                    name="whatsapp_dial"
+                    aria-label="Kode negara WhatsApp"
+                    value={selectedCountry.dial}
+                    onChange={(event) => {
+                      const nextCountry = phoneCountries.find((country) => country.dial === event.target.value);
+                      setSelectedCountryCode(nextCountry?.code || 'ID');
+                    }}
+                  >
+                    {phoneCountries.map((country) => (
+                      <option key={country.code} value={country.dial}>
+                        {country.name} {country.dial}
+                      </option>
+                    ))}
+                  </select>
+                  <img src={arrowDownIcon} alt="" aria-hidden="true" />
+                  <strong>{selectedCountry.dial}</strong>
                 </div>
-                <input type="tel" name="whatsapp" aria-label="Nomor Whatsapp" />
+                <input
+                  type="tel"
+                  name="whatsapp"
+                  aria-label="Nomor Whatsapp"
+                  inputMode="tel"
+                  placeholder="81234567890"
+                />
               </div>
             </SignUpField>
 
