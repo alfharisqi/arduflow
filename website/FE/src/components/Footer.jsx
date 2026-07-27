@@ -14,7 +14,7 @@ const footerMenus = [
       ['Tutorial', '/tutorial'],
       ['Proyek', '/project'],
       ['Program / Workshop', '/workshop'],
-      ['Tentang Kami', '/tentang-kami'],
+      ['Tentang Kami', '/partner'],
       ['Kontak', '/kontak'],
     ],
   },
@@ -33,8 +33,8 @@ const footerMenus = [
     title: 'Proyek / Galeri',
     links: [
       ['Contoh Proyek', '/project'],
-      ['Hasil Karya Siswa', '/galeri'],
-      ['Dokumentasi Kegiatan', '/galeri'],
+      ['Hasil Karya Siswa', '/project'],
+      ['Dokumentasi Kegiatan', '/project'],
     ],
   },
 ];
