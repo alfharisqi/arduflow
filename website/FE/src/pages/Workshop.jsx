@@ -213,7 +213,7 @@ const workshopFaqs = [
 
 export function Workshop() {
   return (
-    <>
+    <main className="workshop-page">
       <section className="workshop-hero" aria-labelledby="workshop-title">
         <div className="workshop-hero-inner">
           <div className="workshop-copy">
@@ -519,6 +519,6 @@ export function Workshop() {
           </div>
         </div>
       </section>
-    </>
+    </main>
   );
 }
