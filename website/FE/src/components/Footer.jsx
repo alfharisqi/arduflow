@@ -13,7 +13,7 @@ const footerMenus = [
       ['Beranda', '/'],
       ['Tutorial', '/tutorial'],
       ['Proyek', '/project'],
-      ['Program / Workshop', '/program'],
+      ['Program / Workshop', '/workshop'],
       ['Tentang Kami', '/tentang-kami'],
       ['Kontak', '/kontak'],
     ],
