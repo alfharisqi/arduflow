@@ -2,6 +2,7 @@ import { useState } from 'react';
 import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
 import hideIcon from '../../assets/icons/icon-hide-1.svg';
 import { AuthImageSlider } from '../../components/auth/AuthImageSlider.jsx';
+import { registerUser } from '../../services/authApi.js';
 
 function SignUpField({ label, name, type = 'text', placeholder, children }) {
   return (
@@ -14,6 +15,33 @@ function SignUpField({ label, name, type = 'text', placeholder, children }) {
 
 export function SignUp() {
   const [showPassword, setShowPassword] = useState(false);
+  const [status, setStatus] = useState({ type: '', message: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setStatus({ type: '', message: '' });
+    setIsSubmitting(true);
+
+    const form = new FormData(event.currentTarget);
+
+    try {
+      const data = await registerUser({
+        name: String(form.get('name') || ''),
+        email: String(form.get('email') || ''),
+        whatsapp: String(form.get('whatsapp') || ''),
+        occupation: String(form.get('occupation') || ''),
+        password: String(form.get('password') || ''),
+      });
+
+      sessionStorage.setItem('arduflow_auth_message', data.message);
+      window.location.assign('/signup/email-verification');
+    } catch (error) {
+      setStatus({ type: 'error', message: error.message });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   return (
     <main className="signin-page signup-page">
@@ -23,7 +51,7 @@ export function SignUp() {
         <div className="signup-form-box">
           <h2 id="signup-title">Daftar Sekarang</h2>
 
-          <form className="signup-form" action="/signup/email-verification">
+          <form className="signup-form" onSubmit={handleSubmit}>
             <SignUpField label="Nama" name="name" placeholder="Nama lengkap anda" />
             <SignUpField label="Email address" name="email" type="email" placeholder="contoh@gmail.com" />
 
@@ -87,11 +115,17 @@ export function SignUp() {
             </div>
 
             <div className="signup-actions">
-              <button className="signup-submit" type="submit">Daftar</button>
+              <button className="signup-submit" type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Memproses...' : 'Daftar'}
+              </button>
               <p>
                 Sudah punya akun? <a href="/signin">Masuk</a>
               </p>
             </div>
+
+            {status.message && (
+              <p className={`auth-form-message ${status.type}`}>{status.message}</p>
+            )}
           </form>
         </div>
       </section>

@@ -590,6 +590,24 @@
   line-height: 20px;
 }
 
+.auth-form-message {
+  width: 100%;
+  margin: -6px 0 0;
+  color: #ffffff;
+  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.auth-form-message.error {
+  color: #ff8a5c;
+}
+
+.auth-form-message.success {
+  color: #7dd3fc;
+}
+
 .verify-email-panel {
   position: relative;
   min-height: 1024px;

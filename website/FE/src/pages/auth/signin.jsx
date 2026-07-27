@@ -3,9 +3,35 @@ import googleIcon from '../../assets/icons/sosmed-google.png';
 import twitterIcon from '../../assets/icons/sosmed-twitter.png';
 import hideIcon from '../../assets/icons/icon-hide-1.svg';
 import { AuthImageSlider } from '../../components/auth/AuthImageSlider.jsx';
+import { loginUser } from '../../services/authApi.js';
 
 export function SignIn() {
   const [showPassword, setShowPassword] = useState(false);
+  const [status, setStatus] = useState({ type: '', message: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setStatus({ type: '', message: '' });
+    setIsSubmitting(true);
+
+    const form = new FormData(event.currentTarget);
+
+    try {
+      const data = await loginUser({
+        identifier: String(form.get('identifier') || ''),
+        password: String(form.get('password') || ''),
+      });
+
+      localStorage.setItem('arduflow_user', JSON.stringify(data.user));
+      setStatus({ type: 'success', message: data.message });
+      window.location.assign('/');
+    } catch (error) {
+      setStatus({ type: 'error', message: error.message });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   return (
     <main className="signin-page">
@@ -36,10 +62,10 @@ export function SignIn() {
             <span />
           </div>
 
-          <form className="signin-form">
+          <form className="signin-form" onSubmit={handleSubmit}>
             <label className="signin-field">
               <span>Nama atau Email</span>
-              <input type="email" name="email" autoComplete="email" />
+              <input type="text" name="identifier" autoComplete="username" />
             </label>
 
             <label className="signin-field">
@@ -64,11 +90,17 @@ export function SignIn() {
             <a className="signin-forgot" href="/reset-password">Lupa Kata sandi</a>
 
             <div className="signin-submit-group">
-              <button className="signin-submit" type="submit">Masuk</button>
+              <button className="signin-submit" type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Memproses...' : 'Masuk'}
+              </button>
               <p>
                 Tidak punya akun? <a href="/signup">Daftar Sekarang</a>
               </p>
             </div>
+
+            {status.message && (
+              <p className={`auth-form-message ${status.type}`}>{status.message}</p>
+            )}
           </form>
         </div>
       </section>

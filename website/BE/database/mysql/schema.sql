@@ -8,6 +8,21 @@ CREATE TABLE IF NOT EXISTS leads (
     created_at DATETIME NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS users (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(120) NOT NULL,
+    email VARCHAR(160) NOT NULL UNIQUE,
+    whatsapp VARCHAR(40) NULL,
+    occupation VARCHAR(120) NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    email_verified_at DATETIME NULL,
+    verification_token VARCHAR(128) NULL,
+    verification_sent_at DATETIME NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    INDEX idx_users_verification_token (verification_token)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS programs (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(160) NOT NULL,

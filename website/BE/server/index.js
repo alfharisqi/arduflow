@@ -1,8 +1,19 @@
 import express from 'express';
+import { login, register, verifyEmail } from './auth.js';
 import { config } from './config.js';
 import { health, insertLead } from './database.js';
 
 const app = express();
+
+function asyncHandler(handler) {
+  return async (request, response, next) => {
+    try {
+      await handler(request, response, next);
+    } catch (error) {
+      next(error);
+    }
+  };
+}
 
 app.use((request, response, next) => {
   response.setHeader('Access-Control-Allow-Origin', process.env.CORS_ORIGIN || 'http://127.0.0.1:5173');
@@ -23,7 +34,12 @@ app.get('/api/health', (_request, response) => {
   response.json(health());
 });
 
-app.post('/api/leads', async (request, response) => {
+app.post('/api/auth/register', asyncHandler(register));
+app.post('/api/auth/login', asyncHandler(login));
+app.get('/api/auth/verify-email', asyncHandler(verifyEmail));
+app.post('/api/auth/verify-email', asyncHandler(verifyEmail));
+
+app.post('/api/leads', asyncHandler(async (request, response) => {
   const { name = '', email = '', phone = '', interest = 'akses', message = '' } = request.body || {};
 
   if (!name.trim() || !email.trim()) {
@@ -40,6 +56,11 @@ app.post('/api/leads', async (request, response) => {
   });
 
   response.status(201).json({ message: 'Form berhasil dikirim. Admin akan menghubungi Anda.' });
+}));
+
+app.use((error, _request, response, _next) => {
+  console.error(error);
+  response.status(500).json({ message: 'Terjadi kesalahan server.' });
 });
 
 app.listen(config.port, '127.0.0.1', () => {
