@@ -7,6 +7,8 @@ import libraryEsp32Image from "../assets/images/library-esp32.png";
 import libraryRelayImage from "../assets/images/library-relay.png";
 import libraryDoorLockImage from "../assets/images/library-door-lock.png";
 import librarySmartHomeImage from "../assets/images/library-smart-home.png";
+import partnerPoliwangiImage from "../assets/images/partner-poliwangi.png";
+import partnerSmknImage from "../assets/images/partner-smkn.png";
 import projectHeroImage from "../assets/images/project-hero-reference.png";
 
 const metrics = [
@@ -78,20 +80,36 @@ const contentCollections = [
     eyebrow: "Karya Pengguna",
     title: "Sistem Lampu Otomatis",
     metadata: "oleh SMKN 2 Banyuwangi",
+    href: "/project",
   },
   {
     eyebrow: "Dokumentasi Kegiatan",
     title: "Workshop IoT di SMKN 2",
     metadata: "35 peserta - 18 Mei 2026",
+    href: "/project",
   },
   {
     eyebrow: "Proyek Highlight",
     title: "Monitoring Suhu Ruang Kelas",
     metadata: "ESP32 + dashboard realtime",
+    href: "/project",
   },
 ];
 
-const partners = ["SMKN", "UNIV", "KOMUNITAS", "UM", "UMM"];
+const partners = [
+  { label: "SMKN", image: partnerSmknImage, featured: true },
+  { label: "UNIV" },
+  { label: "KOMUNITAS" },
+  { label: "POLIWANGI", image: partnerPoliwangiImage },
+  { label: "UMM" },
+];
+
+const projectFaqs = [
+  "Apakah proyek di Arduflow gratis?",
+  "Apakah saya bisa mengedit proyek?",
+  "Bagaimana cara membuat proyek sendiri?",
+  "Apakah saya bisa menggunakan proyek untuk tugas sekolah?",
+];
 
 function ProjectHero() {
   return (
@@ -249,7 +267,9 @@ function ContentCollections() {
             <p>{collection.eyebrow}</p>
             <h3>{collection.title}</h3>
             <span>{collection.metadata}</span>
-            <i aria-hidden="true" />
+            <a href={collection.href}>
+              Lihat Selengkapnya <span aria-hidden="true">-&gt;</span>
+            </a>
           </article>
         ))}
       </div>
@@ -274,7 +294,7 @@ function CommunityPartners() {
               membantu."
             </blockquote>
             <strong>BUDI SANTOSO</strong>
-            <span>Guru SMKN 1 Banyuwangi</span>
+            <span>Guru SMKN 1 Glagah</span>
           </article>
         </div>
 
@@ -282,12 +302,39 @@ function CommunityPartners() {
           <h2 id="partners-title">Partner &amp; Kolaborator</h2>
           <div className="partner-list">
             {partners.map((partner) => (
-              <div className="partner-item" key={partner}>
-                <span aria-hidden="true" />
-                <p>{partner}</p>
+              <div className="partner-item" key={partner.label}>
+                <span
+                  className={partner.featured ? "partner-logo featured" : "partner-logo"}
+                  aria-hidden="true"
+                >
+                  {partner.image && <img src={partner.image} alt="" />}
+                </span>
+                <p>{partner.label}</p>
               </div>
             ))}
           </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ProjectFaq() {
+  return (
+    <section className="project-faq" aria-labelledby="project-faq-title">
+      <div className="project-faq__inner">
+        <div className="project-faq__heading">
+          <p>FAQ</p>
+          <h2 id="project-faq-title">Pertanyaan yang Sering Diajukan</h2>
+        </div>
+
+        <div className="project-faq__grid">
+          {projectFaqs.map((question) => (
+            <button className="project-faq__item" type="button" key={question}>
+              <span>{question}</span>
+              <strong aria-hidden="true">+</strong>
+            </button>
+          ))}
         </div>
       </div>
     </section>
@@ -321,6 +368,7 @@ export function Project() {
       <ProjectLibrary />
       <ContentCollections />
       <CommunityPartners />
+      <ProjectFaq />
       <FinalCta />
     </>
   );

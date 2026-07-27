@@ -513,7 +513,7 @@
 .content-collections {
   min-height: 232px;
   padding: 26px 64px;
-  background: var(--navy);
+  background: #000;
 }
 
 .content-collections__inner {
@@ -529,21 +529,22 @@
   position: relative;
   flex: 0 0 390px;
   height: 180px;
-  padding: 23px 22px;
-  background: var(--navy-2);
-  border: 1px solid var(--line);
+  padding: 23px 22px 21px;
+  background: #06172c;
+  border: 1px solid #17324f;
   border-radius: 8px;
   font-family: "Rajdhani", sans-serif;
 }
 
 .collection-card:first-child {
-  padding: 27px 19px;
+  padding: 27px 19px 21px;
 }
 
 .collection-card p {
   width: 220px;
-  margin: 0 0 26px;
-  color: var(--blue);
+  height: 24px;
+  margin: 0 0 20px;
+  color: #00a8ff;
   font-size: 11px;
   font-weight: 700;
   line-height: 14px;
@@ -552,8 +553,9 @@
 
 .collection-card h3 {
   width: 320px;
-  margin: 0 0 7px;
-  color: var(--white);
+  min-height: 26px;
+  margin: 0 0 6px;
+  color: #f6f8fc;
   font-size: 17px;
   font-weight: 700;
   line-height: 22px;
@@ -563,27 +565,41 @@
   font-weight: 600;
 }
 
-.collection-card span {
+.collection-card > span {
   display: block;
   width: 300px;
-  color: var(--muted);
+  color: #9bacbf;
   font-size: 12px;
   font-weight: 700;
   line-height: 15px;
 }
 
-.collection-card i {
+.collection-card a {
   position: absolute;
   left: 22px;
-  bottom: 32px;
-  width: 68px;
-  height: 2px;
-  background: var(--orange);
+  bottom: 24px;
+  width: 160px;
+  color: #00a8ff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 14px;
+  text-transform: uppercase;
 }
 
-.collection-card:first-child i {
+.collection-card:first-child a {
   left: 19px;
-  bottom: 27px;
+}
+
+.collection-card a span {
+  display: inline;
+  width: auto;
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.collection-card a:hover {
+  color: var(--orange);
 }
 
 .community-partners {
@@ -744,6 +760,96 @@
   top: 111px;
 }
 
+.project-faq {
+  min-height: 280px;
+  background:
+    radial-gradient(
+      26.25% 41.37% at 92.01% 41.07%,
+      rgba(0, 162, 255, 0.3) 0%,
+      rgba(0, 162, 255, 0) 100%
+    ),
+    radial-gradient(
+      94.74% 149.33% at 20% 80%,
+      rgba(255, 106, 0, 0.4) 0%,
+      rgba(255, 106, 0, 0) 40%
+    ),
+    #030b1e;
+  font-family: "Rajdhani", sans-serif;
+}
+
+.project-faq__inner {
+  width: min(1280px, calc(100% - 160px));
+  min-height: 280px;
+  margin-inline: auto;
+  padding-top: 40px;
+}
+
+.project-faq__heading {
+  width: min(459px, 100%);
+}
+
+.project-faq__heading p {
+  width: 25px;
+  height: 14px;
+  margin: 0 0 16px;
+  color: #00a8ff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 14px;
+}
+
+.project-faq__heading h2 {
+  margin: 0;
+  color: #f6f8fc;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 41px;
+}
+
+.project-faq__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 560px);
+  justify-content: space-between;
+  gap: 27px 120px;
+  margin-top: 28px;
+}
+
+.project-faq__item {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 520px) 20px;
+  align-items: start;
+  width: 560px;
+  min-height: 44px;
+  padding: 0 0 16px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid #17324f;
+  cursor: pointer;
+}
+
+.project-faq__item span {
+  color: #f6f8fc;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.project-faq__item strong {
+  color: #00a8ff;
+  font-family: "Inter", sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 22px;
+  text-align: center;
+}
+
+.project-faq__item:hover span,
+.project-faq__item:hover strong {
+  color: var(--orange);
+}
+
 .final-cta {
   min-height: 230px;
   padding: 40px clamp(32px, 5.56vw, 80px);
@@ -751,11 +857,9 @@
 }
 
 .final-cta__surface {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  position: relative;
   width: min(1280px, 100%);
-  min-height: 150px;
+  height: 150px;
   margin-inline: auto;
   padding: 34px 40px;
   background: #081e37;
@@ -778,13 +882,15 @@
 }
 
 .final-cta__button {
+  position: absolute;
+  right: 132px;
+  top: 50%;
+  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 150px;
   width: 150px;
   height: 36px;
-  margin-top: 26px;
   padding: 6px 12px;
   border: 1px solid rgba(255, 255, 255, 0.24);
   border-radius: 6px;
