@@ -1495,7 +1495,7 @@
 .partners-inner {
   position: absolute;
   left: 50%;
-  top: 96px;
+  top: 97px;
   width: min(1117px, calc(100% - 48px));
   height: 224px;
   transform: translateX(-50%);
@@ -1517,11 +1517,13 @@
   letter-spacing: -0.32px;
 }
 
-.partners-list {
+.partners-section .partners-list {
+  box-sizing: border-box;
   position: absolute;
   left: 50%;
   top: 88px;
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 109px;
   width: 1117px;
@@ -1532,34 +1534,76 @@
   opacity: 0.6;
 }
 
-.partner-item {
+.partners-section .partner-item {
+  position: static;
   display: inline-flex;
+  flex: none;
   align-items: center;
   gap: 8px;
   height: 28px;
+  margin: 0;
   color: #fff;
   font-family: Inter, Arial, Helvetica, sans-serif;
   font-size: 18px;
   font-weight: 700;
   line-height: 28px;
   white-space: nowrap;
+  text-align: left;
 }
 
-.partner-item svg,
-.partner-item .asset-icon {
+.partners-section .partner-item:nth-child(1) {
+  width: 103px;
+}
+
+.partners-section .partner-item:nth-child(2) {
+  width: 134px;
+}
+
+.partners-section .partner-item:nth-child(3) {
+  width: 127px;
+}
+
+.partners-section .partner-item:nth-child(4) {
+  width: 120px;
+}
+
+.partners-section .partner-item:nth-child(5) {
+  width: 105px;
+}
+
+.partners-section .partner-item svg,
+.partners-section .partner-item .asset-icon {
   width: 24px;
   height: 24px;
   flex: 0 0 auto;
 }
 
-.partner-item path {
+.partners-section .partner-item path {
   stroke: #00a2ff;
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-.partners-button {
+.partners-section .partner-item span {
+  position: static;
+  display: inline;
+  width: auto;
+  height: auto;
+  margin: 0;
+  transform: none;
+  color: #fff;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  font-family: Inter, Arial, Helvetica, sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 28px;
+  text-align: left;
+}
+
+.partners-section .partners-button {
   box-sizing: border-box;
   position: absolute;
   left: 50%;
