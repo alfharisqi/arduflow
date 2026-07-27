@@ -23,7 +23,7 @@ export function SignUp() {
         <div className="signup-form-box">
           <h2 id="signup-title">Daftar Sekarang</h2>
 
-          <form className="signup-form">
+          <form className="signup-form" action="/signup/email-verification">
             <SignUpField label="Nama" name="name" placeholder="Nama lengkap anda" />
             <SignUpField label="Email address" name="email" type="email" placeholder="contoh@gmail.com" />
 

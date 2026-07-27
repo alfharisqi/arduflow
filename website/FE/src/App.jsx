@@ -10,6 +10,7 @@ import { Partner } from './pages/Partner.jsx';
 import { Contact } from './pages/Contact.jsx';
 import { SignIn } from './pages/auth/signin.jsx';
 import { SignUp } from './pages/auth/signup.jsx';
+import { EmailVerification } from './pages/auth/email-verification.jsx';
 import { NotFound } from './pages/NotFound.jsx';
 
 const routes = {
@@ -26,9 +27,20 @@ const routes = {
   '/sign-in': SignIn,
   '/signup': SignUp,
   '/sign-up': SignUp,
+  '/signup/email-verification': EmailVerification,
+  '/sign-up/email-verification': EmailVerification,
+  '/verify-email': EmailVerification,
 };
 
-const authRoutes = new Set(['/signin', '/sign-in', '/signup', '/sign-up']);
+const authRoutes = new Set([
+  '/signin',
+  '/sign-in',
+  '/signup',
+  '/sign-up',
+  '/signup/email-verification',
+  '/sign-up/email-verification',
+  '/verify-email',
+]);
 
 export default function App() {
   const path = window.location.pathname.replace(/\/$/, '') || '/';
