@@ -2,7 +2,10 @@ import { collaborationGoalOptions, institutionOptions } from "./leadOptions";
 
 function CollaborationForm() {
   return (
-    <section className="contact-leads" aria-labelledby="contact-collab-title">
+    <section
+      className="contact-leads contact-leads--collab"
+      aria-labelledby="contact-collab-title"
+    >
       <form
         className="lead-form-card lead-form-card--collab"
         onSubmit={(event) => event.preventDefault()}
@@ -99,15 +102,6 @@ function CollaborationForm() {
               name="jadwal_demo"
               type="text"
               placeholder="Pilih tanggal / waktu"
-            />
-          </label>
-
-          <label className="lead-field lead-field--compact lead-field--message">
-            <span>Pesan Kebutuhan</span>
-            <textarea
-              name="pesan_kebutuhan"
-              placeholder="Detail kebutuhan institusi"
-              rows="3"
             />
           </label>
 
