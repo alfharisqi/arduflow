@@ -84,12 +84,22 @@
   transform: translateX(-50%);
 }
 
-.auth-image-slider__dots span {
+.auth-image-slider__dots button {
   display: block;
   width: 16px;
   height: 16px;
+  padding: 0;
+  border: 0;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: background-color 180ms ease, height 180ms ease, width 180ms ease;
+}
+
+.auth-image-slider__dots button:hover,
+.auth-image-slider__dots button:focus-visible {
+  background: rgba(255, 255, 255, 0.72);
+  outline: none;
 }
 
 .auth-image-slider__dots .active {
