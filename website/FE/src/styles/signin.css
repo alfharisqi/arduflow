@@ -273,6 +273,18 @@
   opacity: 0.8;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .signin-forgot {
   align-self: flex-end;
   margin-top: -4px;
@@ -770,6 +782,57 @@
   text-decoration: none;
 }
 
+.reset-password-form-box {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 32px;
+  width: min(534px, calc(100% - 96px));
+  transform: translate(-50%, -50%);
+  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
+}
+
+.reset-password-form-box h2 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 41px;
+}
+
+.reset-password-form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.reset-password-form-field {
+  min-height: 109px;
+}
+
+.reset-password-form-field .signin-password-label {
+  min-height: 27px;
+}
+
+.reset-password-form-field input {
+  padding: 0 24px;
+}
+
+.reset-password-form-field small {
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.reset-password-confirm-field .signin-password-label {
+  justify-content: flex-end;
+}
+
 @media (max-width: 980px) {
   .signin-page {
     grid-template-columns: 1fr;
@@ -801,7 +864,8 @@
   .signup-form-box,
   .verify-email-content,
   .reset-password-box,
-  .reset-password-sent-content {
+  .reset-password-sent-content,
+  .reset-password-form-box {
     position: static;
     width: min(568px, calc(100% - 48px));
     margin: 0 auto;
