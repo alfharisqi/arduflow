@@ -723,6 +723,53 @@
   text-decoration: underline;
 }
 
+.reset-password-sent-panel {
+  position: relative;
+  min-height: 1024px;
+  color: #ffffff;
+  background:
+    radial-gradient(82.64% 130.25% at 96.88% 5.08%, rgba(0, 162, 255, 0.3) 0%, rgba(0, 162, 255, 0) 56.28%),
+    radial-gradient(116.9% 184.25% at -2.15% 95.02%, rgba(255, 106, 0, 0.4) 0%, rgba(255, 106, 0, 0) 40%),
+    linear-gradient(0deg, #030b1e, #030b1e);
+  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
+}
+
+.reset-password-sent-content {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 32px;
+  width: min(616px, calc(100% - 96px));
+  transform: translate(-50%, -50%);
+}
+
+.reset-password-sent-content h2 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 41px;
+}
+
+.reset-password-sent-content p {
+  margin: -4px 0 0;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.reset-password-sent-content a {
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+  text-decoration: none;
+}
+
 @media (max-width: 980px) {
   .signin-page {
     grid-template-columns: 1fr;
@@ -743,7 +790,8 @@
   .signin-panel,
   .signup-panel,
   .verify-email-panel,
-  .reset-password-panel {
+  .reset-password-panel,
+  .reset-password-sent-panel {
     min-height: auto;
     padding: 96px 0 80px;
   }
@@ -752,7 +800,8 @@
   .signin-form-box,
   .signup-form-box,
   .verify-email-content,
-  .reset-password-box {
+  .reset-password-box,
+  .reset-password-sent-content {
     position: static;
     width: min(568px, calc(100% - 48px));
     margin: 0 auto;

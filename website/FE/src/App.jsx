@@ -12,6 +12,7 @@ import { SignIn } from './pages/auth/signin.jsx';
 import { SignUp } from './pages/auth/signup.jsx';
 import { EmailVerification } from './pages/auth/email-verification.jsx';
 import { ResetPassword } from './pages/auth/reset-password.jsx';
+import { ResetPasswordSent } from './pages/auth/reset-password-sent.jsx';
 import { NotFound } from './pages/NotFound.jsx';
 
 const routes = {
@@ -33,6 +34,9 @@ const routes = {
   '/verify-email': EmailVerification,
   '/reset-password': ResetPassword,
   '/forgot-password': ResetPassword,
+  '/reset-password/email-sent': ResetPasswordSent,
+  '/forgot-password/email-sent': ResetPasswordSent,
+  '/reset-password-sent': ResetPasswordSent,
 };
 
 const authRoutes = new Set([
@@ -45,6 +49,9 @@ const authRoutes = new Set([
   '/verify-email',
   '/reset-password',
   '/forgot-password',
+  '/reset-password/email-sent',
+  '/forgot-password/email-sent',
+  '/reset-password-sent',
 ]);
 
 export default function App() {

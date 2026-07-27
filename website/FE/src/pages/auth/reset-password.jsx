@@ -6,7 +6,7 @@ export function ResetPassword() {
       <AuthImageSlider />
 
       <section className="reset-password-panel" aria-labelledby="reset-password-title">
-        <form className="reset-password-box">
+        <form className="reset-password-box" action="/reset-password/email-sent">
           <h2 id="reset-password-title">Reset password anda</h2>
 
           <label className="reset-password-field">
