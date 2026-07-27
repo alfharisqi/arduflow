@@ -1,15 +1,15 @@
-import tutorialDevice from '../assets/tutorial-device.png';
-import apaItuArduflowImage from '../assets/apa itu arduflow.png';
-import daftarAkunImage from '../assets/cara daftar untuk mendatkan akun.png';
-import masukIdeImage from '../assets/cara masuk ke arduflow IDE.png';
-import tokenIdeImage from '../assets/cara mendapatkan token IDE.png';
-import belajarIotImage from '../assets/kenapa belajar IoT dengan visual.png';
-import projectPertamaImage from '../assets/membuat project pertama.png';
-import relayTutorialImage from '../assets/Kontrol Relay dengan Arduflow.jpg';
-import boardTutorialImage from '../assets/Mengenal Board Arduino UNO.jpg';
-import dhtTutorialImage from '../assets/Menggunakan Sensor DHT22.jpg';
-import ledTutorialImage from '../assets/Menghubungkan LED ke Arduino.jpg';
-import troubleshootingTutorialImage from '../assets/Troubleshooting Board Tidak Terdeteksi.jpg';
+import tutorialDevice from '../assets/images/tutorial-device.png';
+import apaItuArduflowImage from '../assets/images/apa itu arduflow.png';
+import daftarAkunImage from '../assets/images/cara daftar untuk mendatkan akun.png';
+import masukIdeImage from '../assets/images/cara masuk ke arduflow IDE.png';
+import tokenIdeImage from '../assets/images/cara mendapatkan token IDE.png';
+import belajarIotImage from '../assets/images/kenapa belajar IoT dengan visual.png';
+import projectPertamaImage from '../assets/images/membuat project pertama.png';
+import relayTutorialImage from '../assets/images/Kontrol Relay dengan Arduflow.jpg';
+import boardTutorialImage from '../assets/images/Mengenal Board Arduino UNO.jpg';
+import dhtTutorialImage from '../assets/images/Menggunakan Sensor DHT22.jpg';
+import ledTutorialImage from '../assets/images/Menghubungkan LED ke Arduino.jpg';
+import troubleshootingTutorialImage from '../assets/images/Troubleshooting Board Tidak Terdeteksi.jpg';
 
 function TutorialIcon({ type }) {
   if (type === 'code') {
