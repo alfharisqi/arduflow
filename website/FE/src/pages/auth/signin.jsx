@@ -2,36 +2,14 @@ import { useState } from 'react';
 import googleIcon from '../../assets/icons/sosmed-google.png';
 import twitterIcon from '../../assets/icons/sosmed-twitter.png';
 import hideIcon from '../../assets/icons/icon-hide-1.svg';
-import heroImage from '../../assets/images/signin-hero-raspberry.jpg';
+import { AuthImageSlider } from '../../components/auth/AuthImageSlider.jsx';
 
 export function SignIn() {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
     <main className="signin-page">
-      <section className="signin-slider" aria-label="Arduflow learning preview">
-        <img className="signin-slider__image" src={heroImage} alt="Raspberry Pi board for IoT learning" />
-        <div className="signin-slider__overlay" />
-
-        <div className="signin-slider__copy">
-          <a className="signin-slider__logo" href="/">
-            ARDU<span>FLOW</span>
-          </a>
-          <h1>Learn with us</h1>
-          <p>
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Morbi lobortis maximus nunc,
-            ac rhoncus odio congue quis. Sed ac semper orci, eu porttitor lacus.
-          </p>
-        </div>
-
-        <div className="signin-slider__dots" aria-hidden="true">
-          <span className="active" />
-          <span />
-          <span />
-          <span />
-          <span />
-        </div>
-      </section>
+      <AuthImageSlider />
 
       <section className="signin-panel" aria-labelledby="signin-title">
         <p className="signin-panel__signup">

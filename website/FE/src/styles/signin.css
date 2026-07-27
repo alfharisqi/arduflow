@@ -5,14 +5,14 @@
   background: #ffffff;
 }
 
-.signin-slider {
+.auth-image-slider {
   position: relative;
   min-height: 1024px;
   overflow: hidden;
   color: #ffffff;
 }
 
-.signin-slider__image {
+.auth-image-slider__image {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -21,7 +21,7 @@
   object-position: center;
 }
 
-.signin-slider__overlay {
+.auth-image-slider__overlay {
   position: absolute;
   inset: 0;
   background:
@@ -29,7 +29,7 @@
     radial-gradient(80% 65% at 20% 28%, rgba(3, 11, 30, 0.14), rgba(3, 11, 30, 0));
 }
 
-.signin-slider__copy {
+.auth-image-slider__copy {
   position: absolute;
   left: 10%;
   top: 177px;
@@ -38,7 +38,7 @@
   font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
 }
 
-.signin-slider__logo {
+.auth-image-slider__logo {
   display: inline-flex;
   margin-bottom: 26px;
   color: #ffffff;
@@ -48,11 +48,11 @@
   letter-spacing: -0.5px;
 }
 
-.signin-slider__logo span {
+.auth-image-slider__logo span {
   color: #ff6a00;
 }
 
-.signin-slider__copy h1 {
+.auth-image-slider__copy h1 {
   margin: 0 0 12px;
   color: #ffffff;
   font-family: 'Orbitron', 'Rajdhani', Arial, Helvetica, sans-serif;
@@ -62,7 +62,7 @@
   letter-spacing: 0;
 }
 
-.signin-slider__copy p {
+.auth-image-slider__copy p {
   margin: 0;
   color: #ffffff;
   font-size: 24px;
@@ -70,7 +70,7 @@
   line-height: 31px;
 }
 
-.signin-slider__dots {
+.auth-image-slider__dots {
   position: absolute;
   left: 50%;
   bottom: 88px;
@@ -84,7 +84,7 @@
   transform: translateX(-50%);
 }
 
-.signin-slider__dots span {
+.auth-image-slider__dots span {
   display: block;
   width: 16px;
   height: 16px;
@@ -92,7 +92,7 @@
   background: rgba(255, 255, 255, 0.4);
 }
 
-.signin-slider__dots .active {
+.auth-image-slider__dots .active {
   width: 20px;
   height: 20px;
   background: #ffffff;
@@ -320,15 +320,15 @@
     grid-template-columns: 1fr;
   }
 
-  .signin-slider {
+  .auth-image-slider {
     min-height: 420px;
   }
 
-  .signin-slider__copy {
+  .auth-image-slider__copy {
     top: 80px;
   }
 
-  .signin-slider__dots {
+  .auth-image-slider__dots {
     bottom: 36px;
   }
 
@@ -352,25 +352,25 @@
 }
 
 @media (max-width: 560px) {
-  .signin-slider {
+  .auth-image-slider {
     min-height: 360px;
   }
 
-  .signin-slider__copy {
+  .auth-image-slider__copy {
     left: 24px;
     width: calc(100% - 48px);
   }
 
-  .signin-slider__logo {
+  .auth-image-slider__logo {
     font-size: 28px;
   }
 
-  .signin-slider__copy h1 {
+  .auth-image-slider__copy h1 {
     font-size: clamp(36px, 12vw, 48px);
     line-height: 1.08;
   }
 
-  .signin-slider__copy p {
+  .auth-image-slider__copy p {
     font-size: 18px;
     line-height: 24px;
   }
