@@ -181,16 +181,19 @@ const experienceGallery = [
     src: experienceSoldering,
     alt: 'Peserta workshop sedang menyolder komponen Arduino',
     variant: 'soldering',
+    caption: 'Mulai belajar hingga membuat proyek Arduino sendiri bersama ArduFlow.',
   },
   {
     src: experienceStudent,
     alt: 'Peserta menampilkan alur Arduflow di ponsel saat praktik IoT',
     variant: 'student',
+    caption: 'Gunakan aplikasi ArduFlow dengan mudah untuk membuat dan mengembangkan proyek Arduino.',
   },
   {
     src: experienceGroup,
     alt: 'Kelompok peserta workshop merakit proyek IoT bersama mentor',
     variant: 'group',
+    caption: 'Buat proyek dan lakukan praktik langsung dengan bimbingan mentor di ArduFlow.',
   },
 ];
 
@@ -433,8 +436,9 @@ export function Workshop() {
 
           <div className="experience-gallery" aria-label="Dokumentasi kegiatan workshop">
             {experienceGallery.map((item) => (
-              <figure className={`experience-gallery-card ${item.variant}`} key={item.alt}>
+              <figure className={`experience-gallery-card ${item.variant}`} key={item.alt} tabIndex={0}>
                 <img src={item.src} alt={item.alt} />
+                <figcaption>{item.caption}</figcaption>
               </figure>
             ))}
           </div>
