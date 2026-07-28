@@ -615,11 +615,11 @@
 .faq-row {
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 20px;
+  grid-template-columns: minmax(0, 1fr) 13px;
   align-items: center;
   width: 600px;
   height: 46px;
-  padding: 0 15px 0 20px;
+  padding: 0 20px;
   text-align: left;
   background: #06172c;
   border: 1px solid #17324f;
@@ -634,13 +634,24 @@
   line-height: 15px;
 }
 
-.faq-row strong {
-  color: #00a8ff;
-  font-family: "Inter", sans-serif;
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 18px;
-  text-align: center;
+.faq-icon {
+  display: block;
+  width: 13px;
+  height: 8px;
+  position: relative;
+}
+
+.faq-icon::before {
+  content: "";
+  position: absolute;
+  left: 1px;
+  top: 0;
+  width: 9px;
+  height: 9px;
+  border-right: 3px solid #ffffff;
+  border-bottom: 3px solid #ffffff;
+  transform: rotate(45deg);
+  transform-origin: center;
 }
 
 .faq-row:hover {

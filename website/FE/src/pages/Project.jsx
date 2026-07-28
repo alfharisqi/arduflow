@@ -7,8 +7,11 @@ import libraryEsp32Image from "../assets/images/library-esp32.png";
 import libraryRelayImage from "../assets/images/library-relay.png";
 import libraryDoorLockImage from "../assets/images/library-door-lock.png";
 import librarySmartHomeImage from "../assets/images/library-smart-home.png";
+import partnerKomunitasImage from "../assets/images/partner-komunitas.png";
+import partnerPolinemaImage from "../assets/images/partner-polinema.png";
 import partnerPoliwangiImage from "../assets/images/partner-poliwangi.png";
-import partnerSmknImage from "../assets/images/partner-smkn.png";
+import partnerSmknGlagahImage from "../assets/images/partner-smkn-glagah.png";
+import partnerUmmImage from "../assets/images/partner-umm.png";
 import projectHeroImage from "../assets/images/project-hero-reference.png";
 
 const metrics = [
@@ -97,11 +100,11 @@ const contentCollections = [
 ];
 
 const partners = [
-  { label: "SMKN", image: partnerSmknImage, featured: true },
-  { label: "UNIV" },
-  { label: "KOMUNITAS" },
+  { label: "SMKN 1 GLAGAH", image: partnerSmknGlagahImage, featured: true },
+  { label: "POLINEMA", image: partnerPolinemaImage },
+  { label: "KOMUNITAS", image: partnerKomunitasImage },
   { label: "POLIWANGI", image: partnerPoliwangiImage },
-  { label: "UMM" },
+  { label: "UMM", image: partnerUmmImage },
 ];
 
 const projectFaqs = [

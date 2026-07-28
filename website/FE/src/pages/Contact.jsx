@@ -213,7 +213,7 @@ function OfficeFaq() {
             {contactFaqs.map((question) => (
               <button className="faq-row" type="button" key={question}>
                 <span>{question}</span>
-                <strong aria-hidden="true">v</strong>
+                <i className="faq-icon" aria-hidden="true" />
               </button>
             ))}
           </div>
