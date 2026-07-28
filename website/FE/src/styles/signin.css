@@ -140,12 +140,12 @@
 .signin-form-box {
   position: absolute;
   left: 50%;
-  top: 179px;
+  top: 50%;
   display: flex;
   flex-direction: column;
   gap: 48px;
   width: min(568px, calc(100% - 96px));
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
 }
 
 .signin-form-box h2 {

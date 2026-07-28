@@ -38,10 +38,6 @@ export function SignIn() {
       <AuthImageSlider />
 
       <section className="signin-panel" aria-labelledby="signin-title">
-        <p className="signin-panel__signup">
-          Don&apos;t have an account? <a href="/signup">Sign up</a>
-        </p>
-
         <div className="signin-form-box">
           <h2 id="signin-title">Masuk</h2>
 
