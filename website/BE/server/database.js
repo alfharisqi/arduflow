@@ -28,28 +28,45 @@ async function mysqlConnection() {
   return mysqlPool;
 }
 
-function isMysql() {
-  return config.database.connection === 'mysql';
+function now() {
+  return new Date().toISOString().slice(0, 19).replace('T', ' ');
 }
 
-export async function one(sql, params = []) {
-  if (isMysql()) {
-    const pool = await mysqlConnection();
-    const [rows] = await pool.execute(sql, params);
-    return rows[0] || null;
-  }
+async function mysqlOne(sql, params = []) {
+  const pool = await mysqlConnection();
+  const [rows] = await pool.execute(sql, params);
 
-  return sqliteConnection().prepare(sql).get(...params) || null;
+  return rows[0] || null;
 }
 
-export async function run(sql, params = []) {
-  if (isMysql()) {
-    const pool = await mysqlConnection();
-    const [result] = await pool.execute(sql, params);
-    return result;
-  }
+async function mysqlRun(sql, params = []) {
+  const pool = await mysqlConnection();
+  const [result] = await pool.execute(sql, params);
 
+  return result;
+}
+
+function sqliteRun(sql, params = []) {
   return sqliteConnection().prepare(sql).run(...params);
+}
+
+export async function insertAuthLog({ userId = null, email = '', event, ip = '', userAgent = '', meta = null }) {
+  try {
+    sqliteRun(
+      'INSERT INTO auth_logs (user_id, email, event, ip, user_agent, meta, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [
+        userId,
+        email || null,
+        event,
+        ip || null,
+        userAgent || null,
+        meta ? JSON.stringify(meta) : null,
+        now(),
+      ],
+    );
+  } catch (error) {
+    console.error('SQLite auth log failed:', error);
+  }
 }
 
 export async function insertLead(lead) {
@@ -59,27 +76,27 @@ export async function insertLead(lead) {
     phone: lead.phone || null,
     interest: lead.interest || 'akses',
     message: lead.message || null,
-    created_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+    created_at: now(),
   };
 
-  await run(
+  await mysqlRun(
     'INSERT INTO leads (name, email, phone, interest, message, created_at) VALUES (?, ?, ?, ?, ?, ?)',
     [values.name, values.email, values.phone, values.interest, values.message, values.created_at],
   );
 }
 
 export async function findUserByEmail(email) {
-  return one('SELECT * FROM users WHERE email = ?', [email]);
+  return mysqlOne('SELECT * FROM users WHERE email = ?', [email]);
 }
 
 export async function findUserByIdentifier(identifier) {
-  return one('SELECT * FROM users WHERE LOWER(email) = LOWER(?) OR LOWER(name) = LOWER(?)', [identifier, identifier]);
+  return mysqlOne('SELECT * FROM users WHERE LOWER(email) = LOWER(?) OR LOWER(name) = LOWER(?)', [identifier, identifier]);
 }
 
 export async function createUser(user) {
-  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const createdAt = now();
 
-  await run(
+  await mysqlRun(
     `INSERT INTO users (
       name,
       email,
@@ -98,9 +115,9 @@ export async function createUser(user) {
       user.occupation || null,
       user.passwordHash,
       user.verificationToken,
-      now,
-      now,
-      now,
+      createdAt,
+      createdAt,
+      createdAt,
     ],
   );
 
@@ -108,16 +125,16 @@ export async function createUser(user) {
 }
 
 export async function verifyUserEmail(token) {
-  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
-  const user = await one('SELECT * FROM users WHERE verification_token = ?', [token]);
+  const verifiedAt = now();
+  const user = await mysqlOne('SELECT * FROM users WHERE verification_token = ?', [token]);
 
   if (!user) {
     return null;
   }
 
-  await run(
+  await mysqlRun(
     'UPDATE users SET email_verified_at = ?, verification_token = NULL, updated_at = ? WHERE id = ?',
-    [now, now, user.id],
+    [verifiedAt, verifiedAt, user.id],
   );
 
   return findUserByEmail(user.email);
@@ -126,6 +143,7 @@ export async function verifyUserEmail(token) {
 export function health() {
   return {
     status: 'ok',
-    database: config.database.connection,
+    primaryDatabase: config.database.primary,
+    localDatabase: 'sqlite',
   };
 }

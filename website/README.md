@@ -19,6 +19,7 @@ cd website/BE
 npm install
 copy .env.example .env
 npm run db:sqlite
+npm run db:mysql
 npm run dev
 ```
 
@@ -26,15 +27,19 @@ API berjalan di `http://127.0.0.1:3001`.
 
 ### Auth, Database, dan Mailpit
 
-Backend mendukung dua koneksi database:
+Backend memakai dua database secara bersamaan:
+
+- MySQL sebagai database utama untuk user, auth, leads, dan data utama.
+- SQLite sebagai database lokal untuk cache/log seperti `auth_logs`.
 
 ```env
-# SQLite
-DB_CONNECTION=sqlite
+# Primary database
+DB_PRIMARY=mysql
+
+# SQLite local/cache/log
 DB_SQLITE_PATH=storage/sqlite/arduflow.sqlite
 
-# MySQL
-DB_CONNECTION=mysql
+# MySQL main database
 DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_DATABASE=db_arduflow
@@ -54,6 +59,13 @@ Inisialisasi MySQL:
 ```bash
 cd website/BE
 npm run db:mysql
+```
+
+Hapus data user lama dari SQLite dan MySQL:
+
+```bash
+cd website/BE
+npm run db:reset-users
 ```
 
 Untuk email register/verifikasi, jalankan Mailpit dan gunakan SMTP default berikut:

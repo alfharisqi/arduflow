@@ -2,6 +2,7 @@ import {
   createUser,
   findUserByEmail,
   findUserByIdentifier,
+  insertAuthLog,
   verifyUserEmail,
 } from './database.js';
 import { sendVerificationEmail } from './mailer.js';
@@ -20,6 +21,13 @@ function publicUser(user) {
 
 function validateEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function requestMeta(request) {
+  return {
+    ip: request.ip || request.socket?.remoteAddress || '',
+    userAgent: request.get('user-agent') || '',
+  };
 }
 
 export async function register(request, response) {
@@ -64,6 +72,14 @@ export async function register(request, response) {
     passwordHash: hashPassword(password),
     verificationToken,
   });
+  const meta = requestMeta(request);
+
+  await insertAuthLog({
+    userId: user.id,
+    email: user.email,
+    event: 'register_success',
+    ...meta,
+  });
 
   let emailSent = true;
 
@@ -92,11 +108,24 @@ export async function login(request, response) {
   }
 
   const user = await findUserByIdentifier(loginIdentifier.toLowerCase());
+  const meta = requestMeta(request);
 
   if (!user || !verifyPassword(password, user.password_hash)) {
+    await insertAuthLog({
+      email: loginIdentifier,
+      event: 'login_failed',
+      ...meta,
+    });
     response.status(401).json({ message: 'Email/nama atau kata sandi salah.' });
     return;
   }
+
+  await insertAuthLog({
+    userId: user.id,
+    email: user.email,
+    event: 'login_success',
+    ...meta,
+  });
 
   response.json({
     message: 'Login berhasil.',
@@ -118,6 +147,13 @@ export async function verifyEmail(request, response) {
     response.status(404).json({ message: 'Token verifikasi tidak valid.' });
     return;
   }
+
+  await insertAuthLog({
+    userId: user.id,
+    email: user.email,
+    event: 'email_verified',
+    ...requestMeta(request),
+  });
 
   response.json({
     message: 'Email berhasil diverifikasi.',

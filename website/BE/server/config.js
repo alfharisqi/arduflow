@@ -14,7 +14,7 @@ export const config = {
   port: Number(process.env.API_PORT || 3001),
   frontendUrl: process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'http://127.0.0.1:5173',
   database: {
-    connection: process.env.DB_CONNECTION || 'sqlite',
+    primary: process.env.DB_PRIMARY || 'mysql',
     sqlitePath: rootPath(process.env.DB_SQLITE_PATH || 'storage/sqlite/arduflow.sqlite'),
     mysql: {
       host: process.env.DB_HOST || '127.0.0.1',
