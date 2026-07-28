@@ -384,3 +384,25 @@
   color: #e60000;
 }
 
+.menu-dropdown {
+  right: 0;
+  height: 533px;
+}
+
+.menu-dropdown .profile-dropdown__user {
+  top: 65px;
+}
+
+.menu-dropdown .profile-dropdown__traffic {
+  top: 23px;
+}
+
+.menu-dropdown .profile-dropdown__list {
+  top: 146px;
+  height: 364px;
+}
+
+.menu-dropdown__list a {
+  color: #fff;
+}
+
