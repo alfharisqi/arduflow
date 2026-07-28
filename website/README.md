@@ -81,6 +81,23 @@ MAIL_FROM="Arduflow <no-reply@arduflow.local>"
 
 Mailpit UI biasanya tersedia di `http://127.0.0.1:8025`.
 
+### Test API dengan Postman
+
+Import file berikut ke Postman:
+
+- `website/BE/postman/Arduflow API.postman_collection.json`
+- `website/BE/postman/Arduflow Local.postman_environment.json`
+
+Urutan test:
+
+1. Jalankan backend dengan `npm run dev`.
+2. Jalankan request `Health`.
+3. Jalankan `Auth / Register`.
+4. Buka Mailpit di `http://127.0.0.1:8025`, salin token dari link verifikasi.
+5. Isi variable `verification_token` di environment Postman.
+6. Jalankan `Auth / Verify Email`.
+7. Jalankan `Auth / Login`.
+
 ## Menjalankan Frontend
 
 ```bash
