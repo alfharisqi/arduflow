@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { navigation } from '../features/content/arduflowContent.js';
 
 function getStoredUser() {
@@ -16,9 +16,14 @@ function getStoredUser() {
 export function Navbar() {
   const current = window.location.pathname.replace(/\/$/, '') || '/';
   const [storedUser, setStoredUser] = useState(getStoredUser);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const profileMenuRef = useRef(null);
 
   useEffect(() => {
-    const syncUser = () => setStoredUser(getStoredUser());
+    const syncUser = () => {
+      setStoredUser(getStoredUser());
+      setIsProfileOpen(false);
+    };
 
     window.addEventListener('storage', syncUser);
     window.addEventListener('arduflow-auth-change', syncUser);
@@ -29,7 +34,42 @@ export function Navbar() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!isProfileOpen) {
+      return undefined;
+    }
+
+    const closeOnOutsideClick = (event) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setIsProfileOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', closeOnOutsideClick);
+
+    return () => document.removeEventListener('mousedown', closeOnOutsideClick);
+  }, [isProfileOpen]);
+
   const isSignedIn = Boolean(storedUser);
+  const displayName = storedUser?.name || storedUser?.username || 'Nama Lengkap';
+  const username = storedUser?.username || storedUser?.email || 'USERNAME';
+  const avatarInitial = displayName.trim().charAt(0).toUpperCase() || 'A';
+
+  const handleLogout = () => {
+    window.localStorage.removeItem('arduflow_user');
+    window.dispatchEvent(new Event('arduflow-auth-change'));
+    window.location.assign('/signin');
+  };
+
+  const profileMenuItems = [
+    { label: 'Detail Profil', href: '/profile' },
+    { label: 'Dashboard', href: '/dashboard' },
+    { label: 'Project Saya', href: '/project-saya' },
+    { label: 'Token IDE', href: '/token-ide' },
+    { label: 'Program yang Diikuti', href: '/program-saya' },
+    { label: 'Sertifikat', href: '/sertifikat' },
+    { label: 'Bantuan', href: '/bantuan' },
+  ];
 
   return (
     <header className={`site-header${isSignedIn ? ' site-header--user' : ''}`}>
@@ -44,18 +84,47 @@ export function Navbar() {
         ))}
       </nav>
       {isSignedIn ? (
-        <div className="navbar-user-actions" aria-label="Aksi pengguna">
+        <div className="navbar-user-actions" aria-label="Aksi pengguna" ref={profileMenuRef}>
           <a className="nav-ide" href="/ide">Masuk IDE</a>
-          <a className="navbar-icon-button" href="/profile" aria-label="Profil pengguna">
+          <button
+            className="navbar-icon-button"
+            type="button"
+            aria-expanded={isProfileOpen}
+            aria-label="Buka menu profil"
+            onClick={() => setIsProfileOpen((open) => !open)}
+          >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 12.5c2.35 0 4.25-1.9 4.25-4.25S14.35 4 12 4 7.75 5.9 7.75 8.25 9.65 12.5 12 12.5Zm0 2.25c-3.38 0-6.25 1.62-6.25 3.55v1.2h12.5v-1.2c0-1.93-2.87-3.55-6.25-3.55Z" />
             </svg>
-          </a>
+          </button>
           <button className="navbar-icon-button navbar-menu-toggle" type="button" aria-label="Buka menu">
             <span />
             <span />
             <span />
           </button>
+          {isProfileOpen && (
+            <aside className="profile-dropdown" aria-label="Menu profil">
+              <div className="profile-dropdown__arrow" aria-hidden="true" />
+              <div className="profile-dropdown__traffic" aria-hidden="true">
+                <span className="profile-dropdown__traffic-red" />
+                <span className="profile-dropdown__traffic-yellow" />
+                <span className="profile-dropdown__traffic-green" />
+              </div>
+              <div className="profile-dropdown__user">
+                <div className="profile-dropdown__avatar" aria-hidden="true">{avatarInitial}</div>
+                <div>
+                  <span className="profile-dropdown__username">{username}</span>
+                  <strong>{displayName}</strong>
+                </div>
+              </div>
+              <nav className="profile-dropdown__list" aria-label="Navigasi profil">
+                {profileMenuItems.map((item) => (
+                  <a href={item.href} key={item.label}>{item.label}</a>
+                ))}
+                <button type="button" onClick={handleLogout}>Log Out</button>
+              </nav>
+            </aside>
+          )}
         </div>
       ) : (
         <>
