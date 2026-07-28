@@ -11,7 +11,8 @@
   .brand,
   .nav,
   .nav-ide,
-  .navbar-button {
+  .navbar-button,
+  .navbar-user-actions {
     position: static;
   }
 
@@ -34,6 +35,10 @@
   }
 
   .navbar-button {
+    flex: 0 0 auto;
+  }
+
+  .navbar-user-actions {
     flex: 0 0 auto;
   }
 
@@ -242,7 +247,8 @@
   .brand,
   .nav,
   .nav-ide,
-  .navbar-button {
+  .navbar-button,
+  .navbar-user-actions {
     position: static;
     left: auto;
     right: auto;
@@ -270,6 +276,11 @@
 
   .navbar-button {
     width: 100%;
+  }
+
+  .navbar-user-actions {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .project-hero,
