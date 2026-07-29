@@ -14,11 +14,6 @@
   gap: 28px;
 }
 
-.user-progress-content h1 {
-  width: 202px;
-  height: 43px;
-}
-
 .user-progress-panel {
   display: flex;
   flex-direction: column;

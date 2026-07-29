@@ -14,11 +14,6 @@
   gap: 28px;
 }
 
-.user-project-content h1 {
-  width: 202px;
-  height: 43px;
-}
-
 .user-project-panel {
   display: flex;
   flex-direction: column;

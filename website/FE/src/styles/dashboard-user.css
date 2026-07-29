@@ -125,6 +125,7 @@
   width: 20px;
   height: 20px;
   object-fit: contain;
+  filter: invert(12%) sepia(100%) saturate(7488%) hue-rotate(4deg) brightness(105%) contrast(119%);
 }
 
 .dashboard-sidebar__item--active {
@@ -270,18 +271,35 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 34px;
+  gap: 28px;
   width: 1217px;
   min-height: 955px;
   padding: 35px 48px 80px;
 }
 
+.dashboard-user-greeting {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: auto;
+  height: 43px;
+}
+
+.dashboard-user-greeting h1,
 .dashboard-content h1 {
   margin: 0;
   color: #211c37;
   font-size: 34px;
   font-weight: 700;
   line-height: 43px;
+}
+
+.dashboard-user-greeting span {
+  display: inline-flex;
+  align-items: center;
+  height: 43px;
+  font-size: 32px;
+  line-height: 1;
 }
 
 .dashboard-main-content {

@@ -170,7 +170,10 @@ export function UserProjectGallery() {
         </header>
 
         <main className="dashboard-content user-project-content">
-          <h1>Hello Nama <span aria-hidden="true">&#128075;&#127995;</span></h1>
+          <div className="dashboard-user-greeting">
+            <h1>Hello Nama</h1>
+            <span aria-hidden="true">&#128075;&#127995;</span>
+          </div>
 
           <section className="user-project-panel" aria-labelledby="project-gallery-title">
             <div className="user-project-header">
