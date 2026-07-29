@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
+import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 
 const menuItems = [
   { label: 'Profil', icon: 'user', href: '/dashboard', active: true },
@@ -168,7 +169,7 @@ export function DashboardUser() {
             </a>
           ))}
           <button className="dashboard-sidebar__item dashboard-sidebar__item--logout" type="button" onClick={handleLogout}>
-            <SidebarIcon name="settings" />
+            <img className="dashboard-sidebar__logout-icon" src={logoutIcon} alt="" aria-hidden="true" />
             <span>Logout</span>
           </button>
         </nav>

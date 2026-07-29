@@ -9,7 +9,7 @@
 }
 
 .dashboard-user-page--collapsed {
-  --dashboard-sidebar-width: 78px;
+  --dashboard-sidebar-width: 70px;
 }
 
 .dashboard-sidebar {
@@ -21,9 +21,10 @@
   height: 100vh;
   min-height: 1019px;
   background:
-    radial-gradient(124.34% 106.32% at -14.57% 97.88%, rgba(255, 106, 0, 0.42) 0%, rgba(255, 106, 0, 0) 40%),
-    radial-gradient(109.53% 93.66% at 98.21% 10.67%, rgba(0, 162, 255, 0.42) 0%, rgba(0, 162, 255, 0) 46%),
-    linear-gradient(0deg, #030b1e, #030b1e);
+    radial-gradient(1026.46% 127.93% at 152.69% 36.65%, rgba(0, 162, 255, 0.3) 0%, rgba(0, 162, 255, 0) 61.39%),
+    radial-gradient(225.56% 355.52% at -34.98% 101.71%, rgba(255, 106, 0, 0.4) 0%, rgba(255, 106, 0, 0) 83.49%),
+    linear-gradient(0deg, #030b1e, #030b1e),
+    #ffffff;
   transition: width 180ms ease;
 }
 
@@ -119,6 +120,13 @@
   height: 20px;
 }
 
+.dashboard-sidebar__logout-icon {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
 .dashboard-sidebar__item--active {
   background: #ff6a00;
 }
@@ -128,8 +136,12 @@
 }
 
 .dashboard-user-page--collapsed .dashboard-sidebar__brand {
-  left: 18px;
+  left: 25px;
+  top: 18px;
   width: 14px;
+  height: 28px;
+  font-size: 24px;
+  line-height: 28px;
   color: transparent;
 }
 
@@ -142,15 +154,26 @@
 }
 
 .dashboard-user-page--collapsed .dashboard-sidebar__nav {
-  left: 17px;
-  width: 44px;
+  left: 14px;
+  top: 83px;
+  gap: 4px;
+  width: 42px;
 }
 
 .dashboard-user-page--collapsed .dashboard-sidebar__item {
   justify-content: center;
   gap: 0;
-  width: 44px;
-  padding: 0;
+  width: 36px;
+  height: 32px;
+  padding: 7px;
+  border-radius: 4px;
+}
+
+.dashboard-user-page--collapsed .dashboard-sidebar__item svg,
+.dashboard-user-page--collapsed .dashboard-sidebar__logout-icon {
+  flex-basis: 18px;
+  width: 18px;
+  height: 18px;
 }
 
 .dashboard-user-page--collapsed .dashboard-sidebar__item span {
@@ -542,7 +565,7 @@
   }
 
   .dashboard-user-page--collapsed {
-    --dashboard-sidebar-width: 78px;
+    --dashboard-sidebar-width: 70px;
   }
 
   .dashboard-sidebar {
