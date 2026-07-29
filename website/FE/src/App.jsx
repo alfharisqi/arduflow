@@ -14,7 +14,7 @@ import { EmailVerification } from './pages/auth/email-verification.jsx';
 import { ResetPassword } from './pages/auth/reset-password.jsx';
 import { ResetPasswordSent } from './pages/auth/reset-password-sent.jsx';
 import { ResetPasswordForm } from './pages/auth/reset-password-form.jsx';
-import { DashboardUser } from './pages/DashboardUser.jsx';
+import { DashboardUser } from './pages/User/DashboardUser.jsx';
 import { NotFound } from './pages/NotFound.jsx';
 
 const routes = {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import arrowDownIcon from '../assets/icons/icon-arrowdown-1.svg';
-import bellIcon from '../assets/icons/icon-bell-1.svg';
+import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
+import bellIcon from '../../assets/icons/icon-bell-1.svg';
 
 const menuItems = [
   { label: 'Profil', icon: 'user', active: true },
