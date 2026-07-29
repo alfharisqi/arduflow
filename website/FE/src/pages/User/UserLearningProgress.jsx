@@ -3,6 +3,7 @@ import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import courseImage from '../../assets/images/workshop-experience-student.png';
+import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 
 const menuItems = [
   { label: 'Profil', icon: 'user', href: '/dashboard' },
@@ -114,7 +115,7 @@ function FilterIcon() {
 }
 
 export function UserLearningProgress() {
-  const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialSidebarCollapsed);
   const user = getStoredUser();
   const fullName = user.name || user.fullName || 'Nama Lengkap';
 
@@ -122,6 +123,14 @@ export function UserLearningProgress() {
     window.localStorage.removeItem('arduflow_user');
     window.dispatchEvent(new Event('arduflow-auth-change'));
     window.location.assign('/signin');
+  }
+
+  function handleSidebarToggle() {
+    setSidebarCollapsed((value) => {
+      const nextValue = !value;
+      persistSidebarCollapsed(nextValue);
+      return nextValue;
+    });
   }
 
   return (
@@ -136,7 +145,7 @@ export function UserLearningProgress() {
           type="button"
           aria-expanded={!isSidebarCollapsed}
           aria-label={isSidebarCollapsed ? 'Buka sidebar' : 'Minimize sidebar'}
-          onClick={() => setSidebarCollapsed((value) => !value)}
+          onClick={handleSidebarToggle}
         >
           <img src={arrowDownIcon} alt="" aria-hidden="true" />
         </button>

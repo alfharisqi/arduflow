@@ -2,6 +2,7 @@ import { useState } from 'react';
 import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
+import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 
 const menuItems = [
   { label: 'Profil', icon: 'user', href: '/dashboard', active: true },
@@ -118,7 +119,7 @@ function SidebarIcon({ name }) {
 }
 
 export function DashboardUser() {
-  const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialSidebarCollapsed);
   const user = getStoredUser();
   const fullName = user.name || user.fullName || 'Nama Lengkap';
   const email = user.email || 'mail@mail.com';
@@ -140,6 +141,14 @@ export function DashboardUser() {
     window.location.assign('/signin');
   }
 
+  function handleSidebarToggle() {
+    setSidebarCollapsed((value) => {
+      const nextValue = !value;
+      persistSidebarCollapsed(nextValue);
+      return nextValue;
+    });
+  }
+
   return (
     <div className={`dashboard-user-page${isSidebarCollapsed ? ' dashboard-user-page--collapsed' : ''}`}>
       <aside className="dashboard-sidebar" aria-label="Dashboard sidebar">
@@ -152,7 +161,7 @@ export function DashboardUser() {
           type="button"
           aria-expanded={!isSidebarCollapsed}
           aria-label={isSidebarCollapsed ? 'Buka sidebar' : 'Minimize sidebar'}
-          onClick={() => setSidebarCollapsed((value) => !value)}
+          onClick={handleSidebarToggle}
         >
           <img src={arrowDownIcon} alt="" aria-hidden="true" />
         </button>
