@@ -17,6 +17,7 @@ import { ResetPasswordForm } from './pages/auth/reset-password-form.jsx';
 import { DashboardUser } from './pages/User/DashboardUser.jsx';
 import { UserLearningProgress } from './pages/User/UserLearningProgress.jsx';
 import { UserProjectGallery } from './pages/User/UserProjectGallery.jsx';
+import { UserWorkshopSchedule } from './pages/User/UserWorkshopSchedule.jsx';
 import { NotFound } from './pages/NotFound.jsx';
 
 const routes = {
@@ -47,6 +48,7 @@ const routes = {
   '/dashboard': DashboardUser,
   '/progress-belajar': UserLearningProgress,
   '/proyek-saya': UserProjectGallery,
+  '/workshop-program': UserWorkshopSchedule,
 };
 
 const standaloneRoutes = new Set([
@@ -68,6 +70,7 @@ const standaloneRoutes = new Set([
   '/dashboard',
   '/progress-belajar',
   '/proyek-saya',
+  '/workshop-program',
 ]);
 
 export default function App() {
