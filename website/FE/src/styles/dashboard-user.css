@@ -215,14 +215,11 @@
   cursor: pointer;
 }
 
-.dashboard-notification span {
-  position: absolute;
-  right: 8px;
-  top: 8px;
-  width: 4px;
-  height: 4px;
-  border-radius: 999px;
-  background: #ff0000;
+.dashboard-notification img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  filter: invert(46%) sepia(97%) saturate(2532%) hue-rotate(2deg) brightness(103%) contrast(105%);
 }
 
 .dashboard-mini-avatar,
