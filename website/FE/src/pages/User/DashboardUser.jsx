@@ -25,6 +25,22 @@ const fieldGroups = [
   ],
 ];
 
+const calendarDays = [
+  ['', '', '1', '2', '3', '4', '5'],
+  ['6', '7', '8', '9', '10', '11', '12'],
+  ['13', '14', '15', '16', '17', '18', '19'],
+  ['20', '21', '22', '23', '24', '25', '26'],
+  ['27', '28', '29', '30', '', '', ''],
+];
+
+const eventDays = new Set(['6', '23', '24', '25', '26', '29', '30']);
+
+const upcomingPrograms = Array.from({ length: 4 }, (_, index) => ({
+  id: index + 1,
+  title: 'Nama Workshop/Program',
+  meta: 'Tanggal Bulan Jam Pukul WIB',
+}));
+
 function getStoredUser() {
   try {
     const raw = window.localStorage.getItem('arduflow_user');
@@ -170,42 +186,82 @@ export function DashboardUser() {
         </header>
 
         <main className="dashboard-content">
-          <h1>Hello Nama <span aria-hidden="true">👋🏻</span></h1>
+          <h1>Hello Nama <span aria-hidden="true">&#128075;&#127995;</span></h1>
 
-          <section className="dashboard-profile-header">
-            <div className="dashboard-profile-avatar" aria-hidden="true">{getInitials(fullName)}</div>
-            <div className="dashboard-profile-title">
-              <h2>{fullName}</h2>
-              <p>{email}</p>
-            </div>
-            <div className="dashboard-actions">
-              <button className="dashboard-button dashboard-button--edit" type="button">Edit</button>
-              <button className="dashboard-button dashboard-button--save" type="button">Save</button>
-            </div>
-          </section>
-
-          <form className="dashboard-form">
-            {fieldGroups.map((group, groupIndex) => (
-              <div className="dashboard-form__column" key={groupIndex}>
-                {group.map((field) => (
-                  <label className="dashboard-field" key={field.key}>
-                    <span>{field.label}</span>
-                    {field.select ? (
-                      <select defaultValue={values[field.key] || ''}>
-                        <option value="" disabled>{field.placeholder}</option>
-                        <option value="Siswa">Siswa</option>
-                        <option value="Mahasiswa">Mahasiswa</option>
-                        <option value="Pengajar">Pengajar</option>
-                        <option value="Profesional">Profesional</option>
-                      </select>
-                    ) : (
-                      <input type={field.type || 'text'} placeholder={field.placeholder} defaultValue={values[field.key]} />
-                    )}
-                  </label>
-                ))}
+          <div className="dashboard-main-content">
+            <section className="dashboard-profile-panel">
+              <div className="dashboard-profile-header">
+                <div className="dashboard-profile-avatar" aria-hidden="true">{getInitials(fullName)}</div>
+                <div className="dashboard-profile-title">
+                  <h2>{fullName}</h2>
+                  <p>{email}</p>
+                </div>
+                <div className="dashboard-actions">
+                  <button className="dashboard-button dashboard-button--edit" type="button">Edit</button>
+                  <button className="dashboard-button dashboard-button--save" type="button">Save</button>
+                </div>
               </div>
-            ))}
-          </form>
+
+              <form className="dashboard-form">
+                {fieldGroups.map((group, groupIndex) => (
+                  <div className="dashboard-form__column" key={groupIndex}>
+                    {group.map((field) => (
+                      <label className="dashboard-field" key={field.key}>
+                        <span>{field.label}</span>
+                        {field.select ? (
+                          <select defaultValue={values[field.key] || ''}>
+                            <option value="" disabled>{field.placeholder}</option>
+                            <option value="Siswa">Siswa</option>
+                            <option value="Mahasiswa">Mahasiswa</option>
+                            <option value="Pengajar">Pengajar</option>
+                            <option value="Profesional">Profesional</option>
+                          </select>
+                        ) : (
+                          <input type={field.type || 'text'} placeholder={field.placeholder} defaultValue={values[field.key]} />
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                ))}
+              </form>
+            </section>
+
+            <aside className="dashboard-program-panel" aria-label="Kalender Workshop dan Program">
+              <section className="dashboard-calendar">
+                <h2>Kalender Workshop / Program</h2>
+                <div className="dashboard-calendar__month">
+                  <button type="button" aria-label="Bulan sebelumnya">&lsaquo;</button>
+                  <span>April 2025</span>
+                  <button className="dashboard-calendar__next" type="button" aria-label="Bulan berikutnya">&rsaquo;</button>
+                </div>
+                <div className="dashboard-calendar__grid">
+                  {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((day) => (
+                    <strong key={day}>{day}</strong>
+                  ))}
+                  {calendarDays.flat().map((day, index) => (
+                    <span className={eventDays.has(day) ? 'dashboard-calendar__day dashboard-calendar__day--event' : 'dashboard-calendar__day'} key={`${day}-${index}`}>
+                      {day}
+                    </span>
+                  ))}
+                </div>
+              </section>
+
+              <section className="dashboard-upcoming">
+                <h2>Workshop / Program mendatang</h2>
+                <div className="dashboard-upcoming__list">
+                  {upcomingPrograms.map((program) => (
+                    <a className="dashboard-upcoming__card" href="#" key={program.id}>
+                      <span>
+                        <strong>{program.title}</strong>
+                        <small>{program.meta}</small>
+                      </span>
+                      <b aria-hidden="true">&rsaquo;</b>
+                    </a>
+                  ))}
+                </div>
+              </section>
+            </aside>
+          </div>
         </main>
       </section>
     </div>
