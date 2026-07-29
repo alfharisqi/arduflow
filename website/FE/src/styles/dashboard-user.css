@@ -1,0 +1,336 @@
+.dashboard-user-page {
+  position: relative;
+  min-width: 1280px;
+  min-height: 850px;
+  background: #ffffff;
+  color: #211c37;
+  font-family: 'Rajdhani', sans-serif;
+}
+
+.dashboard-sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 40;
+  width: 223px;
+  height: 100vh;
+  min-height: 850px;
+  background:
+    radial-gradient(124.34% 106.32% at -14.57% 97.88%, rgba(255, 106, 0, 0.42) 0%, rgba(255, 106, 0, 0) 40%),
+    radial-gradient(109.53% 93.66% at 98.21% 10.67%, rgba(0, 162, 255, 0.42) 0%, rgba(0, 162, 255, 0) 46%),
+    linear-gradient(0deg, #030b1e, #030b1e);
+}
+
+.dashboard-sidebar__brand {
+  position: absolute;
+  left: 58px;
+  top: 20px;
+  display: flex;
+  align-items: center;
+  width: 106px;
+  height: 28px;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 28px;
+  letter-spacing: -0.5px;
+  color: #ffffff;
+}
+
+.dashboard-sidebar__brand strong {
+  color: #ff6a00;
+}
+
+.dashboard-sidebar__collapse {
+  position: absolute;
+  left: 210px;
+  top: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: 25px;
+  height: 25px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: #00a2ff;
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dashboard-sidebar__nav {
+  position: absolute;
+  left: 14px;
+  top: 83px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 194px;
+}
+
+.dashboard-sidebar__item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 194px;
+  height: 38px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #ffffff;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 22px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.dashboard-sidebar__item svg {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.dashboard-sidebar__item--active {
+  background: #ff6a00;
+}
+
+.dashboard-sidebar__item--logout {
+  color: #ff0000;
+}
+
+.dashboard-shell {
+  min-height: 100vh;
+  margin-left: 223px;
+  background: #ffffff;
+}
+
+.dashboard-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  height: 65px;
+  background: #030b1e;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dashboard-topbar__user {
+  position: absolute;
+  right: 56px;
+  top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  color: #ffffff;
+}
+
+.dashboard-topbar__user strong {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 19px;
+}
+
+.dashboard-notification {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 33px;
+  height: 33px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #ff6a00;
+  cursor: pointer;
+}
+
+.dashboard-notification span {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: #ff0000;
+}
+
+.dashboard-mini-avatar,
+.dashboard-profile-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 35% 25%, #ffe0d4 0 20%, transparent 21%),
+    linear-gradient(135deg, #f2c7ba, #61c4b1);
+  color: #2d243d;
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+}
+
+.dashboard-mini-avatar {
+  width: 30px;
+  height: 30px;
+  font-size: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+}
+
+.dashboard-content {
+  padding: 23px 56px 80px 46px;
+}
+
+.dashboard-content h1 {
+  margin: 0 0 31px;
+  color: #211c37;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 43px;
+}
+
+.dashboard-profile-header {
+  display: flex;
+  align-items: center;
+  min-height: 100px;
+  margin-bottom: 47px;
+}
+
+.dashboard-profile-avatar {
+  width: 100px;
+  height: 100px;
+  margin-right: 25px;
+  font-size: 30px;
+}
+
+.dashboard-profile-title h2 {
+  margin: 0 0 7px;
+  color: #000000;
+  font-size: 26px;
+  font-weight: 500;
+  line-height: 33px;
+}
+
+.dashboard-profile-title p {
+  margin: 0;
+  color: rgba(0, 0, 0, 0.41);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 25px;
+}
+
+.dashboard-actions {
+  display: flex;
+  gap: 32px;
+  margin-left: auto;
+}
+
+.dashboard-button {
+  width: 93px;
+  height: 44px;
+  border: 0;
+  border-radius: 8px;
+  color: #ffffff;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 28px;
+  cursor: pointer;
+}
+
+.dashboard-button--edit {
+  background: #4285f4;
+}
+
+.dashboard-button--save {
+  background: #ff6a00;
+}
+
+.dashboard-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(320px, 458px));
+  column-gap: 40px;
+  row-gap: 40px;
+  max-width: 956px;
+}
+
+.dashboard-form__column {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.dashboard-field {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  color: rgba(0, 0, 0, 0.69);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 25px;
+}
+
+.dashboard-field input,
+.dashboard-field select {
+  width: 100%;
+  height: 52px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 8px;
+  outline: none;
+  background: #f9f9f9;
+  color: #555555;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 25px;
+}
+
+.dashboard-field input::placeholder {
+  color: rgba(0, 0, 0, 0.37);
+}
+
+.dashboard-field select {
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(0, 0, 0, 0.37) 50%),
+    linear-gradient(135deg, rgba(0, 0, 0, 0.37) 50%, transparent 50%);
+  background-position:
+    calc(100% - 28px) 23px,
+    calc(100% - 17px) 23px;
+  background-size: 12px 12px;
+  background-repeat: no-repeat;
+}
+
+@media (max-width: 1100px) {
+  .dashboard-user-page {
+    min-width: 0;
+  }
+
+  .dashboard-sidebar {
+    width: 210px;
+  }
+
+  .dashboard-sidebar__collapse {
+    left: 198px;
+  }
+
+  .dashboard-shell {
+    margin-left: 210px;
+  }
+
+  .dashboard-form {
+    grid-template-columns: 1fr;
+    max-width: 560px;
+  }
+
+  .dashboard-actions {
+    margin-left: 28px;
+  }
+}
