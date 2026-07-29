@@ -1,3 +1,6 @@
+import { useState } from 'react';
+import arrowDownIcon from '../assets/icons/icon-arrowdown-1.svg';
+
 const menuItems = [
   { label: 'Profil', icon: 'user', active: true },
   { label: 'Progress Belajar', icon: 'graduation' },
@@ -97,6 +100,7 @@ function SidebarIcon({ name }) {
 }
 
 export function DashboardUser() {
+  const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
   const user = getStoredUser();
   const fullName = user.name || user.fullName || 'Nama Lengkap';
   const email = user.email || 'mail@mail.com';
@@ -119,15 +123,20 @@ export function DashboardUser() {
   }
 
   return (
-    <div className="dashboard-user-page">
+    <div className={`dashboard-user-page${isSidebarCollapsed ? ' dashboard-user-page--collapsed' : ''}`}>
       <aside className="dashboard-sidebar" aria-label="Dashboard sidebar">
         <div className="dashboard-sidebar__brand">
           <span>ARDU</span>
           <strong>FLOW</strong>
         </div>
-        <button className="dashboard-sidebar__collapse" type="button" aria-label="Collapse sidebar">
-          <span>&lsaquo;</span>
-          <span>&rsaquo;</span>
+        <button
+          className="dashboard-sidebar__collapse"
+          type="button"
+          aria-expanded={!isSidebarCollapsed}
+          aria-label={isSidebarCollapsed ? 'Buka sidebar' : 'Minimize sidebar'}
+          onClick={() => setSidebarCollapsed((value) => !value)}
+        >
+          <img src={arrowDownIcon} alt="" aria-hidden="true" />
         </button>
 
         <nav className="dashboard-sidebar__nav">
