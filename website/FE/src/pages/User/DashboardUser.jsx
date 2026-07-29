@@ -3,12 +3,12 @@ import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
 
 const menuItems = [
-  { label: 'Profil', icon: 'user', active: true },
-  { label: 'Progress Belajar', icon: 'graduation' },
-  { label: 'Proyek Saya', icon: 'folder' },
-  { label: 'Workshop / Program', icon: 'calendar' },
-  { label: 'IDE', icon: 'cpu' },
-  { label: 'Settings', icon: 'settings' },
+  { label: 'Profil', icon: 'user', href: '/dashboard', active: true },
+  { label: 'Progres Belajar', icon: 'graduation', href: '/progress-belajar' },
+  { label: 'Proyek Saya', icon: 'folder', href: '/proyek-saya' },
+  { label: 'Workshop / Program', icon: 'calendar', href: '/workshop-program' },
+  { label: 'IDE', icon: 'cpu', href: '/ide' },
+  { label: 'Settings', icon: 'settings', href: '/settings' },
 ];
 
 const fieldGroups = [
@@ -160,7 +160,7 @@ export function DashboardUser() {
           {menuItems.map((item) => (
             <a
               className={`dashboard-sidebar__item${item.active ? ' dashboard-sidebar__item--active' : ''}`}
-              href={item.active ? '/dashboard' : '#'}
+              href={item.href}
               key={item.label}
             >
               <SidebarIcon name={item.icon} />

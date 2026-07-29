@@ -15,6 +15,7 @@ import { ResetPassword } from './pages/auth/reset-password.jsx';
 import { ResetPasswordSent } from './pages/auth/reset-password-sent.jsx';
 import { ResetPasswordForm } from './pages/auth/reset-password-form.jsx';
 import { DashboardUser } from './pages/User/DashboardUser.jsx';
+import { UserLearningProgress } from './pages/User/UserLearningProgress.jsx';
 import { NotFound } from './pages/NotFound.jsx';
 
 const routes = {
@@ -43,6 +44,7 @@ const routes = {
   '/reset-password/new-password': ResetPasswordForm,
   '/new-password': ResetPasswordForm,
   '/dashboard': DashboardUser,
+  '/progress-belajar': UserLearningProgress,
 };
 
 const standaloneRoutes = new Set([
@@ -62,6 +64,7 @@ const standaloneRoutes = new Set([
   '/reset-password/new-password',
   '/new-password',
   '/dashboard',
+  '/progress-belajar',
 ]);
 
 export default function App() {
