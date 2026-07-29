@@ -187,6 +187,15 @@
   white-space: nowrap;
 }
 
+.dashboard-user-page--collapsed .dashboard-shell {
+  display: flex;
+  justify-content: center;
+}
+
+.dashboard-user-page--collapsed .dashboard-content {
+  margin: 0 auto;
+}
+
 .dashboard-shell {
   min-height: 1019px;
   margin-left: var(--dashboard-sidebar-width);
