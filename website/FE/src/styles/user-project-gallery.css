@@ -1,0 +1,236 @@
+.user-project-page {
+  min-height: 1278px;
+}
+
+.user-project-page .dashboard-sidebar,
+.user-project-page .dashboard-shell {
+  min-height: 1278px;
+}
+
+.user-project-content {
+  width: 1217px;
+  min-height: 1214px;
+  padding: 35px 46px 64px;
+  gap: 28px;
+}
+
+.user-project-content h1 {
+  width: 202px;
+  height: 43px;
+}
+
+.user-project-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 1121px;
+  gap: 45px;
+}
+
+.user-project-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 1121px;
+  gap: 16px;
+}
+
+.user-project-header h2 {
+  margin: 0;
+  color: #1f2937;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 31px;
+}
+
+.user-project-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 1121px;
+  height: 48px;
+}
+
+.user-project-search {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 300px;
+  height: 44px;
+  padding: 0 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+}
+
+.user-project-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #334155;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 21px;
+}
+
+.user-project-search input::placeholder {
+  color: #77869e;
+}
+
+.user-project-controls {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.user-project-sort {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.user-project-sort span {
+  color: rgba(31, 41, 55, 0.72);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+}
+
+.user-project-sort select {
+  width: 143px;
+  height: 48px;
+  padding: 0 44px 0 24px;
+  border: 1px solid #1f2937;
+  border-radius: 8px;
+  outline: 0;
+  appearance: none;
+  background: #ffffff url('../assets/icons/icon-arrowdown-1.svg') right 18px center / 14px auto no-repeat;
+  color: #334155;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+}
+
+.user-project-filter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 110px;
+  height: 48px;
+  padding: 0;
+  border: 1px solid #1f2937;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1f2937;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  cursor: pointer;
+}
+
+.user-project-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 298px);
+  gap: 24px;
+  width: 942px;
+}
+
+.user-project-card {
+  box-sizing: border-box;
+  width: 298px;
+  height: 272px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.14);
+}
+
+.user-project-card img {
+  display: block;
+  width: 266px;
+  height: 139px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.user-project-card__body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 258px;
+  min-height: 85px;
+  margin-top: 16px;
+}
+
+.user-project-card h3 {
+  margin: 0;
+  color: #ff6a00;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 29px;
+}
+
+.user-project-card p {
+  margin: 0;
+  color: #77869e;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 21px;
+}
+
+.user-project-card time {
+  color: #00a2ff;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 21px;
+}
+
+.user-project-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 211px;
+  height: 41px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #ffffff;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.14);
+}
+
+.user-project-pagination button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 41px;
+  border: 1px solid #e2e8f0;
+  border-left: 0;
+  background: #ffffff;
+  color: #1f2937;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 21px;
+  cursor: pointer;
+}
+
+.user-project-pagination button:first-child {
+  border-left: 1px solid #e2e8f0;
+}
+
+.user-project-pagination__active {
+  color: #2563eb;
+}
