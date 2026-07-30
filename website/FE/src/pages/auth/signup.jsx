@@ -131,6 +131,7 @@ export function SignUp() {
                   <option value="mahasiswa">Mahasiswa</option>
                   <option value="pengajar">Pengajar</option>
                   <option value="instansi">Instansi</option>
+                  <option value="lainnya">Lainnya</option>
                 </select>
                 <img src={arrowDownIcon} alt="" />
               </div>

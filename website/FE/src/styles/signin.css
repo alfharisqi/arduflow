@@ -500,6 +500,15 @@
   padding: 0 56px 0 24px;
 }
 
+.signup-select-wrap select option {
+  color: #ffffff;
+  background: #030b1e;
+}
+
+.signup-select-wrap select option:disabled {
+  color: rgba(255, 255, 255, 0.45);
+}
+
 .signup-select-wrap img {
   position: absolute;
   right: 27px;
