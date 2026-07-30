@@ -49,3 +49,10 @@ export function checkAuthAvailability({ email = '', whatsapp = '' }) {
 
   return request(`/api/auth/check-availability?${params.toString()}`);
 }
+
+export function updateUserProfile(payload) {
+  return request('/api/auth/profile', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}

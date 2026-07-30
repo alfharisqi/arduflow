@@ -367,8 +367,14 @@
 
 .dashboard-actions {
   display: flex;
+  justify-content: flex-end;
   gap: 32px;
+  width: 220px;
   margin-left: auto;
+}
+
+.dashboard-actions--editing {
+  justify-content: flex-start;
 }
 
 .dashboard-button {
@@ -432,6 +438,12 @@
   line-height: 23px;
 }
 
+.dashboard-field input:disabled,
+.dashboard-field select:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
 .dashboard-field input::placeholder {
   color: rgba(0, 0, 0, 0.37);
 }
@@ -443,6 +455,14 @@
   background-position: right 20px center;
   background-size: 16px auto;
   background-repeat: no-repeat;
+}
+
+.dashboard-profile-message {
+  margin: 18px 0 0;
+  color: #4285f4;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
 }
 
 .dashboard-program-panel {

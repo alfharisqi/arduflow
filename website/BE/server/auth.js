@@ -1,9 +1,12 @@
 import {
   createUser,
   findUserByEmail,
+  findUserById,
+  findUserByUsername,
   findUserByWhatsapp,
   findUserByIdentifier,
   insertAuthLog,
+  updateUserProfile,
   verifyUserEmail,
 } from './database.js';
 import { sendVerificationEmail } from './mailer.js';
@@ -13,9 +16,12 @@ function publicUser(user) {
   return {
     id: user.id,
     name: user.name,
+    username: user.username,
+    nickname: user.nickname,
     email: user.email,
     whatsapp: user.whatsapp,
     occupation: user.occupation,
+    institutionName: user.institution_name,
     emailVerified: Boolean(user.email_verified_at),
   };
 }
@@ -207,4 +213,76 @@ export async function checkAvailability(request, response) {
   }
 
   response.json(result);
+}
+
+export async function updateProfile(request, response) {
+  const {
+    id,
+    name = '',
+    username = '',
+    nickname = '',
+    whatsapp = '',
+    occupation = '',
+    institutionName = '',
+  } = request.body || {};
+
+  const userId = Number(id);
+  const normalizedUsername = String(username).trim();
+  const normalizedWhatsapp = String(whatsapp).trim();
+
+  if (!userId || !name.trim()) {
+    response.status(422).json({ message: 'ID user dan nama lengkap wajib diisi.' });
+    return;
+  }
+
+  const currentUser = await findUserById(userId);
+
+  if (!currentUser) {
+    response.status(404).json({ message: 'User tidak ditemukan.' });
+    return;
+  }
+
+  if (normalizedWhatsapp && !validateWhatsapp(normalizedWhatsapp)) {
+    response.status(422).json({ message: 'Nomor WhatsApp harus memakai kode negara dan berisi 8-15 digit.' });
+    return;
+  }
+
+  if (normalizedWhatsapp) {
+    const existingWhatsappUser = await findUserByWhatsapp(normalizedWhatsapp);
+
+    if (existingWhatsappUser && Number(existingWhatsappUser.id) !== userId) {
+      response.status(409).json({ message: 'Nomor WhatsApp sudah terdaftar.' });
+      return;
+    }
+  }
+
+  if (normalizedUsername) {
+    const existingUsernameUser = await findUserByUsername(normalizedUsername);
+
+    if (existingUsernameUser && Number(existingUsernameUser.id) !== userId) {
+      response.status(409).json({ message: 'Username sudah digunakan.' });
+      return;
+    }
+  }
+
+  const user = await updateUserProfile(userId, {
+    name: name.trim(),
+    username: normalizedUsername,
+    nickname: String(nickname).trim(),
+    whatsapp: normalizedWhatsapp,
+    occupation: String(occupation).trim(),
+    institutionName: String(institutionName).trim(),
+  });
+
+  await insertAuthLog({
+    userId: user.id,
+    email: user.email,
+    event: 'profile_updated',
+    ...requestMeta(request),
+  });
+
+  response.json({
+    message: 'Profil berhasil diperbarui.',
+    user: publicUser(user),
+  });
 }

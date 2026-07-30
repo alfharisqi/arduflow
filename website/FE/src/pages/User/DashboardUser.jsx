@@ -3,6 +3,7 @@ import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import certificateIcon from '../../assets/icons/icon-downloadsim-1.svg';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
+import { updateUserProfile } from '../../services/authApi.js';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 
 const menuItems = [
@@ -122,20 +123,25 @@ function SidebarIcon({ name }) {
 
 export function DashboardUser() {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialSidebarCollapsed);
-  const user = getStoredUser();
-  const fullName = user.name || user.fullName || 'Nama Lengkap';
-  const email = user.email || 'mail@mail.com';
-  const username = user.username || fullName.toLowerCase().replace(/\s+/g, '');
+  const [storedUser, setStoredUser] = useState(getStoredUser);
+  const [isEditingProfile, setEditingProfile] = useState(false);
+  const [profileMessage, setProfileMessage] = useState('');
+  const [profileValues, setProfileValues] = useState(() => {
+    const user = getStoredUser();
+    const fullName = user.name || user.fullName || 'Nama Lengkap';
 
-  const values = {
-    name: fullName,
-    nickname: user.nickname || '',
-    phone: user.phone || user.whatsapp || '',
-    email,
-    username,
-    jobType: user.jobType || user.job || '',
-    institutionName: user.institutionName || user.company || '',
-  };
+    return {
+      name: fullName,
+      nickname: user.nickname || '',
+      phone: user.phone || user.whatsapp || '',
+      email: user.email || 'mail@mail.com',
+      username: user.username || '',
+      jobType: user.jobType || user.job || user.occupation || '',
+      institutionName: user.institutionName || user.company || '',
+    };
+  });
+  const fullName = profileValues.name || storedUser.name || storedUser.fullName || 'Nama Lengkap';
+  const email = profileValues.email || storedUser.email || 'mail@mail.com';
 
   function handleLogout() {
     window.localStorage.removeItem('arduflow_user');
@@ -149,6 +155,49 @@ export function DashboardUser() {
       persistSidebarCollapsed(nextValue);
       return nextValue;
     });
+  }
+
+  function updateProfileValue(event) {
+    const { name, value } = event.target;
+    setProfileValues((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  }
+
+  async function handleSaveProfile() {
+    setProfileMessage('');
+
+    try {
+      const result = await updateUserProfile({
+        id: storedUser.id,
+        name: profileValues.name,
+        username: profileValues.username,
+        nickname: profileValues.nickname,
+        whatsapp: profileValues.phone,
+        occupation: profileValues.jobType,
+        institutionName: profileValues.institutionName,
+      });
+      const nextUser = { ...storedUser, ...result.user };
+
+      window.localStorage.setItem('arduflow_user', JSON.stringify(nextUser));
+      window.dispatchEvent(new Event('arduflow-auth-change'));
+      setStoredUser(nextUser);
+      setProfileValues((current) => ({
+        ...current,
+        name: result.user.name || current.name,
+        username: result.user.username || '',
+        nickname: result.user.nickname || '',
+        phone: result.user.whatsapp || '',
+        email: result.user.email || current.email,
+        jobType: result.user.occupation || '',
+        institutionName: result.user.institutionName || '',
+      }));
+      setEditingProfile(false);
+      setProfileMessage('Profil berhasil disimpan.');
+    } catch (error) {
+      setProfileMessage(error.message || 'Profil gagal disimpan.');
+    }
   }
 
   return (
@@ -215,9 +264,22 @@ export function DashboardUser() {
                   <h2>{fullName}</h2>
                   <p>{email}</p>
                 </div>
-                <div className="dashboard-actions">
-                  <button className="dashboard-button dashboard-button--edit" type="button">Edit</button>
-                  <button className="dashboard-button dashboard-button--save" type="button">Save</button>
+                <div className={`dashboard-actions${isEditingProfile ? ' dashboard-actions--editing' : ''}`}>
+                  <button
+                    className="dashboard-button dashboard-button--edit"
+                    type="button"
+                    onClick={() => {
+                      setEditingProfile(true);
+                      setProfileMessage('');
+                    }}
+                  >
+                    Edit
+                  </button>
+                  {isEditingProfile ? (
+                    <button className="dashboard-button dashboard-button--save" type="button" onClick={handleSaveProfile}>
+                      Save
+                    </button>
+                  ) : null}
                 </div>
               </div>
 
@@ -228,21 +290,35 @@ export function DashboardUser() {
                       <label className="dashboard-field" key={field.key}>
                         <span>{field.label}</span>
                         {field.select ? (
-                          <select defaultValue={values[field.key] || ''}>
+                          <select
+                            name={field.key}
+                            value={profileValues[field.key] || ''}
+                            onChange={updateProfileValue}
+                            disabled={!isEditingProfile}
+                          >
                             <option value="" disabled>{field.placeholder}</option>
                             <option value="Siswa">Siswa</option>
                             <option value="Mahasiswa">Mahasiswa</option>
                             <option value="Pengajar">Pengajar</option>
                             <option value="Profesional">Profesional</option>
+                            <option value="Lainnya">Lainnya</option>
                           </select>
                         ) : (
-                          <input type={field.type || 'text'} placeholder={field.placeholder} defaultValue={values[field.key]} />
+                          <input
+                            type={field.type || 'text'}
+                            name={field.key}
+                            placeholder={field.placeholder}
+                            value={profileValues[field.key] || ''}
+                            onChange={updateProfileValue}
+                            disabled={!isEditingProfile || field.key === 'email'}
+                          />
                         )}
                       </label>
                     ))}
                   </div>
                 ))}
               </form>
+              {profileMessage ? <p className="dashboard-profile-message">{profileMessage}</p> : null}
             </section>
 
             <aside className="dashboard-program-panel" aria-label="Kalender Workshop dan Program">
