@@ -42,7 +42,13 @@
   letter-spacing: -0.5px;
   color: #ffffff;
   overflow: hidden;
+  text-decoration: none;
   transition: left 180ms ease, width 180ms ease, opacity 180ms ease;
+}
+
+.dashboard-sidebar__brand:focus-visible {
+  outline: 2px solid #00a2ff;
+  outline-offset: 4px;
 }
 
 .dashboard-sidebar__brand strong {

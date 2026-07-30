@@ -152,10 +152,10 @@ export function DashboardUser() {
   return (
     <div className={`dashboard-user-page${isSidebarCollapsed ? ' dashboard-user-page--collapsed' : ''}`}>
       <aside className="dashboard-sidebar" aria-label="Dashboard sidebar">
-        <div className="dashboard-sidebar__brand">
+        <a className="dashboard-sidebar__brand" href="/" aria-label="Kembali ke beranda">
           <span>ARDU</span>
           <strong>FLOW</strong>
-        </div>
+        </a>
         <button
           className="dashboard-sidebar__collapse"
           type="button"
