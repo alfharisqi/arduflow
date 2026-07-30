@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
+import certificateIcon from '../../assets/icons/icon-downloadsim-1.svg';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import courseImage from '../../assets/images/workshop-experience-student.png';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
@@ -10,6 +11,7 @@ const menuItems = [
   { label: 'Progres Belajar', icon: 'graduation', href: '/progress-belajar', active: true },
   { label: 'Proyek Saya', icon: 'folder', href: '/proyek-saya' },
   { label: 'Workshop / Program', icon: 'calendar', href: '/workshop-program' },
+  { label: 'Sertifikat', icon: 'certificate', href: '/sertifikat' },
   { label: 'IDE', icon: 'cpu', href: '/ide' },
   { label: 'Settings', icon: 'settings', href: '/settings' },
 ];
@@ -157,7 +159,11 @@ export function UserLearningProgress() {
               href={item.href}
               key={item.label}
             >
-              <SidebarIcon name={item.icon} />
+              {item.icon === 'certificate' ? (
+                <img className="dashboard-sidebar__asset-icon" src={certificateIcon} alt="" aria-hidden="true" />
+              ) : (
+                <SidebarIcon name={item.icon} />
+              )}
               <span>{item.label}</span>
             </a>
           ))}
