@@ -1,4 +1,9 @@
+import { useState } from 'react';
 import { AdminSidebar } from './AdminSidebar.jsx';
+import {
+  getInitialAdminSidebarCollapsed,
+  persistAdminSidebarCollapsed,
+} from './adminSidebarState.js';
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import userIcon from '../../assets/icons/icon-user-2.svg';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
@@ -83,9 +88,19 @@ function StatusBadge({ children }) {
 }
 
 export function AdminDashboard() {
+  const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialAdminSidebarCollapsed);
+
+  const handleToggleSidebar = () => {
+    setSidebarCollapsed((value) => {
+      const nextValue = !value;
+      persistAdminSidebarCollapsed(nextValue);
+      return nextValue;
+    });
+  };
+
   return (
-    <main className="admin-dashboard-page">
-      <AdminSidebar />
+    <main className={`admin-dashboard-page${isSidebarCollapsed ? ' admin-dashboard-page--collapsed' : ''}`}>
+      <AdminSidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleSidebar} />
 
       <section className="admin-dashboard-main" aria-label="Admin dashboard">
         <header className="admin-dashboard-topbar">

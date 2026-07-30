@@ -1,18 +1,20 @@
 .admin-sidebar {
+  --admin-sidebar-width: 216px;
   display: flex;
   flex: none;
   flex-direction: column;
-  width: 216px;
-  min-width: 216px;
+  width: var(--admin-sidebar-width);
+  min-width: var(--admin-sidebar-width);
   min-height: 985px;
   background: #ffffff;
   border-right: 1px solid #e5e7eb;
+  transition: width 180ms ease, min-width 180ms ease;
 }
 
 .admin-sidebar-brand {
   display: flex;
   align-items: center;
-  width: 216px;
+  width: var(--admin-sidebar-width);
   height: 56px;
   padding: 0 20px;
   gap: 12px;
@@ -23,6 +25,8 @@
   line-height: 20px;
   color: #111827;
   text-decoration: none;
+  overflow: hidden;
+  transition: width 180ms ease, padding 180ms ease, justify-content 180ms ease;
 }
 
 .admin-sidebar-logo-mark {
@@ -53,13 +57,41 @@
   transform: rotate(-45deg);
 }
 
+.admin-sidebar-toggle {
+  position: absolute;
+  left: calc(var(--admin-sidebar-width) - 13px);
+  top: 18px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: #00a2ff;
+  cursor: pointer;
+  transition: left 180ms ease;
+}
+
+.admin-sidebar-toggle img {
+  width: 13px;
+  height: 8px;
+  filter: brightness(0) invert(1);
+  transform: rotate(90deg);
+  transition: transform 180ms ease;
+}
+
 .admin-sidebar-items {
   display: flex;
   flex: 1;
   flex-direction: column;
-  width: 216px;
+  width: var(--admin-sidebar-width);
   padding: 14px 8px;
   gap: 16px;
+  overflow: hidden;
+  transition: width 180ms ease, padding 180ms ease, gap 180ms ease;
 }
 
 .admin-sidebar-group {
@@ -82,7 +114,7 @@
 .admin-sidebar-link {
   display: flex;
   align-items: center;
-  width: 200px;
+  width: calc(var(--admin-sidebar-width) - 16px);
   min-height: 36px;
   padding: 0 12px;
   gap: 12px;
@@ -93,6 +125,7 @@
   line-height: 18px;
   color: #252d3a;
   text-decoration: none;
+  transition: width 180ms ease, padding 180ms ease, gap 180ms ease, justify-content 180ms ease;
 }
 
 .admin-sidebar-link:hover {
@@ -137,10 +170,12 @@
 .admin-sidebar-user {
   display: flex;
   flex-direction: column;
-  width: 216px;
+  width: var(--admin-sidebar-width);
   padding: 12px 20px 16px;
   gap: 12px;
   border-top: 1px solid #e5e7eb;
+  overflow: hidden;
+  transition: width 180ms ease, padding 180ms ease;
 }
 
 .admin-sidebar-profile {
@@ -203,4 +238,72 @@
 
 .admin-sidebar-link--danger .admin-sidebar-icon {
   filter: brightness(0) saturate(100%) invert(25%) sepia(90%) saturate(2868%) hue-rotate(347deg) brightness(90%) contrast(92%);
+}
+
+.admin-dashboard-page--collapsed .admin-sidebar {
+  --admin-sidebar-width: 70px;
+}
+
+.admin-dashboard-page--collapsed .admin-sidebar-brand {
+  justify-content: center;
+  padding: 0;
+}
+
+.admin-dashboard-page--collapsed .admin-sidebar-brand span:not(.admin-sidebar-logo-mark) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.admin-dashboard-page--collapsed .admin-sidebar-toggle img {
+  transform: rotate(-90deg);
+}
+
+.admin-dashboard-page--collapsed .admin-sidebar-items {
+  padding: 14px 14px;
+  gap: 8px;
+}
+
+.admin-dashboard-page--collapsed .admin-sidebar-group {
+  gap: 6px;
+}
+
+.admin-dashboard-page--collapsed .admin-sidebar-group h2,
+.admin-dashboard-page--collapsed .admin-sidebar-link span,
+.admin-dashboard-page--collapsed .admin-sidebar-link em,
+.admin-dashboard-page--collapsed .admin-sidebar-profile-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.admin-dashboard-page--collapsed .admin-sidebar-link {
+  justify-content: center;
+  width: 42px;
+  min-height: 36px;
+  padding: 0;
+  gap: 0;
+}
+
+.admin-dashboard-page--collapsed .admin-sidebar-user {
+  align-items: center;
+  width: 70px;
+  padding: 12px 14px 16px;
+}
+
+.admin-dashboard-page--collapsed .admin-sidebar-profile {
+  justify-content: center;
+  width: 42px;
+}
+
+.admin-dashboard-page--collapsed .admin-sidebar-actions {
+  width: 42px;
 }

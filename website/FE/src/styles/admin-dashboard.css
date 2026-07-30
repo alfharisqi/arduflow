@@ -1,4 +1,5 @@
 .admin-dashboard-page {
+  --admin-dashboard-sidebar-width: 216px;
   display: flex;
   align-items: stretch;
   width: 100%;
@@ -7,10 +8,15 @@
   background: #ffffff;
 }
 
+.admin-dashboard-page--collapsed {
+  --admin-dashboard-sidebar-width: 70px;
+}
+
 .admin-dashboard-main {
   flex: 1;
   min-width: 0;
   background: #ffffff;
+  transition: margin-left 180ms ease;
 }
 
 .admin-dashboard-topbar {

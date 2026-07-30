@@ -10,6 +10,7 @@ import cpuIcon from '../../assets/icons/icon-cpu-1.svg';
 import databaseIcon from '../../assets/icons/icons-database-1.svg';
 import settingsIcon from '../../assets/icons/icon-settings-1.svg';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
+import collapseIcon from '../../assets/icons/icon-arrowdown-1.svg';
 
 const adminItems = [
   {
@@ -42,13 +43,23 @@ const adminItems = [
   },
 ];
 
-export function AdminSidebar() {
+export function AdminSidebar({ isCollapsed = false, onToggleCollapse = () => {} }) {
   return (
     <aside className="admin-sidebar" aria-label="Admin sidebar">
       <a className="admin-sidebar-brand" href="/admin/dashboard" aria-label="Arduflow Admin">
         <span className="admin-sidebar-logo-mark" aria-hidden="true" />
         <span>Admin Panel</span>
       </a>
+
+      <button
+        className="admin-sidebar-toggle"
+        type="button"
+        onClick={onToggleCollapse}
+        aria-label={isCollapsed ? 'Expand sidebar admin' : 'Minimize sidebar admin'}
+        aria-expanded={!isCollapsed}
+      >
+        <img src={collapseIcon} alt="" aria-hidden="true" />
+      </button>
 
       <nav className="admin-sidebar-items" aria-label="Admin navigation">
         {adminItems.map((group) => (
