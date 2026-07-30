@@ -1,5 +1,5 @@
 import express from 'express';
-import { login, register, verifyEmail } from './auth.js';
+import { checkAvailability, login, register, verifyEmail } from './auth.js';
 import { config } from './config.js';
 import { health, insertLead } from './database.js';
 
@@ -38,6 +38,8 @@ app.post('/api/auth/register', asyncHandler(register));
 app.post('/api/auth/login', asyncHandler(login));
 app.get('/api/auth/verify-email', asyncHandler(verifyEmail));
 app.post('/api/auth/verify-email', asyncHandler(verifyEmail));
+app.get('/api/auth/check-availability', asyncHandler(checkAvailability));
+app.post('/api/auth/check-availability', asyncHandler(checkAvailability));
 
 app.post('/api/leads', asyncHandler(async (request, response) => {
   const { name = '', email = '', phone = '', interest = 'akses', message = '' } = request.body || {};

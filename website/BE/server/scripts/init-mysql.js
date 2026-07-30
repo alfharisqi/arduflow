@@ -23,6 +23,25 @@ for (const statement of statements) {
   await connection.query(statement);
 }
 
+const [whatsappIndexes] = await connection.query(
+  `SELECT INDEX_NAME
+   FROM INFORMATION_SCHEMA.STATISTICS
+   WHERE TABLE_SCHEMA = ?
+     AND TABLE_NAME = 'users'
+     AND COLUMN_NAME = 'whatsapp'
+     AND NON_UNIQUE = 0`,
+  [config.database.mysql.database],
+);
+
+if (whatsappIndexes.length === 0) {
+  try {
+    await connection.query('ALTER TABLE users ADD UNIQUE INDEX uq_users_whatsapp (whatsapp)');
+  } catch (error) {
+    console.warn('Unique index users.whatsapp belum dibuat. Pastikan tidak ada nomor WhatsApp duplikat, lalu jalankan init lagi.');
+    console.warn(error.message);
+  }
+}
+
 await connection.end();
 
 console.log(`MySQL database initialized: ${config.database.mysql.database}`);

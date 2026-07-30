@@ -89,6 +89,10 @@ export async function findUserByEmail(email) {
   return mysqlOne('SELECT * FROM users WHERE email = ?', [email]);
 }
 
+export async function findUserByWhatsapp(whatsapp) {
+  return mysqlOne('SELECT * FROM users WHERE whatsapp = ?', [whatsapp]);
+}
+
 export async function findUserByIdentifier(identifier) {
   return mysqlOne('SELECT * FROM users WHERE LOWER(email) = LOWER(?) OR LOWER(name) = LOWER(?)', [identifier, identifier]);
 }

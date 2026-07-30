@@ -1,6 +1,7 @@
 import {
   createUser,
   findUserByEmail,
+  findUserByWhatsapp,
   findUserByIdentifier,
   insertAuthLog,
   verifyUserEmail,
@@ -23,6 +24,14 @@ function validateEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function validatePassword(password) {
+  return /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/.test(password);
+}
+
+function validateWhatsapp(whatsapp) {
+  return /^\+\d{8,15}$/.test(whatsapp);
+}
+
 function requestMeta(request) {
   return {
     ip: request.ip || request.socket?.remoteAddress || '',
@@ -40,9 +49,10 @@ export async function register(request, response) {
   } = request.body || {};
 
   const normalizedEmail = email.trim().toLowerCase();
+  const normalizedWhatsapp = whatsapp.trim();
 
-  if (!name.trim() || !normalizedEmail || !password) {
-    response.status(422).json({ message: 'Nama, email, dan kata sandi wajib diisi.' });
+  if (!name.trim() || !normalizedEmail || !normalizedWhatsapp || !password) {
+    response.status(422).json({ message: 'Nama, email, nomor WhatsApp, dan kata sandi wajib diisi.' });
     return;
   }
 
@@ -51,8 +61,13 @@ export async function register(request, response) {
     return;
   }
 
-  if (password.length < 8) {
-    response.status(422).json({ message: 'Kata sandi minimal 8 karakter.' });
+  if (!validateWhatsapp(normalizedWhatsapp)) {
+    response.status(422).json({ message: 'Nomor WhatsApp harus memakai kode negara dan berisi 8-15 digit.' });
+    return;
+  }
+
+  if (!validatePassword(password)) {
+    response.status(422).json({ message: 'Kata sandi minimal 8 karakter dengan kombinasi huruf, angka, dan simbol.' });
     return;
   }
 
@@ -63,11 +78,18 @@ export async function register(request, response) {
     return;
   }
 
+  const existingWhatsappUser = await findUserByWhatsapp(normalizedWhatsapp);
+
+  if (existingWhatsappUser) {
+    response.status(409).json({ message: 'Nomor WhatsApp sudah terdaftar.' });
+    return;
+  }
+
   const verificationToken = randomToken();
   const user = await createUser({
     name: name.trim(),
     email: normalizedEmail,
-    whatsapp: whatsapp.trim(),
+    whatsapp: normalizedWhatsapp,
     occupation: occupation.trim(),
     passwordHash: hashPassword(password),
     verificationToken,
@@ -159,4 +181,30 @@ export async function verifyEmail(request, response) {
     message: 'Email berhasil diverifikasi.',
     user: publicUser(user),
   });
+}
+
+export async function checkAvailability(request, response) {
+  const email = String(request.query.email || request.body?.email || '').trim().toLowerCase();
+  const whatsapp = String(request.query.whatsapp || request.body?.whatsapp || '').trim();
+  const result = {};
+
+  if (email) {
+    if (!validateEmail(email)) {
+      response.status(422).json({ message: 'Format email tidak valid.' });
+      return;
+    }
+
+    result.emailAvailable = !(await findUserByEmail(email));
+  }
+
+  if (whatsapp) {
+    if (!validateWhatsapp(whatsapp)) {
+      response.status(422).json({ message: 'Nomor WhatsApp harus memakai kode negara dan berisi 8-15 digit.' });
+      return;
+    }
+
+    result.whatsappAvailable = !(await findUserByWhatsapp(whatsapp));
+  }
+
+  response.json(result);
 }

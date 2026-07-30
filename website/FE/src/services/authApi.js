@@ -35,3 +35,17 @@ export function loginUser(payload) {
 export function verifyEmailToken(token) {
   return request(`/api/auth/verify-email?token=${encodeURIComponent(token)}`);
 }
+
+export function checkAuthAvailability({ email = '', whatsapp = '' }) {
+  const params = new URLSearchParams();
+
+  if (email) {
+    params.set('email', email);
+  }
+
+  if (whatsapp) {
+    params.set('whatsapp', whatsapp);
+  }
+
+  return request(`/api/auth/check-availability?${params.toString()}`);
+}

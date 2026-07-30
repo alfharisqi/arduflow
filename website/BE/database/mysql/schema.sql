@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(120) NOT NULL,
     email VARCHAR(160) NOT NULL UNIQUE,
-    whatsapp VARCHAR(40) NULL,
+    whatsapp VARCHAR(40) NULL UNIQUE,
     occupation VARCHAR(120) NULL,
     password_hash VARCHAR(255) NOT NULL,
     email_verified_at DATETIME NULL,
