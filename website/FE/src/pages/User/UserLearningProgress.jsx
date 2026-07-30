@@ -4,6 +4,7 @@ import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import certificateIcon from '../../assets/icons/icon-downloadsim-1.svg';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import courseImage from '../../assets/images/workshop-experience-student.png';
+import { ProfileAvatar } from '../../features/profile-image-crop/ProfileAvatar.jsx';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 
 const menuItems = [
@@ -121,6 +122,7 @@ export function UserLearningProgress() {
   const user = getStoredUser();
   const fullName = user.name || user.fullName || 'Nama Lengkap';
   const greetingName = user.nickname || fullName;
+  const profileImage = user.profileImage || user.avatar || '';
 
   function handleLogout() {
     window.localStorage.removeItem('arduflow_user');
@@ -181,7 +183,7 @@ export function UserLearningProgress() {
             <button className="dashboard-notification" type="button" aria-label="Notifikasi">
               <img src={bellIcon} alt="" aria-hidden="true" />
             </button>
-            <div className="dashboard-mini-avatar" aria-hidden="true">{getInitials(fullName)}</div>
+            <ProfileAvatar className="dashboard-mini-avatar" image={profileImage} name={fullName} />
             <strong>{fullName}</strong>
           </div>
         </header>

@@ -150,6 +150,7 @@ export async function updateUserProfile(userId, profile) {
          whatsapp = ?,
          occupation = ?,
          institution_name = ?,
+         profile_image = ?,
          updated_at = ?
      WHERE id = ?`,
     [
@@ -159,6 +160,7 @@ export async function updateUserProfile(userId, profile) {
       profile.whatsapp || null,
       profile.occupation || null,
       profile.institutionName || null,
+      profile.profileImage || null,
       updatedAt,
       userId,
     ],

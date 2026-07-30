@@ -28,7 +28,7 @@ app.use((request, response, next) => {
   next();
 });
 
-app.use(express.json());
+app.use(express.json({ limit: '8mb' }));
 
 app.get('/api/health', (_request, response) => {
   response.json(health());
@@ -63,6 +63,12 @@ app.post('/api/leads', asyncHandler(async (request, response) => {
 
 app.use((error, _request, response, _next) => {
   console.error(error);
+
+  if (error.type === 'entity.too.large') {
+    response.status(413).json({ message: 'Ukuran foto terlalu besar. Gunakan gambar yang lebih kecil.' });
+    return;
+  }
+
   response.status(500).json({ message: 'Terjadi kesalahan server.' });
 });
 

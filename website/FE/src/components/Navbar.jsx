@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { navigation } from '../features/content/arduflowContent.js';
+import { ProfileAvatar } from '../features/profile-image-crop/ProfileAvatar.jsx';
 
 function getStoredUser() {
   if (typeof window === 'undefined') {
@@ -53,7 +54,7 @@ export function Navbar() {
   const isSignedIn = Boolean(storedUser);
   const displayName = storedUser?.name || storedUser?.username || 'Nama Lengkap';
   const username = storedUser?.username || storedUser?.email || 'USERNAME';
-  const avatarInitial = displayName.trim().charAt(0).toUpperCase() || 'A';
+  const profileImage = storedUser?.profileImage || storedUser?.avatar || '';
 
   const handleLogout = () => {
     window.localStorage.removeItem('arduflow_user');
@@ -92,11 +93,7 @@ export function Navbar() {
         <div className="navbar-user-actions" aria-label="Aksi pengguna" ref={menuRef}>
           <a className="nav-ide" href="/ide">Masuk IDE</a>
           <a className="navbar-user-avatar" href="/dashboard" aria-label="Profil pengguna">
-            {storedUser?.avatar ? (
-              <img src={storedUser.avatar} alt="" />
-            ) : (
-              <span>{avatarInitial}</span>
-            )}
+            <ProfileAvatar image={profileImage} name={displayName} />
           </a>
           <button
             className={`navbar-icon-button navbar-menu-toggle${isMenuOpen ? ' is-open' : ''}`}
@@ -117,7 +114,7 @@ export function Navbar() {
                 <span className="profile-dropdown__traffic-green" />
               </div>
               <div className="profile-dropdown__user">
-                <div className="profile-dropdown__avatar" aria-hidden="true">{avatarInitial}</div>
+                <ProfileAvatar className="profile-dropdown__avatar" image={profileImage} name={displayName} />
                 <div>
                   <span className="profile-dropdown__username">{username}</span>
                   <strong>{displayName}</strong>

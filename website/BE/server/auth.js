@@ -22,6 +22,7 @@ function publicUser(user) {
     whatsapp: user.whatsapp,
     occupation: user.occupation,
     institutionName: user.institution_name,
+    profileImage: user.profile_image,
     emailVerified: Boolean(user.email_verified_at),
   };
 }
@@ -224,6 +225,7 @@ export async function updateProfile(request, response) {
     whatsapp = '',
     occupation = '',
     institutionName = '',
+    profileImage = '',
   } = request.body || {};
 
   const userId = Number(id);
@@ -272,6 +274,7 @@ export async function updateProfile(request, response) {
     whatsapp: normalizedWhatsapp,
     occupation: String(occupation).trim(),
     institutionName: String(institutionName).trim(),
+    profileImage: String(profileImage).trim(),
   });
 
   await insertAuthLog({

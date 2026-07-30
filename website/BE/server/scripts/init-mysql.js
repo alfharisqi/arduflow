@@ -41,6 +41,7 @@ async function ensureUsersColumn(columnName, definition) {
 await ensureUsersColumn('username', 'username VARCHAR(80) NULL');
 await ensureUsersColumn('nickname', 'nickname VARCHAR(80) NULL');
 await ensureUsersColumn('institution_name', 'institution_name VARCHAR(160) NULL');
+await ensureUsersColumn('profile_image', 'profile_image MEDIUMTEXT NULL');
 
 const [usernameIndexes] = await connection.query(
   `SELECT INDEX_NAME

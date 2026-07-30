@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
     whatsapp VARCHAR(40) NULL UNIQUE,
     occupation VARCHAR(120) NULL,
     institution_name VARCHAR(160) NULL,
+    profile_image MEDIUMTEXT NULL,
     password_hash VARCHAR(255) NOT NULL,
     email_verified_at DATETIME NULL,
     verification_token VARCHAR(128) NULL,

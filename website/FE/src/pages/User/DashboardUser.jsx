@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import certificateIcon from '../../assets/icons/icon-downloadsim-1.svg';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
+import { ProfileAvatar } from '../../features/profile-image-crop/ProfileAvatar.jsx';
+import { ProfileImageCropper } from '../../features/profile-image-crop/ProfileImageCropper.jsx';
 import { updateUserProfile } from '../../services/authApi.js';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 
@@ -63,6 +65,21 @@ function getInitials(name) {
     .map((part) => part[0])
     .join('')
     .toUpperCase();
+}
+
+function buildProfileValues(user = {}) {
+  const fullName = user.name || user.fullName || 'Nama Lengkap';
+
+  return {
+    name: fullName,
+    nickname: user.nickname || '',
+    phone: user.phone || user.whatsapp || '',
+    email: user.email || 'mail@mail.com',
+    username: user.username || '',
+    jobType: user.jobType || user.job || user.occupation || '',
+    institutionName: user.institutionName || user.company || '',
+    profileImage: user.profileImage || user.avatar || '',
+  };
 }
 
 function SidebarIcon({ name }) {
@@ -126,20 +143,9 @@ export function DashboardUser() {
   const [storedUser, setStoredUser] = useState(getStoredUser);
   const [isEditingProfile, setEditingProfile] = useState(false);
   const [profileMessage, setProfileMessage] = useState('');
-  const [profileValues, setProfileValues] = useState(() => {
-    const user = getStoredUser();
-    const fullName = user.name || user.fullName || 'Nama Lengkap';
-
-    return {
-      name: fullName,
-      nickname: user.nickname || '',
-      phone: user.phone || user.whatsapp || '',
-      email: user.email || 'mail@mail.com',
-      username: user.username || '',
-      jobType: user.jobType || user.job || user.occupation || '',
-      institutionName: user.institutionName || user.company || '',
-    };
-  });
+  const [cropSource, setCropSource] = useState('');
+  const fileInputRef = useRef(null);
+  const [profileValues, setProfileValues] = useState(() => buildProfileValues(getStoredUser()));
   const fullName = profileValues.name || storedUser.name || storedUser.fullName || 'Nama Lengkap';
   const greetingName = profileValues.nickname || fullName;
   const email = profileValues.email || storedUser.email || 'mail@mail.com';
@@ -178,6 +184,7 @@ export function DashboardUser() {
         whatsapp: profileValues.phone,
         occupation: profileValues.jobType,
         institutionName: profileValues.institutionName,
+        profileImage: profileValues.profileImage,
       });
       const nextUser = { ...storedUser, ...result.user };
 
@@ -193,12 +200,47 @@ export function DashboardUser() {
         email: result.user.email || current.email,
         jobType: result.user.occupation || '',
         institutionName: result.user.institutionName || '',
+        profileImage: result.user.profileImage || '',
       }));
       setEditingProfile(false);
       setProfileMessage('Profil berhasil disimpan.');
     } catch (error) {
       setProfileMessage(error.message || 'Profil gagal disimpan.');
     }
+  }
+
+  function handleEditProfileToggle() {
+    if (isEditingProfile) {
+      setProfileValues(buildProfileValues(storedUser));
+      setEditingProfile(false);
+      setProfileMessage('');
+      setCropSource('');
+      return;
+    }
+
+    setEditingProfile(true);
+    setProfileMessage('');
+  }
+
+  function handleProfileImageSelect(event) {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    setCropSource(URL.createObjectURL(file));
+    event.target.value = '';
+  }
+
+  function handleCroppedProfileImage(imageData) {
+    setProfileValues((current) => ({
+      ...current,
+      profileImage: imageData,
+    }));
+    setEditingProfile(true);
+    setProfileMessage('');
+    setCropSource('');
   }
 
   return (
@@ -246,7 +288,7 @@ export function DashboardUser() {
             <button className="dashboard-notification" type="button" aria-label="Notifikasi">
               <img src={bellIcon} alt="" aria-hidden="true" />
             </button>
-            <div className="dashboard-mini-avatar" aria-hidden="true">{getInitials(fullName)}</div>
+            <ProfileAvatar className="dashboard-mini-avatar" image={profileValues.profileImage} name={fullName} />
             <strong>{fullName}</strong>
           </div>
         </header>
@@ -260,21 +302,31 @@ export function DashboardUser() {
           <div className="dashboard-main-content">
             <section className="dashboard-profile-panel">
               <div className="dashboard-profile-header">
-                <div className="dashboard-profile-avatar" aria-hidden="true">{getInitials(fullName)}</div>
+                <ProfileAvatar
+                  className="dashboard-profile-avatar"
+                  image={profileValues.profileImage}
+                  name={fullName}
+                  editable
+                  onEdit={() => fileInputRef.current?.click()}
+                />
+                <input
+                  ref={fileInputRef}
+                  className="dashboard-profile-file"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleProfileImageSelect}
+                />
                 <div className="dashboard-profile-title">
                   <h2>{fullName}</h2>
                   <p>{email}</p>
                 </div>
                 <div className={`dashboard-actions${isEditingProfile ? ' dashboard-actions--editing' : ''}`}>
                   <button
-                    className="dashboard-button dashboard-button--edit"
+                    className={`dashboard-button ${isEditingProfile ? 'dashboard-button--cancel' : 'dashboard-button--edit'}`}
                     type="button"
-                    onClick={() => {
-                      setEditingProfile(true);
-                      setProfileMessage('');
-                    }}
+                    onClick={handleEditProfileToggle}
                   >
-                    Edit
+                    {isEditingProfile ? 'Cancel' : 'Edit'}
                   </button>
                   {isEditingProfile ? (
                     <button className="dashboard-button dashboard-button--save" type="button" onClick={handleSaveProfile}>
@@ -360,6 +412,11 @@ export function DashboardUser() {
           </div>
         </main>
       </section>
+      <ProfileImageCropper
+        source={cropSource}
+        onCancel={() => setCropSource('')}
+        onApply={handleCroppedProfileImage}
+      />
     </div>
   );
 }
