@@ -104,11 +104,10 @@ export function AdminDashboard() {
 
       <section className="admin-dashboard-main" aria-label="Admin dashboard">
         <header className="admin-dashboard-topbar">
-          <button className="admin-dashboard-menu" type="button" aria-label="Menu">
-            <span />
-            <span />
-            <span />
-          </button>
+          <label className="admin-dashboard-search">
+            <span aria-hidden="true" />
+            <input type="search" placeholder="Cari data admin" aria-label="Cari data admin" />
+          </label>
           <div className="admin-dashboard-account">
             <button className="admin-dashboard-notif" type="button" aria-label="Notifikasi">
               <img src={bellIcon} alt="" />
