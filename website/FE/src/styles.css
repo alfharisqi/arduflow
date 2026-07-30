@@ -14,6 +14,8 @@
 @import './styles/user-workshop-schedule.css';
 @import './styles/user-certificates.css';
 @import './styles/admin-login.css';
+@import './styles/admin-sidebar.css';
+@import './styles/admin-dashboard.css';
 @import './styles/responsive.css';
 @import './styles/footer.css';
 @import './styles/footer-responsive.css';

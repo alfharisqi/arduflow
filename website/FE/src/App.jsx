@@ -20,6 +20,7 @@ import { UserProjectGallery } from './pages/User/UserProjectGallery.jsx';
 import { UserWorkshopSchedule } from './pages/User/UserWorkshopSchedule.jsx';
 import { UserCertificates } from './pages/User/UserCertificates.jsx';
 import { AdminLogin } from './pages/admin/AdminLogin.jsx';
+import { AdminDashboard } from './pages/admin/AdminDashboard.jsx';
 import { NotFound } from './pages/NotFound.jsx';
 
 const routes = {
@@ -54,6 +55,7 @@ const routes = {
   '/sertifikat': UserCertificates,
   '/admin': AdminLogin,
   '/admin/login': AdminLogin,
+  '/admin/dashboard': AdminDashboard,
 };
 
 const standaloneRoutes = new Set([
@@ -79,6 +81,7 @@ const standaloneRoutes = new Set([
   '/sertifikat',
   '/admin',
   '/admin/login',
+  '/admin/dashboard',
 ]);
 
 export default function App() {
