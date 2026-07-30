@@ -62,9 +62,10 @@ export function Navbar() {
   };
 
   const dashboardLinks = [
-    { label: 'Project Saya', href: '/project-saya' },
+    { label: 'Profil', href: '/dashboard' },
+    { label: 'Project Saya', href: '/proyek-saya' },
     { label: 'Masuk IDE', href: '/ide' },
-    { label: 'Program yang Diikuti', href: '/program-saya' },
+    { label: 'Program yang Diikuti', href: '/workshop-program' },
     { label: 'Sertifikat', href: '/sertifikat' },
   ];
 
@@ -90,7 +91,7 @@ export function Navbar() {
       {isSignedIn ? (
         <div className="navbar-user-actions" aria-label="Aksi pengguna" ref={menuRef}>
           <a className="nav-ide" href="/ide">Masuk IDE</a>
-          <a className="navbar-user-avatar" href="/profile" aria-label="Profil pengguna">
+          <a className="navbar-user-avatar" href="/dashboard" aria-label="Profil pengguna">
             {storedUser?.avatar ? (
               <img src={storedUser.avatar} alt="" />
             ) : (
@@ -161,7 +162,7 @@ export function Navbar() {
       ) : (
         <>
           <a className="nav-ide" href="/ide">Masuk IDE</a>
-          <a className="navbar-button" href="/akses">Daftar Akses</a>
+          <a className="navbar-button" href="/signup">Daftar Akses</a>
         </>
       )}
     </header>
