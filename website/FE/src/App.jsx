@@ -18,6 +18,7 @@ import { DashboardUser } from './pages/User/DashboardUser.jsx';
 import { UserLearningProgress } from './pages/User/UserLearningProgress.jsx';
 import { UserProjectGallery } from './pages/User/UserProjectGallery.jsx';
 import { UserWorkshopSchedule } from './pages/User/UserWorkshopSchedule.jsx';
+import { UserCertificates } from './pages/User/UserCertificates.jsx';
 import { NotFound } from './pages/NotFound.jsx';
 
 const routes = {
@@ -49,6 +50,7 @@ const routes = {
   '/progress-belajar': UserLearningProgress,
   '/proyek-saya': UserProjectGallery,
   '/workshop-program': UserWorkshopSchedule,
+  '/sertifikat': UserCertificates,
 };
 
 const standaloneRoutes = new Set([
@@ -71,6 +73,7 @@ const standaloneRoutes = new Set([
   '/progress-belajar',
   '/proyek-saya',
   '/workshop-program',
+  '/sertifikat',
 ]);
 
 export default function App() {
