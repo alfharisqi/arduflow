@@ -120,6 +120,7 @@ export function UserLearningProgress() {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialSidebarCollapsed);
   const user = getStoredUser();
   const fullName = user.name || user.fullName || 'Nama Lengkap';
+  const greetingName = user.nickname || fullName;
 
   function handleLogout() {
     window.localStorage.removeItem('arduflow_user');
@@ -187,7 +188,7 @@ export function UserLearningProgress() {
 
         <main className="dashboard-content user-progress-content">
           <div className="dashboard-user-greeting">
-            <h1>Hello Nama</h1>
+            <h1>Hello {greetingName}</h1>
             <span aria-hidden="true">&#128075;&#127995;</span>
           </div>
 

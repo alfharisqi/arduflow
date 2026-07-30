@@ -141,6 +141,7 @@ export function DashboardUser() {
     };
   });
   const fullName = profileValues.name || storedUser.name || storedUser.fullName || 'Nama Lengkap';
+  const greetingName = profileValues.nickname || fullName;
   const email = profileValues.email || storedUser.email || 'mail@mail.com';
 
   function handleLogout() {
@@ -252,7 +253,7 @@ export function DashboardUser() {
 
         <main className="dashboard-content">
           <div className="dashboard-user-greeting">
-            <h1>Hello Nama</h1>
+            <h1>Hello {greetingName}</h1>
             <span aria-hidden="true">&#128075;&#127995;</span>
           </div>
 
