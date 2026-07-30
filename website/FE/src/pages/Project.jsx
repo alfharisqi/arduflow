@@ -1,12 +1,14 @@
+import { useState } from "react";
+
 import featuredLedImage from "../assets/images/featured-led.png";
 import featuredDht22Image from "../assets/images/featured-dht22.png";
 import featuredEsp32Image from "../assets/images/featured-esp32.png";
-import libraryLedImage from "../assets/images/library-led.png";
-import libraryDht22Image from "../assets/images/library-dht22.png";
-import libraryEsp32Image from "../assets/images/library-esp32.png";
-import libraryRelayImage from "../assets/images/library-relay.png";
-import libraryDoorLockImage from "../assets/images/library-door-lock.png";
-import librarySmartHomeImage from "../assets/images/library-smart-home.png";
+import allProjectLedImage from "../assets/images/all-project-led.png";
+import allProjectDht22Image from "../assets/images/all-project-dht22.png";
+import allProjectEsp32Image from "../assets/images/all-project-esp32.png";
+import allProjectLdrImage from "../assets/images/all-project-ldr.png";
+import allProjectMotionImage from "../assets/images/all-project-motion.png";
+import allProjectSoilImage from "../assets/images/all-project-soil.png";
 import partnerKomunitasImage from "../assets/images/partner-komunitas.png";
 import partnerPolinemaImage from "../assets/images/partner-polinema.png";
 import partnerPoliwangiImage from "../assets/images/partner-poliwangi.png";
@@ -45,36 +47,48 @@ const featuredProjects = [
 const projectFilters = [
   "Semua",
   "Proyek Pemula",
-  "Proyek IoT",
+  "IoT",
   "Otomasi",
-  "Karya Pengguna",
-  "Workshop",
+  "Arduino",
+  "Esp 32",
 ];
 
 const projectLibrary = [
   {
     title: "LED Sederhana",
-    image: libraryLedImage,
+    image: allProjectLedImage,
+    category: "Proyek Pemula",
+    tags: ["Proyek Pemula", "Arduino"],
   },
   {
     title: "Sensor Suhu DHT22",
-    image: libraryDht22Image,
+    image: allProjectDht22Image,
+    category: "Sensor",
+    tags: ["IoT", "Arduino"],
   },
   {
     title: "Monitoring IoT ESP32",
-    image: libraryEsp32Image,
+    image: allProjectEsp32Image,
+    category: "Esp32",
+    tags: ["IoT", "Esp 32"],
   },
   {
-    title: "Relay Kontrol Perangkat",
-    image: libraryRelayImage,
+    title: "Lampu Otomatis dengan LDR",
+    image: allProjectLdrImage,
+    category: "Proyek Pemula",
+    tags: ["Proyek Pemula", "Otomasi", "Arduino"],
   },
   {
-    title: "Smart Door Lock",
-    image: libraryDoorLockImage,
+    title: "Alarm Pendeteksi Gerakan",
+    image: allProjectMotionImage,
+    category: "Sensor",
+    tags: ["IoT", "Otomasi"],
   },
   {
-    title: "Prototype Smart Home",
-    image: librarySmartHomeImage,
+    title: "Monitoring Kelembapan Tanah",
+    image: allProjectSoilImage,
+    category: "Monitoring IoT",
+    tags: ["IoT", "Otomasi", "Esp 32"],
   },
 ];
 
@@ -184,7 +198,7 @@ function FeaturedProjects() {
             <p className="section-eyebrow">CURATED WORK</p>
             <h2 id="featured-projects-title">Proyek Pilihan</h2>
           </div>
-          <a className="featured-projects__all" href="/project">
+          <a className="featured-projects__all" href="/project/semua">
             Lihat semua Proyek <span aria-hidden="true">-&gt;</span>
           </a>
         </div>
@@ -196,8 +210,8 @@ function FeaturedProjects() {
               <div className="featured-card__body">
                 <h3>{project.title}</h3>
                 <p>{project.description}</p>
-                <a href="/project">
-                  Lihat Proyek <span aria-hidden="true">-&gt;</span>
+                <a href="/project/detail">
+                  Lihat Detail Proyek <span aria-hidden="true">-&gt;</span>
                 </a>
               </div>
             </article>
@@ -209,6 +223,12 @@ function FeaturedProjects() {
 }
 
 function ProjectLibrary() {
+  const [activeFilter, setActiveFilter] = useState("Semua");
+  const filteredProjects =
+    activeFilter === "Semua"
+      ? projectLibrary
+      : projectLibrary.filter((project) => project.tags.includes(activeFilter));
+
   return (
     <section className="project-library" aria-labelledby="project-library-title">
       <div className="project-library__inner">
@@ -218,11 +238,13 @@ function ProjectLibrary() {
         </div>
 
         <div className="project-library__filters" aria-label="Filter proyek">
-          {projectFilters.map((filter, index) => (
+          {projectFilters.map((filter) => (
             <button
-              className={index === 0 ? "filter-pill active" : "filter-pill"}
+              className={activeFilter === filter ? "filter-pill active" : "filter-pill"}
               type="button"
+              aria-pressed={activeFilter === filter}
               key={filter}
+              onClick={() => setActiveFilter(filter)}
             >
               {filter}
             </button>
@@ -230,28 +252,29 @@ function ProjectLibrary() {
         </div>
 
         <div className="project-library__grid">
-          {projectLibrary.map((project) => (
+          {filteredProjects.map((project) => (
             <article className="project-card" key={project.title}>
               <div className="project-card__media">
                 <img src={project.image} alt="" />
               </div>
               <div className="project-card__body">
                 <h3>{project.title}</h3>
+                <span className="project-card__category">{project.category}</span>
                 <p>
                   Eksplorasi proyek IoT nyata dengan dokumentasi, sensor, dan
                   insight implementasi.
                 </p>
-                <a href="/project">
-                  Lihat Proyek <span aria-hidden="true">-&gt;</span>
+                <a href="/project/detail">
+                  Lihat Detail Proyek <span aria-hidden="true">-&gt;</span>
                 </a>
               </div>
             </article>
           ))}
         </div>
 
-        <button className="load-more" type="button">
+        <a className="load-more" href="/project/semua">
           Muat Lebih Banyak
-        </button>
+        </a>
       </div>
     </section>
   );

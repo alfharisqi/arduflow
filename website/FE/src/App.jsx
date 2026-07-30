@@ -6,6 +6,8 @@ import { Program } from './pages/Program.jsx';
 import { Workshop } from './pages/Workshop.jsx';
 import { Tutorial } from './pages/Tutorial.jsx';
 import { Project } from './pages/Project.jsx';
+import { ProjectAll } from './pages/ProjectAll.jsx';
+import { ProjectDetail } from './pages/ProjectDetail.jsx';
 import { Partner } from './pages/Partner.jsx';
 import { Contact } from './pages/Contact.jsx';
 import { SignIn } from './pages/auth/signin.jsx';
@@ -24,6 +26,9 @@ const routes = {
   '/workshop': Workshop,
   '/tutorial': Tutorial,
   '/project': Project,
+  '/project/semua': ProjectAll,
+  '/project/all': ProjectAll,
+  '/project/detail': ProjectDetail,
   '/partner': Partner,
   '/kontak': Contact,
   '/signin': SignIn,
