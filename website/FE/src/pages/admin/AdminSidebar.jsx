@@ -16,7 +16,7 @@ const adminItems = [
   {
     title: 'Manajemen Utama',
     items: [
-      { label: 'Dashboard', href: '/admin/dashboard', icon: dashboardIcon, active: true },
+      { label: 'Dashboard', href: '/admin/dashboard', icon: dashboardIcon },
       { label: 'User', href: '/admin/users', icon: usersIcon },
       { label: 'Verifikasi Akun', href: '/admin/verification', icon: mailIcon, count: 12 },
       { label: 'Workshop / Program', href: '/admin/program', icon: clockIcon },
@@ -44,6 +44,8 @@ const adminItems = [
 ];
 
 export function AdminSidebar({ isCollapsed = false, onToggleCollapse = () => {} }) {
+  const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
+
   return (
     <aside className="admin-sidebar" aria-label="Admin sidebar">
       <a className="admin-sidebar-brand" href="/admin/dashboard" aria-label="Arduflow Admin">
@@ -66,7 +68,7 @@ export function AdminSidebar({ isCollapsed = false, onToggleCollapse = () => {} 
             <h2>{group.title}</h2>
             {group.items.map((item) => (
               <a
-                className={`admin-sidebar-link${item.active ? ' is-active' : ''}`}
+                className={`admin-sidebar-link${currentPath === item.href ? ' is-active' : ''}`}
                 href={item.href}
                 key={item.label}
               >
