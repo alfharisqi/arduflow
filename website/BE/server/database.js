@@ -108,6 +108,52 @@ export async function findUserByIdentifier(identifier) {
   );
 }
 
+export async function findAdminByUsername(username) {
+  return mysqlOne('SELECT * FROM admins WHERE LOWER(username) = LOWER(?)', [username]);
+}
+
+export async function upsertAdmin(admin) {
+  const createdAt = now();
+
+  await mysqlRun(
+    `INSERT INTO admins (
+      username,
+      name,
+      email,
+      password_hash,
+      role,
+      is_active,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+      name = VALUES(name),
+      email = VALUES(email),
+      password_hash = VALUES(password_hash),
+      role = VALUES(role),
+      is_active = VALUES(is_active),
+      updated_at = VALUES(updated_at)`,
+    [
+      admin.username,
+      admin.name,
+      admin.email || null,
+      admin.passwordHash,
+      admin.role || 'super_admin',
+      admin.isActive === false ? 0 : 1,
+      createdAt,
+      createdAt,
+    ],
+  );
+
+  return findAdminByUsername(admin.username);
+}
+
+export async function updateAdminLastLogin(adminId) {
+  const loginAt = now();
+
+  await mysqlRun('UPDATE admins SET last_login_at = ?, updated_at = ? WHERE id = ?', [loginAt, loginAt, adminId]);
+}
+
 export async function createUser(user) {
   const createdAt = now();
 

@@ -32,6 +32,13 @@ export function loginUser(payload) {
   });
 }
 
+export function loginAdmin(payload) {
+  return request('/api/admin/login', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export function verifyEmailToken(token) {
   return request(`/api/auth/verify-email?token=${encodeURIComponent(token)}`);
 }
