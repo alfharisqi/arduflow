@@ -17,6 +17,11 @@ import { EmailVerification } from './pages/auth/email-verification.jsx';
 import { ResetPassword } from './pages/auth/reset-password.jsx';
 import { ResetPasswordSent } from './pages/auth/reset-password-sent.jsx';
 import { ResetPasswordForm } from './pages/auth/reset-password-form.jsx';
+import { DashboardUser } from './pages/User/DashboardUser.jsx';
+import { UserLearningProgress } from './pages/User/UserLearningProgress.jsx';
+import { UserProjectGallery } from './pages/User/UserProjectGallery.jsx';
+import { UserWorkshopSchedule } from './pages/User/UserWorkshopSchedule.jsx';
+import { UserCertificates } from './pages/User/UserCertificates.jsx';
 import { NotFound } from './pages/NotFound.jsx';
 
 const routes = {
@@ -47,9 +52,14 @@ const routes = {
   '/reset-password/form': ResetPasswordForm,
   '/reset-password/new-password': ResetPasswordForm,
   '/new-password': ResetPasswordForm,
+  '/dashboard': DashboardUser,
+  '/progress-belajar': UserLearningProgress,
+  '/proyek-saya': UserProjectGallery,
+  '/workshop-program': UserWorkshopSchedule,
+  '/sertifikat': UserCertificates,
 };
 
-const authRoutes = new Set([
+const standaloneRoutes = new Set([
   '/signin',
   '/sign-in',
   '/signup',
@@ -65,13 +75,18 @@ const authRoutes = new Set([
   '/reset-password/form',
   '/reset-password/new-password',
   '/new-password',
+  '/dashboard',
+  '/progress-belajar',
+  '/proyek-saya',
+  '/workshop-program',
+  '/sertifikat',
 ]);
 
 export default function App() {
   const path = window.location.pathname.replace(/\/$/, '') || '/';
   const Page = routes[path] || NotFound;
 
-  if (authRoutes.has(path)) {
+  if (standaloneRoutes.has(path)) {
     return <Page />;
   }
 

@@ -23,6 +23,64 @@ for (const statement of statements) {
   await connection.query(statement);
 }
 
+async function ensureUsersColumn(columnName, definition) {
+  const [columns] = await connection.query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = ?
+       AND TABLE_NAME = 'users'
+       AND COLUMN_NAME = ?`,
+    [config.database.mysql.database, columnName],
+  );
+
+  if (columns.length === 0) {
+    await connection.query(`ALTER TABLE users ADD COLUMN ${definition}`);
+  }
+}
+
+await ensureUsersColumn('username', 'username VARCHAR(80) NULL');
+await ensureUsersColumn('nickname', 'nickname VARCHAR(80) NULL');
+await ensureUsersColumn('institution_name', 'institution_name VARCHAR(160) NULL');
+await ensureUsersColumn('profile_image', 'profile_image MEDIUMTEXT NULL');
+
+const [usernameIndexes] = await connection.query(
+  `SELECT INDEX_NAME
+   FROM INFORMATION_SCHEMA.STATISTICS
+   WHERE TABLE_SCHEMA = ?
+     AND TABLE_NAME = 'users'
+     AND COLUMN_NAME = 'username'
+     AND NON_UNIQUE = 0`,
+  [config.database.mysql.database],
+);
+
+if (usernameIndexes.length === 0) {
+  try {
+    await connection.query('ALTER TABLE users ADD UNIQUE INDEX uq_users_username (username)');
+  } catch (error) {
+    console.warn('Unique index users.username belum dibuat. Pastikan tidak ada username duplikat, lalu jalankan init lagi.');
+    console.warn(error.message);
+  }
+}
+
+const [whatsappIndexes] = await connection.query(
+  `SELECT INDEX_NAME
+   FROM INFORMATION_SCHEMA.STATISTICS
+   WHERE TABLE_SCHEMA = ?
+     AND TABLE_NAME = 'users'
+     AND COLUMN_NAME = 'whatsapp'
+     AND NON_UNIQUE = 0`,
+  [config.database.mysql.database],
+);
+
+if (whatsappIndexes.length === 0) {
+  try {
+    await connection.query('ALTER TABLE users ADD UNIQUE INDEX uq_users_whatsapp (whatsapp)');
+  } catch (error) {
+    console.warn('Unique index users.whatsapp belum dibuat. Pastikan tidak ada nomor WhatsApp duplikat, lalu jalankan init lagi.');
+    console.warn(error.message);
+  }
+}
+
 await connection.end();
 
 console.log(`MySQL database initialized: ${config.database.mysql.database}`);

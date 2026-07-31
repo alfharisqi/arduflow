@@ -2,7 +2,7 @@ import { useState } from 'react';
 import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
 import hideIcon from '../../assets/icons/icon-hide-1.svg';
 import { AuthImageSlider } from '../../components/auth/AuthImageSlider.jsx';
-import { registerUser } from '../../services/authApi.js';
+import { checkAuthAvailability, registerUser } from '../../services/authApi.js';
 
 const phoneCountries = [
   { code: 'ID', name: 'Indonesia', dial: '+62', flag: '🇮🇩' },
@@ -38,11 +38,12 @@ function normalizeWhatsapp(dialCode, phone) {
   return `${cleanDialCode}${cleanPhone}`;
 }
 
-function SignUpField({ label, name, type = 'text', placeholder, children }) {
+function SignUpField({ label, name, type = 'text', placeholder, children, note, inputProps = {} }) {
   return (
-    <label className="signup-field">
+    <label className={`signup-field${note?.type === 'error' ? ' signup-field--unavailable' : ''}`}>
       <span>{label}</span>
-      {children || <input type={type} name={name} placeholder={placeholder} />}
+      {children || <input type={type} name={name} placeholder={placeholder} required {...inputProps} />}
+      {note && <small className={`signup-field-note ${note.type}`}>{note.message}</small>}
     </label>
   );
 }
@@ -51,8 +52,53 @@ export function SignUp() {
   const [showPassword, setShowPassword] = useState(false);
   const [selectedCountryCode, setSelectedCountryCode] = useState('ID');
   const [status, setStatus] = useState({ type: '', message: '' });
+  const [fieldStatus, setFieldStatus] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const selectedCountry = phoneCountries.find((country) => country.code === selectedCountryCode) || phoneCountries[0];
+
+  async function checkEmailAvailability(event) {
+    const email = event.target.value.trim().toLowerCase();
+
+    if (!email || !event.target.validity.valid) {
+      setFieldStatus((current) => ({ ...current, email: null }));
+      return;
+    }
+
+    try {
+      const data = await checkAuthAvailability({ email });
+      setFieldStatus((current) => ({
+        ...current,
+        email: data.emailAvailable
+          ? { type: 'success', message: 'Email bisa digunakan.' }
+          : { type: 'error', message: 'Email sudah terdaftar.' },
+      }));
+    } catch (error) {
+      setFieldStatus((current) => ({ ...current, email: { type: 'error', message: error.message } }));
+    }
+  }
+
+  async function checkWhatsappAvailability(event) {
+    const form = event.currentTarget.form;
+    const data = new FormData(form);
+    const normalizedWhatsapp = normalizeWhatsapp(data.get('whatsapp_dial'), data.get('whatsapp'));
+
+    if (!normalizedWhatsapp || !event.target.validity.valid) {
+      setFieldStatus((current) => ({ ...current, whatsapp: null }));
+      return;
+    }
+
+    try {
+      const result = await checkAuthAvailability({ whatsapp: normalizedWhatsapp });
+      setFieldStatus((current) => ({
+        ...current,
+        whatsapp: result.whatsappAvailable
+          ? { type: 'success', message: 'Nomor WhatsApp bisa digunakan.' }
+          : { type: 'error', message: 'Nomor WhatsApp sudah terdaftar.' },
+      }));
+    } catch (error) {
+      setFieldStatus((current) => ({ ...current, whatsapp: { type: 'error', message: error.message } }));
+    }
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -89,9 +135,16 @@ export function SignUp() {
 
           <form className="signup-form" onSubmit={handleSubmit}>
             <SignUpField label="Nama" name="name" placeholder="Nama lengkap anda" />
-            <SignUpField label="Email address" name="email" type="email" placeholder="contoh@gmail.com" />
+            <SignUpField
+              label="Email address"
+              name="email"
+              type="email"
+              placeholder="contoh@gmail.com"
+              note={fieldStatus.email}
+              inputProps={{ onBlur: checkEmailAvailability }}
+            />
 
-            <SignUpField label="Nomor Whatsapp" name="whatsapp">
+            <SignUpField label="Nomor Whatsapp" name="whatsapp" note={fieldStatus.whatsapp}>
               <div className="signup-phone-input">
                 <div className="signup-country-code">
                   <span className="signup-flag" aria-hidden="true">{selectedCountry.flag}</span>
@@ -118,19 +171,23 @@ export function SignUp() {
                   name="whatsapp"
                   aria-label="Nomor Whatsapp"
                   inputMode="tel"
+                  pattern="[0-9]{6,}"
                   placeholder="81234567890"
+                  required
+                  onBlur={checkWhatsappAvailability}
                 />
               </div>
             </SignUpField>
 
             <SignUpField label="Pekerjaan / Instansi" name="occupation">
               <div className="signup-select-wrap">
-                <select name="occupation" defaultValue="">
+                <select name="occupation" defaultValue="" required>
                   <option value="" disabled>Pekerjaan / Mahasiswa/ Pengajar</option>
                   <option value="siswa">Siswa</option>
                   <option value="mahasiswa">Mahasiswa</option>
                   <option value="pengajar">Pengajar</option>
                   <option value="instansi">Instansi</option>
+                  <option value="lainnya">Lainnya</option>
                 </select>
                 <img src={arrowDownIcon} alt="" />
               </div>
@@ -148,7 +205,12 @@ export function SignUp() {
                   <span>{showPassword ? 'Show' : 'Hide'}</span>
                 </button>
               </span>
-              <input type={showPassword ? 'text' : 'password'} name="password" />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                pattern="(?=.*[A-Za-z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}"
+                required
+              />
               <small>Gunakan minimal 8 karakter dengan kombinasi huruf, angka, dan simbol.</small>
             </label>
 

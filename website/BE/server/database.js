@@ -89,8 +89,23 @@ export async function findUserByEmail(email) {
   return mysqlOne('SELECT * FROM users WHERE email = ?', [email]);
 }
 
+export async function findUserById(id) {
+  return mysqlOne('SELECT * FROM users WHERE id = ?', [id]);
+}
+
+export async function findUserByUsername(username) {
+  return mysqlOne('SELECT * FROM users WHERE username = ?', [username]);
+}
+
+export async function findUserByWhatsapp(whatsapp) {
+  return mysqlOne('SELECT * FROM users WHERE whatsapp = ?', [whatsapp]);
+}
+
 export async function findUserByIdentifier(identifier) {
-  return mysqlOne('SELECT * FROM users WHERE LOWER(email) = LOWER(?) OR LOWER(name) = LOWER(?)', [identifier, identifier]);
+  return mysqlOne(
+    'SELECT * FROM users WHERE LOWER(email) = LOWER(?) OR LOWER(name) = LOWER(?) OR LOWER(username) = LOWER(?)',
+    [identifier, identifier, identifier],
+  );
 }
 
 export async function createUser(user) {
@@ -122,6 +137,36 @@ export async function createUser(user) {
   );
 
   return findUserByEmail(user.email);
+}
+
+export async function updateUserProfile(userId, profile) {
+  const updatedAt = now();
+
+  await mysqlRun(
+    `UPDATE users
+     SET name = ?,
+         username = ?,
+         nickname = ?,
+         whatsapp = ?,
+         occupation = ?,
+         institution_name = ?,
+         profile_image = ?,
+         updated_at = ?
+     WHERE id = ?`,
+    [
+      profile.name,
+      profile.username || null,
+      profile.nickname || null,
+      profile.whatsapp || null,
+      profile.occupation || null,
+      profile.institutionName || null,
+      profile.profileImage || null,
+      updatedAt,
+      userId,
+    ],
+  );
+
+  return findUserById(userId);
 }
 
 export async function verifyUserEmail(token) {
