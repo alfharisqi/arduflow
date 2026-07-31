@@ -28,6 +28,7 @@ import { AdminLeads } from './pages/admin/AdminLeads.jsx';
 import { AdminCertificates } from './pages/admin/AdminCertificates.jsx';
 import { AdminTutorial } from './pages/admin/AdminTutorial.jsx';
 import { AdminProjects } from './pages/admin/AdminProjects.jsx';
+import { AdminGallery } from './pages/admin/AdminGallery.jsx';
 import { NotFound } from './pages/NotFound.jsx';
 
 const routes = {
@@ -70,6 +71,7 @@ const routes = {
   '/admin/certificates': AdminCertificates,
   '/admin/tutorial': AdminTutorial,
   '/admin/projects': AdminProjects,
+  '/admin/gallery': AdminGallery,
 };
 
 const standaloneRoutes = new Set([
@@ -103,6 +105,7 @@ const standaloneRoutes = new Set([
   '/admin/certificates',
   '/admin/tutorial',
   '/admin/projects',
+  '/admin/gallery',
 ]);
 
 export default function App() {
