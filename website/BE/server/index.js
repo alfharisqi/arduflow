@@ -1,5 +1,5 @@
 import express from 'express';
-import { login, register, verifyEmail } from './auth.js';
+import { checkAvailability, login, register, updateProfile, verifyEmail } from './auth.js';
 import { config } from './config.js';
 import { health, insertLead } from './database.js';
 
@@ -17,7 +17,7 @@ function asyncHandler(handler) {
 
 app.use((request, response, next) => {
   response.setHeader('Access-Control-Allow-Origin', process.env.CORS_ORIGIN || 'http://127.0.0.1:5173');
-  response.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  response.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,OPTIONS');
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (request.method === 'OPTIONS') {
@@ -28,7 +28,7 @@ app.use((request, response, next) => {
   next();
 });
 
-app.use(express.json());
+app.use(express.json({ limit: '8mb' }));
 
 app.get('/api/health', (_request, response) => {
   response.json(health());
@@ -38,6 +38,9 @@ app.post('/api/auth/register', asyncHandler(register));
 app.post('/api/auth/login', asyncHandler(login));
 app.get('/api/auth/verify-email', asyncHandler(verifyEmail));
 app.post('/api/auth/verify-email', asyncHandler(verifyEmail));
+app.get('/api/auth/check-availability', asyncHandler(checkAvailability));
+app.post('/api/auth/check-availability', asyncHandler(checkAvailability));
+app.put('/api/auth/profile', asyncHandler(updateProfile));
 
 app.post('/api/leads', asyncHandler(async (request, response) => {
   const { name = '', email = '', phone = '', interest = 'akses', message = '' } = request.body || {};
@@ -60,6 +63,12 @@ app.post('/api/leads', asyncHandler(async (request, response) => {
 
 app.use((error, _request, response, _next) => {
   console.error(error);
+
+  if (error.type === 'entity.too.large') {
+    response.status(413).json({ message: 'Ukuran foto terlalu besar. Gunakan gambar yang lebih kecil.' });
+    return;
+  }
+
   response.status(500).json({ message: 'Terjadi kesalahan server.' });
 });
 

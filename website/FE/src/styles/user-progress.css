@@ -1,0 +1,247 @@
+.user-progress-page {
+  min-height: 1311px;
+}
+
+.user-progress-page .dashboard-sidebar,
+.user-progress-page .dashboard-shell {
+  min-height: 1311px;
+}
+
+.user-progress-content {
+  width: 1217px;
+  min-height: 1247px;
+  padding: 35px 46px 64px;
+  gap: 28px;
+}
+
+.user-progress-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 1121px;
+  gap: 40px;
+}
+
+.user-progress-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 1121px;
+  gap: 24px;
+}
+
+.user-progress-header h2 {
+  margin: 0;
+  color: #1f2937;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 36px;
+}
+
+.user-progress-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 1121px;
+  height: 48px;
+}
+
+.user-progress-search {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 300px;
+  height: 44px;
+  padding: 0 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+}
+
+.user-progress-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #334155;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 21px;
+}
+
+.user-progress-search input::placeholder {
+  color: #77869e;
+}
+
+.user-progress-controls {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.user-progress-sort {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.user-progress-sort span {
+  color: rgba(31, 41, 55, 0.72);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+}
+
+.user-progress-sort select {
+  width: 143px;
+  height: 48px;
+  padding: 0 44px 0 24px;
+  border: 1px solid #1f2937;
+  border-radius: 8px;
+  outline: 0;
+  appearance: none;
+  background: #ffffff url('../assets/icons/icon-arrowdown-1.svg') right 18px center / 14px auto no-repeat;
+  color: #334155;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+}
+
+.user-progress-filter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 110px;
+  height: 48px;
+  padding: 0;
+  border: 1px solid #1f2937;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1f2937;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  cursor: pointer;
+}
+
+.user-progress-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 298px);
+  gap: 24px;
+  width: 942px;
+}
+
+.user-course-card {
+  box-sizing: border-box;
+  width: 298px;
+  height: 282px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.14);
+}
+
+.user-course-card img {
+  display: block;
+  width: 266px;
+  height: 138px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.user-course-card h3 {
+  margin: 18px 0 8px;
+  color: #1f2937;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 27px;
+}
+
+.user-course-card p {
+  margin: 0;
+  color: #77869e;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 21px;
+}
+
+.user-course-card__progress {
+  width: 263px;
+  height: 3px;
+  margin: 8px 0 10px;
+  overflow: hidden;
+  background: #e0f2fe;
+}
+
+.user-course-card__progress span {
+  display: block;
+  height: 100%;
+  background: #2563eb;
+}
+
+.user-course-card small {
+  color: #77869e;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 21px;
+}
+
+.user-progress-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 211px;
+  height: 41px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #ffffff;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.14);
+}
+
+.user-progress-pagination button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 41px;
+  border: 1px solid #e2e8f0;
+  border-left: 0;
+  background: #ffffff;
+  color: #1f2937;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 21px;
+  cursor: pointer;
+}
+
+.user-progress-pagination button:first-child {
+  border-left: 1px solid #e2e8f0;
+}
+
+.user-progress-pagination__active {
+  color: #2563eb;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
