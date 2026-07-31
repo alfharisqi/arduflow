@@ -4,6 +4,8 @@ import { Ide } from './pages/Ide.jsx';
 import { Access } from './pages/Access.jsx';
 import { Program } from './pages/Program.jsx';
 import { Workshop } from './pages/Workshop.jsx';
+import { DaftarWorkshop } from './pages/DaftarWorkshop.jsx';
+import { DetailWorkshop } from './pages/DetailWorkshop.jsx';
 import { Tutorial } from './pages/Tutorial.jsx';
 import { Project } from './pages/Project.jsx';
 import { Partner } from './pages/Partner.jsx';
@@ -22,6 +24,10 @@ const routes = {
   '/akses': Access,
   '/program': Program,
   '/workshop': Workshop,
+  '/daftar-workshop': DaftarWorkshop,
+  '/workshop/daftar': DaftarWorkshop,
+  '/detail-workshop': DetailWorkshop,
+  '/workshop/detail': DetailWorkshop,
   '/tutorial': Tutorial,
   '/project': Project,
   '/partner': Partner,
