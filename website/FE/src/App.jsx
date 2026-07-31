@@ -21,6 +21,14 @@ import { UserLearningProgress } from './pages/User/UserLearningProgress.jsx';
 import { UserProjectGallery } from './pages/User/UserProjectGallery.jsx';
 import { UserWorkshopSchedule } from './pages/User/UserWorkshopSchedule.jsx';
 import { UserCertificates } from './pages/User/UserCertificates.jsx';
+import { AdminLogin } from './pages/admin/AdminLogin.jsx';
+import { AdminDashboard } from './pages/admin/AdminDashboard.jsx';
+import { AdminUsers } from './pages/admin/AdminUsers.jsx';
+import { AdminVerification } from './pages/admin/AdminVerification.jsx';
+import { AdminProgram } from './pages/admin/AdminProgram.jsx';
+import { AdminLeads } from './pages/admin/AdminLeads.jsx';
+import { AdminCertificates } from './pages/admin/AdminCertificates.jsx';
+import { AdminTutorial } from './pages/admin/AdminTutorial.jsx';
 import { NotFound } from './pages/NotFound.jsx';
 
 const routes = {
@@ -57,6 +65,15 @@ const routes = {
   '/proyek-saya': UserProjectGallery,
   '/workshop-program': UserWorkshopSchedule,
   '/sertifikat': UserCertificates,
+  '/admin': AdminLogin,
+  '/admin/login': AdminLogin,
+  '/admin/dashboard': AdminDashboard,
+  '/admin/users': AdminUsers,
+  '/admin/verification': AdminVerification,
+  '/admin/program': AdminProgram,
+  '/admin/leads': AdminLeads,
+  '/admin/certificates': AdminCertificates,
+  '/admin/tutorial': AdminTutorial,
 };
 
 const standaloneRoutes = new Set([
@@ -80,6 +97,15 @@ const standaloneRoutes = new Set([
   '/proyek-saya',
   '/workshop-program',
   '/sertifikat',
+  '/admin',
+  '/admin/login',
+  '/admin/dashboard',
+  '/admin/users',
+  '/admin/verification',
+  '/admin/program',
+  '/admin/leads',
+  '/admin/certificates',
+  '/admin/tutorial',
 ]);
 
 export default function App() {

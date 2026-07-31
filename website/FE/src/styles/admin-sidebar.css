@@ -1,0 +1,281 @@
+.admin-sidebar {
+  --admin-sidebar-width: 216px;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: var(--admin-sidebar-width);
+  min-width: var(--admin-sidebar-width);
+  min-height: 985px;
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
+  transition: width 180ms ease, min-width 180ms ease;
+}
+
+.admin-sidebar-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--admin-sidebar-width);
+  height: 56px;
+  padding: 0 16px;
+  border-bottom: 1px solid #e5e7eb;
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 20px;
+  color: #111827;
+  text-decoration: none;
+  overflow: hidden;
+  transition: width 180ms ease, padding 180ms ease, justify-content 180ms ease;
+}
+
+.admin-sidebar-toggle {
+  position: absolute;
+  left: calc(var(--admin-sidebar-width) - 13px);
+  top: 18px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: #00a2ff;
+  cursor: pointer;
+  transition: left 180ms ease;
+}
+
+.admin-sidebar-toggle img {
+  width: 13px;
+  height: 8px;
+  filter: brightness(0) invert(1);
+  transform: rotate(90deg);
+  transition: transform 180ms ease;
+}
+
+.admin-sidebar-items {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: var(--admin-sidebar-width);
+  padding: 14px 8px;
+  gap: 16px;
+  overflow: hidden;
+  transition: width 180ms ease, padding 180ms ease, gap 180ms ease;
+}
+
+.admin-sidebar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-sidebar-group h2 {
+  margin: 10px 12px 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
+  letter-spacing: 0.02em;
+  color: #8a93a3;
+  text-transform: uppercase;
+}
+
+.admin-sidebar-link {
+  display: flex;
+  align-items: center;
+  width: calc(var(--admin-sidebar-width) - 16px);
+  min-height: 36px;
+  padding: 0 12px;
+  gap: 12px;
+  border-radius: 6px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  color: #252d3a;
+  text-decoration: none;
+  transition: width 180ms ease, padding 180ms ease, gap 180ms ease, justify-content 180ms ease;
+}
+
+.admin-sidebar-link:hover {
+  background: #f3f6fb;
+}
+
+.admin-sidebar-link.is-active {
+  background: #edf4ff;
+  color: #1d4ed8;
+}
+
+.admin-sidebar-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  filter: brightness(0) saturate(100%) invert(18%) sepia(9%) saturate(1605%) hue-rotate(177deg) brightness(93%) contrast(90%);
+}
+
+.admin-sidebar-link.is-active .admin-sidebar-icon {
+  filter: brightness(0) saturate(100%) invert(30%) sepia(97%) saturate(1566%) hue-rotate(211deg) brightness(92%) contrast(97%);
+}
+
+.admin-sidebar-link span {
+  flex: 1;
+}
+
+.admin-sidebar-link em {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  font-style: normal;
+  font-size: 11px;
+  color: #4b5563;
+}
+
+.admin-sidebar-user {
+  display: flex;
+  flex-direction: column;
+  width: var(--admin-sidebar-width);
+  padding: 12px 20px 16px;
+  gap: 12px;
+  border-top: 1px solid #e5e7eb;
+  overflow: hidden;
+  transition: width 180ms ease, padding 180ms ease;
+}
+
+.admin-sidebar-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-sidebar-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #edf2fb, #cbd5e1);
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.admin-sidebar-profile-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.admin-sidebar-name {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 16px;
+  color: #111827;
+}
+
+.admin-sidebar-role {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  height: 17px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: #0284c7;
+}
+
+.admin-sidebar-actions {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-sidebar-link--danger {
+  color: #dc2626;
+}
+
+.admin-sidebar-link--danger .admin-sidebar-icon {
+  filter: brightness(0) saturate(100%) invert(25%) sepia(90%) saturate(2868%) hue-rotate(347deg) brightness(90%) contrast(92%);
+}
+
+.admin-dashboard-page--collapsed .admin-sidebar {
+  --admin-sidebar-width: 70px;
+}
+
+.admin-dashboard-page--collapsed .admin-sidebar-brand {
+  justify-content: center;
+  padding: 0;
+}
+
+.admin-dashboard-page--collapsed .admin-sidebar-brand span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.admin-dashboard-page--collapsed .admin-sidebar-toggle img {
+  transform: rotate(-90deg);
+}
+
+.admin-dashboard-page--collapsed .admin-sidebar-items {
+  padding: 14px 14px;
+  gap: 8px;
+}
+
+.admin-dashboard-page--collapsed .admin-sidebar-group {
+  gap: 6px;
+}
+
+.admin-dashboard-page--collapsed .admin-sidebar-group h2,
+.admin-dashboard-page--collapsed .admin-sidebar-link span,
+.admin-dashboard-page--collapsed .admin-sidebar-link em,
+.admin-dashboard-page--collapsed .admin-sidebar-profile-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.admin-dashboard-page--collapsed .admin-sidebar-link {
+  justify-content: center;
+  width: 42px;
+  min-height: 36px;
+  padding: 0;
+  gap: 0;
+}
+
+.admin-dashboard-page--collapsed .admin-sidebar-user {
+  align-items: center;
+  width: 70px;
+  padding: 12px 14px 16px;
+}
+
+.admin-dashboard-page--collapsed .admin-sidebar-profile {
+  justify-content: center;
+  width: 42px;
+}
+
+.admin-dashboard-page--collapsed .admin-sidebar-actions {
+  width: 42px;
+}
