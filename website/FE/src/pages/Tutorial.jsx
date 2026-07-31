@@ -11,7 +11,7 @@ import dhtTutorialImage from '../assets/images/Menggunakan Sensor DHT22.jpg';
 import ledTutorialImage from '../assets/images/Menghubungkan LED ke Arduino.jpg';
 import troubleshootingTutorialImage from '../assets/images/Troubleshooting Board Tidak Terdeteksi.jpg';
 
-function TutorialIcon({ type }) {
+export function TutorialIcon({ type }) {
   if (type === 'code') {
     return (
       <svg viewBox="0 0 50 22" aria-hidden="true">
@@ -207,7 +207,11 @@ export function Tutorial() {
           <img src={tutorialDevice} alt="Rangkaian IoT Arduflow di breadboard" />
         </div>
       </section>
-      <section className="tutorial-path-section" aria-labelledby="tutorial-path-title">
+      <section
+        className="tutorial-path-section"
+        id="pilih-jalur-belajar"
+        aria-labelledby="tutorial-path-title"
+      >
         <div className="tutorial-path-inner">
           <div className="tutorial-path-heading">
             <h2 id="tutorial-path-title">Pilih Jalur Belajarmu</h2>
@@ -215,14 +219,26 @@ export function Tutorial() {
           </div>
 
           <div className="tutorial-path-cards">
-            {learningPaths.map((path) => (
+            {learningPaths.map((path, index) => (
               <article className="tutorial-path-card" key={path.title}>
                 <div className={`tutorial-path-icon ${path.icon}-icon`}>
                   <TutorialIcon type={path.icon} />
                 </div>
                 <h3>{path.title}</h3>
                 <p>{path.text}</p>
-                <a href="#materi-tutorial">Pelajari</a>
+                <a
+                  href={
+                    index === 0
+                      ? '/tutorial/panduan-pemula'
+                      : index === 1
+                        ? '/tutorial/penggunaan-ide'
+                        : index === 2
+                          ? '/tutorial/dasar-hardware-iot'
+                          : '#materi-tutorial'
+                  }
+                >
+                  Pelajari
+                </a>
               </article>
             ))}
           </div>
@@ -244,7 +260,7 @@ export function Tutorial() {
             ))}
           </div>
 
-          <a className="tutorial-flow-button" href="#materi-tutorial">Lihat Jalur Lengkap</a>
+          {/* <a className="tutorial-flow-button" href="#materi-tutorial">Lihat Jalur Lengkap</a> */}
         </div>
       </section>
       <section className="tutorial-material-section" id="materi-tutorial">

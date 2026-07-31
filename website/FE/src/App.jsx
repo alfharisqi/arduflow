@@ -5,6 +5,9 @@ import { Access } from './pages/Access.jsx';
 import { Program } from './pages/Program.jsx';
 import { Workshop } from './pages/Workshop.jsx';
 import { Tutorial } from './pages/Tutorial.jsx';
+import { BeginnerEbook } from './pages/BeginnerEbook.jsx';
+import { IdeEbook } from './pages/IdeEbook.jsx';
+import { HardwareEbook } from './pages/HardwareEbook.jsx';
 import { Project } from './pages/Project.jsx';
 import { Partner } from './pages/Partner.jsx';
 import { Contact } from './pages/Contact.jsx';
@@ -23,6 +26,9 @@ const routes = {
   '/program': Program,
   '/workshop': Workshop,
   '/tutorial': Tutorial,
+  '/tutorial/panduan-pemula': BeginnerEbook,
+  '/tutorial/penggunaan-ide': IdeEbook,
+  '/tutorial/dasar-hardware-iot': HardwareEbook,
   '/project': Project,
   '/partner': Partner,
   '/kontak': Contact,
