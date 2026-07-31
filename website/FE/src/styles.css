@@ -17,6 +17,8 @@
 @import './styles/admin-sidebar.css';
 @import './styles/admin-dashboard.css';
 @import './styles/admin-users.css';
+@import './styles/admin-verification.css';
+@import './styles/admin-program.css';
 @import './styles/responsive.css';
 @import './styles/footer.css';
 @import './styles/footer-responsive.css';
