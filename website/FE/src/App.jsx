@@ -255,6 +255,10 @@ export default function App() {
     return page;
   }
 
+  if (Page === NotFound) {
+    return page;
+  }
+
   return (
     <Layout>
       {page}
