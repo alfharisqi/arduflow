@@ -11,6 +11,7 @@ import databaseIcon from '../../assets/icons/icons-database-1.svg';
 import settingsIcon from '../../assets/icons/icon-settings-1.svg';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import collapseIcon from '../../assets/icons/icon-arrowdown-1.svg';
+import { logoutAdmin } from '../../services/authApi.js';
 
 const adminItems = [
   {
@@ -45,6 +46,23 @@ const adminItems = [
 
 export function AdminSidebar({ isCollapsed = false, onToggleCollapse = () => {} }) {
   const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
+
+  async function handleLogout(event) {
+    event.preventDefault();
+    const token = window.localStorage.getItem('arduflow_admin_token');
+
+    try {
+      if (token) {
+        await logoutAdmin(token);
+      }
+    } catch (_error) {
+      // Logout lokal tetap dilakukan walaupun sesi backend sudah tidak valid.
+    } finally {
+      window.localStorage.removeItem('arduflow_admin');
+      window.localStorage.removeItem('arduflow_admin_token');
+      window.location.href = '/admin/login';
+    }
+  }
 
   return (
     <aside className="admin-sidebar" aria-label="Admin sidebar">
@@ -93,7 +111,7 @@ export function AdminSidebar({ isCollapsed = false, onToggleCollapse = () => {} 
         </div>
 
         <div className="admin-sidebar-actions">
-          <a className="admin-sidebar-link admin-sidebar-link--danger" href="/admin/login">
+          <a className="admin-sidebar-link admin-sidebar-link--danger" href="/admin/login" onClick={handleLogout}>
             <img className="admin-sidebar-icon" src={logoutIcon} alt="" aria-hidden="true" />
             <span>Keluar</span>
           </a>

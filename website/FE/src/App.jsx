@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Layout } from './components/Layout.jsx';
 import { Home } from './pages/Home.jsx';
 import { Ide } from './pages/Ide.jsx';
@@ -34,6 +34,7 @@ import { AdminProjects } from './pages/admin/AdminProjects.jsx';
 import { AdminGallery } from './pages/admin/AdminGallery.jsx';
 import { AdminPartners } from './pages/admin/AdminPartners.jsx';
 import { NotFound } from './pages/NotFound.jsx';
+import { getAdminSession } from './services/authApi.js';
 import { showAuthRequiredAlert } from './utils/alerts.js';
 
 const routes = {
@@ -127,17 +128,10 @@ const userProtectedRoutes = new Set([
   '/sertifikat',
 ]);
 
-const adminProtectedRoutes = new Set([
-  '/admin/dashboard',
-  '/admin/users',
-  '/admin/verification',
-  '/admin/program',
-  '/admin/leads',
-  '/admin/certificates',
-  '/admin/tutorial',
-  '/admin/projects',
-  '/admin/gallery',
-  '/admin/partners',
+const adminPublicRoutes = new Set([
+  '/admin',
+  '/admin/login',
+  '/admin/forgot-password',
 ]);
 
 function hasStoredSession(storageKey) {
@@ -177,6 +171,65 @@ function ProtectedRoute({ children, storageKey, redirectTo, message }) {
   return children;
 }
 
+function AdminProtectedRoute({ children }) {
+  const [status, setStatus] = useState('checking');
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function validateSession() {
+      const token = window.localStorage.getItem('arduflow_admin_token');
+
+      if (!token) {
+        window.localStorage.removeItem('arduflow_admin');
+        setStatus('blocked');
+        return;
+      }
+
+      try {
+        const data = await getAdminSession(token);
+
+        if (!isActive) {
+          return;
+        }
+
+        window.localStorage.setItem('arduflow_admin', JSON.stringify(data.admin));
+        setStatus('allowed');
+      } catch (_error) {
+        if (!isActive) {
+          return;
+        }
+
+        window.localStorage.removeItem('arduflow_admin');
+        window.localStorage.removeItem('arduflow_admin_token');
+        setStatus('blocked');
+      }
+    }
+
+    validateSession();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (status !== 'blocked') {
+      return;
+    }
+
+    showAuthRequiredAlert('Sesi admin tidak valid. Silakan login ulang.').finally(() => {
+      window.location.replace('/admin/login');
+    });
+  }, [status]);
+
+  if (status !== 'allowed') {
+    return null;
+  }
+
+  return children;
+}
+
 export default function App() {
   const path = window.location.pathname.replace(/\/$/, '') || '/';
   const Page = routes[path] || NotFound;
@@ -194,16 +247,8 @@ export default function App() {
     );
   }
 
-  if (adminProtectedRoutes.has(path)) {
-    page = (
-      <ProtectedRoute
-        storageKey="arduflow_admin"
-        redirectTo="/admin/login"
-        message="Silakan login sebagai admin untuk membuka dashboard admin."
-      >
-        {page}
-      </ProtectedRoute>
-    );
+  if (path.startsWith('/admin') && !adminPublicRoutes.has(path)) {
+    page = <AdminProtectedRoute>{page}</AdminProtectedRoute>;
   }
 
   if (standaloneRoutes.has(path)) {

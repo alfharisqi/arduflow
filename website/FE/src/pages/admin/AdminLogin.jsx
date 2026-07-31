@@ -21,6 +21,7 @@ export function AdminLogin() {
     try {
       const data = await loginAdmin(form);
       localStorage.setItem('arduflow_admin', JSON.stringify(data.admin));
+      localStorage.setItem('arduflow_admin_token', data.token);
       await showSuccessAlert('Login admin berhasil', data.message);
       window.location.href = data.redirectTo || '/admin/dashboard';
     } catch (loginError) {

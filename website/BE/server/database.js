@@ -154,6 +154,31 @@ export async function updateAdminLastLogin(adminId) {
   await mysqlRun('UPDATE admins SET last_login_at = ?, updated_at = ? WHERE id = ?', [loginAt, loginAt, adminId]);
 }
 
+export async function createAdminSession({ adminId, tokenHash, expiresAt }) {
+  await mysqlRun('DELETE FROM admin_sessions WHERE expires_at <= ?', [now()]);
+
+  await mysqlRun(
+    'INSERT INTO admin_sessions (admin_id, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?)',
+    [adminId, tokenHash, expiresAt, now()],
+  );
+}
+
+export async function findAdminBySessionTokenHash(tokenHash) {
+  return mysqlOne(
+    `SELECT admins.*
+     FROM admin_sessions
+     INNER JOIN admins ON admins.id = admin_sessions.admin_id
+     WHERE admin_sessions.token_hash = ?
+       AND admin_sessions.expires_at > ?
+       AND admins.is_active = 1`,
+    [tokenHash, now()],
+  );
+}
+
+export async function deleteAdminSession(tokenHash) {
+  await mysqlRun('DELETE FROM admin_sessions WHERE token_hash = ?', [tokenHash]);
+}
+
 export async function createUser(user) {
   const createdAt = now();
 

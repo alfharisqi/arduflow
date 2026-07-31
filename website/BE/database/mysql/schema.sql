@@ -41,6 +41,19 @@ CREATE TABLE IF NOT EXISTS admins (
     INDEX idx_admins_username (username)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS admin_sessions (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    admin_id BIGINT UNSIGNED NOT NULL,
+    token_hash CHAR(64) NOT NULL UNIQUE,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME NOT NULL,
+    INDEX idx_admin_sessions_token_hash (token_hash),
+    INDEX idx_admin_sessions_admin_id (admin_id),
+    CONSTRAINT fk_admin_sessions_admin
+        FOREIGN KEY (admin_id) REFERENCES admins(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS programs (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(160) NOT NULL,

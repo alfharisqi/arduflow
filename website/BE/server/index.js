@@ -1,5 +1,5 @@
 import express from 'express';
-import { adminLogin } from './adminAuth.js';
+import { adminLogin, adminLogout, adminSession } from './adminAuth.js';
 import { checkAvailability, login, register, updateProfile, verifyEmail } from './auth.js';
 import { config } from './config.js';
 import { health, insertLead } from './database.js';
@@ -19,7 +19,7 @@ function asyncHandler(handler) {
 app.use((request, response, next) => {
   response.setHeader('Access-Control-Allow-Origin', process.env.CORS_ORIGIN || 'http://127.0.0.1:5173');
   response.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,OPTIONS');
-  response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (request.method === 'OPTIONS') {
     response.sendStatus(204);
@@ -38,6 +38,8 @@ app.get('/api/health', (_request, response) => {
 app.post('/api/auth/register', asyncHandler(register));
 app.post('/api/auth/login', asyncHandler(login));
 app.post('/api/admin/login', asyncHandler(adminLogin));
+app.get('/api/admin/session', asyncHandler(adminSession));
+app.post('/api/admin/logout', asyncHandler(adminLogout));
 app.get('/api/auth/verify-email', asyncHandler(verifyEmail));
 app.post('/api/auth/verify-email', asyncHandler(verifyEmail));
 app.get('/api/auth/check-availability', asyncHandler(checkAvailability));
