@@ -1,12 +1,33 @@
 import { useState } from 'react';
 import hideIcon from '../../assets/icons/icon-hide-1.svg';
 import eyeOpenIcon from '../../assets/icons/icon-eyeopen-1.svg';
+import { loginAdmin } from '../../services/authApi.js';
 
 export function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false);
+  const [form, setForm] = useState({ username: '', password: '' });
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (event) => {
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setForm((current) => ({ ...current, [name]: value }));
+  };
+
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    setError('');
+    setIsSubmitting(true);
+
+    try {
+      const data = await loginAdmin(form);
+      localStorage.setItem('arduflow_admin', JSON.stringify(data.admin));
+      window.location.href = data.redirectTo || '/admin/dashboard';
+    } catch (loginError) {
+      setError(loginError.message || 'Login admin gagal.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -21,8 +42,15 @@ export function AdminLogin() {
           <h1>Admin Log in</h1>
 
           <label className="admin-login-field">
-            <span>Email address</span>
-            <input type="email" name="email" placeholder="username" autoComplete="username" />
+            <span>Username</span>
+            <input
+              type="text"
+              name="username"
+              placeholder="username"
+              autoComplete="username"
+              value={form.username}
+              onChange={handleChange}
+            />
           </label>
 
           <label className="admin-login-field">
@@ -33,6 +61,8 @@ export function AdminLogin() {
                 name="password"
                 placeholder="password"
                 autoComplete="current-password"
+                value={form.password}
+                onChange={handleChange}
               />
               <button
                 type="button"
@@ -45,8 +75,10 @@ export function AdminLogin() {
             </div>
           </label>
 
-          <button className="admin-login-submit" type="submit">
-            LOG IN
+          {error ? <p className="admin-login-error">{error}</p> : null}
+
+          <button className="admin-login-submit" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? 'LOADING...' : 'LOG IN'}
           </button>
 
           <a className="admin-login-forgot" href="/admin/forgot-password">

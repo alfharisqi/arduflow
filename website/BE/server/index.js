@@ -1,4 +1,5 @@
 import express from 'express';
+import { adminLogin } from './adminAuth.js';
 import { checkAvailability, login, register, updateProfile, verifyEmail } from './auth.js';
 import { config } from './config.js';
 import { health, insertLead } from './database.js';
@@ -36,6 +37,7 @@ app.get('/api/health', (_request, response) => {
 
 app.post('/api/auth/register', asyncHandler(register));
 app.post('/api/auth/login', asyncHandler(login));
+app.post('/api/admin/login', asyncHandler(adminLogin));
 app.get('/api/auth/verify-email', asyncHandler(verifyEmail));
 app.post('/api/auth/verify-email', asyncHandler(verifyEmail));
 app.get('/api/auth/check-availability', asyncHandler(checkAvailability));
