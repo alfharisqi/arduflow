@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Layout } from './components/Layout.jsx';
 import { Home } from './pages/Home.jsx';
 import { Ide } from './pages/Ide.jsx';
@@ -33,6 +34,7 @@ import { AdminProjects } from './pages/admin/AdminProjects.jsx';
 import { AdminGallery } from './pages/admin/AdminGallery.jsx';
 import { AdminPartners } from './pages/admin/AdminPartners.jsx';
 import { NotFound } from './pages/NotFound.jsx';
+import { showAuthRequiredAlert } from './utils/alerts.js';
 
 const routes = {
   '/': Home,
@@ -117,17 +119,100 @@ const standaloneRoutes = new Set([
   '/admin/partners',
 ]);
 
+const userProtectedRoutes = new Set([
+  '/dashboard',
+  '/progress-belajar',
+  '/proyek-saya',
+  '/workshop-program',
+  '/sertifikat',
+]);
+
+const adminProtectedRoutes = new Set([
+  '/admin/dashboard',
+  '/admin/users',
+  '/admin/verification',
+  '/admin/program',
+  '/admin/leads',
+  '/admin/certificates',
+  '/admin/tutorial',
+  '/admin/projects',
+  '/admin/gallery',
+  '/admin/partners',
+]);
+
+function hasStoredSession(storageKey) {
+  try {
+    const raw = window.localStorage.getItem(storageKey);
+
+    if (!raw) {
+      return false;
+    }
+
+    const session = JSON.parse(raw);
+
+    return Boolean(session?.id);
+  } catch (_error) {
+    window.localStorage.removeItem(storageKey);
+    return false;
+  }
+}
+
+function ProtectedRoute({ children, storageKey, redirectTo, message }) {
+  const isAllowed = hasStoredSession(storageKey);
+
+  useEffect(() => {
+    if (isAllowed) {
+      return;
+    }
+
+    showAuthRequiredAlert(message).finally(() => {
+      window.location.replace(redirectTo);
+    });
+  }, [isAllowed, message, redirectTo]);
+
+  if (!isAllowed) {
+    return null;
+  }
+
+  return children;
+}
+
 export default function App() {
   const path = window.location.pathname.replace(/\/$/, '') || '/';
   const Page = routes[path] || NotFound;
+  let page = <Page />;
+
+  if (userProtectedRoutes.has(path)) {
+    page = (
+      <ProtectedRoute
+        storageKey="arduflow_user"
+        redirectTo="/signin"
+        message="Silakan login sebagai user untuk membuka dashboard."
+      >
+        {page}
+      </ProtectedRoute>
+    );
+  }
+
+  if (adminProtectedRoutes.has(path)) {
+    page = (
+      <ProtectedRoute
+        storageKey="arduflow_admin"
+        redirectTo="/admin/login"
+        message="Silakan login sebagai admin untuk membuka dashboard admin."
+      >
+        {page}
+      </ProtectedRoute>
+    );
+  }
 
   if (standaloneRoutes.has(path)) {
-    return <Page />;
+    return page;
   }
 
   return (
     <Layout>
-      <Page />
+      {page}
     </Layout>
   );
 }

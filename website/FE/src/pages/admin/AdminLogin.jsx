@@ -2,11 +2,11 @@ import { useState } from 'react';
 import hideIcon from '../../assets/icons/icon-hide-1.svg';
 import eyeOpenIcon from '../../assets/icons/icon-eyeopen-1.svg';
 import { loginAdmin } from '../../services/authApi.js';
+import { showErrorAlert, showSuccessAlert } from '../../utils/alerts.js';
 
 export function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({ username: '', password: '' });
-  const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (event) => {
@@ -16,15 +16,15 @@ export function AdminLogin() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setError('');
     setIsSubmitting(true);
 
     try {
       const data = await loginAdmin(form);
       localStorage.setItem('arduflow_admin', JSON.stringify(data.admin));
+      await showSuccessAlert('Login admin berhasil', data.message);
       window.location.href = data.redirectTo || '/admin/dashboard';
     } catch (loginError) {
-      setError(loginError.message || 'Login admin gagal.');
+      await showErrorAlert('Login admin gagal', loginError.message || 'Username atau password admin salah.');
     } finally {
       setIsSubmitting(false);
     }
@@ -74,9 +74,6 @@ export function AdminLogin() {
               </button>
             </div>
           </label>
-
-          {error ? <p className="admin-login-error">{error}</p> : null}
-
           <button className="admin-login-submit" type="submit" disabled={isSubmitting}>
             {isSubmitting ? 'LOADING...' : 'LOG IN'}
           </button>
