@@ -1,0 +1,655 @@
+.admin-tutorial-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  min-height: calc(100vh - 56px);
+  background: #ffffff;
+}
+
+.admin-tutorial-content {
+  min-width: 0;
+  padding: 22px;
+}
+
+.admin-tutorial-heading {
+  margin-bottom: 18px;
+}
+
+.admin-tutorial-heading h1 {
+  margin: 0 0 5px;
+  font-family: 'Inter', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.admin-tutorial-heading p {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.admin-tutorial-heading span {
+  margin: 0 8px;
+}
+
+.admin-tutorial-stats {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.admin-tutorial-stat {
+  display: flex;
+  align-items: center;
+  min-height: 104px;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #dfe5ee;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.admin-tutorial-stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+}
+
+.admin-tutorial-stat-icon img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.admin-tutorial-stat-icon.is-blue { background: #e8f0ff; }
+.admin-tutorial-stat-icon.is-green { background: #e7f8ed; }
+.admin-tutorial-stat-icon.is-orange { background: #fff3e3; }
+.admin-tutorial-stat-icon.is-purple { background: #f2e7ff; }
+.admin-tutorial-stat-icon.is-red { background: #feeaea; }
+
+.admin-tutorial-stat p,
+.admin-tutorial-stat small {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+}
+
+.admin-tutorial-stat p {
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.admin-tutorial-stat strong {
+  display: block;
+  max-width: 135px;
+  margin-bottom: 6px;
+  font-family: 'Inter', sans-serif;
+  font-size: 23px;
+  line-height: 1.15;
+  color: #111827;
+}
+
+.admin-tutorial-stat:nth-child(5) strong {
+  font-size: 13px;
+}
+
+.admin-tutorial-stat small {
+  font-size: 11px;
+  color: #4b5563;
+}
+
+.admin-tutorial-filter,
+.admin-tutorial-table-card,
+.admin-tutorial-panel,
+.admin-tutorial-quick,
+.admin-tutorial-detail {
+  border: 1px solid #dfe5ee;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.admin-tutorial-filter {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.35fr) repeat(4, minmax(120px, 0.8fr)) minmax(165px, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+  padding: 16px;
+  margin-bottom: 10px;
+}
+
+.admin-tutorial-filter label span {
+  display: block;
+  margin-bottom: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: #4b5563;
+}
+
+.admin-tutorial-search input,
+.admin-tutorial-filter select,
+.admin-tutorial-filter input[type='text'] {
+  width: 100%;
+  height: 38px;
+  border: 1px solid #d8dde6;
+  border-radius: 6px;
+  background: #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: #111827;
+}
+
+.admin-tutorial-search input,
+.admin-tutorial-filter input[type='text'],
+.admin-tutorial-filter select {
+  padding: 0 12px;
+}
+
+.admin-tutorial-filter button,
+.admin-tutorial-primary,
+.admin-tutorial-pagination button,
+.admin-tutorial-pagination select,
+.admin-tutorial-action,
+.admin-tutorial-quick button,
+.admin-tutorial-detail-actions button {
+  height: 34px;
+  border: 1px solid #d8dde6;
+  border-radius: 6px;
+  background: #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: #111827;
+}
+
+.admin-tutorial-filter button {
+  padding: 0 14px;
+}
+
+.admin-tutorial-table-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.admin-tutorial-primary {
+  min-width: 142px;
+  padding: 0 14px;
+  border-color: #1d4ed8 !important;
+  background: #1d4ed8 !important;
+  color: #ffffff !important;
+}
+
+.admin-tutorial-table-card {
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+
+.admin-tutorial-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Inter', sans-serif;
+}
+
+.admin-tutorial-table th,
+.admin-tutorial-table td {
+  height: 44px;
+  padding: 0 8px;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 10.5px;
+  color: #111827;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.admin-tutorial-table th {
+  background: #fafafa;
+  font-weight: 700;
+}
+
+.admin-tutorial-table td:nth-child(2) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 230px;
+}
+
+.admin-tutorial-table td:nth-child(2) b,
+.admin-tutorial-table td:nth-child(2) small {
+  display: block;
+}
+
+.admin-tutorial-table td:nth-child(2) small {
+  max-width: 190px;
+  margin-top: 3px;
+  color: #6b7280;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-tutorial-thumb,
+.admin-tutorial-detail-image {
+  display: inline-block;
+  flex: none;
+  border: 1px solid #d7dce4;
+  background:
+    radial-gradient(circle at 72% 28%, #00a2ff 0 9%, transparent 10%),
+    linear-gradient(135deg, #f97316 0 18%, transparent 19%),
+    linear-gradient(35deg, #c7d2fe 0 45%, transparent 46%),
+    #e5e7eb;
+}
+
+.admin-tutorial-thumb {
+  width: 40px;
+  height: 28px;
+  border-radius: 4px;
+}
+
+.admin-tutorial-thumb.is-1 {
+  background:
+    radial-gradient(circle at 35% 30%, #00a2ff 0 10%, transparent 11%),
+    linear-gradient(145deg, #93c5fd 0 48%, transparent 49%),
+    #e8f6ff;
+}
+
+.admin-tutorial-thumb.is-2 {
+  background:
+    radial-gradient(circle at 62% 28%, #ff6a00 0 9%, transparent 10%),
+    linear-gradient(35deg, #86efac 0 45%, transparent 46%),
+    #eefdf4;
+}
+
+.admin-tutorial-thumb.is-3 {
+  background:
+    linear-gradient(35deg, transparent 49%, #bfc5cf 50%, transparent 51%),
+    linear-gradient(-35deg, transparent 49%, #bfc5cf 50%, transparent 51%),
+    #f3f4f6;
+}
+
+.admin-tutorial-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 54px;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+}
+
+.admin-tutorial-badge--published,
+.admin-tutorial-badge--beginner {
+  border-color: #bbf7d0;
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.admin-tutorial-badge--draft,
+.admin-tutorial-badge--intermediate {
+  border-color: #fed7aa;
+  background: #fff7ed;
+  color: #ea580c;
+}
+
+.admin-tutorial-badge--archived {
+  border-color: #d1d5db;
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.admin-tutorial-badge--advanced {
+  border-color: #fecaca;
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.admin-tutorial-badge--arduino,
+.admin-tutorial-badge--iot,
+.admin-tutorial-badge--web,
+.admin-tutorial-badge--ide,
+.admin-tutorial-badge--sensor {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.admin-tutorial-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.admin-tutorial-action {
+  min-width: 34px;
+  padding: 0 8px;
+  font-size: 10px;
+}
+
+.admin-tutorial-action img {
+  width: 14px;
+  height: 14px;
+}
+
+.admin-tutorial-pagination {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  min-height: 52px;
+  gap: 14px;
+  padding: 0 14px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: #374151;
+}
+
+.admin-tutorial-pagination div {
+  display: flex;
+  gap: 6px;
+}
+
+.admin-tutorial-pagination button {
+  width: 34px;
+  padding: 0;
+}
+
+.admin-tutorial-pagination select {
+  min-width: 110px;
+  padding: 0 10px;
+}
+
+.admin-tutorial-pagination .is-active {
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.admin-tutorial-bottom {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.admin-tutorial-panel {
+  min-height: 190px;
+  overflow: hidden;
+}
+
+.admin-tutorial-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 42px;
+  padding: 0 14px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.admin-tutorial-panel h2,
+.admin-tutorial-panel-head h2,
+.admin-tutorial-quick h2 {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: #111827;
+}
+
+.admin-tutorial-panel-head a {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.admin-tutorial-panel table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Inter', sans-serif;
+}
+
+.admin-tutorial-panel th,
+.admin-tutorial-panel td {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 10px;
+  color: #111827;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.admin-tutorial-panel th {
+  font-weight: 700;
+  color: #4b5563;
+}
+
+.admin-tutorial-issues p,
+.admin-tutorial-activity p {
+  display: grid;
+  align-items: center;
+  min-height: 30px;
+  gap: 8px;
+  padding: 0 14px;
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: #111827;
+}
+
+.admin-tutorial-issues p {
+  grid-template-columns: 1fr auto;
+}
+
+.admin-tutorial-issues strong {
+  min-width: 26px;
+  height: 21px;
+  padding: 4px 7px;
+  border: 1px solid #fecaca;
+  border-radius: 4px;
+  background: #fff1f2;
+  color: #dc2626;
+  text-align: center;
+}
+
+.admin-tutorial-activity p {
+  grid-template-columns: auto 1fr auto;
+}
+
+.admin-tutorial-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #9ca3af;
+}
+
+.admin-tutorial-dot.is-blue { background: #2563eb; }
+.admin-tutorial-dot.is-purple { background: #8b5cf6; }
+.admin-tutorial-dot.is-green { background: #22c55e; }
+.admin-tutorial-dot.is-orange { background: #f97316; }
+.admin-tutorial-dot.is-gray { background: #9ca3af; }
+
+.admin-tutorial-activity time {
+  color: #4b5563;
+}
+
+.admin-tutorial-quick {
+  padding: 14px;
+}
+
+.admin-tutorial-quick h2 {
+  margin-bottom: 14px;
+}
+
+.admin-tutorial-quick div {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.admin-tutorial-quick button {
+  width: 100%;
+}
+
+.admin-tutorial-detail {
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-radius: 0;
+  min-height: calc(100vh - 56px);
+}
+
+.admin-tutorial-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.admin-tutorial-detail-head h2 {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  color: #111827;
+}
+
+.admin-tutorial-detail-head button {
+  border: 0;
+  background: transparent;
+  font-size: 18px;
+}
+
+.admin-tutorial-detail-profile {
+  display: grid;
+  grid-template-columns: 86px 1fr;
+  gap: 14px;
+  align-items: start;
+  padding: 22px 18px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.admin-tutorial-detail-image {
+  width: 86px;
+  height: 70px;
+  border-radius: 5px;
+}
+
+.admin-tutorial-detail-profile h3 {
+  margin: 0 0 10px;
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  line-height: 1.4;
+  color: #111827;
+}
+
+.admin-tutorial-detail dl {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 14px 10px;
+  padding: 16px;
+  margin: 0;
+  border-bottom: 1px solid #e5e7eb;
+  font-family: 'Inter', sans-serif;
+}
+
+.admin-tutorial-detail dt {
+  font-size: 11px;
+  font-weight: 700;
+  color: #4b5563;
+}
+
+.admin-tutorial-detail dd {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #111827;
+}
+
+.admin-tutorial-detail-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.admin-tutorial-detail-stats article {
+  min-height: 64px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
+}
+
+.admin-tutorial-detail-stats span,
+.admin-tutorial-detail-stats strong {
+  display: block;
+  font-family: 'Inter', sans-serif;
+}
+
+.admin-tutorial-detail-stats span {
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.admin-tutorial-detail-stats strong {
+  font-size: 17px;
+  color: #111827;
+}
+
+.admin-tutorial-history {
+  padding: 16px;
+  border-bottom: 1px solid #e5e7eb;
+  font-family: 'Inter', sans-serif;
+}
+
+.admin-tutorial-history h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #111827;
+}
+
+.admin-tutorial-history p {
+  margin: 0;
+  font-size: 12px;
+  color: #4b5563;
+}
+
+.admin-tutorial-detail-actions {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+}
+
+.admin-tutorial-detail-actions button {
+  width: 100%;
+}
+
+.admin-tutorial-detail-actions .is-blue {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+  color: #ffffff;
+}
+
+.admin-tutorial-detail-actions .is-green {
+  border-color: #86efac;
+  color: #16a34a;
+}
+
+.admin-tutorial-detail-actions .is-purple {
+  border-color: #c4b5fd;
+  color: #7c3aed;
+}
+
+.admin-tutorial-detail-actions .is-orange {
+  border-color: #fed7aa;
+  color: #ea580c;
+}
+
+.admin-dashboard-page--collapsed .admin-tutorial-layout {
+  grid-template-columns: minmax(0, 1fr) 320px;
+}
