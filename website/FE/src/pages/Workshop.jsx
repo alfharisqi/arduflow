@@ -141,26 +141,26 @@ const learningPaths = [
     title: 'Workshop Pemula Arduino dan IoT',
     text: 'Live 4 jam, cocok untuk peserta baru.',
     action: 'Lihat Program',
-    href: '/akses',
+    href: '/daftar-workshop',
   },
   {
     title: 'Workshop Arduflow IDE untuk Siswa',
     text: 'Praktik visual programming untuk kegiatan belajar.',
     action: 'Lihat Program',
-    href: '/akses',
+    href: '/daftar-workshop',
     featured: true,
   },
   {
     title: 'Program IoT untuk Sekolah',
     text: 'Pendampingan institusi dan materi kelas.',
     action: 'Konsultasikan',
-    href: '/kontak',
+    href: '/daftar-workshop',
   },
   {
     title: 'Kelas Komunitas Teknologi',
     text: 'Sesi belajar kolektif untuk komunitas.',
     action: 'Konsultasikan',
-    href: '/kontak',
+    href: '/daftar-workshop',
   },
   {
     title: 'Demo dan Kerja Sama Institusi',
@@ -244,7 +244,7 @@ export function Workshop() {
             </div>
 
             <div className="workshop-actions">
-              <a className="workshop-button primary" href="/akses">Daftar Workshop</a>
+              <a className="workshop-button primary" href="/daftar-workshop">Daftar Workshop</a>
               <a className="workshop-button secondary" href="#alur-belajar">Lihat Alur Belajar</a>
             </div>
           </div>
@@ -393,7 +393,7 @@ export function Workshop() {
               Workshop live membantu peserta memahami ulang setiap alur dari materi.
               Setelah itu peserta mendapatkan akses belajar mandiri lewat platform Arduflow IDE.
             </p>
-            <a className="ide-access-button" href="/akses">Lihat Cara Pendaftaran</a>
+            <a className="ide-access-button" href="/tutorial">Lihat Cara Pendaftaran</a>
           </div>
 
           <div className="ide-access-visual" aria-hidden="true">
@@ -475,7 +475,7 @@ export function Workshop() {
           </div>
 
           <div className="registration-actions">
-            <a className="registration-button secondary" href="/akses">Mulai Pendaftaran</a>
+            <a className="registration-button secondary" href="/daftar-workshop">Mulai Pendaftaran</a>
             <a className="registration-button primary" href="/kontak">Tanyakan Program ke Arduflow</a>
           </div>
         </div>
@@ -518,7 +518,7 @@ export function Workshop() {
             praktik langsung, pendampingan mentor, dan akses Arduflow IDE berbasis token.
           </p>
           <div className="final-cta-actions">
-            <a className="final-cta-button primary" href="/akses">Daftar Program Workshop</a>
+            <a className="final-cta-button primary" href="/daftar-workshop">Daftar Program Workshop</a>
             <a className="final-cta-button secondary" href="/kontak">Hubungi Tim</a>
           </div>
         </div>

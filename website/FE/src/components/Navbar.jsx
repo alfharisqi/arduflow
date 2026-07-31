@@ -84,7 +84,20 @@ export function Navbar() {
       </a>
       <nav className="nav" aria-label="Navigasi utama">
         {navigation.map((item) => (
-          <a className={current === item.path ? 'active' : ''} href={item.path} key={item.path}>
+          <a
+            className={
+              current === item.path ||
+              (item.path === '/workshop' &&
+                (current === '/daftar-workshop' ||
+                  current === '/workshop/daftar' ||
+                  current === '/detail-workshop' ||
+                  current === '/workshop/detail'))
+                ? 'active'
+                : ''
+            }
+            href={item.path}
+            key={item.path}
+          >
             {item.label}
           </a>
         ))}

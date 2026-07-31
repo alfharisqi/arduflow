@@ -6,6 +6,8 @@
 @import './styles/contact.css';
 @import './styles/tutorial.css';
 @import './styles/workshop.css';
+@import './styles/workshop-list.css';
+@import './styles/workshop-detail.css';
 @import './styles/signin.css';
 @import './styles/profile-image-crop.css';
 @import './styles/dashboard-user.css';
