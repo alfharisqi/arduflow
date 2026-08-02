@@ -187,12 +187,12 @@ export function Tutorial() {
             yang tersusun seperti workshop modern.
           </p>
           <form className="tutorial-search" role="search">
-            <label htmlFor="tutorial-search-input">Cari materi tutorial</label>
+            {/* <label htmlFor="tutorial-search-input">Cari materi tutorial</label>
             <input
               id="tutorial-search-input"
               type="search"
               placeholder="Cari tutorial, proyek, atau panduan..."
-            />
+            /> */}
           </form>
           <div className="tutorial-learning-actions">
             <a className="tutorial-primary-action" href="#materi-tutorial">

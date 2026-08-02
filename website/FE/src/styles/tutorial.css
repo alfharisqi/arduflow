@@ -499,7 +499,7 @@
 .beginner-ebook-section {
   position: relative;
   min-height: 1440px;
-  padding: 50px 0 198px;
+  padding: 150px 0 198px;
   color: #f6f9ff;
   background:
     radial-gradient(94.74% 149.33% at 80% 20%, rgba(0, 162, 255, 0.3) 0%, rgba(0, 162, 255, 0) 40%),
@@ -875,7 +875,7 @@
 .ide-ebook-section {
   position: relative;
   min-height: 1440px;
-  padding: 50px 0 155px;
+  padding: 150px 0 155px;
   color: #f6f9ff;
   background:
     radial-gradient(94.74% 149.33% at 80% 20%, rgba(0, 162, 255, 0.3) 0%, rgba(0, 162, 255, 0) 40%),
@@ -1228,7 +1228,7 @@
 .hardware-ebook-section {
   position: relative;
   min-height: 1440px;
-  padding: 50px 0 198px;
+  padding: 150px 0 198px;
   color: #f6f9ff;
   background:
     radial-gradient(94.74% 149.33% at 80% 20%, rgba(0, 162, 255, 0.3) 0%, rgba(0, 162, 255, 0) 40%),
