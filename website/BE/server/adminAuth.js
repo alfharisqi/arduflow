@@ -20,10 +20,6 @@ function publicAdmin(admin) {
   };
 }
 
-function mysqlDate(date) {
-  return date.toISOString().slice(0, 19).replace('T', ' ');
-}
-
 function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
@@ -61,7 +57,7 @@ export async function adminLogin(request, response) {
   await createAdminSession({
     adminId: admin.id,
     tokenHash: hashToken(token),
-    expiresAt: mysqlDate(expiresAt),
+    expiresAt: expiresAt.toISOString(),
   });
 
   response.json({
@@ -71,6 +67,23 @@ export async function adminLogin(request, response) {
     expiresAt: expiresAt.toISOString(),
     redirectTo: '/admin/dashboard',
   });
+}
+
+export async function requireAdmin(request, response, next) {
+  const token = bearerToken(request);
+  if (!token) {
+    response.status(401).json({ message: 'Sesi admin tidak ditemukan.' });
+    return;
+  }
+
+  const admin = await findAdminBySessionTokenHash(hashToken(token));
+  if (!admin) {
+    response.status(401).json({ message: 'Sesi admin tidak valid atau sudah kedaluwarsa.' });
+    return;
+  }
+
+  request.admin = publicAdmin(admin);
+  next();
 }
 
 export async function adminSession(request, response) {

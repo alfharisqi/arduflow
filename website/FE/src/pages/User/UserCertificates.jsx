@@ -148,6 +148,7 @@ export function UserCertificates() {
 
   function handleLogout() {
     window.localStorage.removeItem('arduflow_user');
+    window.localStorage.removeItem('arduflow_user_token');
     window.dispatchEvent(new Event('arduflow-auth-change'));
     window.location.assign('/signin');
   }

@@ -11,3 +11,7 @@ FE/dist
 BE/.env
 BE/node_modules
 BE/storage/sqlite/*.sqlite
+BE/storage/database/
+BE/storage/backups/
+BE/storage/**/*.sqlite-wal
+BE/storage/**/*.sqlite-shm

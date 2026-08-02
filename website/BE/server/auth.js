@@ -1,7 +1,11 @@
+import crypto from 'node:crypto';
 import {
+  createUserSession,
   createUser,
+  deleteUserSession,
   findUserByEmail,
   findUserById,
+  findUserBySessionTokenHash,
   findUserByUsername,
   findUserByWhatsapp,
   findUserByIdentifier,
@@ -43,6 +47,26 @@ function requestMeta(request) {
   return {
     ip: request.ip || request.socket?.remoteAddress || '',
     userAgent: request.get('user-agent') || '',
+  };
+}
+
+const sessionDurationMs = 8 * 60 * 60 * 1000;
+
+function bearerToken(request) {
+  const header = String(request.get('authorization') || '');
+  return header.toLowerCase().startsWith('bearer ') ? header.slice(7).trim() : '';
+}
+
+function hashToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+async function authenticatedUser(request) {
+  const token = bearerToken(request);
+  if (!token) return { token: '', user: null };
+  return {
+    token,
+    user: await findUserBySessionTokenHash(hashToken(token)),
   };
 }
 
@@ -156,10 +180,38 @@ export async function login(request, response) {
     ...meta,
   });
 
+  const token = randomToken();
+  const expiresAt = new Date(Date.now() + sessionDurationMs);
+  await createUserSession({
+    userId: user.id,
+    tokenHash: hashToken(token),
+    expiresAt: expiresAt.toISOString(),
+  });
+
   response.json({
     message: 'Login berhasil.',
     user: publicUser(user),
+    token,
+    expiresAt: expiresAt.toISOString(),
   });
+}
+
+export async function userSession(request, response) {
+  const { user } = await authenticatedUser(request);
+  if (!user) {
+    response.status(401).json({ message: 'Sesi user tidak valid atau sudah kedaluwarsa.' });
+    return;
+  }
+
+  response.json({ user: publicUser(user) });
+}
+
+export async function userLogout(request, response) {
+  const token = bearerToken(request);
+  if (token) {
+    await deleteUserSession(hashToken(token));
+  }
+  response.json({ message: 'Logout berhasil.' });
 }
 
 export async function verifyEmail(request, response) {
@@ -218,7 +270,6 @@ export async function checkAvailability(request, response) {
 
 export async function updateProfile(request, response) {
   const {
-    id,
     name = '',
     username = '',
     nickname = '',
@@ -228,12 +279,19 @@ export async function updateProfile(request, response) {
     profileImage = '',
   } = request.body || {};
 
-  const userId = Number(id);
   const normalizedUsername = String(username).trim();
   const normalizedWhatsapp = String(whatsapp).trim();
 
-  if (!userId || !name.trim()) {
-    response.status(422).json({ message: 'ID user dan nama lengkap wajib diisi.' });
+  const { user: sessionUser } = await authenticatedUser(request);
+  if (!sessionUser) {
+    response.status(401).json({ message: 'Sesi user tidak valid. Silakan login ulang.' });
+    return;
+  }
+
+  const userId = Number(sessionUser.id);
+
+  if (!name.trim()) {
+    response.status(422).json({ message: 'Nama lengkap wajib diisi.' });
     return;
   }
 

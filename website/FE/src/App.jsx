@@ -34,7 +34,7 @@ import { AdminProjects } from './pages/admin/AdminProjects.jsx';
 import { AdminGallery } from './pages/admin/AdminGallery.jsx';
 import { AdminPartners } from './pages/admin/AdminPartners.jsx';
 import { NotFound } from './pages/NotFound.jsx';
-import { getAdminSession } from './services/authApi.js';
+import { getAdminSession, getUserSession } from './services/authApi.js';
 import { showAuthRequiredAlert } from './utils/alerts.js';
 
 const routes = {
@@ -134,37 +134,43 @@ const adminPublicRoutes = new Set([
   '/admin/forgot-password',
 ]);
 
-function hasStoredSession(storageKey) {
-  try {
-    const raw = window.localStorage.getItem(storageKey);
-
-    if (!raw) {
-      return false;
-    }
-
-    const session = JSON.parse(raw);
-
-    return Boolean(session?.id);
-  } catch (_error) {
-    window.localStorage.removeItem(storageKey);
-    return false;
-  }
-}
-
-function ProtectedRoute({ children, storageKey, redirectTo, message }) {
-  const isAllowed = hasStoredSession(storageKey);
+function UserProtectedRoute({ children }) {
+  const [status, setStatus] = useState('checking');
 
   useEffect(() => {
-    if (isAllowed) {
-      return;
+    let isActive = true;
+    const token = window.localStorage.getItem('arduflow_user_token');
+
+    if (!token) {
+      window.localStorage.removeItem('arduflow_user');
+      setStatus('blocked');
+      return undefined;
     }
 
-    showAuthRequiredAlert(message).finally(() => {
-      window.location.replace(redirectTo);
+    getUserSession(token).then((data) => {
+      if (!isActive) return;
+      window.localStorage.setItem('arduflow_user', JSON.stringify(data.user));
+      setStatus('allowed');
+    }).catch(() => {
+      if (!isActive) return;
+      window.localStorage.removeItem('arduflow_user');
+      window.localStorage.removeItem('arduflow_user_token');
+      setStatus('blocked');
     });
-  }, [isAllowed, message, redirectTo]);
 
-  if (!isAllowed) {
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (status !== 'blocked') return;
+    showAuthRequiredAlert('Silakan login sebagai user untuk membuka dashboard.').finally(() => {
+      window.location.replace('/signin');
+    });
+  }, [status]);
+
+  if (status !== 'allowed') {
     return null;
   }
 
@@ -236,15 +242,7 @@ export default function App() {
   let page = <Page />;
 
   if (userProtectedRoutes.has(path)) {
-    page = (
-      <ProtectedRoute
-        storageKey="arduflow_user"
-        redirectTo="/signin"
-        message="Silakan login sebagai user untuk membuka dashboard."
-      >
-        {page}
-      </ProtectedRoute>
-    );
+    page = <UserProtectedRoute>{page}</UserProtectedRoute>;
   }
 
   if (path.startsWith('/admin') && !adminPublicRoutes.has(path)) {

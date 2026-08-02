@@ -9,7 +9,13 @@
     "db:sqlite": "node server/scripts/init-sqlite.js",
     "db:mysql": "node server/scripts/init-mysql.js",
     "db:seed-admin": "node server/scripts/seed-admin.js",
-    "db:reset-users": "node server/scripts/reset-users.js"
+    "db:reset-users": "node server/scripts/reset-users.js",
+    "db:import:mysql-to-sqlite": "node server/scripts/import-mysql-to-sqlite.js",
+    "db:check": "node server/scripts/check-database-consistency.js",
+    "db:backup": "node server/scripts/backup-sqlite.js",
+    "sync:run": "node server/scripts/sync-sqlite-to-mysql.js",
+    "sync:retry-now": "node server/scripts/sync-sqlite-to-mysql.js --retry-now",
+    "test": "node --test"
   },
   "dependencies": {
     "dotenv": "^16.4.7",

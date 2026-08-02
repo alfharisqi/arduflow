@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { navigation } from '../features/content/arduflowContent.js';
 import { ProfileAvatar } from '../features/profile-image-crop/ProfileAvatar.jsx';
+import { logoutUser } from '../services/authApi.js';
 
 function getStoredUser() {
   if (typeof window === 'undefined') {
@@ -56,8 +57,15 @@ export function Navbar() {
   const username = storedUser?.username || storedUser?.email || 'USERNAME';
   const profileImage = storedUser?.profileImage || storedUser?.avatar || '';
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const token = window.localStorage.getItem('arduflow_user_token');
+    try {
+      if (token) await logoutUser(token);
+    } catch {
+      // Local cleanup still prevents reuse in the browser.
+    }
     window.localStorage.removeItem('arduflow_user');
+    window.localStorage.removeItem('arduflow_user_token');
     window.dispatchEvent(new Event('arduflow-auth-change'));
     window.location.assign('/signin');
   };
