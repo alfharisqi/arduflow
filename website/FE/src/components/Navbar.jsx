@@ -80,7 +80,13 @@ export function Navbar() {
   return (
     <header className={`site-header${isSignedIn ? ' site-header--user' : ''}`}>
       <a className="brand" href="/">
+<<<<<<< HEAD
+        <span>
+          ARDU<span>FLOW</span>
+        </span>
+=======
         <span>ARDU<span>FLOW</span></span>
+>>>>>>> main
       </a>
       <nav className="nav" aria-label="Navigasi utama">
         {navigation.map((item) => (
@@ -102,6 +108,10 @@ export function Navbar() {
           </a>
         ))}
       </nav>
+<<<<<<< HEAD
+      <a className="nav-ide" href="/ide">Masuk IDE</a>
+      <a className="navbar-button" href="/akses">Daftar Akses</a>
+=======
       {isSignedIn ? (
         <div className="navbar-user-actions" aria-label="Aksi pengguna" ref={menuRef}>
           <a className="nav-ide" href="/ide">Masuk IDE</a>
@@ -175,6 +185,7 @@ export function Navbar() {
           <a className="navbar-button" href="/signup">Daftar Akses</a>
         </>
       )}
+>>>>>>> main
     </header>
   );
 }
