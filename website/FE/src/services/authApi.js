@@ -32,6 +32,30 @@ export function loginUser(payload) {
   });
 }
 
+export function loginAdmin(payload) {
+  return request('/api/admin/login', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getAdminSession(token) {
+  return request('/api/admin/session', {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
+export function logoutAdmin(token) {
+  return request('/api/admin/logout', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
 export function verifyEmailToken(token) {
   return request(`/api/auth/verify-email?token=${encodeURIComponent(token)}`);
 }

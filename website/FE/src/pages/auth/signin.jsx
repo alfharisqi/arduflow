@@ -4,15 +4,14 @@ import twitterIcon from '../../assets/icons/sosmed-twitter.png';
 import hideIcon from '../../assets/icons/icon-hide-1.svg';
 import { AuthImageSlider } from '../../components/auth/AuthImageSlider.jsx';
 import { loginUser } from '../../services/authApi.js';
+import { showErrorAlert, showSuccessAlert } from '../../utils/alerts.js';
 
 export function SignIn() {
   const [showPassword, setShowPassword] = useState(false);
-  const [status, setStatus] = useState({ type: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event) {
     event.preventDefault();
-    setStatus({ type: '', message: '' });
     setIsSubmitting(true);
 
     const form = new FormData(event.currentTarget);
@@ -24,10 +23,10 @@ export function SignIn() {
       });
 
       localStorage.setItem('arduflow_user', JSON.stringify(data.user));
-      setStatus({ type: 'success', message: data.message });
+      await showSuccessAlert('Login berhasil', data.message);
       window.location.assign('/');
     } catch (error) {
-      setStatus({ type: 'error', message: error.message });
+      await showErrorAlert('Login gagal', error.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -93,10 +92,6 @@ export function SignIn() {
                 Tidak punya akun? <a href="/signup">Daftar Sekarang</a>
               </p>
             </div>
-
-            {status.message && (
-              <p className={`auth-form-message ${status.type}`}>{status.message}</p>
-            )}
           </form>
         </div>
       </section>

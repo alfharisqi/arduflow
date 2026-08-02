@@ -1,0 +1,45 @@
+.arduflow-swal-popup {
+  border: 1px solid rgba(0, 162, 255, 0.42);
+  border-radius: 8px;
+  box-shadow: 0 20px 60px rgba(255, 106, 0, 0.24), 0 0 34px rgba(0, 162, 255, 0.18);
+  font-family: 'Rajdhani', sans-serif;
+}
+
+.arduflow-swal-title {
+  color: #ffffff;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.arduflow-swal-text {
+  color: rgba(255, 255, 255, 0.82);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.arduflow-swal-confirm {
+  min-width: 118px;
+  height: 42px;
+  padding: 0 22px;
+  border: 1px solid #ff6a00;
+  border-radius: 4px;
+  background: #ff6a00;
+  box-shadow: 0 8px 24px rgba(255, 106, 0, 0.24);
+  color: #ffffff;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.arduflow-swal-confirm:focus {
+  outline: 2px solid #00a2ff;
+  outline-offset: 2px;
+}
+
+.arduflow-swal-timer {
+  background: linear-gradient(90deg, #ff6a00, #00a2ff);
+}

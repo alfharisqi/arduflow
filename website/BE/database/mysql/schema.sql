@@ -27,6 +27,33 @@ CREATE TABLE IF NOT EXISTS users (
     INDEX idx_users_verification_token (verification_token)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS admins (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    name VARCHAR(120) NOT NULL,
+    email VARCHAR(160) NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(50) NOT NULL DEFAULT 'super_admin',
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    last_login_at DATETIME NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    INDEX idx_admins_username (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS admin_sessions (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    admin_id BIGINT UNSIGNED NOT NULL,
+    token_hash CHAR(64) NOT NULL UNIQUE,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME NOT NULL,
+    INDEX idx_admin_sessions_token_hash (token_hash),
+    INDEX idx_admin_sessions_admin_id (admin_id),
+    CONSTRAINT fk_admin_sessions_admin
+        FOREIGN KEY (admin_id) REFERENCES admins(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS programs (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(160) NOT NULL,

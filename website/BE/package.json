@@ -8,6 +8,7 @@
     "start": "node server/index.js",
     "db:sqlite": "node server/scripts/init-sqlite.js",
     "db:mysql": "node server/scripts/init-mysql.js",
+    "db:seed-admin": "node server/scripts/seed-admin.js",
     "db:reset-users": "node server/scripts/reset-users.js"
   },
   "dependencies": {

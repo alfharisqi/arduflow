@@ -1,0 +1,183 @@
+.admin-login-page {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 1440px;
+  min-height: 985px;
+  padding: 325px 607px;
+  background: #ffffff;
+}
+
+.admin-login-content {
+  position: relative;
+  flex: none;
+  width: 226px;
+  height: 335px;
+}
+
+.admin-login-logo {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 104px;
+  height: 28px;
+  transform: translateX(-50%);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 28px;
+  letter-spacing: -0.5px;
+  color: #000000;
+  text-align: center;
+}
+
+.admin-login-logo strong {
+  color: #ff6a00;
+}
+
+.admin-login-panel {
+  position: absolute;
+  top: 69px;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 21px;
+  width: 226px;
+  height: 266px;
+  padding: 0;
+  margin: 0;
+}
+
+.admin-login-panel h1 {
+  width: 226px;
+  height: 22px;
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 22px;
+  color: #000000;
+  text-align: center;
+}
+
+.admin-login-field {
+  display: block;
+  width: 226px;
+  height: 56px;
+  margin: 0;
+}
+
+.admin-login-field span {
+  display: block;
+  width: 226px;
+  height: 14px;
+  margin: 0 0 10px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 14px;
+  letter-spacing: 0.01em;
+  color: #000000;
+}
+
+.admin-login-field input {
+  width: 226px;
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 3px;
+  outline: none;
+  background: #f1f1f1;
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 16px;
+  color: #000000;
+}
+
+.admin-login-field input::placeholder {
+  color: #8e8e93;
+  opacity: 1;
+}
+
+.admin-login-password {
+  position: relative;
+  width: 226px;
+  height: 34px;
+}
+
+.admin-login-password input {
+  padding-right: 42px;
+}
+
+.admin-login-eye {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.admin-login-eye img {
+  display: block;
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+.admin-login-submit {
+  width: 226px;
+  height: 33px;
+  border: 0;
+  border-radius: 34px;
+  background: #27ae60;
+  box-shadow: 0 1px 4px rgba(121, 139, 149, 0.440274);
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 16px;
+  letter-spacing: 0.04em;
+  color: #ffffff;
+  text-align: center;
+  cursor: pointer;
+}
+
+.admin-login-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.admin-login-error {
+  width: 226px;
+  margin: -8px 0 -4px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 12px;
+  line-height: 16px;
+  color: #e81414;
+  text-align: center;
+}
+
+.admin-login-forgot {
+  width: 226px;
+  height: 15px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 14px;
+  letter-spacing: 0.01em;
+  color: #8e8e93;
+  text-align: center;
+  text-decoration: underline;
+}
