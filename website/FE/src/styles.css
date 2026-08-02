@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Rajdhani:wght@500;600;700&display=swap');
 
 :root {
@@ -2754,3 +2755,26 @@ a {
     text-align: left;
   }
 }
+=======
+﻿@import './styles/global.css';
+@import './styles/navbar.css';
+@import './styles/hero.css';
+@import './styles/home.css';
+@import './styles/project.css';
+@import './styles/contact.css';
+@import './styles/tutorial.css';
+@import './styles/workshop.css';
+@import './styles/workshop-list.css';
+@import './styles/workshop-detail.css';
+@import './styles/signin.css';
+@import './styles/profile-image-crop.css';
+@import './styles/dashboard-user.css';
+@import './styles/user-progress.css';
+@import './styles/user-project-gallery.css';
+@import './styles/user-workshop-schedule.css';
+@import './styles/user-certificates.css';
+@import './styles/responsive.css';
+@import './styles/footer.css';
+@import './styles/footer-responsive.css';
+
+>>>>>>> main

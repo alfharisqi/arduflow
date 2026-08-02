@@ -28,6 +28,47 @@ async function mysqlConnection() {
   return mysqlPool;
 }
 
+function now() {
+  return new Date().toISOString().slice(0, 19).replace('T', ' ');
+}
+
+async function mysqlOne(sql, params = []) {
+  const pool = await mysqlConnection();
+  const [rows] = await pool.execute(sql, params);
+
+  return rows[0] || null;
+}
+
+async function mysqlRun(sql, params = []) {
+  const pool = await mysqlConnection();
+  const [result] = await pool.execute(sql, params);
+
+  return result;
+}
+
+function sqliteRun(sql, params = []) {
+  return sqliteConnection().prepare(sql).run(...params);
+}
+
+export async function insertAuthLog({ userId = null, email = '', event, ip = '', userAgent = '', meta = null }) {
+  try {
+    sqliteRun(
+      'INSERT INTO auth_logs (user_id, email, event, ip, user_agent, meta, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [
+        userId,
+        email || null,
+        event,
+        ip || null,
+        userAgent || null,
+        meta ? JSON.stringify(meta) : null,
+        now(),
+      ],
+    );
+  } catch (error) {
+    console.error('SQLite auth log failed:', error);
+  }
+}
+
 export async function insertLead(lead) {
   const values = {
     name: lead.name,
@@ -35,26 +76,119 @@ export async function insertLead(lead) {
     phone: lead.phone || null,
     interest: lead.interest || 'akses',
     message: lead.message || null,
-    created_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+    created_at: now(),
   };
 
-  if (config.database.connection === 'mysql') {
-    const pool = await mysqlConnection();
-    await pool.execute(
-      'INSERT INTO leads (name, email, phone, interest, message, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-      [values.name, values.email, values.phone, values.interest, values.message, values.created_at],
-    );
-    return;
+  await mysqlRun(
+    'INSERT INTO leads (name, email, phone, interest, message, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+    [values.name, values.email, values.phone, values.interest, values.message, values.created_at],
+  );
+}
+
+export async function findUserByEmail(email) {
+  return mysqlOne('SELECT * FROM users WHERE email = ?', [email]);
+}
+
+export async function findUserById(id) {
+  return mysqlOne('SELECT * FROM users WHERE id = ?', [id]);
+}
+
+export async function findUserByUsername(username) {
+  return mysqlOne('SELECT * FROM users WHERE username = ?', [username]);
+}
+
+export async function findUserByWhatsapp(whatsapp) {
+  return mysqlOne('SELECT * FROM users WHERE whatsapp = ?', [whatsapp]);
+}
+
+export async function findUserByIdentifier(identifier) {
+  return mysqlOne(
+    'SELECT * FROM users WHERE LOWER(email) = LOWER(?) OR LOWER(name) = LOWER(?) OR LOWER(username) = LOWER(?)',
+    [identifier, identifier, identifier],
+  );
+}
+
+export async function createUser(user) {
+  const createdAt = now();
+
+  await mysqlRun(
+    `INSERT INTO users (
+      name,
+      email,
+      whatsapp,
+      occupation,
+      password_hash,
+      verification_token,
+      verification_sent_at,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      user.name,
+      user.email,
+      user.whatsapp || null,
+      user.occupation || null,
+      user.passwordHash,
+      user.verificationToken,
+      createdAt,
+      createdAt,
+      createdAt,
+    ],
+  );
+
+  return findUserByEmail(user.email);
+}
+
+export async function updateUserProfile(userId, profile) {
+  const updatedAt = now();
+
+  await mysqlRun(
+    `UPDATE users
+     SET name = ?,
+         username = ?,
+         nickname = ?,
+         whatsapp = ?,
+         occupation = ?,
+         institution_name = ?,
+         profile_image = ?,
+         updated_at = ?
+     WHERE id = ?`,
+    [
+      profile.name,
+      profile.username || null,
+      profile.nickname || null,
+      profile.whatsapp || null,
+      profile.occupation || null,
+      profile.institutionName || null,
+      profile.profileImage || null,
+      updatedAt,
+      userId,
+    ],
+  );
+
+  return findUserById(userId);
+}
+
+export async function verifyUserEmail(token) {
+  const verifiedAt = now();
+  const user = await mysqlOne('SELECT * FROM users WHERE verification_token = ?', [token]);
+
+  if (!user) {
+    return null;
   }
 
-  sqliteConnection()
-    .prepare('INSERT INTO leads (name, email, phone, interest, message, created_at) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(values.name, values.email, values.phone, values.interest, values.message, values.created_at);
+  await mysqlRun(
+    'UPDATE users SET email_verified_at = ?, verification_token = NULL, updated_at = ? WHERE id = ?',
+    [verifiedAt, verifiedAt, user.id],
+  );
+
+  return findUserByEmail(user.email);
 }
 
 export function health() {
   return {
     status: 'ok',
-    database: config.database.connection,
+    primaryDatabase: config.database.primary,
+    localDatabase: 'sqlite',
   };
 }

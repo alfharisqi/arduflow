@@ -1,3 +1,14 @@
+<<<<<<< HEAD
+=======
+import facebookIcon from '../assets/icons/icon-facebook-1.svg';
+import instagramIcon from '../assets/icons/icon-instagram-1.svg';
+import mailIcon from '../assets/icons/icon-mail-1.svg';
+import mapPinIcon from '../assets/icons/icon-map-pin-1.svg';
+import phoneIcon from '../assets/icons/icon-phone-1.svg';
+import twitterIcon from '../assets/icons/icon-twitter-1.svg';
+import youtubeIcon from '../assets/icons/icon-youtube-1.svg';
+
+>>>>>>> main
 const footerMenus = [
   {
     title: 'Menu',
@@ -5,7 +16,11 @@ const footerMenus = [
       ['Beranda', '/'],
       ['Tutorial', '/tutorial'],
       ['Proyek', '/project'],
+<<<<<<< HEAD
       ['Program / Workshop', '/program'],
+=======
+      ['Program / Workshop', '/workshop'],
+>>>>>>> main
       ['Tentang Kami', '/tentang-kami'],
       ['Kontak', '/kontak'],
     ],
@@ -44,6 +59,7 @@ const contacts = [
   ['pin', 'Indonesia'],
 ];
 
+<<<<<<< HEAD
 function FooterIcon({ type, size = 20 }) {
   const common = {
     width: size,
@@ -110,6 +126,29 @@ function FooterIcon({ type, size = 20 }) {
       <path d="M21 10C21 17 12 23 12 23S3 17 3 10A9 9 0 1 1 21 10Z" />
       <path d="M12 13A3 3 0 1 0 12 7A3 3 0 0 0 12 13Z" />
     </svg>
+=======
+const footerIconAssets = {
+  facebook: facebookIcon,
+  instagram: instagramIcon,
+  mail: mailIcon,
+  phone: phoneIcon,
+  pin: mapPinIcon,
+  twitter: twitterIcon,
+  youtube: youtubeIcon,
+};
+
+function FooterIcon({ type, size = 20 }) {
+  const src = footerIconAssets[type] || footerIconAssets.pin;
+
+  return (
+    <img
+      className="asset-icon footer-asset-icon"
+      src={src}
+      alt=""
+      aria-hidden="true"
+      style={{ width: size, height: size }}
+    />
+>>>>>>> main
   );
 }
 
