@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Layout } from './components/Layout.jsx';
 import { Home } from './pages/Home.jsx';
 import { Ide } from './pages/Ide.jsx';
@@ -14,6 +14,7 @@ import { HardwareEbook } from './pages/HardwareEbook.jsx';
 import { Project } from './pages/Project.jsx';
 import { ProjectAll } from './pages/ProjectAll.jsx';
 import { ProjectDetail } from './pages/ProjectDetail.jsx';
+import { Documentation } from './pages/Documentation.jsx';
 import { Partner } from './pages/Partner.jsx';
 import { Contact } from './pages/Contact.jsx';
 import { SignIn } from './pages/auth/signin.jsx';
@@ -60,6 +61,7 @@ const routes = {
   '/project/semua': ProjectAll,
   '/project/all': ProjectAll,
   '/project/detail': ProjectDetail,
+  '/project/dokumentasi': Documentation,
   '/partner': Partner,
   '/kontak': Contact,
   '/signin': SignIn,

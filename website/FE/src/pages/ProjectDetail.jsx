@@ -1,4 +1,4 @@
-import projectLedImage from "../assets/images/all-project-led.png";
+﻿import projectLedImage from "../assets/images/all-project-led.png";
 import arduinoImage from "../assets/images/Mengenal Board Arduino UNO.jpg";
 import breadboardImage from "../assets/images/featured-led.png";
 import ledImage from "../assets/images/library-led.png";
@@ -50,7 +50,7 @@ const nodeItems = [
 const steps = [
   {
     title: "Siapkan komponen",
-    body: "Siapkan Arduino Uno, breadboard, LED, resistor 220Ω, kabel jumper, dan kabel USB.",
+    body: "Siapkan Arduino Uno, breadboard, LED, resistor 220Î©, kabel jumper, dan kabel USB.",
   },
   {
     title: "Susun rangkaian",
@@ -58,7 +58,7 @@ const steps = [
   },
   {
     title: "Buka ArduFlow IDE",
-    body: "Masuk ke ArduFlow IDE dan buat proyek baru dengan nama “LED Sederhana”.",
+    body: "Masuk ke ArduFlow IDE dan buat proyek baru dengan nama â€œLED Sederhanaâ€.",
   },
   {
     title: "Tambahkan Node",

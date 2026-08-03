@@ -3,7 +3,9 @@
 @import './styles/hero.css';
 @import './styles/home.css';
 @import './styles/project.css';
+@import './styles/project-all.css';
 @import './styles/project-detail.css';
+@import './styles/documentation.css';
 @import './styles/contact.css';
 @import './styles/tutorial.css';
 @import './styles/workshop.css';

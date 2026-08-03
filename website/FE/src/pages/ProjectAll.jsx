@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import allProjectLedImage from "../assets/images/all-project-led.png";
 import allProjectDht22Image from "../assets/images/all-project-dht22.png";
 import allProjectEsp32Image from "../assets/images/all-project-esp32.png";
@@ -343,7 +343,7 @@ export function ProjectAll() {
                 <span className="all-project-card__category">{project.category}</span>
                 <p>{project.description}</p>
                 <a href="/project/detail">
-                  Lihat Detail Proyek <span aria-hidden="true">→</span>
+                  Lihat Detail Proyek <span aria-hidden="true">â†’</span>
                 </a>
               </div>
             </article>

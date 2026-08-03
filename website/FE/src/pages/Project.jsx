@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 
 import featuredLedImage from "../assets/images/featured-led.png";
 import featuredDht22Image from "../assets/images/featured-dht22.png";
@@ -26,18 +26,21 @@ const metrics = [
 const featuredProjects = [
   {
     title: "LED Sederhana",
+    category: "Proyek Pemula",
     image: featuredLedImage,
     description:
       "Eksplorasi proyek IoT nyata dengan dokumentasi, sensor, dan insight implementasi.",
   },
   {
     title: "Sensor Suhu DHT22",
+    category: "Sensor",
     image: featuredDht22Image,
     description:
       "Eksplorasi proyek IoT nyata dengan dokumentasi, sensor, dan insight implementasi.",
   },
   {
     title: "Monitoring IoT ESP32",
+    category: "Esp32",
     image: featuredEsp32Image,
     description:
       "Eksplorasi proyek IoT nyata dengan dokumentasi, sensor, dan insight implementasi.",
@@ -103,7 +106,7 @@ const contentCollections = [
     eyebrow: "Dokumentasi Kegiatan",
     title: "Workshop IoT di SMKN 2",
     metadata: "35 peserta - 18 Mei 2026",
-    href: "/project",
+    href: "/project/dokumentasi",
   },
   {
     eyebrow: "Proyek Highlight",
@@ -150,7 +153,7 @@ function ProjectHero() {
             <a className="button button--primary" href="#proyek">
               Lihat Proyek
             </a>
-            <a className="button button--secondary" href="#dokumentasi">
+            <a className="button button--secondary" href="/project/dokumentasi">
               Dokumentasi Kegiatan
             </a>
           </div>
@@ -209,6 +212,7 @@ function FeaturedProjects() {
               <img src={project.image} alt="" className="featured-card__image" />
               <div className="featured-card__body">
                 <h3>{project.title}</h3>
+                <span className="featured-card__category">{project.category}</span>
                 <p>{project.description}</p>
                 <a href="/project/detail">
                   Lihat Detail Proyek <span aria-hidden="true">-&gt;</span>
