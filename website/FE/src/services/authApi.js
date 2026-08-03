@@ -1,12 +1,14 @@
 const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001';
 
 async function request(path, options = {}) {
+  const { headers = {}, ...fetchOptions } = options;
+
   const response = await fetch(`${apiBaseUrl}${path}`, {
+    ...fetchOptions,
     headers: {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...headers,
     },
-    ...options,
   });
 
   const data = await response.json().catch(() => ({}));
