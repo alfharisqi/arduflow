@@ -374,6 +374,8 @@ export async function checkAvailability(request, response) {
 export async function updateProfile(request, response) {
   const {
     name = '',
+    fullName = '',
+    full_name = '',
     username = '',
     nickname = '',
     whatsapp = '',
@@ -384,6 +386,7 @@ export async function updateProfile(request, response) {
 
   const normalizedUsername = String(username).trim();
   const normalizedWhatsapp = normalizeWhatsapp(whatsapp);
+  const normalizedName = String(name || fullName || full_name).trim();
 
   const { user: sessionUser } = await authenticatedUser(request);
   if (!sessionUser) {
@@ -393,7 +396,7 @@ export async function updateProfile(request, response) {
 
   const userId = Number(sessionUser.id);
 
-  if (!name.trim()) {
+  if (!normalizedName) {
     response.status(422).json({ message: 'Nama lengkap wajib diisi.' });
     return;
   }
@@ -429,7 +432,7 @@ export async function updateProfile(request, response) {
   }
 
   const user = await updateUserProfile(userId, {
-    name: name.trim(),
+    name: normalizedName,
     username: normalizedUsername,
     nickname: String(nickname).trim(),
     whatsapp: normalizedWhatsapp,
