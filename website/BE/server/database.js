@@ -296,6 +296,52 @@ export async function verifyUserEmail(token) {
   });
 }
 
+export async function createPasswordResetToken(userId, token, expiresAt) {
+  initializeOperationalDatabase();
+  return withSqliteTransaction((db) => {
+    const timestamp = sqliteNow();
+    const result = db.prepare(
+      `UPDATE users
+       SET password_reset_token = ?, password_reset_sent_at = ?,
+           password_reset_expires_at = ?, updated_at = ?, version = version + 1
+       WHERE id = ? AND deleted_at IS NULL`,
+    ).run(token, timestamp, expiresAt, timestamp, userId);
+
+    if (result.changes === 0) {
+      return null;
+    }
+
+    return enqueueRow(db, 'users', userId, 'update');
+  });
+}
+
+export async function resetUserPasswordByToken(token, passwordHash) {
+  initializeOperationalDatabase();
+  return withSqliteTransaction((db) => {
+    const user = db.prepare(
+      `SELECT * FROM users
+       WHERE password_reset_token = ?
+         AND password_reset_expires_at > ?
+         AND deleted_at IS NULL`,
+    ).get(token, sqliteNow());
+
+    if (!user) {
+      return null;
+    }
+
+    const timestamp = sqliteNow();
+    db.prepare(
+      `UPDATE users
+       SET password_hash = ?, password_reset_token = NULL,
+           password_reset_sent_at = NULL, password_reset_expires_at = NULL,
+           updated_at = ?, version = version + 1
+       WHERE id = ?`,
+    ).run(passwordHash, timestamp, user.id);
+
+    return enqueueRow(db, 'users', user.id, 'update');
+  });
+}
+
 export async function softDeleteUser(userId) {
   initializeOperationalDatabase();
   return withSqliteTransaction((db) => {

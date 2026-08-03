@@ -46,6 +46,9 @@ export function migrateSqlite(database) {
       ensureColumn(database, 'users', 'nickname', 'TEXT NULL');
       ensureColumn(database, 'users', 'institution_name', 'TEXT NULL');
       ensureColumn(database, 'users', 'profile_image', 'TEXT NULL');
+      ensureColumn(database, 'users', 'password_reset_token', 'TEXT NULL');
+      ensureColumn(database, 'users', 'password_reset_sent_at', 'TEXT NULL');
+      ensureColumn(database, 'users', 'password_reset_expires_at', 'TEXT NULL');
       ensureColumn(database, 'users', 'version', 'INTEGER NOT NULL DEFAULT 1');
       ensureColumn(database, 'users', 'deleted_at', 'TEXT NULL');
     }
@@ -59,6 +62,7 @@ export function migrateSqlite(database) {
     ensureColumn(database, 'sync_logs', 'mysql_status', 'TEXT NULL');
     database.exec('CREATE UNIQUE INDEX IF NOT EXISTS uq_users_username ON users (username) WHERE username IS NOT NULL');
     database.exec('CREATE UNIQUE INDEX IF NOT EXISTS uq_users_whatsapp ON users (whatsapp) WHERE whatsapp IS NOT NULL');
+    database.exec('CREATE INDEX IF NOT EXISTS idx_users_password_reset_token ON users (password_reset_token)');
 
     database.prepare(
       `INSERT OR IGNORE INTO schema_migrations (version, applied_at)

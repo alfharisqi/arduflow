@@ -22,6 +22,9 @@ CREATE TABLE IF NOT EXISTS users (
     email_verified_at TEXT NULL,
     verification_token TEXT NULL,
     verification_sent_at TEXT NULL,
+    password_reset_token TEXT NULL,
+    password_reset_sent_at TEXT NULL,
+    password_reset_expires_at TEXT NULL,
     version INTEGER NOT NULL DEFAULT 1,
     deleted_at TEXT NULL,
     created_at TEXT NOT NULL,
@@ -31,6 +34,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE UNIQUE INDEX IF NOT EXISTS uq_users_username ON users (username) WHERE username IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_users_whatsapp ON users (whatsapp) WHERE whatsapp IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_users_verification_token ON users (verification_token);
+CREATE INDEX IF NOT EXISTS idx_users_password_reset_token ON users (password_reset_token);
 CREATE INDEX IF NOT EXISTS idx_users_deleted_at ON users (deleted_at);
 
 CREATE TABLE IF NOT EXISTS admins (

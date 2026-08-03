@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import {
+  createPasswordResetToken,
   createUserSession,
   createUser,
   deleteUserSession,
@@ -10,10 +11,11 @@ import {
   findUserByWhatsapp,
   findUserByIdentifier,
   insertAuthLog,
+  resetUserPasswordByToken,
   updateUserProfile,
   verifyUserEmail,
 } from './database.js';
-import { sendVerificationEmail } from './mailer.js';
+import { sendPasswordResetEmail, sendVerificationEmail } from './mailer.js';
 import { hashPassword, randomToken, verifyPassword } from './password.js';
 
 function publicUser(user) {
@@ -43,6 +45,27 @@ function validateWhatsapp(whatsapp) {
   return /^\+\d{8,15}$/.test(whatsapp);
 }
 
+function normalizeWhatsapp(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+
+  const digits = raw.replace(/[^\d]/g, '');
+
+  if (raw.startsWith('+')) {
+    return `+${digits}`;
+  }
+
+  if (digits.startsWith('0')) {
+    return `+62${digits.replace(/^0+/, '')}`;
+  }
+
+  if (digits.startsWith('62')) {
+    return `+${digits}`;
+  }
+
+  return `+${digits}`;
+}
+
 function requestMeta(request) {
   return {
     ip: request.ip || request.socket?.remoteAddress || '',
@@ -51,6 +74,7 @@ function requestMeta(request) {
 }
 
 const sessionDurationMs = 8 * 60 * 60 * 1000;
+const passwordResetDurationMs = 60 * 60 * 1000;
 
 function bearerToken(request) {
   const header = String(request.get('authorization') || '');
@@ -80,7 +104,7 @@ export async function register(request, response) {
   } = request.body || {};
 
   const normalizedEmail = email.trim().toLowerCase();
-  const normalizedWhatsapp = whatsapp.trim();
+  const normalizedWhatsapp = normalizeWhatsapp(whatsapp);
 
   if (!name.trim() || !normalizedEmail || !normalizedWhatsapp || !password) {
     response.status(422).json({ message: 'Nama, email, nomor WhatsApp, dan kata sandi wajib diisi.' });
@@ -242,9 +266,88 @@ export async function verifyEmail(request, response) {
   });
 }
 
+export async function requestPasswordReset(request, response) {
+  const email = String(request.body?.email || '').trim().toLowerCase();
+
+  if (!email) {
+    response.status(422).json({ message: 'Email wajib diisi.' });
+    return;
+  }
+
+  if (!validateEmail(email)) {
+    response.status(422).json({ message: 'Format email tidak valid.' });
+    return;
+  }
+
+  const user = await findUserByEmail(email);
+
+  if (!user) {
+    response.json({
+      message: 'Jika email terdaftar, tautan pemulihan akan dikirim ke inbox atau spam.',
+    });
+    return;
+  }
+
+  const token = randomToken();
+  const expiresAt = new Date(Date.now() + passwordResetDurationMs).toISOString();
+  const updatedUser = await createPasswordResetToken(user.id, token, expiresAt);
+
+  try {
+    await sendPasswordResetEmail(updatedUser || user, token);
+  } catch (error) {
+    console.error('Password reset email failed:', error);
+    response.status(503).json({ message: 'Email reset password gagal dikirim. Pastikan Mailpit atau SMTP berjalan.' });
+    return;
+  }
+
+  await insertAuthLog({
+    userId: user.id,
+    email: user.email,
+    event: 'password_reset_requested',
+    ...requestMeta(request),
+  });
+
+  response.json({
+    message: 'Tautan pemulihan telah dikirim ke email Anda.',
+  });
+}
+
+export async function confirmPasswordReset(request, response) {
+  const token = String(request.body?.token || '').trim();
+  const password = String(request.body?.password || '');
+
+  if (!token || !password) {
+    response.status(422).json({ message: 'Token dan kata sandi baru wajib diisi.' });
+    return;
+  }
+
+  if (!validatePassword(password)) {
+    response.status(422).json({ message: 'Kata sandi minimal 8 karakter dengan kombinasi huruf, angka, dan simbol.' });
+    return;
+  }
+
+  const user = await resetUserPasswordByToken(token, hashPassword(password));
+
+  if (!user) {
+    response.status(404).json({ message: 'Token reset password tidak valid atau sudah kedaluwarsa.' });
+    return;
+  }
+
+  await insertAuthLog({
+    userId: user.id,
+    email: user.email,
+    event: 'password_reset_success',
+    ...requestMeta(request),
+  });
+
+  response.json({
+    message: 'Password berhasil direset. Silakan login dengan password baru.',
+  });
+}
+
 export async function checkAvailability(request, response) {
   const email = String(request.query.email || request.body?.email || '').trim().toLowerCase();
-  const whatsapp = String(request.query.whatsapp || request.body?.whatsapp || '').trim();
+  const whatsapp = normalizeWhatsapp(request.query.whatsapp || request.body?.whatsapp || '');
   const result = {};
 
   if (email) {
@@ -271,6 +374,8 @@ export async function checkAvailability(request, response) {
 export async function updateProfile(request, response) {
   const {
     name = '',
+    fullName = '',
+    full_name = '',
     username = '',
     nickname = '',
     whatsapp = '',
@@ -280,7 +385,8 @@ export async function updateProfile(request, response) {
   } = request.body || {};
 
   const normalizedUsername = String(username).trim();
-  const normalizedWhatsapp = String(whatsapp).trim();
+  const normalizedWhatsapp = normalizeWhatsapp(whatsapp);
+  const normalizedName = String(name || fullName || full_name).trim();
 
   const { user: sessionUser } = await authenticatedUser(request);
   if (!sessionUser) {
@@ -290,7 +396,7 @@ export async function updateProfile(request, response) {
 
   const userId = Number(sessionUser.id);
 
-  if (!name.trim()) {
+  if (!normalizedName) {
     response.status(422).json({ message: 'Nama lengkap wajib diisi.' });
     return;
   }
@@ -326,7 +432,7 @@ export async function updateProfile(request, response) {
   }
 
   const user = await updateUserProfile(userId, {
-    name: name.trim(),
+    name: normalizedName,
     username: normalizedUsername,
     nickname: String(nickname).trim(),
     whatsapp: normalizedWhatsapp,
