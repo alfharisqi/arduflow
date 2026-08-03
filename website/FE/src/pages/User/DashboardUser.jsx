@@ -6,6 +6,7 @@ import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import { ProfileAvatar } from '../../features/profile-image-crop/ProfileAvatar.jsx';
 import { ProfileImageCropper } from '../../features/profile-image-crop/ProfileImageCropper.jsx';
 import { updateUserProfile } from '../../services/authApi.js';
+import { showErrorAlert, showSuccessAlert } from '../../utils/alerts.js';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 
 const menuItems = [
@@ -205,8 +206,10 @@ export function DashboardUser() {
       }));
       setEditingProfile(false);
       setProfileMessage('Profil berhasil disimpan.');
+      await showSuccessAlert('Profil berhasil disimpan', 'Data profil Anda sudah diperbarui.');
     } catch (error) {
       setProfileMessage(error.message || 'Profil gagal disimpan.');
+      await showErrorAlert('Profil gagal disimpan', error.message || 'Periksa kembali data profil Anda.');
     }
   }
 

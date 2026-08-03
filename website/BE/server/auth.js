@@ -45,6 +45,27 @@ function validateWhatsapp(whatsapp) {
   return /^\+\d{8,15}$/.test(whatsapp);
 }
 
+function normalizeWhatsapp(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+
+  const digits = raw.replace(/[^\d]/g, '');
+
+  if (raw.startsWith('+')) {
+    return `+${digits}`;
+  }
+
+  if (digits.startsWith('0')) {
+    return `+62${digits.replace(/^0+/, '')}`;
+  }
+
+  if (digits.startsWith('62')) {
+    return `+${digits}`;
+  }
+
+  return `+${digits}`;
+}
+
 function requestMeta(request) {
   return {
     ip: request.ip || request.socket?.remoteAddress || '',
@@ -83,7 +104,7 @@ export async function register(request, response) {
   } = request.body || {};
 
   const normalizedEmail = email.trim().toLowerCase();
-  const normalizedWhatsapp = whatsapp.trim();
+  const normalizedWhatsapp = normalizeWhatsapp(whatsapp);
 
   if (!name.trim() || !normalizedEmail || !normalizedWhatsapp || !password) {
     response.status(422).json({ message: 'Nama, email, nomor WhatsApp, dan kata sandi wajib diisi.' });
@@ -326,7 +347,7 @@ export async function confirmPasswordReset(request, response) {
 
 export async function checkAvailability(request, response) {
   const email = String(request.query.email || request.body?.email || '').trim().toLowerCase();
-  const whatsapp = String(request.query.whatsapp || request.body?.whatsapp || '').trim();
+  const whatsapp = normalizeWhatsapp(request.query.whatsapp || request.body?.whatsapp || '');
   const result = {};
 
   if (email) {
@@ -362,7 +383,7 @@ export async function updateProfile(request, response) {
   } = request.body || {};
 
   const normalizedUsername = String(username).trim();
-  const normalizedWhatsapp = String(whatsapp).trim();
+  const normalizedWhatsapp = normalizeWhatsapp(whatsapp);
 
   const { user: sessionUser } = await authenticatedUser(request);
   if (!sessionUser) {
