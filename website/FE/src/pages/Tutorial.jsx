@@ -11,11 +11,7 @@ import dhtTutorialImage from '../assets/images/Menggunakan Sensor DHT22.jpg';
 import ledTutorialImage from '../assets/images/Menghubungkan LED ke Arduino.jpg';
 import troubleshootingTutorialImage from '../assets/images/Troubleshooting Board Tidak Terdeteksi.jpg';
 
-<<<<<<< HEAD
-function TutorialIcon({ type }) {
-=======
 export function TutorialIcon({ type }) {
->>>>>>> main
   if (type === 'code') {
     return (
       <svg viewBox="0 0 50 22" aria-hidden="true">
@@ -191,20 +187,12 @@ export function Tutorial() {
             yang tersusun seperti workshop modern.
           </p>
           <form className="tutorial-search" role="search">
-<<<<<<< HEAD
             <label htmlFor="tutorial-search-input">Cari materi tutorial</label>
-=======
-            {/* <label htmlFor="tutorial-search-input">Cari materi tutorial</label>
->>>>>>> main
             <input
               id="tutorial-search-input"
               type="search"
               placeholder="Cari tutorial, proyek, atau panduan..."
-<<<<<<< HEAD
             />
-=======
-            /> */}
->>>>>>> main
           </form>
           <div className="tutorial-learning-actions">
             <a className="tutorial-primary-action" href="#materi-tutorial">
@@ -219,15 +207,11 @@ export function Tutorial() {
           <img src={tutorialDevice} alt="Rangkaian IoT Arduflow di breadboard" />
         </div>
       </section>
-<<<<<<< HEAD
-      <section className="tutorial-path-section" aria-labelledby="tutorial-path-title">
-=======
       <section
         className="tutorial-path-section"
         id="pilih-jalur-belajar"
         aria-labelledby="tutorial-path-title"
       >
->>>>>>> main
         <div className="tutorial-path-inner">
           <div className="tutorial-path-heading">
             <h2 id="tutorial-path-title">Pilih Jalur Belajarmu</h2>
@@ -235,20 +219,13 @@ export function Tutorial() {
           </div>
 
           <div className="tutorial-path-cards">
-<<<<<<< HEAD
-            {learningPaths.map((path) => (
-=======
             {learningPaths.map((path, index) => (
->>>>>>> main
               <article className="tutorial-path-card" key={path.title}>
                 <div className={`tutorial-path-icon ${path.icon}-icon`}>
                   <TutorialIcon type={path.icon} />
                 </div>
                 <h3>{path.title}</h3>
                 <p>{path.text}</p>
-<<<<<<< HEAD
-                <a href="#materi-tutorial">Pelajari</a>
-=======
                 <a
                   href={
                     index === 0
@@ -262,7 +239,6 @@ export function Tutorial() {
                 >
                   Pelajari
                 </a>
->>>>>>> main
               </article>
             ))}
           </div>
@@ -284,11 +260,7 @@ export function Tutorial() {
             ))}
           </div>
 
-<<<<<<< HEAD
           <a className="tutorial-flow-button" href="#materi-tutorial">Lihat Jalur Lengkap</a>
-=======
-          {/* <a className="tutorial-flow-button" href="#materi-tutorial">Lihat Jalur Lengkap</a> */}
->>>>>>> main
         </div>
       </section>
       <section className="tutorial-material-section" id="materi-tutorial">

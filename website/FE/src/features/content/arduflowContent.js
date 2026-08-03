@@ -2,11 +2,7 @@ export const navigation = [
   { label: 'Beranda', path: '/' },
   { label: 'Tutorial', path: '/tutorial' },
   { label: 'Proyek', path: '/project' },
-<<<<<<< HEAD
-  { label: 'Workshop', path: '/program' },
-=======
   { label: 'Workshop', path: '/workshop' },
->>>>>>> main
   { label: 'Tentang Kami', path: '/partner' },
   { label: 'Kontak', path: '/kontak' },
 ];
