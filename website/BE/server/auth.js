@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import {
+  createPasswordResetToken,
   createUserSession,
   createUser,
   deleteUserSession,
@@ -10,10 +11,11 @@ import {
   findUserByWhatsapp,
   findUserByIdentifier,
   insertAuthLog,
+  resetUserPasswordByToken,
   updateUserProfile,
   verifyUserEmail,
 } from './database.js';
-import { sendVerificationEmail } from './mailer.js';
+import { sendPasswordResetEmail, sendVerificationEmail } from './mailer.js';
 import { hashPassword, randomToken, verifyPassword } from './password.js';
 
 function publicUser(user) {
@@ -51,6 +53,7 @@ function requestMeta(request) {
 }
 
 const sessionDurationMs = 8 * 60 * 60 * 1000;
+const passwordResetDurationMs = 60 * 60 * 1000;
 
 function bearerToken(request) {
   const header = String(request.get('authorization') || '');
@@ -239,6 +242,85 @@ export async function verifyEmail(request, response) {
   response.json({
     message: 'Email berhasil diverifikasi.',
     user: publicUser(user),
+  });
+}
+
+export async function requestPasswordReset(request, response) {
+  const email = String(request.body?.email || '').trim().toLowerCase();
+
+  if (!email) {
+    response.status(422).json({ message: 'Email wajib diisi.' });
+    return;
+  }
+
+  if (!validateEmail(email)) {
+    response.status(422).json({ message: 'Format email tidak valid.' });
+    return;
+  }
+
+  const user = await findUserByEmail(email);
+
+  if (!user) {
+    response.json({
+      message: 'Jika email terdaftar, tautan pemulihan akan dikirim ke inbox atau spam.',
+    });
+    return;
+  }
+
+  const token = randomToken();
+  const expiresAt = new Date(Date.now() + passwordResetDurationMs).toISOString();
+  const updatedUser = await createPasswordResetToken(user.id, token, expiresAt);
+
+  try {
+    await sendPasswordResetEmail(updatedUser || user, token);
+  } catch (error) {
+    console.error('Password reset email failed:', error);
+    response.status(503).json({ message: 'Email reset password gagal dikirim. Pastikan Mailpit atau SMTP berjalan.' });
+    return;
+  }
+
+  await insertAuthLog({
+    userId: user.id,
+    email: user.email,
+    event: 'password_reset_requested',
+    ...requestMeta(request),
+  });
+
+  response.json({
+    message: 'Tautan pemulihan telah dikirim ke email Anda.',
+  });
+}
+
+export async function confirmPasswordReset(request, response) {
+  const token = String(request.body?.token || '').trim();
+  const password = String(request.body?.password || '');
+
+  if (!token || !password) {
+    response.status(422).json({ message: 'Token dan kata sandi baru wajib diisi.' });
+    return;
+  }
+
+  if (!validatePassword(password)) {
+    response.status(422).json({ message: 'Kata sandi minimal 8 karakter dengan kombinasi huruf, angka, dan simbol.' });
+    return;
+  }
+
+  const user = await resetUserPasswordByToken(token, hashPassword(password));
+
+  if (!user) {
+    response.status(404).json({ message: 'Token reset password tidak valid atau sudah kedaluwarsa.' });
+    return;
+  }
+
+  await insertAuthLog({
+    userId: user.id,
+    email: user.email,
+    event: 'password_reset_success',
+    ...requestMeta(request),
+  });
+
+  response.json({
+    message: 'Password berhasil direset. Silakan login dengan password baru.',
   });
 }
 

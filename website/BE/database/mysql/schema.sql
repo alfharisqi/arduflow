@@ -12,11 +12,15 @@ CREATE TABLE IF NOT EXISTS users (
     email_verified_at DATETIME NULL,
     verification_token VARCHAR(128) NULL,
     verification_sent_at DATETIME NULL,
+    password_reset_token VARCHAR(128) NULL,
+    password_reset_sent_at DATETIME NULL,
+    password_reset_expires_at DATETIME NULL,
     version INT UNSIGNED NOT NULL DEFAULT 1,
     deleted_at DATETIME NULL,
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
     INDEX idx_users_verification_token (verification_token),
+    INDEX idx_users_password_reset_token (password_reset_token),
     INDEX idx_users_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

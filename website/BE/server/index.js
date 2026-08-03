@@ -4,8 +4,10 @@ import { adminLogin, adminLogout, adminSession, requireAdmin } from './adminAuth
 import { adminDashboard } from './adminDashboard.js';
 import {
   checkAvailability,
+  confirmPasswordReset,
   login,
   register,
+  requestPasswordReset,
   updateProfile,
   userLogout,
   userSession,
@@ -75,6 +77,8 @@ export function createApp() {
   app.post('/api/auth/logout', asyncHandler(userLogout));
   app.get('/api/auth/verify-email', asyncHandler(verifyEmail));
   app.post('/api/auth/verify-email', asyncHandler(verifyEmail));
+  app.post('/api/auth/password-reset/request', asyncHandler(requestPasswordReset));
+  app.post('/api/auth/password-reset/confirm', asyncHandler(confirmPasswordReset));
   app.get('/api/auth/check-availability', asyncHandler(checkAvailability));
   app.post('/api/auth/check-availability', asyncHandler(checkAvailability));
   app.put('/api/auth/profile', asyncHandler(updateProfile));
