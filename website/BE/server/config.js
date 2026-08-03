@@ -37,6 +37,9 @@ export const config = {
   },
   sync: {
     enabled: process.env.SYNC_ENABLED !== 'false',
+    schedulerEnabled: process.env.SYNC_SCHEDULER_ENABLED !== 'false',
+    intervalMs: Math.max(60_000, Number(process.env.SYNC_INTERVAL_MS || 300_000)),
+    initialDelayMs: Math.max(0, Number(process.env.SYNC_INITIAL_DELAY_MS || 5_000)),
     apiUrl: process.env.SYNC_API_URL || `http://127.0.0.1:${Number(process.env.API_PORT || 3001)}/api/internal/sync/sqlite-to-mysql`,
     apiToken: process.env.SYNC_API_TOKEN || '',
     hmacSecret: process.env.SYNC_HMAC_SECRET || '',

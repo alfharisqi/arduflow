@@ -19,6 +19,7 @@ import {
 } from './databaseSyncAdmin.js';
 import { health, initializeOperationalDatabase, insertLead } from './database.js';
 import { receiveSqliteSync } from './syncReceiver.js';
+import { startSyncScheduler } from './services/sync-scheduler.js';
 import {
   deleteWorkshop,
   getWorkshop,
@@ -130,5 +131,6 @@ export const app = createApp();
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   app.listen(config.port, config.host, () => {
     console.log(`Arduflow API running at http://${config.host}:${config.port}`);
+    startSyncScheduler();
   });
 }
