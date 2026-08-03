@@ -1,6 +1,7 @@
 import express from 'express';
 import { fileURLToPath } from 'node:url';
 import { adminLogin, adminLogout, adminSession, requireAdmin } from './adminAuth.js';
+import { adminDashboard } from './adminDashboard.js';
 import {
   checkAvailability,
   login,
@@ -81,6 +82,7 @@ export function createApp() {
   app.post('/api/admin/login', asyncHandler(adminLogin));
   app.get('/api/admin/session', asyncHandler(adminSession));
   app.post('/api/admin/logout', asyncHandler(adminLogout));
+  app.get('/api/admin/dashboard', asyncHandler(requireAdmin), asyncHandler(adminDashboard));
   app.get('/api/admin/database-sync/status', asyncHandler(requireAdmin), asyncHandler(syncStatus));
   app.post('/api/admin/database-sync/run', asyncHandler(requireAdmin), asyncHandler(runSync));
   app.post('/api/admin/database-sync/retry-failed', asyncHandler(requireAdmin), asyncHandler(retryFailedSync));

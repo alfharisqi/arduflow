@@ -73,6 +73,14 @@ export function logoutAdmin(token) {
   });
 }
 
+export function getAdminDashboard(token = window.localStorage.getItem('arduflow_admin_token')) {
+  return request('/api/admin/dashboard', {
+    headers: {
+      Authorization: `Bearer ${token || ''}`,
+    },
+  });
+}
+
 export function verifyEmailToken(token) {
   return request(`/api/auth/verify-email?token=${encodeURIComponent(token)}`);
 }

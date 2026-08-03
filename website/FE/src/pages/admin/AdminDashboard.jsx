@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AdminSidebar } from './AdminSidebar.jsx';
 import {
   getInitialAdminSidebarCollapsed,
   persistAdminSidebarCollapsed,
 } from './adminSidebarState.js';
+import { getAdminDashboard, getAdminSession } from '../../services/authApi.js';
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import userIcon from '../../assets/icons/icon-user-2.svg';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
@@ -14,55 +15,54 @@ import messageIcon from '../../assets/icons/icon-message-square-1.svg';
 import certificateIcon from '../../assets/icons/icon-downloadsim-1.svg';
 import databaseIcon from '../../assets/icons/icons-database-1.svg';
 
-const stats = [
-  { label: 'Total User', value: '1.248', trend: '12.5% dari 7 hari lalu', icon: usersIcon, positive: true },
-  { label: 'User Aktif', value: '892', trend: '8.7% dari 7 hari lalu', icon: userIcon, positive: true },
-  { label: 'Belum Verifikasi Email', value: '12', trend: '7.7% dari 7 hari lalu', icon: mailIcon, positive: false },
-  { label: 'Total Workshop/Program', value: '24', trend: '4.3% dari 7 hari lalu', icon: clockIcon, positive: true },
-  { label: 'Total Proyek User', value: '156', trend: '11.2% dari 7 hari lalu', icon: cpuIcon, positive: true },
-  { label: 'Lead / Kontak Masuk', value: '38', trend: '26.7% dari 7 hari lalu', icon: messageIcon, positive: true },
-  { label: 'Sertifikat', value: '325 / 18', trend: 'Tersedia / Menunggu', icon: certificateIcon },
-];
+const metricIcons = {
+  users: usersIcon,
+  activeUsers: userIcon,
+  unverifiedUsers: mailIcon,
+  workshopsPrograms: clockIcon,
+  projects: cpuIcon,
+  leads: messageIcon,
+  certificates: certificateIcon,
+};
 
-const activities = [
-  ['User baru mendaftar', 'Budi Santoso (budi@example.com)', '10 menit lalu'],
-  ['User login terakhir', 'Dewi Lestari (dewi@example.com)', '15 menit lalu'],
-  ['Email verifikasi terkirim', 'siti.aminah@example.com', '32 menit lalu'],
-  ['Email verifikasi gagal', 'rudi.k@example.com', '45 menit lalu'],
-  ['Update profile user', 'Agung Setiawan', '1 jam lalu'],
-  ['Lead baru dari form kontak', 'Andi Pratama - andi@example.com', '1 jam lalu'],
-  ['Request token IDE', 'Sarah Wijaya', '2 jam lalu'],
-];
+function getStoredAdmin() {
+  try {
+    return getAdminSession();
+  } catch {
+    return null;
+  }
+}
 
-const verificationRows = [
-  ['1', 'Rizky Ananda', 'rizky@example.com', '20 Mei 2024', 'Terkirim'],
-  ['2', 'Nabila Putri', 'nabila@example.com', '20 Mei 2024', 'Terkirim'],
-  ['3', 'Muhammad Iqbal', 'iqbal@example.com', '19 Mei 2024', 'Gagal'],
-  ['4', 'Adinda Rahma', 'adinda@example.com', '19 Mei 2024', 'Terkirim'],
-  ['5', 'Fajar Ramadhan', 'fajar@example.com', '18 Mei 2024', 'Gagal'],
-];
+function formatMetricValue(value) {
+  if (typeof value === 'number') {
+    return new Intl.NumberFormat('id-ID').format(value);
+  }
+  return value || '0';
+}
 
-const workshopRows = [
-  ['Web Development 101', '25 Mei 2024', '32 / 50', 'Online'],
-  ['UI/UX Design Essentials', '28 Mei 2024', '18 / 30', 'Online'],
-  ['Python for Beginners', '1 Jun 2024', '45 / 60', 'Offline'],
-  ['Data Science Basic', '5 Jun 2024', '21 / 40', 'Online'],
-  ['Mobile App Development', '8 Jun 2024', '12 / 30', 'Offline'],
-];
+function timeAgo(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
 
-const leads = [
-  ['Andi Pratama', 'andi@example.com', 'Kerjasama', '20 Mei 2024', 'Baru'],
-  ['Dewi Lestari', 'dewi@example.com', 'Informasi Program', '20 Mei 2024', 'Baru'],
-  ['Budi Santoso', 'budi@example.com', 'Workshop', '19 Mei 2024', 'Diproses'],
-  ['Siti Aminah', 'siti@example.com', 'Lainnya', '19 Mei 2024', 'Selesai'],
-  ['Rudi Kurniawan', 'rudi@example.com', 'Kerjasama', '18 Mei 2024', 'Diproses'],
-];
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
 
-const logs = [
-  ['ERROR', 'Failed to send verification email to rudi.k@example.com', '45 menit lalu'],
-  ['ERROR', 'SQLSTATE[HY000] [2002] Connection refused', '1 jam lalu'],
-  ['WARNING', 'Token IDE request failed for user ID: 1023', '2 jam lalu'],
-];
+  if (diffMinutes < 1) return 'baru saja';
+  if (diffMinutes < 60) return `${diffMinutes} menit lalu`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours} jam lalu`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays} hari lalu`;
+
+  return new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
 
 function AdminMetricCard({ item }) {
   return (
@@ -83,12 +83,37 @@ function AdminMetricCard({ item }) {
 }
 
 function StatusBadge({ children }) {
-  const type = String(children).toLowerCase();
+  const type = String(children).toLowerCase().replace(/\s+/g, '-');
   return <span className={`admin-badge admin-badge--${type}`}>{children}</span>;
+}
+
+function EmptyState({ children }) {
+  return <p className="admin-empty-state">{children}</p>;
 }
 
 export function AdminDashboard() {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialAdminSidebarCollapsed);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [dashboardError, setDashboardError] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getAdminDashboard()
+      .then((data) => {
+        if (!isMounted) return;
+        setDashboardData(data);
+        setDashboardError('');
+      })
+      .catch((error) => {
+        if (!isMounted) return;
+        setDashboardError(error.message || 'Gagal memuat data dashboard admin.');
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleToggleSidebar = () => {
     setSidebarCollapsed((value) => {
@@ -97,6 +122,23 @@ export function AdminDashboard() {
       return nextValue;
     });
   };
+
+  const storedAdmin = getStoredAdmin();
+  const admin = dashboardData?.admin || storedAdmin || {};
+  const metricItems = (dashboardData?.metrics || []).map((item) => ({
+    ...item,
+    value: formatMetricValue(item.value),
+    icon: metricIcons[item.id] || usersIcon,
+  }));
+  const activityItems = dashboardData?.activities || [];
+  const verificationItems = dashboardData?.verificationRows || [];
+  const workshopItems = dashboardData?.workshopRows || [];
+  const leadItems = dashboardData?.leads || [];
+  const contentItems = dashboardData?.content?.tutorials?.length
+    ? dashboardData.content.tutorials
+    : dashboardData?.content?.projects || [];
+  const systemItems = dashboardData?.system || [];
+  const logItems = dashboardData?.logs || [];
 
   return (
     <main className={`admin-dashboard-page${isSidebarCollapsed ? ' admin-dashboard-page--collapsed' : ''}`}>
@@ -114,22 +156,29 @@ export function AdminDashboard() {
             </button>
             <span className="admin-dashboard-avatar" aria-hidden="true" />
             <span>
-              <strong>Admin</strong>
-              <small>Super Admin</small>
+              <strong>{admin.name || 'Admin'}</strong>
+              <small>{admin.role || 'Super Admin'}</small>
             </span>
           </div>
         </header>
 
         <div className="admin-dashboard-content">
           <div className="admin-dashboard-titlebar">
-            <h1>Dashboard</h1>
-            <button type="button">7 hari terakhir</button>
+            <div>
+              <h1>Dashboard</h1>
+              {dashboardError ? <p className="admin-dashboard-error">{dashboardError}</p> : null}
+            </div>
+            <button type="button">Data real-time</button>
           </div>
 
           <section className="admin-metrics" aria-label="Ringkasan dashboard">
-            {stats.map((item) => (
-              <AdminMetricCard item={item} key={item.label} />
-            ))}
+            {metricItems.length ? (
+              metricItems.map((item) => (
+                <AdminMetricCard item={item} key={item.label} />
+              ))
+            ) : (
+              <p className="admin-empty-state admin-empty-state--wide">Memuat ringkasan dashboard...</p>
+            )}
           </section>
 
           <section className="admin-dashboard-grid">
@@ -138,16 +187,20 @@ export function AdminDashboard() {
                 <h2>Aktivitas Terbaru</h2>
               </div>
               <div className="admin-activity-list">
-                {activities.map(([title, detail, time]) => (
-                  <div className="admin-activity-item" key={`${title}-${detail}`}>
-                    <span className="admin-activity-dot" />
-                    <span>
-                      <strong>{title}</strong>
-                      <small>{detail}</small>
-                    </span>
-                    <time>{time}</time>
-                  </div>
-                ))}
+                {activityItems.length ? (
+                  activityItems.map((item) => (
+                    <div className="admin-activity-item" key={`${item.title}-${item.detail}-${item.time}`}>
+                      <span className="admin-activity-dot" />
+                      <span>
+                        <strong>{item.title}</strong>
+                        <small>{item.detail}</small>
+                      </span>
+                      <time>{timeAgo(item.time)}</time>
+                    </div>
+                  ))
+                ) : (
+                  <EmptyState>Belum ada aktivitas terbaru.</EmptyState>
+                )}
               </div>
               <button className="admin-panel-button" type="button">Lihat semua aktivitas</button>
             </article>
@@ -162,13 +215,20 @@ export function AdminDashboard() {
                   <tr><th>No</th><th>Nama</th><th>Email</th><th>Tanggal</th><th>Status</th><th>Aksi</th></tr>
                 </thead>
                 <tbody>
-                  {verificationRows.map((row) => (
-                    <tr key={row[0]}>
-                      {row.slice(0, 4).map((cell) => <td key={cell}>{cell}</td>)}
-                      <td><StatusBadge>{row[4]}</StatusBadge></td>
-                      <td>↗</td>
-                    </tr>
-                  ))}
+                  {verificationItems.length ? (
+                    verificationItems.map((row) => (
+                      <tr key={`${row.no}-${row.email}`}>
+                        <td>{row.no}</td>
+                        <td>{row.name}</td>
+                        <td>{row.email}</td>
+                        <td>{row.date}</td>
+                        <td><StatusBadge>{row.status}</StatusBadge></td>
+                        <td>↗</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr><td colSpan="6">Tidak ada akun yang menunggu verifikasi.</td></tr>
+                  )}
                 </tbody>
               </table>
               <button className="admin-panel-button" type="button">Kelola verifikasi akun</button>
@@ -184,13 +244,19 @@ export function AdminDashboard() {
                   <tr><th>Program</th><th>Tanggal</th><th>Peserta</th><th>Status</th><th>Aksi</th></tr>
                 </thead>
                 <tbody>
-                  {workshopRows.map((row) => (
-                    <tr key={row[0]}>
-                      {row.slice(0, 3).map((cell) => <td key={cell}>{cell}</td>)}
-                      <td><StatusBadge>{row[3]}</StatusBadge></td>
-                      <td>♢</td>
-                    </tr>
-                  ))}
+                  {workshopItems.length ? (
+                    workshopItems.map((row) => (
+                      <tr key={`${row.program}-${row.date}`}>
+                        <td>{row.program}</td>
+                        <td>{row.date}</td>
+                        <td>{row.participants}</td>
+                        <td><StatusBadge>{row.status}</StatusBadge></td>
+                        <td>🔔</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr><td colSpan="5">Belum ada workshop atau program mendatang.</td></tr>
+                  )}
                 </tbody>
               </table>
               <button className="admin-panel-button" type="button">Kelola workshop / program</button>
@@ -205,16 +271,20 @@ export function AdminDashboard() {
                 <button type="button">Proyek Terbaru</button>
                 <button type="button">Draft Belum Publish</button>
               </div>
-              {['Membuat REST API dengan Laravel 10', 'Authentication dengan Sanctum', 'Dasar-dasar Tailwind CSS'].map((title, index) => (
-                <div className="admin-content-item" key={title}>
-                  <span className="admin-image-placeholder" />
-                  <span>
-                    <strong>{title}</strong>
-                    <small>{20 - index * 2} Mei 2024</small>
-                  </span>
-                  <button type="button">Lihat</button>
-                </div>
-              ))}
+              {contentItems.length ? (
+                contentItems.map((item) => (
+                  <div className="admin-content-item" key={`${item.title}-${item.date}`}>
+                    <span className="admin-image-placeholder" />
+                    <span>
+                      <strong>{item.title}</strong>
+                      <small>{item.date}</small>
+                    </span>
+                    <button type="button">Lihat</button>
+                  </div>
+                ))
+              ) : (
+                <EmptyState>Belum ada konten tersimpan.</EmptyState>
+              )}
               <button className="admin-panel-button" type="button">Kelola konten</button>
             </article>
 
@@ -228,12 +298,19 @@ export function AdminDashboard() {
                   <tr><th>Nama</th><th>Email</th><th>Topik</th><th>Tanggal</th><th>Status</th></tr>
                 </thead>
                 <tbody>
-                  {leads.map((row) => (
-                    <tr key={`${row[0]}-${row[2]}`}>
-                      {row.slice(0, 4).map((cell) => <td key={cell}>{cell}</td>)}
-                      <td><StatusBadge>{row[4]}</StatusBadge></td>
-                    </tr>
-                  ))}
+                  {leadItems.length ? (
+                    leadItems.map((row) => (
+                      <tr key={`${row.email}-${row.topic}`}>
+                        <td>{row.name}</td>
+                        <td>{row.email}</td>
+                        <td>{row.topic}</td>
+                        <td>{row.date}</td>
+                        <td><StatusBadge>{row.status}</StatusBadge></td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr><td colSpan="5">Belum ada lead atau kontak masuk.</td></tr>
+                  )}
                 </tbody>
               </table>
               <button className="admin-panel-button" type="button">Kelola lead / kontak</button>
@@ -246,18 +323,18 @@ export function AdminDashboard() {
                 <h2>Sistem</h2>
               </div>
               <div className="admin-system-cards">
-                {[
-                  ['MySQL', 'Response: 12ms', databaseIcon],
-                  ['SQLite (Log/Cache)', 'Size: 48 MB', databaseIcon],
-                  ['SMTP / Mailpit', 'Mailpit: http://mailpit:8025', mailIcon],
-                ].map(([title, detail, icon]) => (
-                  <div className="admin-system-card" key={title}>
-                    <img src={icon} alt="" />
-                    <strong>{title}</strong>
-                    <span><i /> Online</span>
-                    <small>{detail}</small>
-                  </div>
-                ))}
+                {systemItems.length ? (
+                  systemItems.map((item) => (
+                    <div className="admin-system-card" key={item.title}>
+                      <img src={item.title.includes('SMTP') ? mailIcon : databaseIcon} alt="" />
+                      <strong>{item.title}</strong>
+                      <span><i className={item.status === 'Online' ? '' : 'is-offline'} /> {item.status}</span>
+                      <small>{item.detail}</small>
+                    </div>
+                  ))
+                ) : (
+                  <EmptyState>Memuat status sistem...</EmptyState>
+                )}
               </div>
             </article>
 
@@ -266,13 +343,17 @@ export function AdminDashboard() {
                 <h2>Log Error Terbaru</h2>
                 <button type="button">Lihat semua log</button>
               </div>
-              {logs.map(([level, message, time]) => (
-                <div className="admin-log-row" key={message}>
-                  <strong className={level === 'WARNING' ? 'is-warning' : ''}>{level}</strong>
-                  <span>{message}</span>
-                  <time>{time}</time>
-                </div>
-              ))}
+              {logItems.length ? (
+                logItems.map((item) => (
+                  <div className="admin-log-row" key={`${item.level}-${item.message}-${item.time}`}>
+                    <strong className={item.level === 'WARNING' ? 'is-warning' : ''}>{item.level}</strong>
+                    <span>{item.message}</span>
+                    <time>{timeAgo(item.time)}</time>
+                  </div>
+                ))
+              ) : (
+                <EmptyState>Belum ada log error terbaru.</EmptyState>
+              )}
             </article>
           </section>
         </div>
