@@ -24,18 +24,21 @@ const metrics = [
 const featuredProjects = [
   {
     title: "LED Sederhana",
+    category: "Proyek Pemula",
     image: featuredLedImage,
     description:
       "Eksplorasi proyek IoT nyata dengan dokumentasi, sensor, dan insight implementasi.",
   },
   {
     title: "Sensor Suhu DHT22",
+    category: "Sensor",
     image: featuredDht22Image,
     description:
       "Eksplorasi proyek IoT nyata dengan dokumentasi, sensor, dan insight implementasi.",
   },
   {
     title: "Monitoring IoT ESP32",
+    category: "Esp32",
     image: featuredEsp32Image,
     description:
       "Eksplorasi proyek IoT nyata dengan dokumentasi, sensor, dan insight implementasi.",
@@ -45,36 +48,54 @@ const featuredProjects = [
 const projectFilters = [
   "Semua",
   "Proyek Pemula",
-  "Proyek IoT",
+  "IoT",
   "Otomasi",
-  "Karya Pengguna",
-  "Workshop",
+  "Arduino",
+  "Esp 32",
 ];
 
 const projectLibrary = [
   {
     title: "LED Sederhana",
+    category: "Proyek Pemula",
     image: libraryLedImage,
+    description:
+      "Eksplorasi proyek IoT nyata dengan dokumentasi, sensor, dan insight implementasi.",
   },
   {
     title: "Sensor Suhu DHT22",
+    category: "Sensor",
     image: libraryDht22Image,
+    description:
+      "Eksplorasi proyek IoT nyata dengan dokumentasi, sensor, dan insight implementasi.",
   },
   {
     title: "Monitoring IoT ESP32",
+    category: "Esp32",
     image: libraryEsp32Image,
+    description:
+      "Eksplorasi proyek IoT nyata dengan dokumentasi, sensor, dan insight implementasi.",
   },
   {
-    title: "Relay Kontrol Perangkat",
+    title: "Lampu Otomatis dengan LDR",
+    category: "Proyek Pemula",
     image: libraryRelayImage,
+    description:
+      "Buat lampu yang dapat menyala secara otomatis ketika kondisi lingkungan mulai gelap.",
   },
   {
-    title: "Smart Door Lock",
+    title: "Alarm Pendeteksi Gerakan",
+    category: "Sensor",
     image: libraryDoorLockImage,
+    description:
+      "Gunakan sensor PIR buat mendeteksi gerakan dan mengaktifkan buzzer sebagai sistem alarm sederhana.",
   },
   {
-    title: "Prototype Smart Home",
+    title: "Monitoring Kelembapan Tanah",
+    category: "Monitoring IoT",
     image: librarySmartHomeImage,
+    description:
+      "Pantau kondisi kelembapan tanah secara langsung untuk membantu menentukan waktu penyiraman tanaman.",
   },
 ];
 
@@ -89,7 +110,7 @@ const contentCollections = [
     eyebrow: "Dokumentasi Kegiatan",
     title: "Workshop IoT di SMKN 2",
     metadata: "35 peserta - 18 Mei 2026",
-    href: "/project",
+    href: "/project/dokumentasi",
   },
   {
     eyebrow: "Proyek Highlight",
@@ -136,7 +157,7 @@ function ProjectHero() {
             <a className="button button--primary" href="#proyek">
               Lihat Proyek
             </a>
-            <a className="button button--secondary" href="#dokumentasi">
+            <a className="button button--secondary" href="/project/dokumentasi">
               Dokumentasi Kegiatan
             </a>
           </div>
@@ -184,8 +205,8 @@ function FeaturedProjects() {
             <p className="section-eyebrow">CURATED WORK</p>
             <h2 id="featured-projects-title">Proyek Pilihan</h2>
           </div>
-          <a className="featured-projects__all" href="/project">
-            Lihat semua Proyek <span aria-hidden="true">-&gt;</span>
+          <a className="featured-projects__all" href="/project/semua">
+            Lihat semua Proyek <span aria-hidden="true">→</span>
           </a>
         </div>
 
@@ -195,9 +216,10 @@ function FeaturedProjects() {
               <img src={project.image} alt="" className="featured-card__image" />
               <div className="featured-card__body">
                 <h3>{project.title}</h3>
+                <span className="featured-card__category">{project.category}</span>
                 <p>{project.description}</p>
-                <a href="/project">
-                  Lihat Proyek <span aria-hidden="true">-&gt;</span>
+                <a href="/project/detail">
+                  Lihat Detail Proyek <span aria-hidden="true">→</span>
                 </a>
               </div>
             </article>
@@ -237,21 +259,19 @@ function ProjectLibrary() {
               </div>
               <div className="project-card__body">
                 <h3>{project.title}</h3>
-                <p>
-                  Eksplorasi proyek IoT nyata dengan dokumentasi, sensor, dan
-                  insight implementasi.
-                </p>
-                <a href="/project">
-                  Lihat Proyek <span aria-hidden="true">-&gt;</span>
+                <span className="project-card__category">{project.category}</span>
+                <p>{project.description}</p>
+                <a href="/project/detail">
+                  Lihat Detail Proyek <span aria-hidden="true">→</span>
                 </a>
               </div>
             </article>
           ))}
         </div>
 
-        <button className="load-more" type="button">
+        <a className="load-more" href="/project/semua">
           Muat Lebih Banyak
-        </button>
+        </a>
       </div>
     </section>
   );
