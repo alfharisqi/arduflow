@@ -27,17 +27,15 @@ API berjalan di `http://127.0.0.1:3001`.
 
 ### Auth, Database, dan Mailpit
 
-Backend memakai dua database secara bersamaan:
+Backend memakai arsitektur SQLite-primary dengan sinkronisasi satu arah:
 
-- MySQL sebagai database utama untuk user, auth, leads, dan data utama.
-- SQLite sebagai database lokal untuk cache/log seperti `auth_logs`.
+- SQLite sebagai database operasional utama untuk user, auth, leads, workshop, dan data lokal.
+- MySQL sebagai salinan pusat untuk backup, laporan, dan integrasi.
+- `sync_outbox` mengirim perubahan secara asynchronous sehingga request pengguna tidak menunggu MySQL.
 
 ```env
-# Primary database
-DB_PRIMARY=mysql
-
-# SQLite local/cache/log
-DB_SQLITE_PATH=storage/sqlite/arduflow.sqlite
+# SQLite operational database
+SQLITE_DATABASE_PATH=storage/database/arduflow.sqlite
 
 # MySQL main database
 DB_HOST=127.0.0.1
@@ -45,6 +43,11 @@ DB_PORT=3306
 DB_DATABASE=db_arduflow
 DB_USERNAME=root
 DB_PASSWORD=
+
+SYNC_ENABLED=true
+SYNC_API_URL=http://127.0.0.1:3001/api/internal/sync/sqlite-to-mysql
+SYNC_API_TOKEN=<random-token>
+SYNC_HMAC_SECRET=<random-secret>
 ```
 
 Inisialisasi SQLite:
@@ -61,12 +64,15 @@ cd website/BE
 npm run db:mysql
 ```
 
-Hapus data user lama dari SQLite dan MySQL:
+Jalankan satu batch sinkronisasi dan pemeriksaan konsistensi:
 
 ```bash
 cd website/BE
-npm run db:reset-users
+npm run sync:run
+npm run db:check
 ```
+
+Dokumentasi lengkap tersedia di `docs/sqlite-mysql-sync.md`.
 
 Untuk email register/verifikasi, jalankan Mailpit dan gunakan SMTP default berikut:
 

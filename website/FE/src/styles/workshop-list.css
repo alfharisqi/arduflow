@@ -1,0 +1,657 @@
+.workshop-list-page {
+  min-height: 1286px;
+  color: #f7faff;
+  background:
+    radial-gradient(94.74% 149.33% at 80% 20%, rgba(0, 162, 255, 0.3) 0%, rgba(0, 162, 255, 0.0743673) 30.08%, rgba(0, 162, 255, 0) 40%),
+    radial-gradient(94.74% 149.33% at 20% 80%, rgba(255, 106, 0, 0.4) 0%, rgba(255, 106, 0, 0) 30.01%),
+    #030b1e;
+  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
+}
+
+.workshop-list-shell {
+  width: min(100%, 1250px);
+  margin: 0 auto;
+  padding: 30px 0 60px;
+}
+
+.workshop-list-heading {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 28px;
+}
+
+.workshop-list-heading h1 {
+  max-width: 803px;
+  margin: 0;
+  color: #f7faff;
+  font-family: 'Orbitron', Arial, Helvetica, sans-serif;
+  font-size: clamp(30px, 3.4vw, 34px);
+  font-weight: 700;
+  line-height: 1.24;
+  letter-spacing: 0;
+}
+
+.workshop-list-heading p {
+  max-width: 659px;
+  margin: 0;
+  color: #9fb2c7;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.44;
+}
+
+.workshop-list-controls {
+  display: grid;
+  grid-template-columns: minmax(260px, 677px) minmax(230px, 282px);
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 22px;
+}
+
+.workshop-search-field,
+.workshop-date-field {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+.workshop-search-field input,
+.workshop-date-field input {
+  width: 100%;
+  height: 46px;
+  padding: 0 58px 0 25px;
+  border: 1px solid #00a4ff;
+  border-radius: 1px;
+  color: #f7faff;
+  background: #020e21;
+  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1;
+  outline: none;
+}
+
+.workshop-search-field input::placeholder,
+.workshop-date-field input::placeholder {
+  color: #8da4be;
+  opacity: 1;
+}
+
+.workshop-search-field input:focus,
+.workshop-date-field input:focus {
+  border-color: #36d7ff;
+  box-shadow: 0 0 0 2px rgba(0, 164, 255, 0.14);
+}
+
+.workshop-search-icon,
+.workshop-calendar-trigger {
+  position: absolute;
+  right: 13px;
+  top: 50%;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  color: #9fb2c7;
+  background: transparent;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.workshop-search-icon {
+  right: 23px;
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
+}
+
+.workshop-search-icon::before {
+  content: '';
+  position: absolute;
+  left: 1px;
+  top: 1px;
+  width: 15px;
+  height: 15px;
+  border: 3px solid currentColor;
+  border-radius: 50%;
+}
+
+.workshop-search-icon::after {
+  content: '';
+  position: absolute;
+  right: 1px;
+  bottom: 2px;
+  width: 10px;
+  height: 3px;
+  border-radius: 2px;
+  background: currentColor;
+  transform: rotate(45deg);
+  transform-origin: center;
+}
+
+.workshop-calendar-trigger svg {
+  display: block;
+  width: 30px;
+  height: 30px;
+  margin: 2px;
+}
+
+.workshop-calendar-trigger path,
+.workshop-calendar-trigger rect {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.2;
+}
+
+.workshop-calendar-trigger:hover,
+.workshop-calendar-trigger:focus-visible {
+  color: #36d7ff;
+  outline: none;
+}
+
+.workshop-calendar-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 14px);
+  z-index: 30;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: max-content;
+  max-width: calc(100vw - 40px);
+}
+
+.workshop-calendar-panel,
+.workshop-calendar-years,
+.workshop-calendar-months {
+  background: #000000;
+  box-shadow:
+    0 30px 84px rgba(19, 10, 46, 0.08),
+    0 8px 32px rgba(19, 10, 46, 0.07),
+    0 3px 14px rgba(19, 10, 46, 0.03),
+    0 1px 3px rgba(19, 10, 46, 0.13);
+}
+
+.workshop-calendar-panel {
+  width: 393px;
+  min-height: 367px;
+  padding: 26px 34px 22px;
+  border: 1px solid rgba(0, 164, 255, 0.24);
+  border-radius: 9px;
+}
+
+.workshop-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 26px;
+  margin-bottom: 18px;
+}
+
+.workshop-calendar-header strong {
+  color: #f2f2f2;
+  font-family: 'Poppins', 'Rajdhani', Arial, Helvetica, sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.workshop-calendar-header button {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  color: #0038ff;
+  background: transparent;
+  cursor: pointer;
+}
+
+.workshop-calendar-header button::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  top: 7px;
+  width: 9px;
+  height: 9px;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.workshop-calendar-header button:last-child::before {
+  left: 7px;
+  transform: rotate(225deg);
+}
+
+.workshop-calendar-weekdays,
+.workshop-calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.workshop-calendar-weekdays {
+  margin-bottom: 13px;
+}
+
+.workshop-calendar-weekdays span {
+  color: #4f4f4f;
+  font-family: 'Poppins', 'Rajdhani', Arial, Helvetica, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  text-align: center;
+}
+
+.workshop-calendar-days button {
+  display: grid;
+  place-items: center;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  color: #f2f2f2;
+  background: transparent;
+  font-family: 'Poppins', 'Rajdhani', Arial, Helvetica, sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.workshop-calendar-days button:hover,
+.workshop-calendar-days button:focus-visible {
+  color: #ffffff;
+  background: #0038ff;
+  outline: none;
+}
+
+.workshop-calendar-days button.muted {
+  color: #808080;
+  cursor: default;
+}
+
+.workshop-calendar-days button.muted:hover {
+  background: transparent;
+}
+
+.workshop-calendar-years,
+.workshop-calendar-months {
+  display: grid;
+  align-content: start;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.workshop-calendar-years {
+  width: 68px;
+}
+
+.workshop-calendar-months {
+  width: 112px;
+  padding: 8px 0;
+}
+
+.workshop-calendar-years button,
+.workshop-calendar-months button {
+  width: 100%;
+  height: 32px;
+  padding: 4px 16px;
+  border: 0;
+  color: #f2f2f2;
+  background: transparent;
+  font-family: 'Inter', 'Rajdhani', Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 24px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.workshop-calendar-years button.active,
+.workshop-calendar-months button.active,
+.workshop-calendar-years button:hover,
+.workshop-calendar-months button:hover {
+  color: #f8f7fa;
+  background: #0038ff;
+}
+
+.workshop-filter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.workshop-filter-tabs button {
+  min-width: 123px;
+  min-height: 40px;
+  padding: 8px 24px;
+  border: 1px solid #17324f;
+  border-radius: 10px;
+  color: #ffffff;
+  background: rgba(6, 23, 44, 0.81);
+  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.workshop-filter-tabs button.active,
+.workshop-filter-tabs button:hover {
+  border-color: #ff6a00;
+  background: #ff6a00;
+}
+
+.workshop-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 378px));
+  justify-content: space-between;
+  gap: 30px 58px;
+}
+
+.workshop-list-card {
+  min-width: 0;
+  overflow: hidden;
+  border-top: 4px solid #ff6a00;
+  border-radius: 2px;
+  background: rgba(2, 14, 33, 0.82);
+}
+
+.workshop-list-card img {
+  display: block;
+  width: 100%;
+  height: 253px;
+  object-fit: cover;
+  object-position: center;
+}
+
+.workshop-list-card.image-crop-0 img {
+  object-position: center 38%;
+}
+
+.workshop-list-card.image-crop-1 img {
+  object-position: center 48%;
+}
+
+.workshop-list-card.image-crop-2 img {
+  object-position: center 44%;
+}
+
+.workshop-list-card-body {
+  display: grid;
+  gap: 13px;
+  padding: 8px 23px 18px;
+}
+
+.workshop-list-card h2 {
+  min-height: 24px;
+  margin: 0;
+  color: #f6f9ff;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.workshop-list-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 100px));
+  justify-content: center;
+  gap: 16px;
+}
+
+.workshop-list-meta div {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  padding: 4px 6px;
+  border: 1px solid #164061;
+  border-radius: 4px;
+  background: #071d33;
+  text-align: center;
+}
+
+.workshop-list-meta strong,
+.workshop-list-meta span {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.workshop-list-meta strong {
+  color: #f7faff;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.workshop-list-meta span {
+  color: #f7faff;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+.workshop-detail-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: center;
+  width: min(100%, 224px);
+  min-height: 30px;
+  padding: 7px 20px;
+  border: 1px solid #00a4ff;
+  border-radius: 2px;
+  color: #f6f9ff;
+  background: #05162e;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.workshop-detail-button:hover {
+  border-color: #36d7ff;
+  color: #36d7ff;
+}
+
+.workshop-empty-state {
+  margin: 34px 0 0;
+  color: #9fb2c7;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.workshop-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  margin-top: 46px;
+}
+
+.workshop-pagination button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid #164061;
+  border-radius: 8px;
+  color: #ff6a00;
+  background: #071d33;
+  box-shadow: 0 10px 22px -16px rgba(0, 168, 255, 0.65);
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.workshop-pagination button.disabled {
+  color: #718096;
+  border-color: rgba(159, 178, 199, 0.36);
+  background: rgba(7, 29, 51, 0.58);
+  box-shadow: none;
+  cursor: default;
+}
+
+.workshop-pagination button:not(.disabled):hover,
+.workshop-pagination button:not(.disabled):focus-visible {
+  border-color: #ff6a00;
+  background: rgba(255, 106, 0, 0.12);
+  box-shadow: 0 12px 26px -14px rgba(255, 106, 0, 0.75);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.workshop-pagination button span::before {
+  content: '';
+  position: absolute;
+  left: 13px;
+  top: 11px;
+  width: 9px;
+  height: 9px;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.workshop-pagination button:last-child span::before {
+  left: 10px;
+  transform: rotate(225deg);
+}
+
+.workshop-pagination > span {
+  width: 9px;
+  height: 9px;
+  border-radius: 50px;
+  background: #5b6877;
+}
+
+.workshop-pagination > span.active {
+  width: 24px;
+  background: #ff6a00;
+  box-shadow: 0 0 0 3px rgba(255, 106, 0, 0.16);
+}
+
+@media (max-width: 1280px) {
+  .workshop-list-shell {
+    width: calc(100% - 64px);
+  }
+
+  .workshop-card-grid {
+    gap: 30px 28px;
+  }
+}
+
+@media (max-width: 1120px) {
+  .workshop-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 378px));
+    justify-content: start;
+  }
+}
+
+@media (max-width: 820px) {
+  .workshop-list-page {
+    min-height: auto;
+  }
+
+  .workshop-list-shell {
+    width: calc(100% - 40px);
+    padding: 64px 0 70px;
+  }
+
+  .workshop-list-heading h1 {
+    font-size: clamp(28px, 8vw, 34px);
+  }
+
+  .workshop-list-controls {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .workshop-filter-tabs {
+    gap: 10px;
+  }
+
+  .workshop-filter-tabs button {
+    flex: 1 1 calc(50% - 10px);
+    min-width: 0;
+  }
+
+  .workshop-card-grid {
+    grid-template-columns: 1fr;
+    justify-content: stretch;
+  }
+
+  .workshop-list-card img {
+    height: auto;
+    aspect-ratio: 378 / 253;
+  }
+
+  .workshop-calendar-popover {
+    left: 0;
+    right: auto;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .workshop-calendar-panel {
+    width: 100%;
+  }
+
+  .workshop-calendar-years,
+  .workshop-calendar-months {
+    width: calc(50% - 5px);
+  }
+
+  .workshop-calendar-years {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 460px) {
+  .workshop-list-shell {
+    width: calc(100% - 32px);
+    padding-top: 52px;
+  }
+
+  .workshop-list-heading p {
+    font-size: 16px;
+  }
+
+  .workshop-list-card-body {
+    padding: 10px 14px 18px;
+  }
+
+  .workshop-list-card h2 {
+    font-size: 18px;
+  }
+
+  .workshop-list-meta {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .workshop-detail-button {
+    width: 100%;
+  }
+
+  .workshop-calendar-panel {
+    padding: 22px 18px 18px;
+  }
+
+  .workshop-calendar-days button {
+    height: 34px;
+    font-size: 14px;
+  }
+
+  .workshop-calendar-years,
+  .workshop-calendar-months {
+    width: 100%;
+  }
+}

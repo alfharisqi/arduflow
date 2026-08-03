@@ -32,6 +32,71 @@ export function loginUser(payload) {
   });
 }
 
+export function getUserSession(token) {
+  return request('/api/auth/session', {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
+export function logoutUser(token) {
+  return request('/api/auth/logout', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
+export function loginAdmin(payload) {
+  return request('/api/admin/login', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getAdminSession(token) {
+  return request('/api/admin/session', {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
+export function logoutAdmin(token) {
+  return request('/api/admin/logout', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
 export function verifyEmailToken(token) {
   return request(`/api/auth/verify-email?token=${encodeURIComponent(token)}`);
+}
+
+export function checkAuthAvailability({ email = '', whatsapp = '' }) {
+  const params = new URLSearchParams();
+
+  if (email) {
+    params.set('email', email);
+  }
+
+  if (whatsapp) {
+    params.set('whatsapp', whatsapp);
+  }
+
+  return request(`/api/auth/check-availability?${params.toString()}`);
+}
+
+export function updateUserProfile(payload, token = window.localStorage.getItem('arduflow_user_token')) {
+  return request('/api/auth/profile', {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token || ''}`,
+    },
+    body: JSON.stringify(payload),
+  });
 }

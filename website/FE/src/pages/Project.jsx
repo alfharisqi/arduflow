@@ -378,7 +378,7 @@ function FinalCta() {
             solusi versimu sendiri.
           </p>
         </div>
-        <a className="final-cta__button" href="/akses">
+        <a className="final-cta__button" href="/signup">
           Daftar Akses
         </a>
       </div>

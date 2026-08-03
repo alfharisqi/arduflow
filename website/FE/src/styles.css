@@ -1,4 +1,4 @@
-﻿@import './styles/global.css';
+@import './styles/global.css';
 @import './styles/navbar.css';
 @import './styles/hero.css';
 @import './styles/home.css';
@@ -7,8 +7,29 @@
 @import './styles/contact.css';
 @import './styles/tutorial.css';
 @import './styles/workshop.css';
+@import './styles/workshop-list.css';
+@import './styles/workshop-detail.css';
 @import './styles/signin.css';
+@import './styles/profile-image-crop.css';
+@import './styles/dashboard-user.css';
+@import './styles/user-progress.css';
+@import './styles/user-project-gallery.css';
+@import './styles/user-workshop-schedule.css';
+@import './styles/user-certificates.css';
+@import './styles/admin-login.css';
+@import './styles/admin-sidebar.css';
+@import './styles/admin-dashboard.css';
+@import './styles/admin-users.css';
+@import './styles/admin-verification.css';
+@import './styles/admin-program.css';
+@import './styles/admin-leads.css';
+@import './styles/admin-certificates.css';
+@import './styles/admin-tutorial.css';
+@import './styles/admin-projects.css';
+@import './styles/admin-gallery.css';
+@import './styles/admin-partners.css';
+@import './styles/sweetalert.css';
+@import './styles/not-found.css';
 @import './styles/responsive.css';
 @import './styles/footer.css';
 @import './styles/footer-responsive.css';
-

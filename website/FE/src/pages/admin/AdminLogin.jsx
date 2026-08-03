@@ -1,0 +1,89 @@
+import { useState } from 'react';
+import hideIcon from '../../assets/icons/icon-hide-1.svg';
+import eyeOpenIcon from '../../assets/icons/icon-eyeopen-1.svg';
+import { loginAdmin } from '../../services/authApi.js';
+import { showErrorAlert, showSuccessAlert } from '../../utils/alerts.js';
+
+export function AdminLogin() {
+  const [showPassword, setShowPassword] = useState(false);
+  const [form, setForm] = useState({ username: '', password: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setForm((current) => ({ ...current, [name]: value }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      const data = await loginAdmin(form);
+      localStorage.setItem('arduflow_admin', JSON.stringify(data.admin));
+      localStorage.setItem('arduflow_admin_token', data.token);
+      await showSuccessAlert('Login admin berhasil', data.message);
+      window.location.href = data.redirectTo || '/admin/dashboard';
+    } catch (loginError) {
+      await showErrorAlert('Login admin gagal', loginError.message || 'Username atau password admin salah.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <main className="admin-login-page">
+      <section className="admin-login-content" aria-label="Admin login">
+        <div className="admin-login-logo" aria-label="Arduflow">
+          <span>ARDU</span>
+          <strong>FLOW</strong>
+        </div>
+
+        <form className="admin-login-panel" onSubmit={handleSubmit}>
+          <h1>Admin Log in</h1>
+
+          <label className="admin-login-field">
+            <span>Username</span>
+            <input
+              type="text"
+              name="username"
+              placeholder="username"
+              autoComplete="username"
+              value={form.username}
+              onChange={handleChange}
+            />
+          </label>
+
+          <label className="admin-login-field">
+            <span>Password</span>
+            <div className="admin-login-password">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                placeholder="password"
+                autoComplete="current-password"
+                value={form.password}
+                onChange={handleChange}
+              />
+              <button
+                type="button"
+                className="admin-login-eye"
+                onClick={() => setShowPassword((value) => !value)}
+                aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
+              >
+                <img src={showPassword ? eyeOpenIcon : hideIcon} alt="" />
+              </button>
+            </div>
+          </label>
+          <button className="admin-login-submit" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? 'LOADING...' : 'LOG IN'}
+          </button>
+
+          <a className="admin-login-forgot" href="/admin/forgot-password">
+            Forgot password?
+          </a>
+        </form>
+      </section>
+    </main>
+  );
+}
