@@ -31,6 +31,7 @@ export const config = {
       database: process.env.DB_DATABASE || 'db_arduflow',
       user: process.env.DB_USERNAME || 'root',
       password: process.env.DB_PASSWORD || '',
+      timezone: 'Z',
       connectTimeout: Number(process.env.DB_CONNECT_TIMEOUT_MS || 3000),
     },
   },

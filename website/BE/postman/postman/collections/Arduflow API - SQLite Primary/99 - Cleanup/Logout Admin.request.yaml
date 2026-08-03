@@ -1,0 +1,13 @@
+$kind: http-request
+method: POST
+url: '{{base_url}}/api/admin/logout'
+order: 3000
+headers:
+  - key: Authorization
+    value: 'Bearer {{admin_token}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Logout admin berhasil', () => pm.response.to.have.status(200));
+      pm.environment.unset('admin_token');

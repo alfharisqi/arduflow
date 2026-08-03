@@ -1,0 +1,22 @@
+$kind: http-request
+method: GET
+url: '{{base_url}}/api/auth/check-availability?email={{user_email}}&whatsapp={{user_whatsapp_encoded}}'
+order: 1000
+scripts:
+  - type: beforeRequest
+    language: text/javascript
+    code: |-
+      const suffix = Date.now().toString();
+      pm.environment.set('user_email', 'postman.' + suffix + '@example.com');
+      pm.environment.set('user_whatsapp', '+628' + suffix.slice(-10));
+      pm.environment.set('user_whatsapp_encoded', encodeURIComponent('+628' + suffix.slice(-10)));
+      pm.environment.set('user_username', 'postman' + suffix.slice(-8));
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      pm.test('Email dan WhatsApp tersedia', () => {
+        const json = pm.response.json();
+        pm.expect(json.emailAvailable).to.eql(true);
+        pm.expect(json.whatsappAvailable).to.eql(true);
+      });

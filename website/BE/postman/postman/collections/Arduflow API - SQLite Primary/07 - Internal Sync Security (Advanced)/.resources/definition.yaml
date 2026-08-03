@@ -1,0 +1,2 @@
+$kind: collection
+description: 'Isi sync_api_token dan sync_hmac_secret sesuai .env. Request probe memakai tabel terlarang sehingga tidak menulis data bisnis ke MySQL.'

@@ -1,0 +1,19 @@
+$kind: http-request
+method: POST
+url: '{{base_url}}/api/auth/verify-email'
+order: 3000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "token": "{{verification_token}}"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Email berhasil diverifikasi', () => pm.response.to.have.status(200));
+      pm.test('Status user terverifikasi', () => pm.expect(pm.response.json().user.emailVerified).to.eql(true));

@@ -27,6 +27,11 @@ user request. The current proof of concept covers `users`, `admins`, `leads`, an
 `workshops`; the same repository/outbox pattern should be applied when operational
 CRUD is added for the remaining content tables.
 
+The MySQL client reads and writes `DATETIME` values as UTC. Consistency checks
+compare MySQL and SQLite timestamps at second precision because the current
+central schema does not store fractional seconds; row ordering is enforced
+primarily by the integer `version` field.
+
 ## SQLite
 
 The default private database path is `website/BE/storage/database/arduflow.sqlite`.

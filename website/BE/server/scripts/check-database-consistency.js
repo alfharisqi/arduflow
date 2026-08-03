@@ -8,7 +8,9 @@ const report = { tables: {}, outboxPending: 0 };
 function normalizeDate(value) {
   if (!value) return null;
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? String(value) : date.toISOString();
+  return Number.isNaN(date.getTime())
+    ? String(value)
+    : date.toISOString().slice(0, 19);
 }
 
 try {
@@ -64,4 +66,3 @@ try {
 }
 
 console.log(JSON.stringify(report, null, 2));
-

@@ -1,0 +1,24 @@
+$kind: http-request
+method: POST
+url: '{{base_url}}/api/admin/login'
+order: 1000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "username": "{{admin_username}}",
+      "password": "{{admin_password}}"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      pm.test('Token admin diterima', () => {
+        const json = pm.response.json();
+        pm.expect(json.token).to.be.a('string').and.not.empty;
+        pm.environment.set('admin_token', json.token);
+      });
