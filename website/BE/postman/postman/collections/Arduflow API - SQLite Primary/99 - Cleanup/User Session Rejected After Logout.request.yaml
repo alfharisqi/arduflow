@@ -1,0 +1,13 @@
+$kind: http-request
+method: GET
+url: '{{base_url}}/api/auth/session'
+order: 2000
+headers:
+  - key: Authorization
+    value: 'Bearer {{user_token}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Session user sudah tidak berlaku', () => pm.response.to.have.status(401));
+      pm.environment.unset('user_token');

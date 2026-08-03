@@ -1,0 +1,31 @@
+$kind: http-request
+method: PUT
+url: '{{base_url}}/api/auth/profile'
+order: 6000
+headers:
+  - key: Authorization
+    value: 'Bearer {{user_token}}'
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "name": "{{user_name}}",
+      "username": "{{user_username}}",
+      "nickname": "Postman",
+      "whatsapp": "{{user_whatsapp}}",
+      "occupation": "Developer",
+      "institutionName": "Arduflow QA",
+      "profileImage": ""
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      pm.test('Profil berhasil diperbarui', () => {
+        const user = pm.response.json().user;
+        pm.expect(user.nickname).to.eql('Postman');
+        pm.expect(user.institutionName).to.eql('Arduflow QA');
+      });

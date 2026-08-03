@@ -23,6 +23,7 @@ export function SignIn() {
       });
 
       localStorage.setItem('arduflow_user', JSON.stringify(data.user));
+      localStorage.setItem('arduflow_user_token', data.token);
       await showSuccessAlert('Login berhasil', data.message);
       window.location.assign('/');
     } catch (error) {

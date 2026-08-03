@@ -1,0 +1,54 @@
+$kind: http-request
+method: POST
+url: '{{base_url}}/api/internal/sync/sqlite-to-mysql'
+order: 4000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "batchId": "postman-security-probe",
+      "events": [
+        {
+          "eventId": "{{sync_probe_event_id}}",
+          "tableName": "forbidden_table",
+          "rowId": "1",
+          "operation": "insert",
+          "payload": { "id": 1 },
+          "version": 1
+        }
+      ]
+    }
+scripts:
+  - type: beforeRequest
+    language: text/javascript
+    code: |-
+      const hmacLib = typeof pm.require === 'function' ? pm.require('npm:crypto-js@4.2.0') : require('crypto-js');
+      const token = pm.environment.get('sync_api_token');
+      const secret = pm.environment.get('sync_hmac_secret');
+      if (!token || !secret) throw new Error('Isi sync_api_token dan sync_hmac_secret pada environment.');
+      const eventId = pm.variables.replaceIn('{{$guid}}');
+      pm.environment.set('sync_probe_event_id', eventId);
+      const timestamp = Math.floor(Date.now() / 1000).toString();
+      const nonce = pm.variables.replaceIn('{{$guid}}');
+      const rawBody = pm.variables.replaceIn(pm.request.body.raw || '');
+      const signature = hmacLib.HmacSHA256(timestamp + '\n' + nonce + '\n' + rawBody, secret).toString(hmacLib.enc.Hex);
+      pm.environment.set('sync_replay_timestamp', timestamp);
+      pm.environment.set('sync_replay_nonce', nonce);
+      pm.environment.set('sync_replay_signature', signature);
+      pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+      pm.request.headers.upsert({ key: 'X-Sync-Timestamp', value: timestamp });
+      pm.request.headers.upsert({ key: 'X-Sync-Nonce', value: nonce });
+      pm.request.headers.upsert({ key: 'X-Sync-Signature', value: signature });
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Request bertanda tangan diterima', () => pm.response.to.have.status(207));
+      pm.test('Allowlist tabel menolak probe tanpa menulis data', () => {
+        const result = pm.response.json().results[0];
+        pm.expect(result.status).to.eql('failed');
+        pm.expect(result.retryable).to.eql(false);
+        pm.expect(result.error).to.include('Tabel');
+      });

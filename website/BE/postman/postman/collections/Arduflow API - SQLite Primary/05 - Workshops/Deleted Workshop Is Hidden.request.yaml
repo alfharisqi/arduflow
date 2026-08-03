@@ -1,0 +1,9 @@
+$kind: http-request
+method: GET
+url: '{{base_url}}/api/workshops/{{workshop_id}}'
+order: 6000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Workshop terhapus tidak dapat dibaca', () => pm.response.to.have.status(404));

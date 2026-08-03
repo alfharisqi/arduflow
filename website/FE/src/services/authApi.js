@@ -32,6 +32,23 @@ export function loginUser(payload) {
   });
 }
 
+export function getUserSession(token) {
+  return request('/api/auth/session', {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
+export function logoutUser(token) {
+  return request('/api/auth/logout', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
 export function loginAdmin(payload) {
   return request('/api/admin/login', {
     method: 'POST',
@@ -74,9 +91,12 @@ export function checkAuthAvailability({ email = '', whatsapp = '' }) {
   return request(`/api/auth/check-availability?${params.toString()}`);
 }
 
-export function updateUserProfile(payload) {
+export function updateUserProfile(payload, token = window.localStorage.getItem('arduflow_user_token')) {
   return request('/api/auth/profile', {
     method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token || ''}`,
+    },
     body: JSON.stringify(payload),
   });
 }

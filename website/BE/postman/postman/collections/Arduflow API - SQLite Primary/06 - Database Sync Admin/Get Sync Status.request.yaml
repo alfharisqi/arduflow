@@ -1,0 +1,18 @@
+$kind: http-request
+method: GET
+url: '{{base_url}}/api/admin/database-sync/status'
+order: 1000
+headers:
+  - key: Authorization
+    value: 'Bearer {{admin_token}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      pm.test('Statistik outbox tersedia', () => {
+        const json = pm.response.json();
+        pm.expect(json.pending).to.be.a('number');
+        pm.expect(json.processing).to.be.a('number');
+        pm.expect(json.failed).to.be.a('number');
+      });

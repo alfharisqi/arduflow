@@ -1,0 +1,14 @@
+$kind: http-request
+name: 'Delete Workshop (Soft Delete)'
+method: DELETE
+url: '{{base_url}}/api/workshops/{{workshop_id}}'
+order: 5000
+headers:
+  - key: Authorization
+    value: 'Bearer {{admin_token}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      pm.test('Soft delete mengisi deleted_at', () => pm.expect(pm.response.json().workshop.deleted_at).to.exist);
