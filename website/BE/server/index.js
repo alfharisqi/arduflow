@@ -1,10 +1,13 @@
 import express from 'express';
 import { fileURLToPath } from 'node:url';
 import { adminLogin, adminLogout, adminSession, requireAdmin } from './adminAuth.js';
+import { adminDashboard } from './adminDashboard.js';
 import {
   checkAvailability,
+  confirmPasswordReset,
   login,
   register,
+  requestPasswordReset,
   updateProfile,
   userLogout,
   userSession,
@@ -74,6 +77,8 @@ export function createApp() {
   app.post('/api/auth/logout', asyncHandler(userLogout));
   app.get('/api/auth/verify-email', asyncHandler(verifyEmail));
   app.post('/api/auth/verify-email', asyncHandler(verifyEmail));
+  app.post('/api/auth/password-reset/request', asyncHandler(requestPasswordReset));
+  app.post('/api/auth/password-reset/confirm', asyncHandler(confirmPasswordReset));
   app.get('/api/auth/check-availability', asyncHandler(checkAvailability));
   app.post('/api/auth/check-availability', asyncHandler(checkAvailability));
   app.put('/api/auth/profile', asyncHandler(updateProfile));
@@ -81,6 +86,7 @@ export function createApp() {
   app.post('/api/admin/login', asyncHandler(adminLogin));
   app.get('/api/admin/session', asyncHandler(adminSession));
   app.post('/api/admin/logout', asyncHandler(adminLogout));
+  app.get('/api/admin/dashboard', asyncHandler(requireAdmin), asyncHandler(adminDashboard));
   app.get('/api/admin/database-sync/status', asyncHandler(requireAdmin), asyncHandler(syncStatus));
   app.post('/api/admin/database-sync/run', asyncHandler(requireAdmin), asyncHandler(runSync));
   app.post('/api/admin/database-sync/retry-failed', asyncHandler(requireAdmin), asyncHandler(retryFailedSync));

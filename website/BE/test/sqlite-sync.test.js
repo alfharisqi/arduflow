@@ -127,6 +127,31 @@ test('login and protected user session work without MySQL', async () => {
   }
 });
 
+test('password reset token updates password and creates outbox events', async () => {
+  const user = await databaseModule.createUser({
+    name: 'Reset User', email: 'reset@example.test', whatsapp: '+628110000003',
+    occupation: 'Developer', passwordHash: passwordModule.hashPassword('Password1!'),
+    verificationToken: 'verification-reset',
+  });
+  const token = 'reset-token-test';
+  const expiresAt = new Date(Date.now() + 60_000).toISOString();
+
+  await databaseModule.createPasswordResetToken(user.id, token, expiresAt);
+  const tokenRow = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
+  assert.equal(tokenRow.password_reset_token, token);
+  assert.equal(pendingEvents('users').at(-1).operation, 'update');
+
+  const resetUser = await databaseModule.resetUserPasswordByToken(token, passwordModule.hashPassword('NewPassword1!'));
+  assert.equal(resetUser.id, user.id);
+  const changed = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
+  assert.equal(changed.password_reset_token, null);
+  assert.equal(passwordModule.verifyPassword('NewPassword1!', changed.password_hash), true);
+  assert.equal(passwordModule.verifyPassword('Password1!', changed.password_hash), false);
+
+  const expired = await databaseModule.resetUserPasswordByToken(token, passwordModule.hashPassword('OtherPassword1!'));
+  assert.equal(expired, null);
+});
+
 test('worker marks successful events as synced', async () => {
   db.prepare("UPDATE sync_outbox SET status = 'synced', synced_at = ?").run(new Date().toISOString());
   await databaseModule.createWorkshop({ title: 'Sync Success' });

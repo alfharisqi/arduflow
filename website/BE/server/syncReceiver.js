@@ -6,8 +6,9 @@ const tableColumns = {
   users: new Set([
     'id', 'name', 'username', 'nickname', 'email', 'whatsapp', 'occupation',
     'institution_name', 'profile_image', 'password_hash', 'email_verified_at',
-    'verification_token', 'verification_sent_at', 'version', 'deleted_at',
-    'created_at', 'updated_at',
+    'verification_token', 'verification_sent_at', 'password_reset_token',
+    'password_reset_sent_at', 'password_reset_expires_at', 'version',
+    'deleted_at', 'created_at', 'updated_at',
   ]),
   admins: new Set([
     'id', 'username', 'name', 'email', 'password_hash', 'role', 'is_active',
@@ -24,8 +25,9 @@ const tableColumns = {
 };
 
 const dateColumns = new Set([
-  'email_verified_at', 'verification_sent_at', 'last_login_at', 'deleted_at',
-  'created_at', 'updated_at', 'starts_at', 'ends_at',
+  'email_verified_at', 'verification_sent_at', 'password_reset_sent_at',
+  'password_reset_expires_at', 'last_login_at', 'deleted_at', 'created_at',
+  'updated_at', 'starts_at', 'ends_at',
 ]);
 
 function mysqlDate(value) {

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import certificateIcon from '../../assets/icons/icon-downloadsim-1.svg';
@@ -6,6 +6,7 @@ import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import { ProfileAvatar } from '../../features/profile-image-crop/ProfileAvatar.jsx';
 import { ProfileImageCropper } from '../../features/profile-image-crop/ProfileImageCropper.jsx';
 import { updateUserProfile } from '../../services/authApi.js';
+import { showErrorAlert, showSuccessAlert } from '../../utils/alerts.js';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 
 const menuItems = [
@@ -68,7 +69,7 @@ function getInitials(name) {
 }
 
 function buildProfileValues(user = {}) {
-  const fullName = user.name || user.fullName || 'Nama Lengkap';
+  const fullName = user.name || user.fullName || user.full_name || '';
 
   return {
     name: fullName,
@@ -77,8 +78,8 @@ function buildProfileValues(user = {}) {
     email: user.email || 'mail@mail.com',
     username: user.username || '',
     jobType: user.jobType || user.job || user.occupation || '',
-    institutionName: user.institutionName || user.company || '',
-    profileImage: user.profileImage || user.avatar || '',
+    institutionName: user.institutionName || user.institution_name || user.company || '',
+    profileImage: user.profileImage || user.profile_image || user.avatar || '',
   };
 }
 
@@ -150,6 +151,22 @@ export function DashboardUser() {
   const greetingName = profileValues.nickname || fullName;
   const email = profileValues.email || storedUser.email || 'mail@mail.com';
 
+  useEffect(() => {
+    function refreshStoredUser() {
+      const nextUser = getStoredUser();
+      setStoredUser(nextUser);
+      setProfileValues(buildProfileValues(nextUser));
+    }
+
+    window.addEventListener('arduflow-auth-change', refreshStoredUser);
+    window.addEventListener('storage', refreshStoredUser);
+
+    return () => {
+      window.removeEventListener('arduflow-auth-change', refreshStoredUser);
+      window.removeEventListener('storage', refreshStoredUser);
+    };
+  }, []);
+
   function handleLogout() {
     window.localStorage.removeItem('arduflow_user');
     window.localStorage.removeItem('arduflow_user_token');
@@ -177,9 +194,17 @@ export function DashboardUser() {
     setProfileMessage('');
 
     try {
+      const normalizedName = String(
+        profileValues.name || storedUser.name || storedUser.fullName || storedUser.full_name || '',
+      ).trim();
+
+      if (!normalizedName) {
+        throw new Error('Nama lengkap wajib diisi.');
+      }
+
       const result = await updateUserProfile({
         id: storedUser.id,
-        name: profileValues.name,
+        name: normalizedName,
         username: profileValues.username,
         nickname: profileValues.nickname,
         whatsapp: profileValues.phone,
@@ -205,8 +230,10 @@ export function DashboardUser() {
       }));
       setEditingProfile(false);
       setProfileMessage('Profil berhasil disimpan.');
+      await showSuccessAlert('Profil berhasil disimpan', 'Data profil Anda sudah diperbarui.');
     } catch (error) {
       setProfileMessage(error.message || 'Profil gagal disimpan.');
+      await showErrorAlert('Profil gagal disimpan', error.message || 'Periksa kembali data profil Anda.');
     }
   }
 

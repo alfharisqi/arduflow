@@ -1,12 +1,14 @@
 const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001';
 
 async function request(path, options = {}) {
+  const { headers = {}, ...fetchOptions } = options;
+
   const response = await fetch(`${apiBaseUrl}${path}`, {
+    ...fetchOptions,
     headers: {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...headers,
     },
-    ...options,
   });
 
   const data = await response.json().catch(() => ({}));
@@ -73,8 +75,30 @@ export function logoutAdmin(token) {
   });
 }
 
+export function getAdminDashboard(token = window.localStorage.getItem('arduflow_admin_token')) {
+  return request('/api/admin/dashboard', {
+    headers: {
+      Authorization: `Bearer ${token || ''}`,
+    },
+  });
+}
+
 export function verifyEmailToken(token) {
   return request(`/api/auth/verify-email?token=${encodeURIComponent(token)}`);
+}
+
+export function requestPasswordReset(email) {
+  return request('/api/auth/password-reset/request', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export function confirmPasswordReset({ token, password }) {
+  return request('/api/auth/password-reset/confirm', {
+    method: 'POST',
+    body: JSON.stringify({ token, password }),
+  });
 }
 
 export function checkAuthAvailability({ email = '', whatsapp = '' }) {

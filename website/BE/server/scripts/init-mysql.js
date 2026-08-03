@@ -50,6 +50,19 @@ async function ensureUniqueIndex(tableName, indexName, columnName) {
   }
 }
 
+async function ensureIndex(tableName, indexName, columnName) {
+  const [rows] = await connection.execute(
+    `SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+     WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND INDEX_NAME = ?`,
+    [config.database.mysql.database, tableName, indexName],
+  );
+  if (rows.length === 0 && await tableExists(tableName)) {
+    await connection.query(
+      `ALTER TABLE \`${tableName}\` ADD INDEX \`${indexName}\` (\`${columnName}\`)`,
+    );
+  }
+}
+
 try {
   await connection.query(`CREATE DATABASE IF NOT EXISTS \`${config.database.mysql.database}\``);
   await connection.query(`USE \`${config.database.mysql.database}\``);
@@ -58,6 +71,9 @@ try {
     users: {
       username: 'VARCHAR(80) NULL', nickname: 'VARCHAR(80) NULL',
       institution_name: 'VARCHAR(160) NULL', profile_image: 'MEDIUMTEXT NULL',
+      password_reset_token: 'VARCHAR(128) NULL',
+      password_reset_sent_at: 'DATETIME NULL',
+      password_reset_expires_at: 'DATETIME NULL',
       version: 'INT UNSIGNED NOT NULL DEFAULT 1', deleted_at: 'DATETIME NULL',
     },
     admins: {
@@ -94,6 +110,7 @@ try {
 
   await ensureUniqueIndex('users', 'uq_users_username', 'username');
   await ensureUniqueIndex('users', 'uq_users_whatsapp', 'whatsapp');
+  await ensureIndex('users', 'idx_users_password_reset_token', 'password_reset_token');
 
   for (const tableName of ['leads', 'programs', 'tutorials', 'projects']) {
     if (await tableExists(tableName)) {
