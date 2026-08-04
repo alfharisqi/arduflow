@@ -12,8 +12,8 @@ const menuItems = [
   { label: 'Progres Belajar', icon: 'graduation', href: '/progress-belajar' },
   { label: 'Proyek Saya', icon: 'folder', href: '/proyek-saya', active: true },
   { label: 'Workshop / Program', icon: 'calendar', href: '/workshop-program' },
-  { label: 'Sertifikat', icon: 'certificate', href: '/sertifikat' },
   { label: 'IDE', icon: 'cpu', href: '/ide' },
+  { label: 'Sertifikat', icon: 'certificate', href: '/sertifikat' },
   { label: 'Settings', icon: 'settings', href: '/settings' },
 ];
 
@@ -22,6 +22,7 @@ const projects = Array.from({ length: 9 }, (_, index) => ({
   title: 'Judul Proyek',
   category: 'Kategori Proyek',
   date: 'Hari Bulan Tanggal',
+  price: 'IDR 10.000',
 }));
 
 function getStoredUser() {
@@ -116,8 +117,288 @@ function FilterIcon() {
   );
 }
 
+function UploadIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 16V7" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" />
+      <path d="m8.5 10.5 3.5-3.5 3.5 3.5" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4 15v3.2A1.8 1.8 0 0 0 5.8 20h12.4a1.8 1.8 0 0 0 1.8-1.8V15" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function BoxPlusIcon() {
+  return (
+    <svg width="40" height="40" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+      <path d="M24 5 9 13.5v21L24 43l15-8.5v-21L24 5Z" stroke="currentColor" strokeWidth="3" strokeLinejoin="round" />
+      <path d="M24 22 39 13.5M24 22 9 13.5M24 22v21" stroke="currentColor" strokeWidth="3" strokeLinejoin="round" />
+      <path d="M38 4v8M34 8h8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ImageIcon() {
+  return (
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="8.5" cy="8.5" r="1.7" stroke="currentColor" strokeWidth="1.8" />
+      <path d="m5 17 4.3-4.3a1.4 1.4 0 0 1 2 0L13 14.4l2.3-2.3a1.4 1.4 0 0 1 2 0L21 15.8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function PublishIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="m21 3-8.8 18-3-7.8L1.5 10 21 3Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function SaveIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M5 3h12l2 2v16H5V3Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M8 3v6h8V3M8 21v-7h8v7" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function UploadField({ label, hint, children }) {
+  return (
+    <label className="project-upload-field">
+      <span>{label}</span>
+      {children}
+      {hint ? <small>{hint}</small> : null}
+    </label>
+  );
+}
+
+function EmptyUploadTable({ title, description }) {
+  return (
+    <div className="project-upload-table">
+      <div className="project-upload-table__head">
+        <span>Langkah</span>
+        <span>Deskripsi</span>
+      </div>
+      <div className="project-upload-empty">
+        <BoxPlusIcon />
+        <strong>{title}</strong>
+        <p>{description}</p>
+      </div>
+    </div>
+  );
+}
+
+function ProjectUploadForm({ onCancel }) {
+  return (
+    <section className="project-upload-page" aria-labelledby="project-upload-title">
+      <h2 id="project-upload-title">Upload Proyek Baru</h2>
+
+      <div className="project-upload-layout">
+        <form className="project-upload-main">
+          <UploadField label="Judul Proyek *" hint="Pilih judul yang jelas dan menarik">
+            <input type="text" placeholder="Masukkan judul proyek" />
+          </UploadField>
+
+          <UploadField label="Kategori *" hint="Pilih kategori yang paling sesuai dengan proyek anda">
+            <input type="text" placeholder="Pilih kategori proyek" />
+          </UploadField>
+
+          <div className="project-upload-field">
+            <span>Deskripsi Proyek *</span>
+            <div className="project-upload-editor">
+              <div className="project-upload-editor__toolbar" aria-hidden="true">
+                <span>↶</span>
+                <span>↷</span>
+                <span>Normal text⌄</span>
+                <span>≡</span>
+                <span className="project-upload-editor__color" />
+                <b>B</b>
+                <i>I</i>
+                <u>U</u>
+                <span>S</span>
+                <span>&lt;&gt;</span>
+                <span>▱</span>
+                <span>•≡</span>
+                <span>1≡</span>
+                <span>🔗</span>
+              </div>
+              <textarea placeholder="Jelaskan proyek anda secara detail..." />
+            </div>
+            <small>Jelaskan fungsi,tujuan, dan cara kerja proyek anda</small>
+          </div>
+
+          <section className="project-upload-list-section">
+            <div className="project-upload-section-head">
+              <div>
+                <h3>Alat &amp; Komponen *</h3>
+                <p>Daftarkan alat dan komponen yang digunakan dalam proyek ini</p>
+              </div>
+              <button type="button"><PlusIcon /> Tambah Item</button>
+            </div>
+            <div className="project-upload-table">
+              <div className="project-upload-table__head">
+                <span>Nama Alat/Komponen</span>
+                <span>Keterangan/Spesifikasi</span>
+              </div>
+              <div className="project-upload-empty">
+                <BoxPlusIcon />
+                <strong>Belum ada alat atau komponen</strong>
+                <p>Klik tombol “Tambah Item” untuk menambahkan</p>
+              </div>
+            </div>
+          </section>
+
+          <section className="project-upload-list-section">
+            <div className="project-upload-section-head">
+              <div>
+                <h3>Node ArduFlow yang Digunakan *</h3>
+                <p>Sebutkan node atau blok Arduflow yang digunakan dalam proyek ini</p>
+              </div>
+              <button type="button"><PlusIcon /> Tambah Node</button>
+            </div>
+            <EmptyUploadTable
+              title="Belum ada node yang ditambahkan"
+              description="Klik tombol “Tambah Node” untuk menambahkan"
+            />
+          </section>
+
+          <section className="project-upload-list-section">
+            <div className="project-upload-section-head">
+              <div>
+                <h3>Langkah-langkah Pengerjaan *</h3>
+                <p>Jelaskan langkah langkah pembuatan proyek secara berurutan</p>
+              </div>
+              <button type="button"><PlusIcon /> Tambah Langkah</button>
+            </div>
+            <EmptyUploadTable
+              title="Belum ada langkah yang ditambahkan"
+              description="Klik tombol “Tambah Langkah” untuk menambahkan"
+            />
+          </section>
+
+          <div className="project-upload-price">
+            <div>
+              <h3>Harga Proyek (Opsional)</h3>
+              <p>Jika proyek ini berbayar,masukkan harga yang ingin anda tetapkan</p>
+            </div>
+            <label className="project-upload-toggle">
+              <input type="checkbox" />
+              <span />
+              Proyek berbayar
+            </label>
+          </div>
+          <label className="project-upload-price-input">
+            <span>IDR</span>
+            <input type="text" placeholder="Contoh : 15000" />
+          </label>
+          <p className="project-upload-note">Kosongkan atau matikan toggle jika proyek gratis</p>
+
+          <div className="project-upload-file-section">
+            <h3>File Proyek *</h3>
+            <label className="project-upload-file-box">
+              <input type="file" />
+              <PlusIcon />
+              <strong>Klik untuk upload file proyek</strong>
+              <span>Drag &amp; drop file di sini</span>
+              <small>Format : json,flow | Maksimal 10 MB</small>
+            </label>
+            <p>Pastikan file yang diupload sudah berfungsi dengan baik</p>
+          </div>
+        </form>
+
+        <aside className="project-upload-side">
+          <section className="project-upload-card project-upload-cover">
+            <h3>Gambar Cover Proyek *</h3>
+            <label className="project-upload-cover-box">
+              <input type="file" accept="image/png,image/jpeg" />
+              <ImageIcon />
+              <span>Upload gambar cover</span>
+              <small>PNG, JPG maksimal 2 MB</small>
+              <strong>Pilih Gambar</strong>
+            </label>
+            <UploadField label="Alt Text" hint="Pilih gambar yang mewakili proyek Anda">
+              <input type="text" placeholder="Deskripsikan proyek anda" />
+            </UploadField>
+          </section>
+
+          <section className="project-upload-card project-upload-visibility">
+            <h3>Pengaturan Visibilitas</h3>
+            <label>
+              <input type="radio" name="visibility" defaultChecked />
+              <span>
+                <strong>Publik</strong>
+                <small>Proyek dapat dilihat oleh semua orang</small>
+              </span>
+            </label>
+            <label>
+              <input type="radio" name="visibility" />
+              <span>
+                <strong>Draft</strong>
+                <small>Simpan sebagai draft, belum dipublikasikan</small>
+              </span>
+            </label>
+          </section>
+
+          <section className="project-upload-card project-upload-extra">
+            <h3>Informasi Tambahan</h3>
+            <UploadField label="Tingkat Kesulitan">
+              <select defaultValue="">
+                <option value="" disabled>Pilih tingkat kesulitan</option>
+                <option>Pemula</option>
+                <option>Menengah</option>
+                <option>Lanjutan</option>
+              </select>
+            </UploadField>
+            <UploadField label="Estimasi Waktu">
+              <input type="text" placeholder="Contoh: 2-3 jam" />
+            </UploadField>
+            <UploadField label="Bahasa Pemrograman">
+              <input type="text" placeholder="Contoh: Arduino" />
+            </UploadField>
+          </section>
+
+          <section className="project-upload-card project-upload-tags">
+            <h3>Tag</h3>
+            <div className="project-upload-tag-form">
+              <input type="text" placeholder="Tambah tag" />
+              <button type="button">Tambah</button>
+            </div>
+            <div className="project-upload-tag-list">
+              {['IoT', 'Arduino', 'Sensor', 'SmartHome'].map((tag) => (
+                <span key={tag}>{tag} ×</span>
+              ))}
+            </div>
+            <p>Tambah tag untuk memudahkan pencarian</p>
+          </section>
+
+          <section className="project-upload-card project-upload-actions">
+            <button className="project-upload-publish" type="button">
+              <PublishIcon /> Publikasikan Proyek
+            </button>
+            <button className="project-upload-draft" type="button">
+              <SaveIcon /> Simpan Draft
+            </button>
+            <button className="project-upload-cancel" type="button" onClick={onCancel}>Batal</button>
+          </section>
+        </aside>
+      </div>
+    </section>
+  );
+}
+
 export function UserProjectGallery() {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialSidebarCollapsed);
+  const [isUploadFormOpen, setUploadFormOpen] = useState(false);
   const user = getStoredUser();
   const fullName = user.name || user.fullName || 'Nama Lengkap';
   const greetingName = user.nickname || fullName;
@@ -189,12 +470,17 @@ export function UserProjectGallery() {
         </header>
 
         <main className="dashboard-content user-project-content">
-          <div className="dashboard-user-greeting">
-            <h1>Hello {greetingName}</h1>
-            <span aria-hidden="true">&#128075;&#127995;</span>
-          </div>
+          {!isUploadFormOpen ? (
+            <div className="dashboard-user-greeting">
+              <h1>Hello {greetingName}</h1>
+              <span aria-hidden="true">&#128075;&#127995;</span>
+            </div>
+          ) : null}
 
-          <section className="user-project-panel" aria-labelledby="project-gallery-title">
+          {isUploadFormOpen ? (
+            <ProjectUploadForm onCancel={() => setUploadFormOpen(false)} />
+          ) : (
+            <section className="user-project-panel" aria-labelledby="project-gallery-title">
             <div className="user-project-header">
               <h2 id="project-gallery-title">Proyek Kamu</h2>
               <div className="user-project-toolbar">
@@ -217,6 +503,10 @@ export function UserProjectGallery() {
                     <FilterIcon />
                     <span>Filter</span>
                   </button>
+                  <button className="user-project-upload" type="button" onClick={() => setUploadFormOpen(true)}>
+                    <UploadIcon />
+                    <span>Upload</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -229,6 +519,7 @@ export function UserProjectGallery() {
                     <h3>{project.title}</h3>
                     <p>{project.category}</p>
                     <time>{project.date}</time>
+                    <strong>{project.price}</strong>
                   </div>
                 </article>
               ))}
@@ -241,7 +532,8 @@ export function UserProjectGallery() {
               <button type="button">3</button>
               <button type="button" aria-label="Halaman berikutnya">&rsaquo;</button>
             </nav>
-          </section>
+            </section>
+          )}
         </main>
       </section>
     </div>

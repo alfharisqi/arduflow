@@ -1,0 +1,14 @@
+
+> arduflow-be@1.0.0 dev
+> node server/index.js
+
+Arduflow API running at http://127.0.0.1:3001
+[sync-scheduler] started { intervalMs: 300000, initialDelayMs: 5000 }
+[sync-scheduler] sync finished {
+  total: 1,
+  success: 1,
+  failed: 0,
+  skipped: undefined,
+  error: undefined
+}
+[sync-scheduler] sync finished { total: 0, success: 0, failed: 0, skipped: false, error: undefined }
