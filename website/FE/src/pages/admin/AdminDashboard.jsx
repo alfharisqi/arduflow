@@ -212,13 +212,12 @@ export function AdminDashboard() {
               </div>
               <table className="admin-table">
                 <thead>
-                  <tr><th>No</th><th>Nama</th><th>Email</th><th>Tanggal</th><th>Status</th><th>Aksi</th></tr>
+                  <tr><th>Nama</th><th>Email</th><th>Tanggal</th><th>Status</th><th>Aksi</th></tr>
                 </thead>
                 <tbody>
                   {verificationItems.length ? (
                     verificationItems.map((row) => (
                       <tr key={`${row.no}-${row.email}`}>
-                        <td>{row.no}</td>
                         <td>{row.name}</td>
                         <td>{row.email}</td>
                         <td>{row.date}</td>
@@ -227,7 +226,7 @@ export function AdminDashboard() {
                       </tr>
                     ))
                   ) : (
-                    <tr><td colSpan="6">Tidak ada akun yang menunggu verifikasi.</td></tr>
+                    <tr><td colSpan="5">Tidak ada akun yang menunggu verifikasi.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -241,7 +240,7 @@ export function AdminDashboard() {
               </div>
               <table className="admin-table">
                 <thead>
-                  <tr><th>Program</th><th>Tanggal</th><th>Peserta</th><th>Status</th><th>Aksi</th></tr>
+                  <tr><th>Program</th><th>Tanggal</th><th>Status</th></tr>
                 </thead>
                 <tbody>
                   {workshopItems.length ? (
@@ -249,13 +248,11 @@ export function AdminDashboard() {
                       <tr key={`${row.program}-${row.date}`}>
                         <td>{row.program}</td>
                         <td>{row.date}</td>
-                        <td>{row.participants}</td>
                         <td><StatusBadge>{row.status}</StatusBadge></td>
-                        <td>🔔</td>
                       </tr>
                     ))
                   ) : (
-                    <tr><td colSpan="5">Belum ada workshop atau program mendatang.</td></tr>
+                    <tr><td colSpan="3">Belum ada workshop atau program mendatang.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -295,7 +292,7 @@ export function AdminDashboard() {
               </div>
               <table className="admin-table">
                 <thead>
-                  <tr><th>Nama</th><th>Email</th><th>Topik</th><th>Tanggal</th><th>Status</th></tr>
+                  <tr><th>Nama</th><th>Email</th><th>Topik</th><th>Tanggal</th></tr>
                 </thead>
                 <tbody>
                   {leadItems.length ? (
@@ -305,11 +302,10 @@ export function AdminDashboard() {
                         <td>{row.email}</td>
                         <td>{row.topic}</td>
                         <td>{row.date}</td>
-                        <td><StatusBadge>{row.status}</StatusBadge></td>
                       </tr>
                     ))
                   ) : (
-                    <tr><td colSpan="5">Belum ada lead atau kontak masuk.</td></tr>
+                    <tr><td colSpan="4">Belum ada lead atau kontak masuk.</td></tr>
                   )}
                 </tbody>
               </table>
