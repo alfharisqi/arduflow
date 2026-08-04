@@ -140,6 +140,14 @@ composer test:auth
 
 Test menggunakan SQLite `:memory:` dan memeriksa register, login, session, update profil, verifikasi email, reset password, pencabutan sesi, admin auth, soft delete, outbox, dan rollback perubahan utama ketika insert outbox dipaksa gagal.
 
+## Pengujian sinkronisasi
+
+```powershell
+composer test:sync
+```
+
+Test memeriksa claim dan locking antarkerja, batch HMAC, status `synced`, retry dan exponential backoff, payload JSON invalid, allowlist tabel/kolom, token/HMAC/timestamp salah, proteksi endpoint admin/internal, serta status admin ketika MySQL tidak tersedia. Uji idempotency langsung ke MySQL memerlukan server MySQL test yang aktif.
+
 ## Frontend
 
 Frontend masih diarahkan ke Node.js. Setelah auth dan endpoint utama PHP kompatibel, `website/FE/.env` dapat memakai:
@@ -156,13 +164,55 @@ Untuk hosting tanpa Composer CLI, jalankan `composer install --no-dev --optimize
 
 ## Cron sinkronisasi
 
-Worker belum dimigrasikan pada tahap fondasi. Target command dan cron:
+Worker PHP mengambil event `pending` paling lama, menguncinya dengan `worker_id`, lalu mengirim batch ke endpoint internal menggunakan Bearer token, timestamp, nonce, dan HMAC SHA-256. Event sukses ditandai `synced`; kegagalan koneksi kembali menjadi `pending` dengan backoff 1, 5, 15, 30, lalu maksimal 60 menit. Payload invalid ditandai `failed` agar tidak menghambat batch lain.
+
+Jalankan manual:
+
+```powershell
+cd website/API
+composer sync:run
+```
+
+Cron production:
 
 ```cron
-*/5 * * * * php /path/to/project/website/API/scripts/sync-sqlite-to-mysql.php
+*/5 * * * * cd /path/to/project/website/API && php scripts/sync-sqlite-to-mysql.php >> storage/logs/sync-cron.log 2>&1
 ```
 
 Jika shared hosting tidak menyediakan cron, sinkronisasi harus dijalankan oleh cron eksternal atau worker terpisah. Sinkronisasi tidak boleh dipicu oleh setiap request pengguna.
+
+Variabel wajib:
+
+```env
+SYNC_ENABLED=true
+SYNC_API_URL=https://domain-api/api/internal/sync/sqlite-to-mysql
+SYNC_API_TOKEN=token-random-panjang
+SYNC_HMAC_SECRET=secret-random-panjang
+SYNC_MAX_CLOCK_SKEW_SECONDS=300
+SYNC_BATCH_SIZE=250
+SYNC_HTTP_TIMEOUT_SECONDS=30
+SYNC_PROCESSING_TIMEOUT_MINUTES=15
+SYNC_IP_ALLOWLIST=
+```
+
+Endpoint internal menolak token/HMAC salah, timestamp kedaluwarsa, nonce replay, tabel atau kolom di luar allowlist, dan event versi lama. MySQL mencatat `event_id` pada `processed_sync_events`, sehingga pengiriman ulang tidak membuat data duplikat.
+
+Endpoint admin terlindungi bearer session admin:
+
+- `GET /api/admin/database-sync/status`
+- `POST /api/admin/database-sync/run`
+- `POST /api/admin/database-sync/retry-failed`
+
+`status` tetap dapat dibaca ketika MySQL mati dan mengembalikan `mysql_reachable: false`. Untuk local development dengan PHP built-in server, jalankan worker melalui CLI di terminal lain agar request worker tidak menunggu request balik ke server satu proses yang sama.
+
+## Simulasi MySQL mati
+
+1. Jalankan PHP API dan arahkan `DB_PORT` sementara ke port yang tidak aktif.
+2. Register atau update profil user.
+3. Pastikan request berhasil dan row beserta event `sync_outbox` tersimpan di SQLite.
+4. Jalankan `composer sync:run`; command gagal dengan event tetap `pending` dan `retry_count` bertambah.
+5. Kembalikan konfigurasi MySQL, jalankan migration MySQL bila diperlukan, lalu jalankan worker setelah `next_retry_at` atau gunakan endpoint retry admin untuk event berstatus `failed`.
+6. Periksa `processed_sync_events` di MySQL dan status `synced` di SQLite.
 
 ## MQTT
 
