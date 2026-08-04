@@ -7,6 +7,7 @@ import { Program } from './pages/Program.jsx';
 import { Workshop } from './pages/Workshop.jsx';
 import { DaftarWorkshop } from './pages/DaftarWorkshop.jsx';
 import { DetailWorkshop } from './pages/DetailWorkshop.jsx';
+import { AdminTambahWorkshop } from './pages/AdminTambahWorkshop.jsx';
 import { Tutorial } from './pages/Tutorial.jsx';
 import { BeginnerEbook } from './pages/BeginnerEbook.jsx';
 import { IdeEbook } from './pages/IdeEbook.jsx';
@@ -53,6 +54,8 @@ const routes = {
   '/workshop/daftar': DaftarWorkshop,
   '/detail-workshop': DetailWorkshop,
   '/workshop/detail': DetailWorkshop,
+  '/admin/tambah-workshop': AdminTambahWorkshop,
+  '/admin/workshop/tambah': AdminTambahWorkshop,
   '/tutorial': Tutorial,
   '/tutorial/panduan-pemula': BeginnerEbook,
   '/tutorial/penggunaan-ide': IdeEbook,
@@ -131,6 +134,8 @@ const standaloneRoutes = new Set([
   '/admin/projects',
   '/admin/gallery',
   '/admin/partners',
+  '/admin/tambah-workshop',
+  '/admin/workshop/tambah',
 ]);
 
 const userProtectedRoutes = new Set([
