@@ -4,12 +4,26 @@
   "type": "project",
   "license": "proprietary",
   "require": {
-    "php": "^8.1"
+    "php": "^8.1",
+    "phpmailer/phpmailer": "^7.1",
+    "vinsaj9/scrypt": "^1.4"
   },
   "autoload": {
     "psr-4": {
       "Arduflow\\Api\\": "app/"
     }
+  },
+  "scripts": {
+    "db:init": "php scripts/init-sqlite.php",
+    "db:import-auth": "php scripts/import-auth-from-node-sqlite.php",
+    "db:seed-admin": "php scripts/seed-admin.php",
+    "sync:run": "php scripts/sync-sqlite-to-mysql.php",
+    "test:auth": "php tests/auth-integration.php",
+    "test:sync": "php tests/sync-integration.php",
+    "test": [
+      "@test:auth",
+      "@test:sync"
+    ]
   },
   "config": {
     "optimize-autoloader": true,

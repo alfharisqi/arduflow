@@ -16,8 +16,10 @@ final class Transaction
             $pdo->exec('COMMIT');
             return $result;
         } catch (\Throwable $exception) {
-            if ($pdo->inTransaction()) {
+            try {
                 $pdo->exec('ROLLBACK');
+            } catch (\Throwable) {
+                // Preserve the original exception when SQLite already ended the transaction.
             }
             throw $exception;
         }

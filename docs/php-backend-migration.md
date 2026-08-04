@@ -9,10 +9,12 @@ Dokumen ini mencatat migrasi bertahap. Backend Node.js pada `website/BE` tetap m
 | Analisis repository | Selesai |
 | Fondasi PHP, router, konfigurasi | Selesai |
 | PDO SQLite/MySQL dan migrasi awal | Selesai |
-| Auth user/admin | Belum |
-| Repository dan outbox transaksi | Belum |
-| Worker SQLite ke MySQL | Belum |
-| Email SMTP | Belum |
+| Auth user/admin | Selesai untuk endpoint inti |
+| Repository dan outbox transaksi | Selesai untuk user/admin |
+| Worker SQLite ke MySQL | Selesai untuk user/admin; pola siap diperluas |
+| API internal HMAC dan idempotency MySQL | Selesai |
+| Status/retry sinkronisasi admin | Selesai |
+| Email SMTP | Selesai untuk verifikasi/reset |
 | Dashboard admin API | Belum |
 | MQTT opsional | Belum |
 | Peralihan frontend | Belum |
@@ -50,6 +52,8 @@ composer install
 Copy-Item .env.example .env
 php scripts/check-runtime.php
 php scripts/init-sqlite.php
+php scripts/import-auth-from-node-sqlite.php
+php scripts/seed-admin.php
 php scripts/inspect-sqlite.php
 php -S 127.0.0.1:8000 -t public public/router.php
 ```
@@ -97,7 +101,44 @@ Operasi tulis dan outbox pada tahap repository akan menggunakan satu transaksi `
 
 ## Kompatibilitas password
 
-Password lama Node disimpan dengan format `scrypt$<salt>$<hash>`. PHP tidak boleh langsung mengganti verifier dengan `password_verify`, karena semua akun lama akan gagal login. Tahap auth akan menyediakan verifier legacy scrypt, kemudian melakukan rehash aman ke format PHP setelah login berhasil atau melalui reset password.
+Password lama Node disimpan dengan format `scrypt$<salt>$<hash>`. Verifier legacy tersedia melalui `vinsaj9/scrypt`, tetapi implementasi PHP murni sangat lambat pada environment Windows/XAMPP yang diuji. Karena itu `AUTH_LEGACY_SCRYPT_ENABLED=false` menjadi default. Akun hasil import menerima kode `LEGACY_PASSWORD_RESET_REQUIRED` dan harus memakai reset password; password baru disimpan dengan Argon2id jika tersedia. Admin lama harus di-seed ulang. Jika extension/runtime scrypt yang cepat tersedia, opsi legacy dapat diaktifkan dan hash otomatis diubah setelah login berhasil.
+
+## Auth dan session PHP
+
+Endpoint auth user dan admin mempertahankan path serta bentuk respons yang dipakai `website/FE/src/services/authApi.js`. Token session mentah hanya dikirim ke client, sedangkan SQLite menyimpan hash SHA-256. Session tidak memakai MySQL sehingga login tetap bekerja saat MySQL mati.
+
+Operasi berikut menulis row utama dan event `sync_outbox` dalam satu transaksi `BEGIN IMMEDIATE`:
+
+- registrasi user;
+- verifikasi email;
+- reset password;
+- update profil;
+- soft delete user pada repository;
+- seed/update admin dan rehash password.
+
+Reset password dan soft delete mencabut seluruh sesi user yang aktif.
+
+## Import auth dari Node
+
+```powershell
+php scripts/import-auth-from-node-sqlite.php
+```
+
+Sumber default adalah `website/BE/storage/database/arduflow.sqlite`, dapat diubah dengan `NODE_SQLITE_DATABASE_PATH`. Script membuat backup target ke `website/API/storage/backups/sqlite`, mempertahankan primary key, melakukan upsert user/admin, tidak membuat outbox, dan sengaja tidak mengimpor sesi lama.
+
+Sesudah import, isi konfigurasi seed admin lalu jalankan:
+
+```powershell
+php scripts/seed-admin.php
+```
+
+## Pengujian auth
+
+```powershell
+composer test:auth
+```
+
+Test menggunakan SQLite `:memory:` dan memeriksa register, login, session, update profil, verifikasi email, reset password, pencabutan sesi, admin auth, soft delete, outbox, dan rollback perubahan utama ketika insert outbox dipaksa gagal.
 
 ## Frontend
 

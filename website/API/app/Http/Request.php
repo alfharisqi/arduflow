@@ -14,6 +14,7 @@ final class Request
         public readonly array $query,
         public readonly array $headers,
         public readonly string $rawBody,
+        public readonly string $clientIp = '',
     ) {
     }
 
@@ -32,6 +33,7 @@ final class Request
             $_GET,
             $normalizedHeaders,
             (string) (file_get_contents('php://input') ?: ''),
+            (string) ($_SERVER['REMOTE_ADDR'] ?? ''),
         );
     }
 

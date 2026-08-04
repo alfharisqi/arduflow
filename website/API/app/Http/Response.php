@@ -32,6 +32,21 @@ final class Response
         return new self($this->body, $this->status, [...$this->headers, ...$headers]);
     }
 
+    public function statusCode(): int
+    {
+        return $this->status;
+    }
+
+    public function body(): string
+    {
+        return $this->body;
+    }
+
+    public function headers(): array
+    {
+        return $this->headers;
+    }
+
     public function send(): void
     {
         http_response_code($this->status);

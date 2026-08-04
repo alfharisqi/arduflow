@@ -26,10 +26,12 @@ final class ConnectionFactory
         }
 
         $path = $this->sqlitePath();
-        Path::ensurePrivate($this->root, $path);
-        $directory = dirname($path);
-        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
-            throw new \RuntimeException('Folder database SQLite tidak dapat dibuat.');
+        if ($path !== ':memory:') {
+            Path::ensurePrivate($this->root, $path);
+            $directory = dirname($path);
+            if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
+                throw new \RuntimeException('Folder database SQLite tidak dapat dibuat.');
+            }
         }
 
         $pdo = new PDO('sqlite:' . $path, null, null, $this->pdoOptions());
@@ -74,7 +76,8 @@ final class ConnectionFactory
 
     public function sqlitePath(): string
     {
-        return Path::resolve($this->root, (string) $this->config->get('database.sqlite.path'));
+        $configured = (string) $this->config->get('database.sqlite.path');
+        return $configured === ':memory:' ? ':memory:' : Path::resolve($this->root, $configured);
     }
 
     private function pdoOptions(): array

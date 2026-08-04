@@ -18,6 +18,11 @@ final class Router
         $this->add('POST', $path, $handler);
     }
 
+    public function put(string $path, callable $handler): void
+    {
+        $this->add('PUT', $path, $handler);
+    }
+
     public function add(string $method, string $path, callable $handler): void
     {
         [$pattern, $params] = $this->compile($path);
