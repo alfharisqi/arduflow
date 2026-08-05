@@ -12,6 +12,7 @@ use Arduflow\Api\Security\PasswordHasher;
 use Arduflow\Api\Security\TokenService;
 use Arduflow\Api\Services\AuthSessionService;
 use Arduflow\Api\Services\MailService;
+use Arduflow\Api\Services\MqttService;
 use Arduflow\Api\Support\Clock;
 use Arduflow\Api\Validation\AuthValidator;
 
@@ -24,6 +25,7 @@ final class UserAuthController
         private readonly TokenService $tokens,
         private readonly AuthSessionService $sessions,
         private readonly MailService $mail,
+        private readonly MqttService $mqtt,
         private readonly int $sessionHours,
     ) {
     }
@@ -73,6 +75,9 @@ final class UserAuthController
         } catch (\Throwable) {
             $sent = false;
         }
+        $this->mqtt->publish('admin/notifications', [
+            'type' => 'user.registered', 'userId' => (int) $user['id'], 'createdAt' => Clock::now(),
+        ]);
 
         return Response::json([
             'message' => $sent
@@ -149,6 +154,7 @@ final class UserAuthController
             return Response::json(['message' => 'Token verifikasi tidak valid.'], 404);
         }
         $this->logs->record('email_verified', true, (int) $user['id'], (string) $user['email']);
+        $this->mqtt->publish('admin/notifications', ['type' => 'user.email_verified', 'userId' => (int) $user['id']]);
         return Response::json([
             'message' => 'Email berhasil diverifikasi.',
             'user' => AuthSessionService::publicUser($user),
@@ -264,6 +270,9 @@ final class UserAuthController
             return Response::json(['message' => 'User tidak ditemukan.'], 404);
         }
         $this->logs->record('profile_updated', true, (int) $user['id'], (string) $user['email']);
+        $this->mqtt->publish('users/' . (int) $user['id'] . '/notifications', [
+            'type' => 'profile.updated', 'userId' => (int) $user['id'], 'updatedAt' => Clock::now(),
+        ]);
         return Response::json([
             'message' => 'Profil berhasil diperbarui.',
             'user' => AuthSessionService::publicUser($user),

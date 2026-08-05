@@ -22,6 +22,14 @@ final class OutboxRepository
             'id', 'username', 'name', 'email', 'password_hash', 'role', 'is_active',
             'last_login_at', 'deleted_at', 'version', 'created_at', 'updated_at',
         ],
+        'workshops' => [
+            'id', 'title', 'description', 'category', 'method', 'location', 'meeting_url',
+            'start_at', 'end_at', 'capacity', 'status', 'certificate_enabled',
+            'created_by_admin_id', 'deleted_at', 'version', 'created_at', 'updated_at',
+        ],
+        'programs' => [
+            'id', 'name', 'description', 'status', 'deleted_at', 'version', 'created_at', 'updated_at',
+        ],
     ];
 
     public function enqueue(PDO $pdo, string $table, int|string $rowId, string $operation): string

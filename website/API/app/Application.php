@@ -7,8 +7,11 @@ namespace Arduflow\Api;
 use Arduflow\Api\Controllers\HealthController;
 use Arduflow\Api\Controllers\AdminAuthController;
 use Arduflow\Api\Controllers\AdminDatabaseSyncController;
+use Arduflow\Api\Controllers\AdminDashboardController;
 use Arduflow\Api\Controllers\InternalSyncController;
+use Arduflow\Api\Controllers\ProgramController;
 use Arduflow\Api\Controllers\UserAuthController;
+use Arduflow\Api\Controllers\WorkshopController;
 use Arduflow\Api\Database\ConnectionFactory;
 use Arduflow\Api\Database\SqliteMigrator;
 use Arduflow\Api\Http\Request;
@@ -18,15 +21,19 @@ use Arduflow\Api\Middleware\CorsMiddleware;
 use Arduflow\Api\Repositories\SyncStatusRepository;
 use Arduflow\Api\Repositories\SyncOutboxRepository;
 use Arduflow\Api\Repositories\AdminRepository;
+use Arduflow\Api\Repositories\AdminDashboardRepository;
 use Arduflow\Api\Repositories\AuthLogRepository;
 use Arduflow\Api\Repositories\OutboxRepository;
+use Arduflow\Api\Repositories\ProgramRepository;
 use Arduflow\Api\Repositories\UserRepository;
+use Arduflow\Api\Repositories\WorkshopRepository;
 use Arduflow\Api\Security\PasswordHasher;
 use Arduflow\Api\Security\SyncSecurity;
 use Arduflow\Api\Security\TokenService;
 use Arduflow\Api\Services\AuthSessionService;
 use Arduflow\Api\Services\DatabaseHealthService;
 use Arduflow\Api\Services\MailService;
+use Arduflow\Api\Services\MqttService;
 use Arduflow\Api\Services\MysqlSyncReceiverService;
 use Arduflow\Api\Services\SqliteToMysqlSyncService;
 use Arduflow\Api\Support\Config;
@@ -53,6 +60,7 @@ final class Application
         $tokens = new TokenService();
         $passwords = new PasswordHasher((bool) $config->get('auth.legacy_scrypt_enabled', false));
         $sessions = new AuthSessionService($users, $admins, $tokens);
+        $mqtt = new MqttService($config);
         $sessionHours = (int) $config->get('auth.session_hours', 8);
         $userAuth = new UserAuthController(
             $users,
@@ -61,6 +69,7 @@ final class Application
             $tokens,
             $sessions,
             new MailService($config),
+            $mqtt,
             $sessionHours,
         );
         $adminAuth = new AdminAuthController($admins, $passwords, $tokens, $sessions, $sessionHours);
@@ -78,6 +87,12 @@ final class Application
             $syncStatus,
             $syncOutbox,
             $syncWorker,
+        );
+        $workshopController = new WorkshopController(new WorkshopRepository($sqlite, $outbox), $sessions, $mqtt);
+        $programController = new ProgramController(new ProgramRepository($sqlite, $outbox), $sessions, $mqtt);
+        $adminDashboard = new AdminDashboardController(
+            $sessions,
+            new AdminDashboardRepository($sqlite, $syncStatus, $config, $connections->sqlitePath()),
         );
 
         $this->router = new Router();
@@ -97,10 +112,21 @@ final class Application
         $this->router->post('/api/admin/login', [$adminAuth, 'login']);
         $this->router->get('/api/admin/session', [$adminAuth, 'session']);
         $this->router->post('/api/admin/logout', [$adminAuth, 'logout']);
+        $this->router->get('/api/admin/dashboard', [$adminDashboard, 'show']);
         $this->router->get('/api/admin/database-sync/status', [$adminSync, 'status']);
         $this->router->post('/api/admin/database-sync/run', [$adminSync, 'run']);
         $this->router->post('/api/admin/database-sync/retry-failed', [$adminSync, 'retryFailed']);
         $this->router->post('/api/internal/sync/sqlite-to-mysql', [$internalSync, 'receive']);
+        $this->router->get('/api/workshops', [$workshopController, 'index']);
+        $this->router->get('/api/workshops/{id}', [$workshopController, 'show']);
+        $this->router->post('/api/workshops', [$workshopController, 'create']);
+        $this->router->put('/api/workshops/{id}', [$workshopController, 'update']);
+        $this->router->delete('/api/workshops/{id}', [$workshopController, 'delete']);
+        $this->router->get('/api/programs', [$programController, 'index']);
+        $this->router->get('/api/programs/{id}', [$programController, 'show']);
+        $this->router->post('/api/programs', [$programController, 'create']);
+        $this->router->put('/api/programs/{id}', [$programController, 'update']);
+        $this->router->delete('/api/programs/{id}', [$programController, 'delete']);
         $this->cors = new CorsMiddleware((array) $config->get('app.cors_origins', []));
     }
 

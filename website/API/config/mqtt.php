@@ -12,4 +12,5 @@ return [
     'password' => Env::get('MQTT_PASSWORD', ''),
     'client_id' => Env::get('MQTT_CLIENT_ID', 'arduflow-php-api'),
     'topic_prefix' => Env::get('MQTT_TOPIC_PREFIX', 'arduflow'),
+    'timeout_seconds' => Env::int('MQTT_TIMEOUT_SECONDS', 2),
 ];

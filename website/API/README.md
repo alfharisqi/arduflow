@@ -86,6 +86,9 @@ composer test:auth
 composer test:sync
 # atau seluruh test
 composer test
+composer db:backup
+composer db:import
+composer db:check
 ```
 
 Lihat `docs/php-backend-migration.md` untuk rencana dan status lengkap.

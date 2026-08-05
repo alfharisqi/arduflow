@@ -10,13 +10,15 @@ Dokumen ini mencatat migrasi bertahap. Backend Node.js pada `website/BE` tetap m
 | Fondasi PHP, router, konfigurasi | Selesai |
 | PDO SQLite/MySQL dan migrasi awal | Selesai |
 | Auth user/admin | Selesai untuk endpoint inti |
-| Repository dan outbox transaksi | Selesai untuk user/admin |
-| Worker SQLite ke MySQL | Selesai untuk user/admin; pola siap diperluas |
+| Repository dan outbox transaksi | Selesai untuk user/admin/workshop/program |
+| Worker SQLite ke MySQL | Selesai untuk user/admin/workshop/program |
 | API internal HMAC dan idempotency MySQL | Selesai |
 | Status/retry sinkronisasi admin | Selesai |
 | Email SMTP | Selesai untuk verifikasi/reset |
-| Dashboard admin API | Belum |
-| MQTT opsional | Belum |
+| Dashboard admin API | Selesai untuk ringkasan utama |
+| CRUD workshop/program | Selesai |
+| Import/check/backup database | Selesai |
+| MQTT opsional | Selesai sebagai publisher QoS 0; default nonaktif |
 | Peralihan frontend | Belum |
 
 ## Arsitektur lama
@@ -115,6 +117,8 @@ Operasi berikut menulis row utama dan event `sync_outbox` dalam satu transaksi `
 - update profil;
 - soft delete user pada repository;
 - seed/update admin dan rehash password.
+- create, update, dan soft delete workshop;
+- create, update, dan soft delete program.
 
 Reset password dan soft delete mencabut seluruh sesi user yang aktif.
 
@@ -157,6 +161,42 @@ VITE_API_URL=http://127.0.0.1:8000
 ```
 
 Tidak ada perubahan UI yang diperlukan.
+
+## Dashboard dan konten
+
+Endpoint PHP berikut tersedia dan mempertahankan struktur data yang dipakai frontend:
+
+- `GET /api/admin/dashboard` (admin)
+- `GET /api/workshops`
+- `GET /api/workshops/{id}`
+- `POST /api/workshops` (admin)
+- `PUT /api/workshops/{id}` (admin)
+- `DELETE /api/workshops/{id}` (admin, soft delete)
+- `GET /api/programs`
+- `GET /api/programs/{id}`
+- `POST /api/programs` (admin)
+- `PUT /api/programs/{id}` (admin)
+- `DELETE /api/programs/{id}` (admin, soft delete)
+
+Dashboard hanya membaca SQLite. Status MySQL berasal dari hasil worker terakhir, sehingga membuka dashboard tidak membuat request menunggu MySQL.
+
+## Import, pemeriksaan, dan backup
+
+```powershell
+composer db:backup
+composer db:import
+composer db:check
+```
+
+`db:backup` memakai `VACUUM INTO` dan menjalankan `PRAGMA quick_check` pada hasilnya. `db:import` membuat backup target terlebih dahulu, mempertahankan ID, memakai upsert idempotent, dan tidak membuat outbox. `db:check` bersifat read-only serta membandingkan jumlah row, ID hilang, versi, `updated_at`, dan `deleted_at`.
+
+Backup dikendalikan oleh:
+
+```env
+SQLITE_BACKUP_ENABLED=true
+SQLITE_BACKUP_DIRECTORY=storage/backups/sqlite
+SQLITE_BACKUP_RETENTION_DAYS=14
+```
 
 ## Deployment FTP/PHP
 
@@ -216,7 +256,20 @@ Endpoint admin terlindungi bearer session admin:
 
 ## MQTT
 
-Konfigurasi MQTT sudah disiapkan tetapi belum memasang client. `MQTT_ENABLED=false` adalah default. MQTT akan dipakai hanya untuk event realtime, notifikasi, telemetry, status device, dan command device. Auth dan CRUD tetap memakai HTTP API.
+Publisher MQTT 3.1.1 QoS 0 tersedia tanpa proses subscriber permanen. `MQTT_ENABLED=false` tetap menjadi default; saat broker mati atau MQTT nonaktif, request HTTP dan transaksi SQLite tetap berhasil. Event yang saat ini dipublish meliputi registrasi/verifikasi/update profil serta create/update/delete workshop dan program.
+
+```env
+MQTT_ENABLED=false
+MQTT_HOST=127.0.0.1
+MQTT_PORT=1883
+MQTT_USERNAME=
+MQTT_PASSWORD=
+MQTT_CLIENT_ID=arduflow-php-api
+MQTT_TOPIC_PREFIX=arduflow
+MQTT_TIMEOUT_SECONDS=2
+```
+
+Topik memakai prefix, misalnya `arduflow/admin/notifications` dan `arduflow/users/{id}/notifications`. Login, register, verifikasi, dan CRUD tetap dilakukan melalui HTTP; MQTT hanya membawa event setelah operasi utama berhasil.
 
 ## Rollback
 
@@ -231,4 +284,4 @@ Konfigurasi MQTT sudah disiapkan tetapi belum memasang client. `MQTT_ENABLED=fal
 - Hash scrypt Node memerlukan verifier kompatibel di PHP.
 - Shared hosting dapat membatasi cron, extension SQLite/PDO, ukuran upload, dan koneksi MQTT.
 - Dua backend tidak boleh menulis ke file SQLite yang sama tanpa rencana cutover dan locking yang diuji.
-- Skema dashboard admin belum seluruhnya mempunyai data backend; beberapa halaman frontend masih memakai data contoh.
+- Halaman admin selain dashboard utama dan workshop/program masih memakai sebagian data contoh dan perlu dimigrasikan bertahap.

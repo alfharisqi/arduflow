@@ -16,13 +16,18 @@
   "scripts": {
     "db:init": "php scripts/init-sqlite.php",
     "db:import-auth": "php scripts/import-auth-from-node-sqlite.php",
+    "db:import": "php scripts/import-mysql-to-sqlite.php",
+    "db:check": "php scripts/check-database-consistency.php",
+    "db:backup": "php scripts/backup-sqlite.php",
     "db:seed-admin": "php scripts/seed-admin.php",
     "sync:run": "php scripts/sync-sqlite-to-mysql.php",
     "test:auth": "php tests/auth-integration.php",
     "test:sync": "php tests/sync-integration.php",
+    "test:content": "php tests/content-integration.php",
     "test": [
       "@test:auth",
-      "@test:sync"
+      "@test:sync",
+      "@test:content"
     ]
   },
   "config": {
