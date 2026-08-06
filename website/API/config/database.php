@@ -6,9 +6,13 @@ use Arduflow\Api\Support\Env;
 
 return [
     'sqlite' => [
-        'path' => Env::get('SQLITE_DATABASE_PATH', 'storage/database/arduflow.sqlite'),
+        'path' => Env::get(
+            'SQLITE_DATABASE_PATH',
+            'storage/database/arduflow.sqlite'
+        ),
         'busy_timeout_ms' => 5000,
     ],
+
     'mysql' => [
         'host' => Env::get('DB_HOST', '127.0.0.1'),
         'port' => Env::int('DB_PORT', 3306),
