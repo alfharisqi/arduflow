@@ -3,11 +3,10 @@ import usersIcon from '../../assets/icons/icon-users-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
 import graduationIcon from '../../assets/icons/icon-graduation-cap-1.svg';
 import galleryIcon from '../../assets/icons/icon-image-placeholder-1.svg';
-import globeIcon from '../../assets/icons/icons-globe-1.svg';
 import bookIcon from '../../assets/icons/icon-book-1.svg';
 import mailIcon from '../../assets/icons/icon-mail-1.svg';
-import cpuIcon from '../../assets/icons/icon-cpu-1.svg';
 import databaseIcon from '../../assets/icons/icons-database-1.svg';
+import fileIcon from '../../assets/icons/icon-file-text-1.svg';
 import settingsIcon from '../../assets/icons/icon-settings-1.svg';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import collapseIcon from '../../assets/icons/icon-arrowdown-1.svg';
@@ -15,31 +14,25 @@ import { logoutAdmin } from '../../services/authApi.js';
 
 const adminItems = [
   {
-    title: 'Manajemen Utama',
+    title: 'Utama',
     items: [
       { label: 'Dashboard', href: '/admin/dashboard', icon: dashboardIcon },
-      { label: 'User', href: '/admin/users', icon: usersIcon },
+      { label: 'Manajemen User', href: '/admin/users', icon: usersIcon },
       { label: 'Verifikasi Akun', href: '/admin/verification', icon: mailIcon, count: 12 },
       { label: 'Workshop / Program', href: '/admin/program', icon: clockIcon },
       { label: 'Lead / Kontak', href: '/admin/leads', icon: usersIcon },
       { label: 'Sertifikat', href: '/admin/certificates', icon: bookIcon },
-    ],
-  },
-  {
-    title: 'Konten',
-    items: [
-      { label: 'Tutorial', href: '/admin/tutorial', icon: graduationIcon },
-      { label: 'Proyek', href: '/admin/projects', icon: galleryIcon },
+      { label: 'Tutorial / Materi', href: '/admin/tutorial', icon: graduationIcon },
       { label: 'Galeri Kegiatan', href: '/admin/gallery', icon: galleryIcon },
-      { label: 'Partner / Kolaborator', href: '/admin/partners', icon: globeIcon },
-      { label: 'Arduflow IDE', href: '/admin/ide', icon: cpuIcon },
+      { label: 'Proyek', href: '/admin/projects', icon: galleryIcon },
+      { label: 'Konten Draft', href: '/admin/drafts', icon: fileIcon },
     ],
   },
   {
     title: 'Sistem',
     items: [
-      { label: 'Settings', href: '/admin/settings', icon: settingsIcon },
-      { label: 'Backup / Database', href: '/admin/database', icon: databaseIcon },
+      { label: 'Pengaturan', href: '/admin/settings', icon: settingsIcon },
+      { label: 'Log Sistem', href: '/admin/logs', icon: databaseIcon },
     ],
   },
 ];

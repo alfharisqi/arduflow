@@ -8,6 +8,12 @@
   min-height: 1392px;
 }
 
+.user-project-page--upload,
+.user-project-page--upload .dashboard-sidebar,
+.user-project-page--upload .dashboard-shell {
+  min-height: 1740px;
+}
+
 .user-project-content {
   width: 1217px;
   min-height: 1328px;
@@ -249,7 +255,7 @@
 .project-upload-page {
   box-sizing: border-box;
   width: 1011px;
-  min-height: 1555px;
+  min-height: 1641px;
   padding: 13px 0 0;
   background: #ffffff;
   color: #000000;
@@ -279,7 +285,7 @@
   flex-direction: column;
   gap: 20px;
   width: 636px;
-  min-height: 1409px;
+  min-height: 1493px;
   padding: 26px 20px 28px 17px;
   border: 1px solid #dbdbdb;
   border-radius: 10px;
@@ -588,6 +594,90 @@
   min-width: 0;
   border-radius: 0;
   background: #ffffff;
+}
+
+.project-upload-payment {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 568px;
+  margin-top: -10px;
+}
+
+.project-upload-payment > span {
+  color: rgba(0, 0, 0, 0.4);
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 15px;
+}
+
+.project-upload-code-row {
+  display: grid;
+  grid-template-columns: 332px 110px 78px;
+  align-items: center;
+  gap: 22px;
+  width: 568px;
+}
+
+.project-upload-code-row input {
+  box-sizing: border-box;
+  width: 332px;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid #dbdbdb;
+  border-radius: 4px;
+  outline: 0;
+  background: #f9f9f9;
+  color: #000000;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.project-upload-code-row input::placeholder {
+  color: rgba(0, 0, 0, 0.4);
+}
+
+.project-upload-code-row button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 28px;
+  border: 1px solid #dbdbdb;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #000000;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 13px;
+  cursor: pointer;
+}
+
+.project-upload-payment-info {
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 568px;
+  min-height: 35px;
+  margin: 4px 0 0;
+  padding: 7px 10px;
+  border: 1px solid #dbdbdb;
+  border-radius: 4px;
+  background: #f9f9f9;
+  color: rgba(0, 0, 0, 0.4);
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 12px;
+}
+
+.project-upload-payment-info svg {
+  flex: 0 0 auto;
+  color: #000000;
 }
 
 .project-upload-file-section {

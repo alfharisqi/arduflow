@@ -13,7 +13,19 @@ import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
 import fileIcon from '../../assets/icons/icon-file-text-1.svg';
 import galleryIcon from '../../assets/icons/icon-image-placeholder-1.svg';
 import mapIcon from '../../assets/icons/icon-map-pin-1.svg';
-import zapIcon from '../../assets/icons/icon-zap-1.svg';
+import workshopMainImage from '../../assets/images/workshop-list-presentation-main.jpg';
+import workshopMarketImage from '../../assets/images/workshop-list-presentation-market.jpg';
+import workshopSpeakerImage from '../../assets/images/workshop-list-presentation-speaker.jpg';
+import workshopGroupImage from '../../assets/images/workshop-experience-group.png';
+import workshopStudentImage from '../../assets/images/workshop-experience-student.png';
+
+const galleryImages = [
+  workshopMainImage,
+  workshopMarketImage,
+  workshopSpeakerImage,
+  workshopGroupImage,
+  workshopStudentImage,
+];
 
 const galleryStats = [
   { label: 'Total Media', value: '1.248', note: 'Semua media', icon: cameraIcon, tone: 'blue' },
@@ -82,19 +94,18 @@ const mediaProblems = [
 function AdminGalleryTopbar() {
   return (
     <header className="admin-dashboard-topbar">
-      <label className="admin-dashboard-search">
-        <span aria-hidden="true" />
-        <input type="search" placeholder="Cari galeri kegiatan" aria-label="Cari galeri kegiatan" />
-      </label>
+      <div className="admin-dashboard-topbar-spacer" />
       <div className="admin-dashboard-account">
         <button className="admin-dashboard-notif" type="button" aria-label="Notifikasi">
           <img src={bellIcon} alt="" />
+          <em>5</em>
         </button>
         <span className="admin-dashboard-avatar" aria-hidden="true" />
         <span>
           <strong>Admin</strong>
           <small>Super Admin</small>
         </span>
+        <b aria-hidden="true">⌄</b>
       </div>
     </header>
   );
@@ -106,15 +117,38 @@ function GalleryBadge({ children }) {
 }
 
 function GalleryAction({ label, children }) {
+  let content = children;
+
+  if (label.startsWith('Edit ')) {
+    content = '✎';
+  } else if (label.startsWith('Featured ')) {
+    content = '☆';
+  } else if (label.startsWith('Menu ')) {
+    content = '⋮';
+  }
+
   return (
     <button className="admin-gallery-action" type="button" aria-label={label}>
-      {children}
+      {content}
     </button>
+  );
+}
+
+function GalleryThumbnail({ index, className = 'admin-gallery-thumb' }) {
+  return (
+    <img
+      className={`${className} is-${index % galleryImages.length}`}
+      src={galleryImages[index % galleryImages.length]}
+      alt=""
+      aria-hidden="true"
+    />
   );
 }
 
 export function AdminGallery() {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialAdminSidebarCollapsed);
+  const [selectedGalleryIndex, setSelectedGalleryIndex] = useState(null);
+  const selectedGallery = selectedGalleryIndex !== null ? galleryItems[selectedGalleryIndex] : null;
 
   const handleToggleSidebar = () => {
     setSidebarCollapsed((value) => {
@@ -124,6 +158,10 @@ export function AdminGallery() {
     });
   };
 
+  const handleSelectGallery = (index) => {
+    setSelectedGalleryIndex((currentIndex) => (currentIndex === index ? null : index));
+  };
+
   return (
     <main className={`admin-dashboard-page admin-gallery-page${isSidebarCollapsed ? ' admin-dashboard-page--collapsed' : ''}`}>
       <AdminSidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleSidebar} />
@@ -131,7 +169,7 @@ export function AdminGallery() {
       <section className="admin-dashboard-main" aria-label="Galeri kegiatan admin">
         <AdminGalleryTopbar />
 
-        <div className="admin-gallery-layout">
+        <div className={`admin-gallery-layout${selectedGallery ? ' admin-gallery-layout--detail-open' : ''}`}>
           <section className="admin-gallery-content">
             <div className="admin-gallery-heading">
               <div>
@@ -185,7 +223,14 @@ export function AdminGallery() {
               <table className="admin-gallery-table">
                 <thead>
                   <tr>
-                    <th><input type="checkbox" aria-label="Pilih semua galeri" /></th>
+                    <th>
+                      <input
+                        type="checkbox"
+                        aria-label="Pilih semua galeri"
+                        checked={selectedGalleryIndex !== null}
+                        onChange={() => setSelectedGalleryIndex(selectedGalleryIndex === null ? 0 : null)}
+                      />
+                    </th>
                     <th>Thumbnail</th>
                     <th>Judul Kegiatan</th>
                     <th>Jenis Media</th>
@@ -202,8 +247,15 @@ export function AdminGallery() {
                 <tbody>
                   {galleryItems.map((item, index) => (
                     <tr key={item[0]}>
-                      <td><input type="checkbox" aria-label={`Pilih ${item[0]}`} /></td>
-                      <td><span className={`admin-gallery-thumb is-${index % 5}`} /></td>
+                      <td>
+                        <input
+                          type="checkbox"
+                          aria-label={`Pilih ${item[0]}`}
+                          checked={selectedGalleryIndex === index}
+                          onChange={() => handleSelectGallery(index)}
+                        />
+                      </td>
+                      <td><GalleryThumbnail index={index} /></td>
                       <td><b>{item[0]}</b><small>{item[1]}</small></td>
                       <td><GalleryBadge>{item[2]}</GalleryBadge></td>
                       <td><GalleryBadge>{item[3]}</GalleryBadge></td>
@@ -216,8 +268,8 @@ export function AdminGallery() {
                       <td>
                         <div className="admin-gallery-actions">
                           <GalleryAction label={`Preview ${item[0]}`}><img src={eyeIcon} alt="" /></GalleryAction>
-                          <GalleryAction label={`Edit ${item[0]}`}>Edit</GalleryAction>
-                          <GalleryAction label={`Featured ${item[0]}`}>Star</GalleryAction>
+                          <GalleryAction label={`Edit ${item[0]}`}>✎</GalleryAction>
+                          <GalleryAction label={`Featured ${item[0]}`}>☆</GalleryAction>
                           <GalleryAction label={`Menu ${item[0]}`}>...</GalleryAction>
                         </div>
                       </td>
@@ -245,7 +297,7 @@ export function AdminGallery() {
               <article className="admin-gallery-panel">
                 <div className="admin-gallery-panel-head"><h2>Galeri Terbaru</h2><a href="/admin/gallery/recent">Lihat semua</a></div>
                 {recentGalleries.map((item, index) => (
-                  <p key={item[0]}><span className={`admin-gallery-mini-thumb is-${index}`} /><b>{item[0]}</b><time>{item[1]}</time></p>
+                  <p key={item[0]}><GalleryThumbnail index={index} className="admin-gallery-mini-thumb" /><b>{item[0]}</b><time>{item[1]}</time></p>
                 ))}
               </article>
 
@@ -270,7 +322,7 @@ export function AdminGallery() {
               <article className="admin-gallery-panel">
                 <div className="admin-gallery-panel-head"><h2>Draft Belum Publish</h2><a href="/admin/gallery/drafts">Lihat semua</a></div>
                 {draftGalleries.map((item, index) => (
-                  <p key={item[0]}><span className={`admin-gallery-mini-thumb is-${index + 1}`} /><b>{item[0]}</b><time>{item[1]}</time></p>
+                  <p key={item[0]}><GalleryThumbnail index={index + 1} className="admin-gallery-mini-thumb" /><b>{item[0]}</b><time>{item[1]}</time></p>
                 ))}
               </article>
             </section>
@@ -301,45 +353,47 @@ export function AdminGallery() {
             </section>
           </section>
 
-          <aside className="admin-gallery-detail" aria-label="Detail galeri">
-            <div className="admin-gallery-detail-head">
-              <h2>Detail Galeri</h2>
-              <button type="button" aria-label="Tutup detail">x</button>
-            </div>
-            <span className="admin-gallery-detail-image" />
-            <div className="admin-gallery-detail-title">
-              <h3>Workshop IoT Beginner</h3>
-              <GalleryBadge>Published</GalleryBadge>
-              <p><span>Foto</span><span>Workshop</span></p>
-            </div>
-            <dl>
-              <dt><img src={clockIcon} alt="" />Tanggal Kegiatan</dt><dd>18 Mei 2024</dd>
-              <dt><img src={mapIcon} alt="" />Lokasi</dt><dd>Lab Arduflow, Jakarta</dd>
-              <dt><img src={galleryIcon} alt="" />Jumlah Media</dt><dd>42 foto</dd>
-            </dl>
-            <section className="admin-gallery-description">
-              <h3>Deskripsi</h3>
-              <p>Dokumentasi kegiatan workshop dasar IoT untuk pemula. Peserta belajar membuat project IoT sederhana menggunakan Arduino dan sensor.</p>
-            </section>
-            <section className="admin-gallery-preview">
-              <h3>Preview Media</h3>
-              <div>
-                <span className="admin-gallery-mini-thumb is-0" />
-                <span className="admin-gallery-mini-thumb is-1" />
-                <span className="admin-gallery-mini-thumb is-2" />
-                <strong>+38</strong>
+          {selectedGallery && (
+            <aside className="admin-gallery-detail" aria-label="Detail galeri">
+              <div className="admin-gallery-detail-head">
+                <h2>Detail Galeri</h2>
+                <button type="button" aria-label="Tutup detail" onClick={() => setSelectedGalleryIndex(null)}>x</button>
               </div>
-              <a href="/admin/gallery/media">Lihat semua media</a>
-            </section>
-            <div className="admin-gallery-detail-actions">
-              <button type="button" className="is-blue">Edit Galeri</button>
-              <button type="button">Preview Galeri</button>
-              <button type="button" className="is-green">Publish / Unpublish</button>
-              <button type="button" className="is-purple">Atur Cover</button>
-              <button type="button" className="is-orange">Tandai Featured</button>
-              <button type="button" className="is-danger">Arsipkan</button>
-            </div>
-          </aside>
+              <GalleryThumbnail index={selectedGalleryIndex} className="admin-gallery-detail-image" />
+              <div className="admin-gallery-detail-title">
+                <h3>{selectedGallery[0]}</h3>
+                <GalleryBadge>{selectedGallery[5]}</GalleryBadge>
+                <p><span>{selectedGallery[2]}</span><span>{selectedGallery[3]}</span></p>
+              </div>
+              <dl>
+                <dt><img src={clockIcon} alt="" />Tanggal Kegiatan</dt><dd>{selectedGallery[7]}</dd>
+                <dt><img src={mapIcon} alt="" />Lokasi</dt><dd>Lab Arduflow, Jakarta</dd>
+                <dt><img src={galleryIcon} alt="" />Jumlah Media</dt><dd>{selectedGallery[4]} {selectedGallery[2].toLowerCase()}</dd>
+              </dl>
+              <section className="admin-gallery-description">
+                <h3>Deskripsi</h3>
+                <p>Dokumentasi kegiatan workshop dasar IoT untuk pemula. Peserta belajar membuat project IoT sederhana menggunakan Arduino dan sensor.</p>
+              </section>
+              <section className="admin-gallery-preview">
+                <h3>Preview Media</h3>
+                <div>
+                  <GalleryThumbnail index={0} className="admin-gallery-mini-thumb" />
+                  <GalleryThumbnail index={1} className="admin-gallery-mini-thumb" />
+                  <GalleryThumbnail index={2} className="admin-gallery-mini-thumb" />
+                  <strong>+38</strong>
+                </div>
+                <a href="/admin/gallery/media">Lihat semua media</a>
+              </section>
+              <div className="admin-gallery-detail-actions">
+                <button type="button" className="is-blue">Edit Galeri</button>
+                <button type="button">Preview Galeri</button>
+                <button type="button" className="is-green">Publish / Unpublish</button>
+                <button type="button" className="is-purple">Atur Cover</button>
+                <button type="button" className="is-orange">Tandai Featured</button>
+                <button type="button" className="is-danger">Arsipkan</button>
+              </div>
+            </aside>
+          )}
         </div>
       </section>
     </main>
