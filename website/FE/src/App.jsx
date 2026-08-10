@@ -289,10 +289,11 @@ function UserProtectedRoute({ children }) {
         );
 
         const user =
+          response?.user ||
           response?.data?.user;
 
         if (
-          response?.success &&
+          response?.success !== false &&
           user
         ) {
           console.log(
@@ -436,10 +437,11 @@ function AdminProtectedRoute({ children }) {
         );
 
         const admin =
+          response?.admin ||
           response?.data?.admin;
 
         if (
-          response?.success === true &&
+          response?.success !== false &&
           admin
         ) {
           console.log(
