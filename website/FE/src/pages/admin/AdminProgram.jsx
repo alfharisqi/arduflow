@@ -1,11 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AdminSidebar } from './AdminSidebar.jsx';
-import {
-  getInitialAdminSidebarCollapsed,
-  persistAdminSidebarCollapsed,
-} from './adminSidebarState.js';
+import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
 
-import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
@@ -16,9 +11,9 @@ import mapIcon from '../../assets/icons/icon-map-pin-1.svg';
 
 const API_URL =
   import.meta.env.VITE_WORKSHOP_API_URL ||
-  'http://192.168.130.11:8000/api/workshop-api.php';
+  'http://127.0.0.1:8000/api/workshop-api.php';
 
-const WORKSHOP_ENDPOINT = `${API_URL}/http://192.168.130.11:8000/api/workshop-api.php`;
+const WORKSHOP_ENDPOINT = API_URL;
 const PAGE_SIZE = 6;
 
 function normalizeWorkshop(row) {
@@ -99,42 +94,9 @@ function formatPrice(value) {
   }).format(number);
 }
 
-function AdminProgramTopbar({ searchTerm, onSearchChange }) {
-  return (
-    <header className="admin-dashboard-topbar">
-      <label className="admin-dashboard-search">
-        <span aria-hidden="true" />
-        <input
-          type="search"
-          placeholder="Cari workshop / program"
-          aria-label="Cari workshop atau program"
-          value={searchTerm}
-          onChange={(event) => onSearchChange(event.target.value)}
-        />
-      </label>
-
-      <div className="admin-dashboard-account">
-        <button className="admin-dashboard-notif" type="button" aria-label="Notifikasi">
-          <img src={bellIcon} alt="" />
-        </button>
-
-        <span className="admin-dashboard-avatar" aria-hidden="true" />
-
-        <span>
-          <strong>Admin</strong>
-          <small>Super Admin</small>
-        </span>
-      </div>
-    </header>
-  );
-}
-
 function ProgramBadge({ children }) {
   const label = String(children ?? '-');
-  const slug = label
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/\//g, '-');
+  const slug = createSlug(label);
 
   return (
     <span className={`admin-program-badge admin-program-badge--${slug}`}>
@@ -158,10 +120,6 @@ function ProgramAction({ label, children, onClick, disabled = false }) {
 }
 
 export function AdminProgram() {
-  const [isSidebarCollapsed, setSidebarCollapsed] = useState(
-    getInitialAdminSidebarCollapsed,
-  );
-
   const [workshops, setWorkshops] = useState([]);
   const [selectedWorkshopId, setSelectedWorkshopId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -174,23 +132,11 @@ export function AdminProgram() {
   const [dateFilter, setDateFilter] = useState('');
   const [page, setPage] = useState(1);
 
-  const handleToggleSidebar = () => {
-    setSidebarCollapsed((value) => {
-      const nextValue = !value;
-      persistAdminSidebarCollapsed(nextValue);
-      return nextValue;
-    });
-  };
-
   async function loadWorkshops() {
     setIsLoading(true);
     setLoadError('');
 
     try {
-      console.group('[AdminProgram] GET WORKSHOPS');
-      console.log('Endpoint:', WORKSHOP_ENDPOINT);
-      console.groupEnd();
-
       const response = await fetch(WORKSHOP_ENDPOINT, {
         method: 'GET',
         headers: {
@@ -209,11 +155,6 @@ export function AdminProgram() {
           `Response API bukan JSON. HTTP ${response.status}. Periksa URL ${WORKSHOP_ENDPOINT}.`,
         );
       }
-
-      console.group('[AdminProgram] RESPONSE API');
-      console.log('HTTP Status:', response.status);
-      console.log('Response:', result);
-      console.groupEnd();
 
       if (!response.ok || !result.success) {
         throw new Error(result.message || `Gagal mengambil workshop. HTTP ${response.status}.`);
@@ -431,22 +372,11 @@ export function AdminProgram() {
   );
 
   return (
-    <main
-      className={`admin-dashboard-page admin-program-page${
-        isSidebarCollapsed ? ' admin-dashboard-page--collapsed' : ''
-      }`}
-    >
-      <AdminSidebar
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={handleToggleSidebar}
-      />
-
-      <section
-        className="admin-dashboard-main"
-        aria-label="Workshop dan program admin"
-      >
-        <AdminProgramTopbar
-          searchTerm={searchTerm}
+    <AdminPage pageClassName="admin-program-page" ariaLabel="Workshop dan program admin">
+        <AdminTopbar
+          searchPlaceholder="Cari workshop / program"
+          searchLabel="Cari workshop atau program"
+          searchValue={searchTerm}
           onSearchChange={setSearchTerm}
         />
 
@@ -928,7 +858,6 @@ export function AdminProgram() {
             )}
           </aside>
         </div>
-      </section>
-    </main>
+    </AdminPage>
   );
 }

@@ -1,11 +1,6 @@
 import { useEffect, useState } from 'react';
-import { AdminSidebar } from './AdminSidebar.jsx';
-import {
-  getInitialAdminSidebarCollapsed,
-  persistAdminSidebarCollapsed,
-} from './adminSidebarState.js';
+import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
 import { getAdminDashboard, getAdminSession } from '../../services/authApi.js';
-import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import userIcon from '../../assets/icons/icon-user-2.svg';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
 import mailIcon from '../../assets/icons/icon-mail-1.svg';
@@ -83,8 +78,7 @@ function AdminMetricCard({ item }) {
 }
 
 function StatusBadge({ children }) {
-  const type = String(children).toLowerCase().replace(/\s+/g, '-');
-  return <span className={`admin-badge admin-badge--${type}`}>{children}</span>;
+  return <span className={`admin-badge admin-badge--${createSlug(children)}`}>{children}</span>;
 }
 
 function EmptyState({ children }) {
@@ -92,7 +86,6 @@ function EmptyState({ children }) {
 }
 
 export function AdminDashboard() {
-  const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialAdminSidebarCollapsed);
   const [dashboardData, setDashboardData] = useState(null);
   const [dashboardError, setDashboardError] = useState('');
 
@@ -115,14 +108,6 @@ export function AdminDashboard() {
     };
   }, []);
 
-  const handleToggleSidebar = () => {
-    setSidebarCollapsed((value) => {
-      const nextValue = !value;
-      persistAdminSidebarCollapsed(nextValue);
-      return nextValue;
-    });
-  };
-
   const storedAdmin = getStoredAdmin();
   const admin = dashboardData?.admin || storedAdmin || {};
   const metricItems = (dashboardData?.metrics || []).map((item) => ({
@@ -141,26 +126,13 @@ export function AdminDashboard() {
   const logItems = dashboardData?.logs || [];
 
   return (
-    <main className={`admin-dashboard-page${isSidebarCollapsed ? ' admin-dashboard-page--collapsed' : ''}`}>
-      <AdminSidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleSidebar} />
-
-      <section className="admin-dashboard-main" aria-label="Admin dashboard">
-        <header className="admin-dashboard-topbar">
-          <label className="admin-dashboard-search">
-            <span aria-hidden="true" />
-            <input type="search" placeholder="Cari data admin" aria-label="Cari data admin" />
-          </label>
-          <div className="admin-dashboard-account">
-            <button className="admin-dashboard-notif" type="button" aria-label="Notifikasi">
-              <img src={bellIcon} alt="" />
-            </button>
-            <span className="admin-dashboard-avatar" aria-hidden="true" />
-            <span>
-              <strong>{admin.name || 'Admin'}</strong>
-              <small>{admin.role || 'Super Admin'}</small>
-            </span>
-          </div>
-        </header>
+    <AdminPage ariaLabel="Admin dashboard">
+        <AdminTopbar
+          searchPlaceholder="Cari data admin"
+          searchLabel="Cari data admin"
+          adminName={admin.name || 'Admin'}
+          adminRole={admin.role || 'Super Admin'}
+        />
 
         <div className="admin-dashboard-content">
           <div className="admin-dashboard-titlebar">
@@ -353,7 +325,6 @@ export function AdminDashboard() {
             </article>
           </section>
         </div>
-      </section>
-    </main>
+    </AdminPage>
   );
 }

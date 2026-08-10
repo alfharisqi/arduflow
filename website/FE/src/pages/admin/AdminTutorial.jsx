@@ -1,13 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { AdminSidebar } from './AdminSidebar.jsx';
+import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
 
-import {
-  getInitialAdminSidebarCollapsed,
-  persistAdminSidebarCollapsed,
-} from './adminSidebarState.js';
-
-import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import bookIcon from '../../assets/icons/icon-book-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
@@ -27,54 +21,11 @@ const ARTICLE_API_URL = (
 ).trim();
 
 /* =========================================================
-   TOPBAR
-========================================================= */
-
-function AdminTutorialTopbar() {
-  return (
-    <header className="admin-dashboard-topbar">
-      <label className="admin-dashboard-search">
-        <span aria-hidden="true" />
-
-        <input
-          type="search"
-          placeholder="Cari tutorial / materi"
-          aria-label="Cari tutorial atau materi"
-        />
-      </label>
-
-      <div className="admin-dashboard-account">
-        <button
-          className="admin-dashboard-notif"
-          type="button"
-          aria-label="Notifikasi"
-        >
-          <img src={bellIcon} alt="" />
-        </button>
-
-        <span
-          className="admin-dashboard-avatar"
-          aria-hidden="true"
-        />
-
-        <span>
-          <strong>Admin</strong>
-          <small>Super Admin</small>
-        </span>
-      </div>
-    </header>
-  );
-}
-
-/* =========================================================
    BADGE
 ========================================================= */
 
 function TutorialBadge({ children }) {
-  const slug = String(children || '-')
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/\//g, '-');
+  const slug = createSlug(children || '-');
 
   return (
     <span
@@ -295,13 +246,6 @@ function normalizeTutorial(item) {
 
 export function AdminTutorial() {
   const [
-    isSidebarCollapsed,
-    setSidebarCollapsed,
-  ] = useState(
-    getInitialAdminSidebarCollapsed
-  );
-
-  const [
     tutorials,
     setTutorials,
   ] = useState([]);
@@ -340,25 +284,6 @@ export function AdminTutorial() {
     levelFilter,
     setLevelFilter,
   ] = useState('');
-
-  /* =======================================================
-     SIDEBAR
-  ======================================================= */
-
-  const handleToggleSidebar = () => {
-    setSidebarCollapsed(
-      (value) => {
-        const nextValue =
-          !value;
-
-        persistAdminSidebarCollapsed(
-          nextValue
-        );
-
-        return nextValue;
-      }
-    );
-  };
 
   /* =======================================================
      FETCH ARTICLE API
@@ -1081,27 +1006,11 @@ export function AdminTutorial() {
   ======================================================= */
 
   return (
-    <main
-      className={`admin-dashboard-page admin-tutorial-page${
-        isSidebarCollapsed
-          ? ' admin-dashboard-page--collapsed'
-          : ''
-      }`}
-    >
-      <AdminSidebar
-        isCollapsed={
-          isSidebarCollapsed
-        }
-        onToggleCollapse={
-          handleToggleSidebar
-        }
-      />
-
-      <section
-        className="admin-dashboard-main"
-        aria-label="Tutorial dan materi admin"
-      >
-        <AdminTutorialTopbar />
+    <AdminPage pageClassName="admin-tutorial-page" ariaLabel="Tutorial dan materi admin">
+        <AdminTopbar
+          searchPlaceholder="Cari tutorial / materi"
+          searchLabel="Cari tutorial atau materi"
+        />
 
         <div className="admin-tutorial-layout">
           <section className="admin-tutorial-content">
@@ -2203,8 +2112,7 @@ export function AdminTutorial() {
             )}
           </aside>
         </div>
-      </section>
-    </main>
+    </AdminPage>
   );
 }
 

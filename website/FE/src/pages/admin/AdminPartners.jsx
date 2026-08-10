@@ -1,10 +1,4 @@
-import { useState } from 'react';
-import { AdminSidebar } from './AdminSidebar.jsx';
-import {
-  getInitialAdminSidebarCollapsed,
-  persistAdminSidebarCollapsed,
-} from './adminSidebarState.js';
-import bellIcon from '../../assets/icons/icon-bell-1.svg';
+import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
 import calendarIcon from '../../assets/icons/icon-clock-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
 import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
@@ -78,29 +72,8 @@ const activities = [
   ['Partner "EduTech Indonesia" dipublish di homepage oleh Ahmad Fauzi', '16 Mei 2024 09:45', 'purple'],
 ];
 
-function AdminPartnersTopbar() {
-  return (
-    <header className="admin-dashboard-topbar">
-      <label className="admin-dashboard-search">
-        <span aria-hidden="true" />
-        <input type="search" placeholder="Cari partner / kolaborator" aria-label="Cari partner atau kolaborator" />
-      </label>
-      <div className="admin-dashboard-account">
-        <button className="admin-dashboard-notif" type="button" aria-label="Notifikasi">
-          <img src={bellIcon} alt="" />
-        </button>
-        <span className="admin-dashboard-avatar" aria-hidden="true" />
-        <span>
-          <strong>Admin</strong>
-          <small>Super Admin</small>
-        </span>
-      </div>
-    </header>
-  );
-}
-
 function PartnerBadge({ children }) {
-  const slug = String(children).toLowerCase().replace(/\s+/g, '-');
+  const slug = createSlug(children);
   return <span className={`admin-partners-badge admin-partners-badge--${slug}`}>{children}</span>;
 }
 
@@ -117,22 +90,12 @@ function PartnerAction({ label, children }) {
 }
 
 export function AdminPartners() {
-  const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialAdminSidebarCollapsed);
-
-  const handleToggleSidebar = () => {
-    setSidebarCollapsed((value) => {
-      const nextValue = !value;
-      persistAdminSidebarCollapsed(nextValue);
-      return nextValue;
-    });
-  };
-
   return (
-    <main className={`admin-dashboard-page admin-partners-page${isSidebarCollapsed ? ' admin-dashboard-page--collapsed' : ''}`}>
-      <AdminSidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleSidebar} />
-
-      <section className="admin-dashboard-main" aria-label="Partner dan kolaborator admin">
-        <AdminPartnersTopbar />
+    <AdminPage pageClassName="admin-partners-page" ariaLabel="Partner dan kolaborator admin">
+        <AdminTopbar
+          searchPlaceholder="Cari partner / kolaborator"
+          searchLabel="Cari partner atau kolaborator"
+        />
 
         <div className="admin-partners-layout">
           <section className="admin-partners-content">
@@ -329,7 +292,6 @@ export function AdminPartners() {
             </div>
           </aside>
         </div>
-      </section>
-    </main>
+    </AdminPage>
   );
 }

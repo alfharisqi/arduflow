@@ -7,7 +7,7 @@ const workshopTypes = ['Online', 'Offline', 'Hybrid'];
 
 const API_URL =
   import.meta.env.VITE_WORKSHOP_API_URL ||
-  'http://192.168.130.11:8000/api/workshop-api.php';
+  'http://127.0.0.1:8000/api/workshop-api.php';
 
 const requiredFields = [
   ['title', 'Judul Workshop'],
@@ -202,12 +202,12 @@ export function AdminTambahWorkshop() {
   async function sendWorkshopToApi(payload) {
     try {
       console.group('[AdminTambahWorkshop] REQUEST API');
-      console.log('Endpoint:', `${API_URL}/http://192.168.130.11:8000/api/workshop-api.php`);
+      console.log('Endpoint:', API_URL);
       console.log('Payload:', payload);
       console.log('JSON:', JSON.stringify(payload, null, 2));
       console.groupEnd();
 
-      const response = await fetch(`${API_URL}/http://192.168.130.11:8000/api/workshop-api.php`, {
+      const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

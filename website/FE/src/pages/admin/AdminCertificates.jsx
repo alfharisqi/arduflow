@@ -1,10 +1,4 @@
-import { useState } from 'react';
-import { AdminSidebar } from './AdminSidebar.jsx';
-import {
-  getInitialAdminSidebarCollapsed,
-  persistAdminSidebarCollapsed,
-} from './adminSidebarState.js';
-import bellIcon from '../../assets/icons/icon-bell-1.svg';
+import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
 import bookIcon from '../../assets/icons/icon-book-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
@@ -62,30 +56,8 @@ const distributionItems = [
   ['Expired', '80 (6.4%)', 'blue'],
 ];
 
-function AdminCertificatesTopbar() {
-  return (
-    <header className="admin-dashboard-topbar">
-      <label className="admin-dashboard-search">
-        <span aria-hidden="true" />
-        <input type="search" placeholder="Cari sertifikat" aria-label="Cari sertifikat" />
-      </label>
-      <div className="admin-dashboard-account">
-        <button className="admin-dashboard-notif" type="button" aria-label="Notifikasi">
-          <img src={bellIcon} alt="" />
-        </button>
-        <span className="admin-dashboard-avatar" aria-hidden="true" />
-        <span>
-          <strong>Admin</strong>
-          <small>Super Admin</small>
-        </span>
-      </div>
-    </header>
-  );
-}
-
 function CertificateBadge({ children }) {
-  const slug = String(children).toLowerCase().replace(/\s+/g, '-');
-  return <span className={`admin-certificates-badge admin-certificates-badge--${slug}`}>{children}</span>;
+  return <span className={`admin-certificates-badge admin-certificates-badge--${createSlug(children)}`}>{children}</span>;
 }
 
 function CertificateAction({ label, children }) {
@@ -97,22 +69,9 @@ function CertificateAction({ label, children }) {
 }
 
 export function AdminCertificates() {
-  const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialAdminSidebarCollapsed);
-
-  const handleToggleSidebar = () => {
-    setSidebarCollapsed((value) => {
-      const nextValue = !value;
-      persistAdminSidebarCollapsed(nextValue);
-      return nextValue;
-    });
-  };
-
   return (
-    <main className={`admin-dashboard-page admin-certificates-page${isSidebarCollapsed ? ' admin-dashboard-page--collapsed' : ''}`}>
-      <AdminSidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleSidebar} />
-
-      <section className="admin-dashboard-main" aria-label="Sertifikat admin">
-        <AdminCertificatesTopbar />
+    <AdminPage pageClassName="admin-certificates-page" ariaLabel="Sertifikat admin">
+        <AdminTopbar searchPlaceholder="Cari sertifikat" searchLabel="Cari sertifikat" />
 
         <div className="admin-certificates-layout">
           <section className="admin-certificates-content">
@@ -329,7 +288,6 @@ export function AdminCertificates() {
             </div>
           </aside>
         </div>
-      </section>
-    </main>
+    </AdminPage>
   );
 }

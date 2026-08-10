@@ -1,10 +1,4 @@
-import { useState } from 'react';
-import { AdminSidebar } from './AdminSidebar.jsx';
-import {
-  getInitialAdminSidebarCollapsed,
-  persistAdminSidebarCollapsed,
-} from './adminSidebarState.js';
-import bellIcon from '../../assets/icons/icon-bell-1.svg';
+import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
 import mailIcon from '../../assets/icons/icon-mail-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
@@ -50,30 +44,8 @@ const detailHistory = [
   ['Email verifikasi gagal', '20 Mei 2024 14:32 - SMTP connection failed', 'red'],
 ];
 
-function AdminVerificationTopbar() {
-  return (
-    <header className="admin-dashboard-topbar">
-      <label className="admin-dashboard-search">
-        <span aria-hidden="true" />
-        <input type="search" placeholder="Cari verifikasi akun" aria-label="Cari verifikasi akun" />
-      </label>
-      <div className="admin-dashboard-account">
-        <button className="admin-dashboard-notif" type="button" aria-label="Notifikasi">
-          <img src={bellIcon} alt="" />
-        </button>
-        <span className="admin-dashboard-avatar" aria-hidden="true" />
-        <span>
-          <strong>Admin</strong>
-          <small>Super Admin</small>
-        </span>
-      </div>
-    </header>
-  );
-}
-
 function VerificationBadge({ children }) {
-  const slug = String(children).toLowerCase().replace(/\s+/g, '-');
-  return <span className={`admin-verification-badge admin-verification-badge--${slug}`}>{children}</span>;
+  return <span className={`admin-verification-badge admin-verification-badge--${createSlug(children)}`}>{children}</span>;
 }
 
 function ActionButton({ label, children }) {
@@ -85,22 +57,9 @@ function ActionButton({ label, children }) {
 }
 
 export function AdminVerification() {
-  const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialAdminSidebarCollapsed);
-
-  const handleToggleSidebar = () => {
-    setSidebarCollapsed((value) => {
-      const nextValue = !value;
-      persistAdminSidebarCollapsed(nextValue);
-      return nextValue;
-    });
-  };
-
   return (
-    <main className={`admin-dashboard-page admin-verification-page${isSidebarCollapsed ? ' admin-dashboard-page--collapsed' : ''}`}>
-      <AdminSidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleSidebar} />
-
-      <section className="admin-dashboard-main" aria-label="Verifikasi akun admin">
-        <AdminVerificationTopbar />
+    <AdminPage pageClassName="admin-verification-page" ariaLabel="Verifikasi akun admin">
+        <AdminTopbar searchPlaceholder="Cari verifikasi akun" searchLabel="Cari verifikasi akun" />
 
         <div className="admin-verification-layout">
           <section className="admin-verification-content">
@@ -316,7 +275,6 @@ export function AdminVerification() {
             </div>
           </aside>
         </div>
-      </section>
-    </main>
+    </AdminPage>
   );
 }

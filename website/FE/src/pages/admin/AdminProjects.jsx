@@ -1,10 +1,4 @@
-import { useState } from 'react';
-import { AdminSidebar } from './AdminSidebar.jsx';
-import {
-  getInitialAdminSidebarCollapsed,
-  persistAdminSidebarCollapsed,
-} from './adminSidebarState.js';
-import bellIcon from '../../assets/icons/icon-bell-1.svg';
+import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
 import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
@@ -63,30 +57,8 @@ const activityItems = [
   ['Proyek "Energy Meter IoT" diupdate', '17 Mei 2024 16:30', 'green'],
 ];
 
-function AdminProjectsTopbar() {
-  return (
-    <header className="admin-dashboard-topbar">
-      <label className="admin-dashboard-search">
-        <span aria-hidden="true" />
-        <input type="search" placeholder="Cari proyek" aria-label="Cari proyek" />
-      </label>
-      <div className="admin-dashboard-account">
-        <button className="admin-dashboard-notif" type="button" aria-label="Notifikasi">
-          <img src={bellIcon} alt="" />
-        </button>
-        <span className="admin-dashboard-avatar" aria-hidden="true" />
-        <span>
-          <strong>Admin</strong>
-          <small>Super Admin</small>
-        </span>
-      </div>
-    </header>
-  );
-}
-
 function ProjectBadge({ children }) {
-  const slug = String(children).toLowerCase().replace(/\s+/g, '-').replace(/\//g, '-');
-  return <span className={`admin-projects-badge admin-projects-badge--${slug}`}>{children}</span>;
+  return <span className={`admin-projects-badge admin-projects-badge--${createSlug(children)}`}>{children}</span>;
 }
 
 function ProjectAction({ label, children, active = false }) {
@@ -98,22 +70,9 @@ function ProjectAction({ label, children, active = false }) {
 }
 
 export function AdminProjects() {
-  const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialAdminSidebarCollapsed);
-
-  const handleToggleSidebar = () => {
-    setSidebarCollapsed((value) => {
-      const nextValue = !value;
-      persistAdminSidebarCollapsed(nextValue);
-      return nextValue;
-    });
-  };
-
   return (
-    <main className={`admin-dashboard-page admin-projects-page${isSidebarCollapsed ? ' admin-dashboard-page--collapsed' : ''}`}>
-      <AdminSidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleSidebar} />
-
-      <section className="admin-dashboard-main" aria-label="Proyek admin">
-        <AdminProjectsTopbar />
+    <AdminPage pageClassName="admin-projects-page" ariaLabel="Proyek admin">
+        <AdminTopbar searchPlaceholder="Cari proyek" searchLabel="Cari proyek" />
 
         <div className="admin-projects-layout">
           <section className="admin-projects-content">
@@ -344,7 +303,6 @@ export function AdminProjects() {
             </div>
           </aside>
         </div>
-      </section>
-    </main>
+    </AdminPage>
   );
 }

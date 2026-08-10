@@ -1,6 +1,29 @@
 # ArduFlow PHP API
 
-Backend PHP ini adalah target migrasi bertahap dari `website/BE`. Backend Node.js belum dihapus dan frontend belum dialihkan selama endpoint PHP belum kompatibel.
+Backend PHP ini adalah target migrasi dari `website/BE`. Entry point utama ada di `public/index.php` dan routing utama ada di `app/Application.php`.
+
+## Struktur folder
+
+```text
+API/
+  app/                 Kode utama backend PHP: controller, service, repository, HTTP, security.
+  api/                 Endpoint legacy/prosedural yang belum dipindah ke app/.
+  bootstrap/           Bootstrap aplikasi dan context konfigurasi.
+  config/              Konfigurasi app, auth, database, mail, MQTT, sync, backup.
+  migrations/          Migrasi SQLite dan MySQL.
+  public/              Document root untuk PHP built-in server atau web server.
+  scripts/             Script operasional database, import, seed, backup, sync.
+  storage/             Database aktif, backup, dan log runtime.
+  tests/               Test integrasi sederhana.
+  router.php           Wrapper root untuk development server.
+```
+
+Catatan folder:
+
+- Jalankan server dari root `website/API` agar semua path config, storage, dan autoload konsisten.
+- `storage/database/arduflow.sqlite` adalah database aktif sesuai `config/database.php`.
+- `api/` dipertahankan untuk endpoint legacy seperti `/api/leads`, `/api/articles`, dan `/api/projects`.
+- Endpoint auth/admin/workshop/program utama dilayani dari `app/`, bukan dari file prosedural di `api/`.
 
 ## Menjalankan API lokal
 
@@ -12,7 +35,13 @@ php scripts/check-runtime.php
 php scripts/init-sqlite.php
 php scripts/import-auth-from-node-sqlite.php
 php scripts/seed-admin.php
-php -S 127.0.0.1:8000 -t public public/router.php
+php -S 0.0.0.0:8000 router.php
+```
+
+Alternatif yang setara jika ingin memakai document root `public` secara eksplisit:
+
+```bash
+php -S 0.0.0.0:8000 -t public public/router.php
 ```
 
 Isi `ADMIN_SEED_PASSWORD` dan variabel admin lain pada `.env` sebelum menjalankan seed. Import auth membuat backup SQLite PHP, mempertahankan ID user/admin, tidak membawa sesi lama, dan tidak membuat event outbox.
@@ -37,6 +66,9 @@ Endpoint yang tersedia:
 - `POST /api/admin/database-sync/run`
 - `POST /api/admin/database-sync/retry-failed`
 - `POST /api/internal/sync/sqlite-to-mysql` (Bearer + HMAC, bukan untuk pengguna)
+- `POST /api/leads` (legacy procedural)
+- `GET|POST /api/articles` (legacy procedural)
+- `GET|POST /api/projects` (legacy procedural)
 
 Jangan meletakkan `storage/database/arduflow.sqlite` di bawah `public`.
 

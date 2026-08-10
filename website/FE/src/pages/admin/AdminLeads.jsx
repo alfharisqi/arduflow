@@ -1,10 +1,4 @@
-import { useState } from 'react';
-import { AdminSidebar } from './AdminSidebar.jsx';
-import {
-  getInitialAdminSidebarCollapsed,
-  persistAdminSidebarCollapsed,
-} from './adminSidebarState.js';
-import bellIcon from '../../assets/icons/icon-bell-1.svg';
+import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
 import mailIcon from '../../assets/icons/icon-mail-1.svg';
 import messageIcon from '../../assets/icons/icon-message-square-1.svg';
@@ -62,30 +56,8 @@ const conversions = [
   ['Tidak Konversi', '18 (12%)', 'gray'],
 ];
 
-function AdminLeadsTopbar() {
-  return (
-    <header className="admin-dashboard-topbar">
-      <label className="admin-dashboard-search">
-        <span aria-hidden="true" />
-        <input type="search" placeholder="Cari lead / kontak" aria-label="Cari lead atau kontak" />
-      </label>
-      <div className="admin-dashboard-account">
-        <button className="admin-dashboard-notif" type="button" aria-label="Notifikasi">
-          <img src={bellIcon} alt="" />
-        </button>
-        <span className="admin-dashboard-avatar" aria-hidden="true" />
-        <span>
-          <strong>Admin</strong>
-          <small>Super Admin</small>
-        </span>
-      </div>
-    </header>
-  );
-}
-
 function LeadBadge({ children }) {
-  const slug = String(children).toLowerCase().replace(/\s+/g, '-');
-  return <span className={`admin-leads-badge admin-leads-badge--${slug}`}>{children}</span>;
+  return <span className={`admin-leads-badge admin-leads-badge--${createSlug(children)}`}>{children}</span>;
 }
 
 function LeadAction({ label, children }) {
@@ -97,22 +69,9 @@ function LeadAction({ label, children }) {
 }
 
 export function AdminLeads() {
-  const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialAdminSidebarCollapsed);
-
-  const handleToggleSidebar = () => {
-    setSidebarCollapsed((value) => {
-      const nextValue = !value;
-      persistAdminSidebarCollapsed(nextValue);
-      return nextValue;
-    });
-  };
-
   return (
-    <main className={`admin-dashboard-page admin-leads-page${isSidebarCollapsed ? ' admin-dashboard-page--collapsed' : ''}`}>
-      <AdminSidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleSidebar} />
-
-      <section className="admin-dashboard-main" aria-label="Lead dan kontak admin">
-        <AdminLeadsTopbar />
+    <AdminPage pageClassName="admin-leads-page" ariaLabel="Lead dan kontak admin">
+        <AdminTopbar searchPlaceholder="Cari lead / kontak" searchLabel="Cari lead atau kontak" />
 
         <div className="admin-leads-layout">
           <section className="admin-leads-content">
@@ -326,7 +285,6 @@ export function AdminLeads() {
             </div>
           </aside>
         </div>
-      </section>
-    </main>
+    </AdminPage>
   );
 }

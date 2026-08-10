@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 
 import { Layout } from './components/Layout.jsx';
 
@@ -43,19 +43,8 @@ import { UserCertificates } from './pages/User/UserCertificates.jsx';
 ========================= */
 
 import { AdminLogin } from './pages/admin/AdminLogin.jsx';
-import { AdminDashboard } from './pages/admin/AdminDashboard.jsx';
-import { AdminUsers } from './pages/admin/AdminUsers.jsx';
-import { AdminVerification } from './pages/admin/AdminVerification.jsx';
-import { AdminProgram } from './pages/admin/AdminProgram.jsx';
-import { AdminLeads } from './pages/admin/AdminLeads.jsx';
-import { AdminCertificates } from './pages/admin/AdminCertificates.jsx';
 
-import { AdminTutorial } from './pages/admin/AdminTutorial.jsx';
-import { AdminTutorialCreate } from './pages/admin/AdminTutorialCreate.jsx';
 
-import { AdminProjects } from './pages/admin/AdminProjects.jsx';
-import { AdminGallery } from './pages/admin/AdminGallery.jsx';
-import { AdminPartners } from './pages/admin/AdminPartners.jsx';
 
 import { NotFound } from './pages/NotFound.jsx';
 
@@ -70,6 +59,26 @@ import { showAuthRequiredAlert } from './utils/alerts.js';
 /* =========================================================
    ROUTES
 ========================================================= */
+
+function lazyNamed(loader, exportName) {
+  return lazy(() =>
+    loader().then((module) => ({
+      default: module[exportName],
+    }))
+  );
+}
+
+const AdminDashboard = lazyNamed(() => import('./pages/admin/AdminDashboard.jsx'), 'AdminDashboard');
+const AdminUsers = lazyNamed(() => import('./pages/admin/AdminUsers.jsx'), 'AdminUsers');
+const AdminVerification = lazyNamed(() => import('./pages/admin/AdminVerification.jsx'), 'AdminVerification');
+const AdminProgram = lazyNamed(() => import('./pages/admin/AdminProgram.jsx'), 'AdminProgram');
+const AdminLeads = lazyNamed(() => import('./pages/admin/AdminLeads.jsx'), 'AdminLeads');
+const AdminCertificates = lazyNamed(() => import('./pages/admin/AdminCertificates.jsx'), 'AdminCertificates');
+const AdminTutorial = lazyNamed(() => import('./pages/admin/AdminTutorial.jsx'), 'AdminTutorial');
+const AdminTutorialCreate = lazyNamed(() => import('./pages/admin/AdminTutorialCreate.jsx'), 'AdminTutorialCreate');
+const AdminProjects = lazyNamed(() => import('./pages/admin/AdminProjects.jsx'), 'AdminProjects');
+const AdminGallery = lazyNamed(() => import('./pages/admin/AdminGallery.jsx'), 'AdminGallery');
+const AdminPartners = lazyNamed(() => import('./pages/admin/AdminPartners.jsx'), 'AdminPartners');
 
 const routes = {
   '/': Home,
@@ -562,6 +571,12 @@ export default function App() {
       </AdminProtectedRoute>
     );
   }
+
+  page = (
+    <Suspense fallback={null}>
+      {page}
+    </Suspense>
+  );
 
   /* =======================================================
      STANDALONE

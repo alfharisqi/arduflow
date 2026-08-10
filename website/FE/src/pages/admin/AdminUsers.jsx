@@ -1,10 +1,4 @@
-import { useState } from 'react';
-import { AdminSidebar } from './AdminSidebar.jsx';
-import {
-  getInitialAdminSidebarCollapsed,
-  persistAdminSidebarCollapsed,
-} from './adminSidebarState.js';
-import bellIcon from '../../assets/icons/icon-bell-1.svg';
+import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
 import userIcon from '../../assets/icons/icon-user-2.svg';
 import mailIcon from '../../assets/icons/icon-mail-1.svg';
@@ -42,49 +36,14 @@ const activityItems = [
   ['Nabila Putri', 'Request token IDE', 'Kemarin 17:05'],
 ];
 
-function AdminUsersTopbar() {
-  return (
-    <header className="admin-dashboard-topbar">
-      <label className="admin-dashboard-search">
-        <span aria-hidden="true" />
-        <input type="search" placeholder="Cari data user" aria-label="Cari data user" />
-      </label>
-      <div className="admin-dashboard-account">
-        <button className="admin-dashboard-notif" type="button" aria-label="Notifikasi">
-          <img src={bellIcon} alt="" />
-        </button>
-        <span className="admin-dashboard-avatar" aria-hidden="true" />
-        <span>
-          <strong>Admin</strong>
-          <small>Super Admin</small>
-        </span>
-      </div>
-    </header>
-  );
-}
-
 function UserBadge({ children }) {
-  const slug = String(children).toLowerCase().replace(/\s+/g, '-');
-  return <span className={`admin-users-badge admin-users-badge--${slug}`}>{children}</span>;
+  return <span className={`admin-users-badge admin-users-badge--${createSlug(children)}`}>{children}</span>;
 }
 
 export function AdminUsers() {
-  const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialAdminSidebarCollapsed);
-
-  const handleToggleSidebar = () => {
-    setSidebarCollapsed((value) => {
-      const nextValue = !value;
-      persistAdminSidebarCollapsed(nextValue);
-      return nextValue;
-    });
-  };
-
   return (
-    <main className={`admin-dashboard-page admin-users-page${isSidebarCollapsed ? ' admin-dashboard-page--collapsed' : ''}`}>
-      <AdminSidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleSidebar} />
-
-      <section className="admin-dashboard-main" aria-label="Manajemen user admin">
-        <AdminUsersTopbar />
+    <AdminPage pageClassName="admin-users-page" ariaLabel="Manajemen user admin">
+        <AdminTopbar searchPlaceholder="Cari data user" searchLabel="Cari data user" />
 
         <div className="admin-users-layout">
           <section className="admin-users-content">
@@ -242,7 +201,6 @@ export function AdminUsers() {
             <button type="button" className="admin-users-detail-button">Lihat Profil Lengkap</button>
           </aside>
         </div>
-      </section>
-    </main>
+    </AdminPage>
   );
 }

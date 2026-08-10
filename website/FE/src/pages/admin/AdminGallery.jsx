@@ -1,10 +1,4 @@
-import { useState } from 'react';
-import { AdminSidebar } from './AdminSidebar.jsx';
-import {
-  getInitialAdminSidebarCollapsed,
-  persistAdminSidebarCollapsed,
-} from './adminSidebarState.js';
-import bellIcon from '../../assets/icons/icon-bell-1.svg';
+import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
 import cameraIcon from '../../assets/icons/icon-image-placeholder-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
@@ -79,29 +73,8 @@ const mediaProblems = [
   ['Link rusak', 4],
 ];
 
-function AdminGalleryTopbar() {
-  return (
-    <header className="admin-dashboard-topbar">
-      <label className="admin-dashboard-search">
-        <span aria-hidden="true" />
-        <input type="search" placeholder="Cari galeri kegiatan" aria-label="Cari galeri kegiatan" />
-      </label>
-      <div className="admin-dashboard-account">
-        <button className="admin-dashboard-notif" type="button" aria-label="Notifikasi">
-          <img src={bellIcon} alt="" />
-        </button>
-        <span className="admin-dashboard-avatar" aria-hidden="true" />
-        <span>
-          <strong>Admin</strong>
-          <small>Super Admin</small>
-        </span>
-      </div>
-    </header>
-  );
-}
-
 function GalleryBadge({ children }) {
-  const slug = String(children).toLowerCase().replace(/\s+/g, '-').replace(/\//g, '-');
+  const slug = createSlug(children);
   return <span className={`admin-gallery-badge admin-gallery-badge--${slug}`}>{children}</span>;
 }
 
@@ -114,22 +87,9 @@ function GalleryAction({ label, children }) {
 }
 
 export function AdminGallery() {
-  const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialAdminSidebarCollapsed);
-
-  const handleToggleSidebar = () => {
-    setSidebarCollapsed((value) => {
-      const nextValue = !value;
-      persistAdminSidebarCollapsed(nextValue);
-      return nextValue;
-    });
-  };
-
   return (
-    <main className={`admin-dashboard-page admin-gallery-page${isSidebarCollapsed ? ' admin-dashboard-page--collapsed' : ''}`}>
-      <AdminSidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleSidebar} />
-
-      <section className="admin-dashboard-main" aria-label="Galeri kegiatan admin">
-        <AdminGalleryTopbar />
+    <AdminPage pageClassName="admin-gallery-page" ariaLabel="Galeri kegiatan admin">
+        <AdminTopbar searchPlaceholder="Cari galeri kegiatan" searchLabel="Cari galeri kegiatan" />
 
         <div className="admin-gallery-layout">
           <section className="admin-gallery-content">
@@ -341,7 +301,6 @@ export function AdminGallery() {
             </div>
           </aside>
         </div>
-      </section>
-    </main>
+    </AdminPage>
   );
 }
