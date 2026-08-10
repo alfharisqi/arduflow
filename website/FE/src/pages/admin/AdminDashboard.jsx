@@ -268,8 +268,8 @@ export function AdminDashboard() {
                 </thead>
                 <tbody>
                   {leadItems.length ? (
-                    leadItems.map((row) => (
-                      <tr key={`${row.email}-${row.topic}`}>
+                    leadItems.map((row, index) => (
+                      <tr key={`${row.email}-${row.topic}-${row.date}-${index}`}>
                         <td>{row.name}</td>
                         <td>{row.email}</td>
                         <td>{row.topic}</td>

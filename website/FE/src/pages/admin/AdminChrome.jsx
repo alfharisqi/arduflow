@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import { AdminSidebar } from './AdminSidebar.jsx';
 import {
@@ -32,17 +32,25 @@ export function useAdminSidebar() {
 export function AdminTopbar({
   searchPlaceholder = 'Cari data admin',
   searchLabel = searchPlaceholder,
+  searchId,
+  searchName,
   searchValue,
   onSearchChange,
   adminName = 'Admin',
   adminRole = 'Super Admin',
   children,
 }) {
+  const generatedSearchId = useId();
+  const inputId = searchId || generatedSearchId;
+  const inputName = searchName || createSlug(searchLabel || 'admin-search');
+
   return (
     <header className="admin-dashboard-topbar">
-      <label className="admin-dashboard-search">
+      <label className="admin-dashboard-search" htmlFor={inputId}>
         <span aria-hidden="true" />
         <input
+          id={inputId}
+          name={inputName}
           type="search"
           placeholder={searchPlaceholder}
           aria-label={searchLabel}
