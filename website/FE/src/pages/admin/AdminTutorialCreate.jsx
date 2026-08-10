@@ -1,10 +1,10 @@
 import { useMemo, useRef, useState } from 'react';
+import { apiEndpoint } from '../../services/apiEndpoints.js';
 import '../../styles/admin-tutorial-create.css';
 
 const ARTICLE_API_URL = (
-  import.meta.env.VITE_ARTICLE_API_URL ||
-  'http://127.0.0.1:8000/api/article-api.php'
-).trim();
+  apiEndpoint(import.meta.env.VITE_ARTICLE_API_URL, '/api/article-api.php')
+);
 
 const initialSlides = [
   { id: 1, title: 'Pengantar ArduFlow', contentType: 'text_image' },

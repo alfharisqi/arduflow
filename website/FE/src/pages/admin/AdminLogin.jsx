@@ -84,7 +84,7 @@ export function AdminLogin() {
       */
 
       const response = await loginAdmin({
-        identifier: username,
+        username,
         password,
       });
 
@@ -110,12 +110,16 @@ export function AdminLogin() {
       */
 
       const token =
+        response?.token ||
         response?.data?.token;
 
       const admin =
+        response?.admin ||
         response?.data?.admin;
 
       const expiresAt =
+        response?.expiresAt ||
+        response?.data?.expiresAt ||
         response?.data?.expires_at;
 
       /*
@@ -125,7 +129,7 @@ export function AdminLogin() {
       */
 
       if (
-        response?.success !== true ||
+        response?.success === false ||
         !token ||
         !admin
       ) {

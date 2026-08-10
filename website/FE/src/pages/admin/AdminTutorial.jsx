@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
+import { apiEndpoint } from '../../services/apiEndpoints.js';
 
 import bookIcon from '../../assets/icons/icon-book-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
@@ -16,9 +17,8 @@ import zapIcon from '../../assets/icons/icon-zap-1.svg';
 ========================================================= */
 
 const ARTICLE_API_URL = (
-  import.meta.env.VITE_ARTICLE_API_URL ||
-  'http://127.0.0.1:8000/api/article-api.php'
-).trim();
+  apiEndpoint(import.meta.env.VITE_ARTICLE_API_URL, '/api/article-api.php')
+);
 
 /* =========================================================
    BADGE

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
-import { getAdminDashboard, getAdminSession } from '../../services/authApi.js';
+import { getAdminDashboard } from '../../services/authApi.js';
 import userIcon from '../../assets/icons/icon-user-2.svg';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
 import mailIcon from '../../assets/icons/icon-mail-1.svg';
@@ -22,7 +22,7 @@ const metricIcons = {
 
 function getStoredAdmin() {
   try {
-    return getAdminSession();
+    return JSON.parse(window.localStorage.getItem('arduflow_admin') || 'null');
   } catch {
     return null;
   }

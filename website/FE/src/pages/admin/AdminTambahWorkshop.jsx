@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { apiEndpoint } from '../../services/apiEndpoints.js';
 
 const levels = ['Pemula', 'Menengah', 'Lanjutan'];
 const categories = ['Arduino', 'IoT', 'Visual Programming', 'Sekolah'];
@@ -6,8 +7,7 @@ const timezones = ['WIB (GMT+7)', 'WITA (GMT+8)', 'WIT (GMT+9)'];
 const workshopTypes = ['Online', 'Offline', 'Hybrid'];
 
 const API_URL =
-  import.meta.env.VITE_WORKSHOP_API_URL ||
-  'http://127.0.0.1:8000/api/workshop-api.php';
+  apiEndpoint(import.meta.env.VITE_WORKSHOP_API_URL, '/api/workshop-api.php');
 
 const requiredFields = [
   ['title', 'Judul Workshop'],

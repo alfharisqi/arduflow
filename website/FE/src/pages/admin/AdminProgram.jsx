@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
+import { apiEndpoint } from '../../services/apiEndpoints.js';
 
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
@@ -10,8 +11,7 @@ import arrowIcon from '../../assets/icons/icon-arrow-right-1.svg';
 import mapIcon from '../../assets/icons/icon-map-pin-1.svg';
 
 const API_URL =
-  import.meta.env.VITE_WORKSHOP_API_URL ||
-  'http://127.0.0.1:8000/api/workshop-api.php';
+  apiEndpoint(import.meta.env.VITE_WORKSHOP_API_URL, '/api/workshop-api.php');
 
 const WORKSHOP_ENDPOINT = API_URL;
 const PAGE_SIZE = 6;
