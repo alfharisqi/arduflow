@@ -48,6 +48,16 @@ if (!in_array($method, ['GET', 'POST'], true)) {
 $projectRoot = dirname(__DIR__);
 $configPath = $projectRoot . '/config/database.php';
 
+$imageStoragePath = $projectRoot . '/api/support/image-storage.php';
+
+if (file_exists($imageStoragePath)) {
+    require_once $imageStoragePath;
+}
+
+$projectImageStorage = function_exists('ensureUploadStorage')
+    ? ensureUploadStorage($projectRoot, 'projects')
+    : null;
+
 if (!file_exists($configPath)) {
     http_response_code(500);
 
@@ -153,11 +163,24 @@ try {
             description TEXT NOT NULL,
             status TEXT NOT NULL DEFAULT "draft",
             visibility TEXT NOT NULL DEFAULT "draft",
+            cover_image_name TEXT,
+            cover_image_type TEXT,
+            cover_image_size INTEGER,
+            cover_image_path TEXT,
+            cover_image_url TEXT,
             payload_json TEXT NOT NULL,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )'
     );
+
+    if (function_exists('addColumnIfMissing')) {
+        addColumnIfMissing($pdo, 'project_submissions', 'cover_image_name', 'TEXT');
+        addColumnIfMissing($pdo, 'project_submissions', 'cover_image_type', 'TEXT');
+        addColumnIfMissing($pdo, 'project_submissions', 'cover_image_size', 'INTEGER');
+        addColumnIfMissing($pdo, 'project_submissions', 'cover_image_path', 'TEXT');
+        addColumnIfMissing($pdo, 'project_submissions', 'cover_image_url', 'TEXT');
+    }
 
     if ($method === 'GET') {
 
@@ -195,6 +218,14 @@ try {
 
                 'visibility' =>
                     $row['visibility'],
+
+                'coverImage' => [
+                    'file_name' => $row['cover_image_name'] ?? null,
+                    'file_type' => $row['cover_image_type'] ?? null,
+                    'file_size' => isset($row['cover_image_size']) ? (int) $row['cover_image_size'] : null,
+                    'file_path' => $row['cover_image_path'] ?? null,
+                    'file_url' => $row['cover_image_url'] ?? null,
+                ],
 
                 'ownerName' =>
                     $payload['ownerName'] ?? 'User',
@@ -310,6 +341,32 @@ try {
             (string) ($project['visibility'] ?? 'draft')
         );
 
+        $coverImageData =
+            isset($project['coverImage']) && is_array($project['coverImage'])
+                ? $project['coverImage']
+                : (isset($project['cover_image']) && is_array($project['cover_image'])
+                    ? $project['cover_image']
+                    : (isset($project['image']) && is_array($project['image'])
+                        ? $project['image']
+                        : (isset($project['thumbnail']) && is_array($project['thumbnail'])
+                            ? $project['thumbnail']
+                            : [])));
+
+        $coverImage = function_exists('normalizeStoredImage')
+            ? normalizeStoredImage(
+                $coverImageData,
+                $GLOBALS['projectImageStorage'] ?? [
+                    'path' => $projectRoot . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'projects',
+                    'url' => '/uploads/projects',
+                ],
+                'project-cover'
+            )
+            : null;
+
+        if ($coverImage !== null) {
+            $project['coverImage'] = $coverImage;
+        }
+
         $errors = [];
 
         if ($title === '') {
@@ -363,6 +420,11 @@ try {
                 description,
                 status,
                 visibility,
+                cover_image_name,
+                cover_image_type,
+                cover_image_size,
+                cover_image_path,
+                cover_image_url,
                 payload_json,
                 created_at,
                 updated_at
@@ -372,6 +434,11 @@ try {
                 :description,
                 :status,
                 :visibility,
+                :cover_image_name,
+                :cover_image_type,
+                :cover_image_size,
+                :cover_image_path,
+                :cover_image_url,
                 :payload_json,
                 :created_at,
                 :updated_at
@@ -397,6 +464,21 @@ try {
                 $visibility !== ''
                     ? $visibility
                     : 'draft',
+
+            ':cover_image_name' =>
+                $coverImage['file_name'] ?? null,
+
+            ':cover_image_type' =>
+                $coverImage['file_type'] ?? null,
+
+            ':cover_image_size' =>
+                $coverImage['file_size'] ?? null,
+
+            ':cover_image_path' =>
+                $coverImage['file_path'] ?? null,
+
+            ':cover_image_url' =>
+                $coverImage['file_url'] ?? null,
 
             ':payload_json' =>
                 $payloadJson,
@@ -439,6 +521,9 @@ try {
                     $visibility !== ''
                         ? $visibility
                         : 'draft',
+
+                'coverImage' =>
+                    $coverImage,
 
                 'createdAt' =>
                     $now,

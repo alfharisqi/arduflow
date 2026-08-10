@@ -9,6 +9,27 @@ if ($path !== '/' && is_file($file)) {
     return false;
 }
 
+if (str_starts_with($path, '/uploads/')) {
+    $uploadPath = realpath(__DIR__ . '/../storage' . $path);
+    $uploadRoot = realpath(__DIR__ . '/../storage/uploads');
+
+    if (
+        $uploadPath !== false
+        && $uploadRoot !== false
+        && str_starts_with($uploadPath, $uploadRoot)
+        && is_file($uploadPath)
+    ) {
+        $mimeType = function_exists('mime_content_type')
+            ? mime_content_type($uploadPath)
+            : 'application/octet-stream';
+
+        header('Content-Type: ' . ($mimeType ?: 'application/octet-stream'));
+        header('Content-Length: ' . filesize($uploadPath));
+        readfile($uploadPath);
+        return true;
+    }
+}
+
 $legacyRoutes = [
     '/api/formhandle.php' => __DIR__ . '/../api/formhandle.php',
     '/api/leads' => __DIR__ . '/../api/formhandle.php',
@@ -16,6 +37,10 @@ $legacyRoutes = [
     '/api/articles' => __DIR__ . '/../api/article-api.php',
     '/api/projects-api.php' => __DIR__ . '/../api/projects-api.php',
     '/api/projects' => __DIR__ . '/../api/projects-api.php',
+    '/api/galery-api.php' => __DIR__ . '/../api/galery-api.php',
+    '/api/gallery-api.php' => __DIR__ . '/../api/galery-api.php',
+    '/api/galery' => __DIR__ . '/../api/galery-api.php',
+    '/api/gallery' => __DIR__ . '/../api/galery-api.php',
     '/api/workshop-api.php' => __DIR__ . '/../api/workshop-api.php',
     '/api/workshops' => __DIR__ . '/../api/workshop-api.php',
     '/api/workshops-api.php' => __DIR__ . '/../api/workshop-api.php',

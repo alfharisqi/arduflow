@@ -1,4 +1,10 @@
-import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
+import { useEffect, useRef, useState } from 'react';
+import { AdminSidebar } from './AdminSidebar.jsx';
+import {
+  getInitialAdminSidebarCollapsed,
+  persistAdminSidebarCollapsed,
+} from './adminSidebarState.js';
+import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import cameraIcon from '../../assets/icons/icon-image-placeholder-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
@@ -7,7 +13,75 @@ import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
 import fileIcon from '../../assets/icons/icon-file-text-1.svg';
 import galleryIcon from '../../assets/icons/icon-image-placeholder-1.svg';
 import mapIcon from '../../assets/icons/icon-map-pin-1.svg';
-import zapIcon from '../../assets/icons/icon-zap-1.svg';
+import workshopMainImage from '../../assets/images/workshop-list-presentation-main.jpg';
+import workshopMarketImage from '../../assets/images/workshop-list-presentation-market.jpg';
+import workshopSpeakerImage from '../../assets/images/workshop-list-presentation-speaker.jpg';
+import workshopGroupImage from '../../assets/images/workshop-experience-group.png';
+import workshopStudentImage from '../../assets/images/workshop-experience-student.png';
+
+const galleryImages = [
+  workshopMainImage,
+  workshopMarketImage,
+  workshopSpeakerImage,
+  workshopGroupImage,
+  workshopStudentImage,
+];
+
+
+const GALLERY_API_URL = 'http://localhost/web_arduflow/api/gallery.php';
+
+function fileToJson(file) {
+  return file
+    ? { name: file.name, size: file.size, type: file.type || 'application/octet-stream' }
+    : null;
+}
+
+function resolveGalleryCoverUrl(coverPath) {
+  if (!coverPath) return '';
+  if (/^https?:\/\//i.test(coverPath)) return coverPath;
+  return `http://localhost/web_arduflow/${String(coverPath).replace(/^\/+/, '')}`;
+}
+
+function formatGalleryDate(value) {
+  if (!value) return '-';
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+async function getGalleryFromApi() {
+  const response = await fetch(GALLERY_API_URL, {
+    method: 'GET',
+  });
+
+  const responseText = await response.text();
+
+  let result;
+  try {
+    result = JSON.parse(responseText);
+  } catch {
+    throw new Error(`Response API bukan JSON: ${responseText}`);
+  }
+
+  console.log('GET Gallery API URL:', GALLERY_API_URL);
+  console.log('GET Gallery API Status:', response.status);
+  console.log('GET Gallery API Response:', result);
+
+  if (!response.ok || result.success === false) {
+    throw new Error(result.message || 'Gagal mengambil data galeri.');
+  }
+
+  return Array.isArray(result.data) ? result.data : [];
+}
 
 const galleryStats = [
   { label: 'Total Media', value: '1.248', note: 'Semua media', icon: cameraIcon, tone: 'blue' },
@@ -73,25 +147,516 @@ const mediaProblems = [
   ['Link rusak', 4],
 ];
 
+function AdminGalleryTopbar() {
+  return (
+    <header className="admin-dashboard-topbar">
+      <div className="admin-dashboard-topbar-spacer" />
+      <div className="admin-dashboard-account">
+        <button className="admin-dashboard-notif" type="button" aria-label="Notifikasi">
+          <img src={bellIcon} alt="" />
+          <em>5</em>
+        </button>
+        <span className="admin-dashboard-avatar" aria-hidden="true" />
+        <span>
+          <strong>Admin</strong>
+          <small>Super Admin</small>
+        </span>
+        <b aria-hidden="true">⌄</b>
+      </div>
+    </header>
+  );
+}
+
 function GalleryBadge({ children }) {
-  const slug = createSlug(children);
+  const slug = String(children).toLowerCase().replace(/\s+/g, '-').replace(/\//g, '-');
   return <span className={`admin-gallery-badge admin-gallery-badge--${slug}`}>{children}</span>;
 }
 
 function GalleryAction({ label, children }) {
+  let content = children;
+
+  if (label.startsWith('Edit ')) {
+    content = '✎';
+  } else if (label.startsWith('Featured ')) {
+    content = '☆';
+  } else if (label.startsWith('Menu ')) {
+    content = '⋮';
+  }
+
   return (
     <button className="admin-gallery-action" type="button" aria-label={label}>
-      {children}
+      {content}
     </button>
   );
 }
 
-export function AdminGallery() {
+function GalleryThumbnail({ index, className = 'admin-gallery-thumb' }) {
   return (
-    <AdminPage pageClassName="admin-gallery-page" ariaLabel="Galeri kegiatan admin">
-        <AdminTopbar searchPlaceholder="Cari galeri kegiatan" searchLabel="Cari galeri kegiatan" />
+    <img
+      className={`${className} is-${index % galleryImages.length}`}
+      src={galleryImages[index % galleryImages.length]}
+      alt=""
+      aria-hidden="true"
+    />
+  );
+}
 
-        <div className="admin-gallery-layout">
+function stripHtml(value) {
+  const element = document.createElement('div');
+  element.innerHTML = value || '';
+  return element.textContent?.trim() || '';
+}
+
+function GalleryRichTextEditor({ value, onChange, hasError }) {
+  const editorRef = useRef(null);
+
+  useEffect(() => {
+    if (editorRef.current && editorRef.current.innerHTML !== value) {
+      editorRef.current.innerHTML = value || '';
+    }
+  }, [value]);
+
+  const syncEditor = () => {
+    onChange(editorRef.current?.innerHTML || '');
+  };
+
+  const runCommand = (command, commandValue = null) => {
+    editorRef.current?.focus();
+    document.execCommand(command, false, commandValue);
+    syncEditor();
+  };
+
+  const handleFormat = (event) => {
+    runCommand('formatBlock', event.target.value);
+    event.target.value = 'p';
+  };
+
+  const handleLink = () => {
+    const url = window.prompt('Masukkan URL link');
+    if (url) {
+      runCommand('createLink', url);
+    }
+  };
+
+  return (
+    <div className={`admin-gallery-upload-editor${hasError ? ' is-invalid' : ''}`}>
+      <div className="admin-gallery-upload-toolbar" aria-label="Toolbar deskripsi kegiatan">
+        <select aria-label="Format teks" defaultValue="p" onChange={handleFormat}>
+          <option value="p">Normal</option>
+          <option value="h2">Heading</option>
+          <option value="h3">Subheading</option>
+          <option value="blockquote">Quote</option>
+        </select>
+        <span />
+        <button type="button" onClick={() => runCommand('bold')} aria-label="Bold">B</button>
+        <button type="button" onClick={() => runCommand('italic')} aria-label="Italic"><em>I</em></button>
+        <button type="button" onClick={() => runCommand('underline')} aria-label="Underline"><u>U</u></button>
+        <span />
+        <button type="button" onClick={() => runCommand('insertUnorderedList')} aria-label="Bullet list">≡</button>
+        <button type="button" onClick={() => runCommand('insertOrderedList')} aria-label="Numbered list">1.</button>
+        <span />
+        <button type="button" onClick={handleLink} aria-label="Tambah link">🔗</button>
+        <button type="button" onClick={() => runCommand('removeFormat')} aria-label="Hapus format">⌫</button>
+      </div>
+      <div
+        ref={editorRef}
+        className="admin-gallery-upload-editor-area"
+        contentEditable
+        role="textbox"
+        aria-multiline="true"
+        data-placeholder="Tulis deskripsi kegiatan..."
+        onInput={syncEditor}
+        onBlur={syncEditor}
+        suppressContentEditableWarning
+      />
+    </div>
+  );
+}
+
+function AdminGalleryUploadForm({ onCancel, onSaved }) {
+  const [formData, setFormData] = useState({
+    coverImage: null,
+    tag: '',
+    title: '',
+    description: '',
+    userName: '',
+    eventDate: '',
+    detailLink: '',
+    note: '',
+  });
+  const [coverPreviewUrl, setCoverPreviewUrl] = useState('');
+  const [errors, setErrors] = useState({});
+  const [message, setMessage] = useState('');
+  const [formError, setFormError] = useState('');
+  const [jsonResult, setJsonResult] = useState(null);
+
+  useEffect(() => {
+    if (!formData.coverImage) {
+      setCoverPreviewUrl('');
+      return undefined;
+    }
+
+    const nextUrl = URL.createObjectURL(formData.coverImage);
+    setCoverPreviewUrl(nextUrl);
+    return () => URL.revokeObjectURL(nextUrl);
+  }, [formData.coverImage]);
+
+  const updateField = (field, value) => {
+    setFormData((current) => ({ ...current, [field]: value }));
+    setErrors((current) => {
+      if (!current[field]) return current;
+      const nextErrors = { ...current };
+      delete nextErrors[field];
+      return nextErrors;
+    });
+    setMessage('');
+    setFormError('');
+  };
+
+  const validateForm = (status) => {
+    const isDraft = status === 'draft';
+    const nextErrors = {};
+
+    if (!isDraft && !formData.coverImage) nextErrors.coverImage = 'Cover kegiatan wajib diupload.';
+    if (!isDraft && !formData.tag) nextErrors.tag = 'Tag kegiatan wajib dipilih.';
+    if (!isDraft && !formData.title.trim()) nextErrors.title = 'Judul kegiatan wajib diisi.';
+    if (!isDraft && !stripHtml(formData.description)) nextErrors.description = 'Deskripsi kegiatan wajib diisi.';
+    if (!isDraft && !formData.userName.trim()) nextErrors.userName = 'Nama user wajib diisi.';
+    if (!isDraft && !formData.eventDate) nextErrors.eventDate = 'Tanggal kegiatan wajib dipilih.';
+
+    setErrors(nextErrors);
+    return nextErrors;
+  };
+
+  const createGalleryJson = (status) => {
+    const isDraft = status === 'draft';
+    const nextErrors = validateForm(status);
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFormError('Lengkapi kolom wajib yang masih kosong sebelum upload galeri.');
+      return null;
+    }
+
+    const now = new Date().toISOString();
+    const result = {
+      success: true,
+      message: isDraft ? 'Draft galeri siap dikirim ke API.' : 'Galeri siap diupload ke API.',
+      data: {
+        title: formData.title.trim(),
+        tag: formData.tag,
+        description: formData.description.trim(),
+        userName: formData.userName.trim(),
+        eventDate: formData.eventDate,
+        detailLink: formData.detailLink.trim(),
+        note: formData.note.trim(),
+        coverImage: fileToJson(formData.coverImage),
+        status: isDraft ? 'draft' : 'published',
+        createdAt: now,
+      },
+    };
+
+    setFormError('');
+    setJsonResult(result);
+    console.log('JSON galeri:', JSON.stringify(result, null, 2));
+    return result;
+  };
+
+  const createGalleryFormData = (status) => {
+    const payload = new FormData();
+
+    if (formData.coverImage) {
+      payload.append('cover_image', formData.coverImage);
+    }
+
+    payload.append('tag', formData.tag);
+    payload.append('title', formData.title);
+    payload.append('description', formData.description);
+    payload.append('user_name', formData.userName);
+    payload.append('event_date', formData.eventDate);
+    payload.append('detail_link', formData.detailLink || '');
+    payload.append('note', formData.note || '');
+    payload.append('status', status);
+
+    return payload;
+  };
+
+  const sendGalleryToApi = async (status) => {
+    const galleryJson = createGalleryJson(status);
+    if (!galleryJson) return;
+
+    try {
+      setMessage(status === 'draft' ? 'Menyimpan draft kegiatan...' : 'Mengupload kegiatan...');
+
+      const response = await fetch(GALLERY_API_URL, {
+        method: 'POST',
+        body: createGalleryFormData(status),
+      });
+
+      const responseText = await response.text();
+
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch {
+        throw new Error(`Response API bukan JSON: ${responseText}`);
+      }
+
+      console.log('SQLite Gallery API URL:', GALLERY_API_URL);
+      console.log('SQLite Gallery API Status:', response.status);
+      console.log('SQLite Gallery API Response:', result);
+
+      if (!response.ok || result.success === false) {
+        const validationMessage = result.errors
+          ? Object.values(result.errors).join(' ')
+          : result.message;
+
+        throw new Error(validationMessage || 'Gagal menyimpan galeri.');
+      }
+
+      setJsonResult(result);
+      setFormError('');
+      setMessage(result.message || 'Galeri berhasil disimpan.');
+      alert(result.message || 'Galeri berhasil disimpan.');
+
+      if (typeof onSaved === 'function') {
+        onSaved();
+      }
+    } catch (error) {
+      console.error('Gagal mengirim galeri ke API:', error);
+      setFormError(
+        error instanceof TypeError
+          ? `API tidak dapat dihubungi di ${GALLERY_API_URL}. Pastikan Apache XAMPP aktif dan endpoint dapat dibuka.`
+          : error.message
+      );
+    }
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    await sendGalleryToApi('published');
+  };
+
+  const handleDraft = async () => {
+    await sendGalleryToApi('draft');
+  };
+
+  const previewTitle = formData.title.trim() || 'Judul Kegiatan';
+  const previewDescription = stripHtml(formData.description) || 'Deskripsi kegiatan akan tampil disini sebagai ringkasan singkat.';
+
+  return (
+    <section className="admin-gallery-upload-page" aria-label="Form upload kegiatan">
+      <form className="admin-gallery-upload-shell" onSubmit={handleSubmit} noValidate>
+        <div className="admin-gallery-upload-main">
+          <h1>Form Upload Kegiatan</h1>
+
+          <label className="admin-gallery-upload-label">Upload Cover Kegiatan</label>
+          <label className={`admin-gallery-upload-cover-drop${errors.coverImage ? ' is-invalid' : ''}`}>
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/jpg"
+              onChange={(event) => updateField('coverImage', event.target.files?.[0] || null)}
+            />
+            <span className="admin-gallery-upload-cover-icon">▧</span>
+            <strong>Upload gambar sampul</strong>
+            <small>Rekomendasi: 1280×720px (16:9)</small>
+            <em>Pilih Gambar</em>
+          </label>
+          {errors.coverImage && <p className="admin-gallery-upload-error">{errors.coverImage}</p>}
+
+          <label className="admin-gallery-upload-field">
+            <span>Tag Kegiatan <b>*</b></span>
+            <select
+              className={errors.tag ? 'is-invalid' : ''}
+              value={formData.tag}
+              onChange={(event) => updateField('tag', event.target.value)}
+            >
+              <option value="">Pilih atau ketik tag</option>
+              <option value="Workshop">Workshop</option>
+              <option value="Program">Program</option>
+              <option value="Komunitas">Komunitas</option>
+              <option value="Partner">Partner</option>
+              <option value="Event">Event</option>
+              <option value="Dokumentasi">Dokumentasi</option>
+            </select>
+            {errors.tag && <small>{errors.tag}</small>}
+          </label>
+
+          <label className="admin-gallery-upload-field">
+            <span>Judul Kegiatan <b>*</b></span>
+            <input
+              className={errors.title ? 'is-invalid' : ''}
+              type="text"
+              placeholder="Masukkan judul kegiatan"
+              value={formData.title}
+              onChange={(event) => updateField('title', event.target.value)}
+            />
+            {errors.title && <small>{errors.title}</small>}
+          </label>
+
+          <div className="admin-gallery-upload-field">
+            <span>Deskripsi Kegiatan <b>*</b></span>
+            <GalleryRichTextEditor
+              value={formData.description}
+              hasError={Boolean(errors.description)}
+              onChange={(value) => updateField('description', value)}
+            />
+            {errors.description && <small>{errors.description}</small>}
+          </div>
+
+          <label className="admin-gallery-upload-field">
+            <span>Nama User <b>*</b></span>
+            <input
+              className={errors.userName ? 'is-invalid' : ''}
+              type="text"
+              placeholder="Masukkan nama user"
+              value={formData.userName}
+              onChange={(event) => updateField('userName', event.target.value)}
+            />
+            {errors.userName && <small>{errors.userName}</small>}
+          </label>
+
+          <label className="admin-gallery-upload-field">
+            <span>Tanggal Kegiatan <b>*</b></span>
+            <input
+              className={errors.eventDate ? 'is-invalid' : ''}
+              type="date"
+              value={formData.eventDate}
+              onChange={(event) => updateField('eventDate', event.target.value)}
+            />
+            {errors.eventDate && <small>{errors.eventDate}</small>}
+          </label>
+
+          <label className="admin-gallery-upload-field">
+            <span>Link / Detail <em>(Opsional)</em></span>
+            <input
+              type="url"
+              placeholder="Contoh: https://..."
+              value={formData.detailLink}
+              onChange={(event) => updateField('detailLink', event.target.value)}
+            />
+          </label>
+
+          <label className="admin-gallery-upload-field">
+            <span>Catatan <em>(Opsional)</em></span>
+            <textarea
+              placeholder="Tulis catatan tambahan..."
+              value={formData.note}
+              onChange={(event) => updateField('note', event.target.value)}
+            />
+          </label>
+
+          {message && <p className="admin-gallery-upload-message">{message}</p>}
+
+          <div className="admin-gallery-upload-actions">
+            <button type="submit" className="is-primary">✈ Upload</button>
+            <button type="button" onClick={handleDraft}>▣ Simpan Draft</button>
+            <button type="button" className="is-plain" onClick={onCancel}>Batal</button>
+          </div>
+        </div>
+
+        <aside className="admin-gallery-upload-preview-card" aria-label="Preview kartu kegiatan">
+          <h2>Preview Kartu</h2>
+          <p>Pratnjau tampilan kartu berdasarkan data yang diisi.</p>
+          <article className="admin-gallery-upload-card-preview">
+            <div className="admin-gallery-upload-card-image">
+              {coverPreviewUrl ? (
+                <img src={coverPreviewUrl} alt="Preview cover kegiatan" />
+              ) : (
+                <strong>arduflow<br /><span>community</span></strong>
+              )}
+            </div>
+            <div className="admin-gallery-upload-card-body">
+              <span className="admin-gallery-upload-preview-tag">{formData.tag || 'Tag'}</span>
+              <h3>{previewTitle}</h3>
+              <p>{previewDescription}</p>
+              <hr />
+              <div className="admin-gallery-upload-author">
+                <span aria-hidden="true">▧</span>
+                <div>
+                  <strong>{formData.userName.trim() || 'Nama Lengkap'}</strong>
+                  <small>{formData.eventDate || 'mail@mail.com'}</small>
+                </div>
+              </div>
+            </div>
+          </article>
+        </aside>
+      </form>
+
+      {formError ? <p role="alert" style={{ color: '#b42318', marginTop: 16 }}>{formError}</p> : null}
+      {jsonResult ? (
+        <section className="admin-gallery-json-result" style={{ marginTop: 24 }}>
+          <h3>Hasil JSON</h3>
+          <pre style={{ overflowX: 'auto', padding: 16, borderRadius: 8, background: '#07152b', color: '#fff' }}>{JSON.stringify(jsonResult, null, 2)}</pre>
+        </section>
+      ) : null}
+    </section>
+  );
+}
+
+export function AdminGallery() {
+  const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialAdminSidebarCollapsed);
+  const [selectedGalleryIndex, setSelectedGalleryIndex] = useState(null);
+  const [isUploadFormOpen, setUploadFormOpen] = useState(false);
+  const [galleryData, setGalleryData] = useState([]);
+  const [isGalleryLoading, setGalleryLoading] = useState(false);
+  const [galleryError, setGalleryError] = useState('');
+  const selectedGallery = selectedGalleryIndex !== null ? galleryData[selectedGalleryIndex] : null;
+
+  const loadGalleryData = async () => {
+    try {
+      setGalleryLoading(true);
+      setGalleryError('');
+
+      const data = await getGalleryFromApi();
+      setGalleryData(data);
+      setSelectedGalleryIndex(null);
+    } catch (error) {
+      console.error('Gagal mengambil data galeri:', error);
+      setGalleryError(error.message || 'Gagal mengambil data galeri.');
+    } finally {
+      setGalleryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadGalleryData();
+  }, []);
+
+  const handleToggleSidebar = () => {
+    setSidebarCollapsed((value) => {
+      const nextValue = !value;
+      persistAdminSidebarCollapsed(nextValue);
+      return nextValue;
+    });
+  };
+
+  const handleSelectGallery = (index) => {
+    setSelectedGalleryIndex((currentIndex) => (currentIndex === index ? null : index));
+  };
+
+  const handleOpenUploadForm = () => {
+    setSelectedGalleryIndex(null);
+    setUploadFormOpen(true);
+  };
+
+  return (
+    <main className={`admin-dashboard-page admin-gallery-page${isSidebarCollapsed ? ' admin-dashboard-page--collapsed' : ''}`}>
+      <AdminSidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleSidebar} />
+
+      <section className="admin-dashboard-main" aria-label="Galeri kegiatan admin">
+        <AdminGalleryTopbar />
+
+        <div className={`admin-gallery-layout${selectedGallery && !isUploadFormOpen ? ' admin-gallery-layout--detail-open' : ''}`}>
+          {isUploadFormOpen ? (
+            <AdminGalleryUploadForm
+              onCancel={() => setUploadFormOpen(false)}
+              onSaved={() => {
+                setUploadFormOpen(false);
+                loadGalleryData();
+              }}
+            />
+          ) : (
+            <>
           <section className="admin-gallery-content">
             <div className="admin-gallery-heading">
               <div>
@@ -138,14 +703,21 @@ export function AdminGallery() {
                 <select defaultValue=""><option value="">Semua Admin</option></select>
               </label>
               <button type="button">Reset Filter</button>
-              <button type="button" className="admin-gallery-primary"><img src={downloadIcon} alt="" /> Upload Media</button>
+              <button type="button" className="admin-gallery-primary" onClick={handleOpenUploadForm}><img src={downloadIcon} alt="" /> Upload Media</button>
             </section>
 
             <section className="admin-gallery-table-card">
               <table className="admin-gallery-table">
                 <thead>
                   <tr>
-                    <th><input type="checkbox" aria-label="Pilih semua galeri" /></th>
+                    <th>
+                      <input
+                        type="checkbox"
+                        aria-label="Pilih semua galeri"
+                        checked={selectedGalleryIndex !== null}
+                        onChange={() => setSelectedGalleryIndex(selectedGalleryIndex === null ? 0 : null)}
+                      />
+                    </th>
                     <th>Thumbnail</th>
                     <th>Judul Kegiatan</th>
                     <th>Jenis Media</th>
@@ -160,33 +732,66 @@ export function AdminGallery() {
                   </tr>
                 </thead>
                 <tbody>
-                  {galleryItems.map((item, index) => (
-                    <tr key={item[0]}>
-                      <td><input type="checkbox" aria-label={`Pilih ${item[0]}`} /></td>
-                      <td><span className={`admin-gallery-thumb is-${index % 5}`} /></td>
-                      <td><b>{item[0]}</b><small>{item[1]}</small></td>
-                      <td><GalleryBadge>{item[2]}</GalleryBadge></td>
-                      <td><GalleryBadge>{item[3]}</GalleryBadge></td>
-                      <td>{item[4]}</td>
-                      <td><GalleryBadge>{item[5]}</GalleryBadge></td>
-                      <td>{item[6]}</td>
-                      <td>{item[7]}</td>
-                      <td>{item[8]}</td>
-                      <td>{item[9]}</td>
-                      <td>
-                        <div className="admin-gallery-actions">
-                          <GalleryAction label={`Preview ${item[0]}`}><img src={eyeIcon} alt="" /></GalleryAction>
-                          <GalleryAction label={`Edit ${item[0]}`}>Edit</GalleryAction>
-                          <GalleryAction label={`Featured ${item[0]}`}>Star</GalleryAction>
-                          <GalleryAction label={`Menu ${item[0]}`}>...</GalleryAction>
-                        </div>
+                  {isGalleryLoading ? (
+                    <tr>
+                      <td colSpan="12">Memuat data galeri...</td>
+                    </tr>
+                  ) : galleryError ? (
+                    <tr>
+                      <td colSpan="12" style={{ color: '#b42318' }}>
+                        {galleryError}
                       </td>
                     </tr>
-                  ))}
+                  ) : galleryData.length === 0 ? (
+                    <tr>
+                      <td colSpan="12">Belum ada data galeri.</td>
+                    </tr>
+                  ) : (
+                    galleryData.map((item, index) => (
+                      <tr key={item.id || `${item.title}-${index}`}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            aria-label={`Pilih ${item.title}`}
+                            checked={selectedGalleryIndex === index}
+                            onChange={() => handleSelectGallery(index)}
+                          />
+                        </td>
+                        <td>
+                          {item.coverPath ? (
+                            <img
+                              className="admin-gallery-thumb"
+                              src={resolveGalleryCoverUrl(item.coverPath)}
+                              alt={item.title}
+                            />
+                          ) : (
+                            <GalleryThumbnail index={index} />
+                          )}
+                        </td>
+                        <td><b>{item.title}</b><small>{stripHtml(item.description)}</small></td>
+                        <td><GalleryBadge>Foto</GalleryBadge></td>
+                        <td><GalleryBadge>{item.tag || 'Dokumentasi'}</GalleryBadge></td>
+                        <td>1</td>
+                        <td><GalleryBadge>{item.status === 'published' ? 'Published' : 'Draft'}</GalleryBadge></td>
+                        <td>0</td>
+                        <td>{formatGalleryDate(item.eventDate)}</td>
+                        <td>{formatGalleryDate(item.createdAt)}</td>
+                        <td>{item.userName || 'Admin'}</td>
+                        <td>
+                          <div className="admin-gallery-actions">
+                            <GalleryAction label={`Preview ${item.title}`}><img src={eyeIcon} alt="" /></GalleryAction>
+                            <GalleryAction label={`Edit ${item.title}`}>✎</GalleryAction>
+                            <GalleryAction label={`Featured ${item.title}`}>☆</GalleryAction>
+                            <GalleryAction label={`Menu ${item.title}`}>...</GalleryAction>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
               <div className="admin-gallery-pagination">
-                <span>Menampilkan 1 - 8 dari 1.248 data</span>
+                <span>Menampilkan {galleryData.length} data galeri</span>
                 <div>
                   <button type="button">&lt;</button>
                   <button type="button" className="is-active">1</button>
@@ -205,7 +810,7 @@ export function AdminGallery() {
               <article className="admin-gallery-panel">
                 <div className="admin-gallery-panel-head"><h2>Galeri Terbaru</h2><a href="/admin/gallery/recent">Lihat semua</a></div>
                 {recentGalleries.map((item, index) => (
-                  <p key={item[0]}><span className={`admin-gallery-mini-thumb is-${index}`} /><b>{item[0]}</b><time>{item[1]}</time></p>
+                  <p key={item[0]}><GalleryThumbnail index={index} className="admin-gallery-mini-thumb" /><b>{item[0]}</b><time>{item[1]}</time></p>
                 ))}
               </article>
 
@@ -230,7 +835,7 @@ export function AdminGallery() {
               <article className="admin-gallery-panel">
                 <div className="admin-gallery-panel-head"><h2>Draft Belum Publish</h2><a href="/admin/gallery/drafts">Lihat semua</a></div>
                 {draftGalleries.map((item, index) => (
-                  <p key={item[0]}><span className={`admin-gallery-mini-thumb is-${index + 1}`} /><b>{item[0]}</b><time>{item[1]}</time></p>
+                  <p key={item[0]}><GalleryThumbnail index={index + 1} className="admin-gallery-mini-thumb" /><b>{item[0]}</b><time>{item[1]}</time></p>
                 ))}
               </article>
             </section>
@@ -261,46 +866,63 @@ export function AdminGallery() {
             </section>
           </section>
 
-          <aside className="admin-gallery-detail" aria-label="Detail galeri">
-            <div className="admin-gallery-detail-head">
-              <h2>Detail Galeri</h2>
-              <button type="button" aria-label="Tutup detail">x</button>
-            </div>
-            <span className="admin-gallery-detail-image" />
-            <div className="admin-gallery-detail-title">
-              <h3>Workshop IoT Beginner</h3>
-              <GalleryBadge>Published</GalleryBadge>
-              <p><span>Foto</span><span>Workshop</span></p>
-            </div>
-            <dl>
-              <dt><img src={clockIcon} alt="" />Tanggal Kegiatan</dt><dd>18 Mei 2024</dd>
-              <dt><img src={mapIcon} alt="" />Lokasi</dt><dd>Lab Arduflow, Jakarta</dd>
-              <dt><img src={galleryIcon} alt="" />Jumlah Media</dt><dd>42 foto</dd>
-            </dl>
-            <section className="admin-gallery-description">
-              <h3>Deskripsi</h3>
-              <p>Dokumentasi kegiatan workshop dasar IoT untuk pemula. Peserta belajar membuat project IoT sederhana menggunakan Arduino dan sensor.</p>
-            </section>
-            <section className="admin-gallery-preview">
-              <h3>Preview Media</h3>
-              <div>
-                <span className="admin-gallery-mini-thumb is-0" />
-                <span className="admin-gallery-mini-thumb is-1" />
-                <span className="admin-gallery-mini-thumb is-2" />
-                <strong>+38</strong>
+          {selectedGallery && (
+            <aside className="admin-gallery-detail" aria-label="Detail galeri">
+              <div className="admin-gallery-detail-head">
+                <h2>Detail Galeri</h2>
+                <button type="button" aria-label="Tutup detail" onClick={() => setSelectedGalleryIndex(null)}>x</button>
               </div>
-              <a href="/admin/gallery/media">Lihat semua media</a>
-            </section>
-            <div className="admin-gallery-detail-actions">
-              <button type="button" className="is-blue">Edit Galeri</button>
-              <button type="button">Preview Galeri</button>
-              <button type="button" className="is-green">Publish / Unpublish</button>
-              <button type="button" className="is-purple">Atur Cover</button>
-              <button type="button" className="is-orange">Tandai Featured</button>
-              <button type="button" className="is-danger">Arsipkan</button>
-            </div>
-          </aside>
+              {selectedGallery.coverPath ? (
+                <img
+                  className="admin-gallery-detail-image"
+                  src={resolveGalleryCoverUrl(selectedGallery.coverPath)}
+                  alt={selectedGallery.title}
+                />
+              ) : (
+                <GalleryThumbnail index={selectedGalleryIndex} className="admin-gallery-detail-image" />
+              )}
+              <div className="admin-gallery-detail-title">
+                <h3>{selectedGallery.title}</h3>
+                <GalleryBadge>{selectedGallery.status === 'published' ? 'Published' : 'Draft'}</GalleryBadge>
+                <p><span>Foto</span><span>{selectedGallery.tag || 'Dokumentasi'}</span></p>
+              </div>
+              <dl>
+                <dt><img src={clockIcon} alt="" />Tanggal Kegiatan</dt><dd>{formatGalleryDate(selectedGallery.eventDate)}</dd>
+                <dt><img src={mapIcon} alt="" />Upload By</dt><dd>{selectedGallery.userName || 'Admin'}</dd>
+                <dt><img src={galleryIcon} alt="" />Jumlah Media</dt><dd>1 foto</dd>
+              </dl>
+              <section className="admin-gallery-description">
+                <h3>Deskripsi</h3>
+                <p>{stripHtml(selectedGallery.description) || 'Belum ada deskripsi.'}</p>
+              </section>
+              <section className="admin-gallery-preview">
+                <h3>Preview Media</h3>
+                <div>
+                  {selectedGallery.coverPath ? (
+                    <img
+                      className="admin-gallery-mini-thumb"
+                      src={resolveGalleryCoverUrl(selectedGallery.coverPath)}
+                      alt={selectedGallery.title}
+                    />
+                  ) : (
+                    <GalleryThumbnail index={selectedGalleryIndex} className="admin-gallery-mini-thumb" />
+                  )}
+                </div>
+                <a href="/admin/gallery/media">Lihat semua media</a>
+              </section>
+              <div className="admin-gallery-detail-actions">
+                <button type="button" className="is-blue">Edit Galeri</button>
+                <button type="button">Preview Galeri</button>
+                <button type="button" className="is-green">Publish / Unpublish</button>
+                <button type="button" className="is-purple">Atur Cover</button>
+                <button type="button" className="is-orange">Tandai Featured</button>
+                <button type="button" className="is-danger">Arsipkan</button>
+              </div>
+            </aside>
+          )}            </>
+          )}
         </div>
-    </AdminPage>
+      </section>
+    </main>
   );
 }

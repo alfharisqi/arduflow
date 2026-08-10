@@ -78,6 +78,22 @@ if ($requestMethod === 'OPTIONS') {
 
 $projectRoot = dirname(__DIR__);
 
+$imageStoragePath = $projectRoot
+    . DIRECTORY_SEPARATOR
+    . 'api'
+    . DIRECTORY_SEPARATOR
+    . 'support'
+    . DIRECTORY_SEPARATOR
+    . 'image-storage.php';
+
+if (file_exists($imageStoragePath)) {
+    require_once $imageStoragePath;
+}
+
+$articleImageStorage = function_exists('ensureUploadStorage')
+    ? ensureUploadStorage($projectRoot, 'articles')
+    : null;
+
 $configPath = $projectRoot
     . DIRECTORY_SEPARATOR
     . 'config'
@@ -369,6 +385,8 @@ function createTables(PDO $database): void
             card_image_name TEXT,
             card_image_type TEXT,
             card_image_size INTEGER,
+            card_image_path TEXT,
+            card_image_url TEXT,
             difficulty_level TEXT,
             estimated_time TEXT,
             page_order INTEGER NOT NULL,
@@ -395,6 +413,8 @@ function createTables(PDO $database): void
             content_type TEXT NOT NULL DEFAULT "text",
             content TEXT,
             image_name TEXT,
+            image_path TEXT,
+            image_url TEXT,
             video_url TEXT,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
@@ -404,6 +424,13 @@ function createTables(PDO $database): void
                 ON DELETE CASCADE
         )'
     );
+
+    if (function_exists('addColumnIfMissing')) {
+        addColumnIfMissing($database, 'tutorials', 'card_image_path', 'TEXT');
+        addColumnIfMissing($database, 'tutorials', 'card_image_url', 'TEXT');
+        addColumnIfMissing($database, 'tutorial_slides', 'image_path', 'TEXT');
+        addColumnIfMissing($database, 'tutorial_slides', 'image_url', 'TEXT');
+    }
 }
 
 /*
@@ -426,6 +453,8 @@ function getAllMateri(PDO $database): void
             card_image_name,
             card_image_type,
             card_image_size,
+            card_image_path,
+            card_image_url,
             difficulty_level,
             estimated_time,
             page_order,
@@ -454,6 +483,8 @@ function getAllMateri(PDO $database): void
             content_type,
             content,
             image_name,
+            image_path,
+            image_url,
             video_url
          FROM tutorial_slides
          WHERE tutorial_id = :tutorial_id
@@ -583,6 +614,17 @@ function createMateri(PDO $database): void
             ? $requestData['card_image']
             : [];
 
+    $storedCardImage = function_exists('normalizeStoredImage')
+        ? normalizeStoredImage(
+            $cardImage,
+            $GLOBALS['articleImageStorage'] ?? [
+                'path' => dirname(__DIR__) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'articles',
+                'url' => '/uploads/articles',
+            ],
+            'article-card'
+        )
+        : null;
+
     $learning =
         isset($requestData['learning_information'])
         && is_array($requestData['learning_information'])
@@ -640,6 +682,8 @@ function createMateri(PDO $database): void
                 card_image_name,
                 card_image_type,
                 card_image_size,
+                card_image_path,
+                card_image_url,
                 difficulty_level,
                 estimated_time,
                 page_order,
@@ -658,6 +702,8 @@ function createMateri(PDO $database): void
                 :card_image_name,
                 :card_image_type,
                 :card_image_size,
+                :card_image_path,
+                :card_image_url,
                 :difficulty_level,
                 :estimated_time,
                 :page_order,
@@ -703,18 +749,28 @@ function createMateri(PDO $database): void
                 ),
 
             ':card_image_name' =>
-                isset($cardImage['file_name'])
-                    ? (string) $cardImage['file_name']
+                isset($storedCardImage['file_name'])
+                    ? (string) $storedCardImage['file_name']
                     : null,
 
             ':card_image_type' =>
-                isset($cardImage['file_type'])
-                    ? (string) $cardImage['file_type']
+                isset($storedCardImage['file_type'])
+                    ? (string) $storedCardImage['file_type']
                     : null,
 
             ':card_image_size' =>
-                isset($cardImage['file_size'])
-                    ? (int) $cardImage['file_size']
+                isset($storedCardImage['file_size'])
+                    ? (int) $storedCardImage['file_size']
+                    : null,
+
+            ':card_image_path' =>
+                isset($storedCardImage['file_path'])
+                    ? (string) $storedCardImage['file_path']
+                    : null,
+
+            ':card_image_url' =>
+                isset($storedCardImage['file_url'])
+                    ? (string) $storedCardImage['file_url']
                     : null,
 
             ':difficulty_level' =>
@@ -777,6 +833,8 @@ function createMateri(PDO $database): void
                     content_type,
                     content,
                     image_name,
+                    image_path,
+                    image_url,
                     video_url,
                     created_at,
                     updated_at
@@ -787,6 +845,8 @@ function createMateri(PDO $database): void
                     :content_type,
                     :content,
                     :image_name,
+                    :image_path,
+                    :image_url,
                     :video_url,
                     :created_at,
                     :updated_at
@@ -797,6 +857,24 @@ function createMateri(PDO $database): void
                 if (!is_array($slide)) {
                     continue;
                 }
+
+                $slideImageData = isset($slide['image'])
+                    && is_array($slide['image'])
+                        ? $slide['image']
+                        : (isset($slide['image_meta']) && is_array($slide['image_meta'])
+                            ? $slide['image_meta']
+                            : (isset($slide['image_name']) ? ['file_name' => (string) $slide['image_name']] : []));
+
+                $storedSlideImage = function_exists('normalizeStoredImage')
+                    ? normalizeStoredImage(
+                        $slideImageData,
+                        $GLOBALS['articleImageStorage'] ?? [
+                            'path' => dirname(__DIR__) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'articles',
+                            'url' => '/uploads/articles',
+                        ],
+                        'article-slide'
+                    )
+                    : null;
 
                 $slideStatement->execute([
                     ':tutorial_id' =>
@@ -825,8 +903,20 @@ function createMateri(PDO $database): void
                             : null,
 
                     ':image_name' =>
-                        isset($slide['image_name'])
-                            ? (string) $slide['image_name']
+                        isset($storedSlideImage['file_name'])
+                            ? (string) $storedSlideImage['file_name']
+                            : (isset($slide['image_name'])
+                                ? (string) $slide['image_name']
+                                : null),
+
+                    ':image_path' =>
+                        isset($storedSlideImage['file_path'])
+                            ? (string) $storedSlideImage['file_path']
+                            : null,
+
+                    ':image_url' =>
+                        isset($storedSlideImage['file_url'])
+                            ? (string) $storedSlideImage['file_url']
                             : null,
 
                     ':video_url' =>
@@ -982,6 +1072,8 @@ function updateMateri(PDO $database): void
             card_image_name,
             card_image_type,
             card_image_size,
+            card_image_path,
+            card_image_url,
             created_at
          FROM tutorials
          WHERE id = :id
@@ -1092,12 +1184,23 @@ function updateMateri(PDO $database): void
     $cardImageName = $existingTutorial['card_image_name'];
     $cardImageType = $existingTutorial['card_image_type'];
     $cardImageSize = $existingTutorial['card_image_size'];
+    $cardImagePath = $existingTutorial['card_image_path'];
+    $cardImageUrl = $existingTutorial['card_image_url'];
 
     if (
         isset($requestData['card_image'])
         && is_array($requestData['card_image'])
     ) {
-        $cardImage = $requestData['card_image'];
+        $cardImage = function_exists('normalizeStoredImage')
+            ? normalizeStoredImage(
+                $requestData['card_image'],
+                $GLOBALS['articleImageStorage'] ?? [
+                    'path' => dirname(__DIR__) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'articles',
+                    'url' => '/uploads/articles',
+                ],
+                'article-card'
+            )
+            : $requestData['card_image'];
 
         $cardImageName = isset($cardImage['file_name'])
             ? (string) $cardImage['file_name']
@@ -1110,6 +1213,14 @@ function updateMateri(PDO $database): void
         $cardImageSize = isset($cardImage['file_size'])
             ? (int) $cardImage['file_size']
             : $cardImageSize;
+
+        $cardImagePath = isset($cardImage['file_path'])
+            ? (string) $cardImage['file_path']
+            : $cardImagePath;
+
+        $cardImageUrl = isset($cardImage['file_url'])
+            ? (string) $cardImage['file_url']
+            : $cardImageUrl;
     }
 
     $currentTimestamp = (
@@ -1134,6 +1245,8 @@ function updateMateri(PDO $database): void
                 card_image_name = :card_image_name,
                 card_image_type = :card_image_type,
                 card_image_size = :card_image_size,
+                card_image_path = :card_image_path,
+                card_image_url = :card_image_url,
                 difficulty_level = :difficulty_level,
                 estimated_time = :estimated_time,
                 page_order = :page_order,
@@ -1158,6 +1271,8 @@ function updateMateri(PDO $database): void
             ':card_image_name' => $cardImageName,
             ':card_image_type' => $cardImageType,
             ':card_image_size' => $cardImageSize,
+            ':card_image_path' => $cardImagePath,
+            ':card_image_url' => $cardImageUrl,
             ':difficulty_level' => isset($learning['difficulty_level'])
                 ? (string) $learning['difficulty_level']
                 : null,
@@ -1197,6 +1312,8 @@ function updateMateri(PDO $database): void
                 content_type,
                 content,
                 image_name,
+                image_path,
+                image_url,
                 video_url,
                 created_at,
                 updated_at
@@ -1207,6 +1324,8 @@ function updateMateri(PDO $database): void
                 :content_type,
                 :content,
                 :image_name,
+                :image_path,
+                :image_url,
                 :video_url,
                 :created_at,
                 :updated_at
@@ -1217,6 +1336,24 @@ function updateMateri(PDO $database): void
             if (!is_array($slide)) {
                 continue;
             }
+
+            $slideImageData = isset($slide['image'])
+                && is_array($slide['image'])
+                    ? $slide['image']
+                    : (isset($slide['image_meta']) && is_array($slide['image_meta'])
+                        ? $slide['image_meta']
+                        : (isset($slide['image_name']) ? ['file_name' => (string) $slide['image_name']] : []));
+
+            $storedSlideImage = function_exists('normalizeStoredImage')
+                ? normalizeStoredImage(
+                    $slideImageData,
+                    $GLOBALS['articleImageStorage'] ?? [
+                        'path' => dirname(__DIR__) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'articles',
+                        'url' => '/uploads/articles',
+                    ],
+                    'article-slide'
+                )
+                : null;
 
             $slideStatement->execute([
                 ':tutorial_id' => $tutorialId,
@@ -1234,6 +1371,14 @@ function updateMateri(PDO $database): void
                     : null,
                 ':image_name' => isset($slide['image_name'])
                     ? (string) $slide['image_name']
+                    : (isset($storedSlideImage['file_name'])
+                        ? (string) $storedSlideImage['file_name']
+                        : null),
+                ':image_path' => isset($storedSlideImage['file_path'])
+                    ? (string) $storedSlideImage['file_path']
+                    : null,
+                ':image_url' => isset($storedSlideImage['file_url'])
+                    ? (string) $storedSlideImage['file_url']
                     : null,
                 ':video_url' => isset($slide['video_url'])
                     ? (string) $slide['video_url']

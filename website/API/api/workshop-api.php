@@ -28,6 +28,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
+$projectRoot = dirname(__DIR__);
+$imageStoragePath = $projectRoot . '/api/support/image-storage.php';
+
+if (file_exists($imageStoragePath)) {
+    require_once $imageStoragePath;
+}
+
+$workshopImageStorage = function_exists('ensureUploadStorage')
+    ? ensureUploadStorage($projectRoot, 'workshops')
+    : null;
+
 function respond(int $statusCode, array $body): never
 {
     http_response_code($statusCode);
@@ -161,6 +172,13 @@ function decodeWorkshopRow(array $row): array
         'slug' => $row['slug'],
         'status' => $row['status'],
         'category' => $row['category'],
+        'coverImage' => [
+            'file_name' => $row['cover_image_name'] ?? null,
+            'file_type' => $row['cover_image_type'] ?? null,
+            'file_size' => isset($row['cover_image_size']) ? (int) $row['cover_image_size'] : null,
+            'file_path' => $row['cover_image_path'] ?? null,
+            'file_url' => $row['cover_image_url'] ?? null,
+        ],
         'createdAt' => $row['created_at'],
         'updatedAt' => $row['updated_at'],
         'payload' => $payload,
@@ -464,11 +482,24 @@ try {
             slug TEXT NOT NULL UNIQUE,
             status TEXT,
             category TEXT,
+            cover_image_name TEXT,
+            cover_image_type TEXT,
+            cover_image_size INTEGER,
+            cover_image_path TEXT,
+            cover_image_url TEXT,
             payload_json TEXT NOT NULL,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )'
     );
+
+    if (function_exists('addColumnIfMissing')) {
+        addColumnIfMissing($pdo, 'workshops', 'cover_image_name', 'TEXT');
+        addColumnIfMissing($pdo, 'workshops', 'cover_image_type', 'TEXT');
+        addColumnIfMissing($pdo, 'workshops', 'cover_image_size', 'INTEGER');
+        addColumnIfMissing($pdo, 'workshops', 'cover_image_path', 'TEXT');
+        addColumnIfMissing($pdo, 'workshops', 'cover_image_url', 'TEXT');
+    }
 
     $pdo->exec(
         'CREATE INDEX IF NOT EXISTS idx_workshops_status
@@ -669,6 +700,24 @@ $title = trim((string) $data['title']);
 $slug = trim((string) $data['slug']);
 $statusValue = (string) (getNestedValue($data, 'publication.status') ?? 'Draft');
 $category = (string) ($data['category'] ?? '');
+$coverImageData = getNestedValue($data, 'media.coverImage');
+$coverImage = null;
+
+if (is_array($coverImageData) && function_exists('normalizeStoredImage')) {
+    $coverImage = normalizeStoredImage(
+        $coverImageData,
+        $GLOBALS['workshopImageStorage'] ?? [
+            'path' => $projectRoot . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'workshops',
+            'url' => '/uploads/workshops',
+        ],
+        'workshop-cover'
+    );
+
+    if ($coverImage !== null) {
+        $data['media']['coverImage'] = $coverImage;
+    }
+}
+
 $payloadJson = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
 if ($payloadJson === false) {
@@ -688,6 +737,7 @@ if ($method === 'POST') {
             $slug,
             $statusValue,
             $category,
+            $coverImage,
             $payloadJson,
             $now
         ): int {
@@ -699,6 +749,11 @@ if ($method === 'POST') {
                     slug,
                     status,
                     category,
+                    cover_image_name,
+                    cover_image_type,
+                    cover_image_size,
+                    cover_image_path,
+                    cover_image_url,
                     payload_json,
                     created_at,
                     updated_at
@@ -707,6 +762,11 @@ if ($method === 'POST') {
                     :slug,
                     :status,
                     :category,
+                    :cover_image_name,
+                    :cover_image_type,
+                    :cover_image_size,
+                    :cover_image_path,
+                    :cover_image_url,
                     :payload_json,
                     :created_at,
                     :updated_at
@@ -718,6 +778,11 @@ if ($method === 'POST') {
                 ':slug' => $slug,
                 ':status' => $statusValue,
                 ':category' => $category,
+                ':cover_image_name' => $coverImage['file_name'] ?? null,
+                ':cover_image_type' => $coverImage['file_type'] ?? null,
+                ':cover_image_size' => $coverImage['file_size'] ?? null,
+                ':cover_image_path' => $coverImage['file_path'] ?? null,
+                ':cover_image_url' => $coverImage['file_url'] ?? null,
                 ':payload_json' => $payloadJson,
                 ':created_at' => $now,
                 ':updated_at' => $now,
@@ -738,6 +803,7 @@ if ($method === 'POST') {
                 'slug' => $slug,
                 'status' => $statusValue,
                 'category' => $category,
+                'coverImage' => $coverImage,
                 'createdAt' => $now,
                 'updatedAt' => $now,
                 'payload' => $data,
@@ -800,6 +866,7 @@ try {
         $slug,
         $statusValue,
         $category,
+        $coverImage,
         $payloadJson,
         $now
     ): void {
@@ -812,6 +879,11 @@ try {
                 slug = :slug,
                 status = :status,
                 category = :category,
+                cover_image_name = :cover_image_name,
+                cover_image_type = :cover_image_type,
+                cover_image_size = :cover_image_size,
+                cover_image_path = :cover_image_path,
+                cover_image_url = :cover_image_url,
                 payload_json = :payload_json,
                 updated_at = :updated_at
              WHERE id = :id'
@@ -822,6 +894,11 @@ try {
             ':slug' => $slug,
             ':status' => $statusValue,
             ':category' => $category,
+            ':cover_image_name' => $coverImage['file_name'] ?? null,
+            ':cover_image_type' => $coverImage['file_type'] ?? null,
+            ':cover_image_size' => $coverImage['file_size'] ?? null,
+            ':cover_image_path' => $coverImage['file_path'] ?? null,
+            ':cover_image_url' => $coverImage['file_url'] ?? null,
             ':payload_json' => $payloadJson,
             ':updated_at' => $now,
             ':id' => $id,
@@ -839,6 +916,7 @@ try {
             'slug' => $slug,
             'status' => $statusValue,
             'category' => $category,
+            'coverImage' => $coverImage,
             'createdAt' => $existing['created_at'],
             'updatedAt' => $now,
             'payload' => $data,
@@ -1279,6 +1357,24 @@ try {
             $data['category'] ?? ''
         );
 
+    $coverImageData = getNestedValue($data, 'media.coverImage');
+    $coverImage = null;
+
+    if (is_array($coverImageData) && function_exists('normalizeStoredImage')) {
+        $coverImage = normalizeStoredImage(
+            $coverImageData,
+            $GLOBALS['workshopImageStorage'] ?? [
+                'path' => $projectRoot . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'workshops',
+                'url' => '/uploads/workshops',
+            ],
+            'workshop-cover'
+        );
+
+        if ($coverImage !== null) {
+            $data['media']['coverImage'] = $coverImage;
+        }
+    }
+
     $payloadJson = json_encode(
         $data,
         JSON_UNESCAPED_UNICODE |
@@ -1303,6 +1399,11 @@ try {
             slug,
             status,
             category,
+            cover_image_name,
+            cover_image_type,
+            cover_image_size,
+            cover_image_path,
+            cover_image_url,
             payload_json,
             created_at,
             updated_at
@@ -1311,6 +1412,11 @@ try {
             :slug,
             :status,
             :category,
+            :cover_image_name,
+            :cover_image_type,
+            :cover_image_size,
+            :cover_image_path,
+            :cover_image_url,
             :payload_json,
             :created_at,
             :updated_at
@@ -1322,6 +1428,11 @@ try {
         ':slug' => $slug,
         ':status' => $statusValue,
         ':category' => $category,
+        ':cover_image_name' => $coverImage['file_name'] ?? null,
+        ':cover_image_type' => $coverImage['file_type'] ?? null,
+        ':cover_image_size' => $coverImage['file_size'] ?? null,
+        ':cover_image_path' => $coverImage['file_path'] ?? null,
+        ':cover_image_url' => $coverImage['file_url'] ?? null,
         ':payload_json' => $payloadJson,
         ':created_at' => $now,
         ':updated_at' => $now,
@@ -1341,6 +1452,7 @@ try {
             'slug' => $slug,
             'status' => $statusValue,
             'category' => $category,
+            'coverImage' => $coverImage,
             'createdAt' => $now,
             'database' => 'SQLite',
             'table' => 'workshops',
