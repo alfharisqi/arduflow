@@ -1,0 +1,1111 @@
+<?php
+
+declare(strict_types=1);
+
+header('Content-Type: application/json; charset=utf-8');
+
+/*
+|--------------------------------------------------------------------------
+| CORS
+|--------------------------------------------------------------------------
+*/
+
+$origin = isset($_SERVER['HTTP_ORIGIN'])
+    ? $_SERVER['HTTP_ORIGIN']
+    : '';
+
+$allowedOrigins = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:5174',
+    'http://127.0.0.1:5174',
+    'http://localhost:5175',
+    'http://127.0.0.1:5175',
+    'https://arduflow.indobilliard.com',
+    'https://www.arduflow.indobilliard.com',
+];
+
+$isLocalOrigin = preg_match(
+    '#^http://(localhost|127\.0\.0\.1):[0-9]+$#',
+    $origin
+) === 1;
+
+if (
+    in_array($origin, $allowedOrigins, true)
+    || $isLocalOrigin
+) {
+    header('Access-Control-Allow-Origin: ' . $origin);
+    header('Vary: Origin');
+}
+
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header(
+    'Access-Control-Allow-Headers: Content-Type, Accept, Authorization'
+);
+header('Access-Control-Max-Age: 86400');
+
+/*
+|--------------------------------------------------------------------------
+| OPTIONS Request
+|--------------------------------------------------------------------------
+*/
+
+$requestMethod = $_SERVER['REQUEST_METHOD'] ?? '';
+
+if ($requestMethod === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Path Project
+|--------------------------------------------------------------------------
+|
+| Contoh:
+|
+| website/
+| └── API/
+|     ├── api/
+|     │   └── materihandle.php
+|     ├── config/
+|     │   └── database.php
+|     └── storage/
+|         └── database/
+|             └── arduflow.sqlite
+|
+*/
+
+$projectRoot = dirname(__DIR__);
+
+$configPath = $projectRoot
+    . DIRECTORY_SEPARATOR
+    . 'config'
+    . DIRECTORY_SEPARATOR
+    . 'database.php';
+
+/*
+|--------------------------------------------------------------------------
+| Cek Config Database
+|--------------------------------------------------------------------------
+*/
+
+if (!file_exists($configPath)) {
+    sendJsonResponse(
+        [
+            'success' => false,
+            'message' => 'Konfigurasi database tidak ditemukan.',
+            'data' => [
+                'config_path' => $configPath,
+            ],
+        ],
+        500
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Membaca config/database.php
+|--------------------------------------------------------------------------
+*/
+
+$databaseConfig = require $configPath;
+
+if (!is_array($databaseConfig)) {
+    sendJsonResponse(
+        [
+            'success' => false,
+            'message' => 'Format konfigurasi database tidak valid.',
+        ],
+        500
+    );
+}
+
+$sqliteConfig = $databaseConfig['sqlite'] ?? null;
+
+if (!is_array($sqliteConfig)) {
+    sendJsonResponse(
+        [
+            'success' => false,
+            'message' => 'Konfigurasi SQLite tidak ditemukan.',
+        ],
+        500
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Ambil Path SQLite
+|--------------------------------------------------------------------------
+*/
+
+$databasePath = trim(
+    (string) ($sqliteConfig['path'] ?? '')
+);
+
+$busyTimeout = (int) (
+    $sqliteConfig['busy_timeout_ms']
+    ?? 15000
+);
+
+if ($databasePath === '') {
+    sendJsonResponse(
+        [
+            'success' => false,
+            'message' => 'Path database SQLite belum dikonfigurasi.',
+        ],
+        500
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Deteksi Absolute Path
+|--------------------------------------------------------------------------
+*/
+
+$isWindowsAbsolutePath = preg_match(
+    '/^[A-Za-z]:[\\\\\/]/',
+    $databasePath
+) === 1;
+
+$isUnixAbsolutePath = str_starts_with(
+    $databasePath,
+    '/'
+);
+
+/*
+|--------------------------------------------------------------------------
+| Jika Relative Path
+|--------------------------------------------------------------------------
+|
+| Config:
+|
+| 'path' => 'storage/database/arduflow.sqlite'
+|
+| akan menjadi:
+|
+| website/API/storage/database/arduflow.sqlite
+|
+*/
+
+if (
+    !$isWindowsAbsolutePath
+    && !$isUnixAbsolutePath
+) {
+    $databasePath =
+        $projectRoot
+        . DIRECTORY_SEPARATOR
+        . str_replace(
+            ['/', '\\'],
+            DIRECTORY_SEPARATOR,
+            $databasePath
+        );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Folder Database
+|--------------------------------------------------------------------------
+*/
+
+$databaseDirectory = dirname($databasePath);
+
+if (
+    !is_dir($databaseDirectory)
+    && !mkdir(
+        $databaseDirectory,
+        0775,
+        true
+    )
+    && !is_dir($databaseDirectory)
+) {
+    sendJsonResponse(
+        [
+            'success' => false,
+            'message' => 'Folder database tidak dapat dibuat.',
+            'data' => [
+                'database_directory' => $databaseDirectory,
+            ],
+        ],
+        500
+    );
+}
+
+if (!is_writable($databaseDirectory)) {
+    sendJsonResponse(
+        [
+            'success' => false,
+            'message' => 'Folder database tidak memiliki izin tulis.',
+            'data' => [
+                'database_directory' => $databaseDirectory,
+            ],
+        ],
+        500
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Koneksi Database
+|--------------------------------------------------------------------------
+*/
+
+try {
+    $database = new PDO(
+        'sqlite:' . $databasePath,
+        null,
+        null,
+        [
+            PDO::ATTR_ERRMODE =>
+                PDO::ERRMODE_EXCEPTION,
+
+            PDO::ATTR_DEFAULT_FETCH_MODE =>
+                PDO::FETCH_ASSOC,
+
+            PDO::ATTR_EMULATE_PREPARES =>
+                false,
+        ]
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | SQLite Settings
+    |--------------------------------------------------------------------------
+    */
+
+    $database->exec(
+        'PRAGMA foreign_keys = ON'
+    );
+
+    $database->exec(
+        'PRAGMA journal_mode = WAL'
+    );
+
+    $database->exec(
+        'PRAGMA synchronous = NORMAL'
+    );
+
+    $database->exec(
+        'PRAGMA busy_timeout = '
+        . max(15000, $busyTimeout)
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Pastikan Table Ada
+    |--------------------------------------------------------------------------
+    */
+
+    createTables($database);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Routing Method
+    |--------------------------------------------------------------------------
+    */
+
+    switch ($requestMethod) {
+        case 'GET':
+            getAllMateri($database);
+            break;
+
+        case 'POST':
+            createMateri($database);
+            break;
+
+        default:
+            sendJsonResponse(
+                [
+                    'success' => false,
+                    'message' => 'Method tidak diizinkan.',
+                ],
+                405
+            );
+    }
+} catch (Throwable $error) {
+    sendJsonResponse(
+        [
+            'success' => false,
+            'message' => 'Terjadi kesalahan pada server.',
+            'error' => $error->getMessage(),
+            'database_path' => $databasePath ?? null,
+        ],
+        500
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Membuat Table
+|--------------------------------------------------------------------------
+*/
+
+function createTables(PDO $database): void
+{
+    /*
+    |--------------------------------------------------------------------------
+    | Table Tutorials
+    |--------------------------------------------------------------------------
+    */
+
+    $database->exec(
+        'CREATE TABLE IF NOT EXISTS tutorials (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            slug TEXT NOT NULL UNIQUE,
+            category TEXT NOT NULL,
+            display_order INTEGER NOT NULL DEFAULT 1,
+            short_description TEXT NOT NULL,
+            full_description TEXT NOT NULL,
+            card_image_name TEXT,
+            card_image_type TEXT,
+            card_image_size INTEGER,
+            difficulty_level TEXT,
+            estimated_time TEXT,
+            page_order INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT "draft",
+            user_level TEXT NOT NULL DEFAULT "semua_pengguna",
+            access_requirement TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )'
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Table Tutorial Slides
+    |--------------------------------------------------------------------------
+    */
+
+    $database->exec(
+        'CREATE TABLE IF NOT EXISTS tutorial_slides (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tutorial_id INTEGER NOT NULL,
+            slide_order INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            content_type TEXT NOT NULL DEFAULT "text",
+            content TEXT,
+            image_name TEXT,
+            video_url TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+
+            FOREIGN KEY (tutorial_id)
+                REFERENCES tutorials(id)
+                ON DELETE CASCADE
+        )'
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| GET Semua Materi
+|--------------------------------------------------------------------------
+*/
+
+function getAllMateri(PDO $database): void
+{
+    $statement = $database->query(
+        'SELECT
+            id,
+            title,
+            slug,
+            category,
+            display_order,
+            short_description,
+            full_description,
+            card_image_name,
+            card_image_type,
+            card_image_size,
+            difficulty_level,
+            estimated_time,
+            page_order,
+            status,
+            user_level,
+            access_requirement,
+            created_at,
+            updated_at
+         FROM tutorials
+         ORDER BY display_order ASC, id DESC'
+    );
+
+    $tutorials = $statement->fetchAll();
+
+    /*
+    |--------------------------------------------------------------------------
+    | Query Slides
+    |--------------------------------------------------------------------------
+    */
+
+    $slideStatement = $database->prepare(
+        'SELECT
+            id,
+            slide_order AS "order",
+            title,
+            content_type,
+            content,
+            image_name,
+            video_url
+         FROM tutorial_slides
+         WHERE tutorial_id = :tutorial_id
+         ORDER BY slide_order ASC, id ASC'
+    );
+
+    foreach ($tutorials as &$tutorial) {
+        $slideStatement->execute([
+            ':tutorial_id' => $tutorial['id'],
+        ]);
+
+        $tutorial['slides'] =
+            $slideStatement->fetchAll();
+
+        $tutorial['total_slides'] =
+            count($tutorial['slides']);
+    }
+
+    unset($tutorial);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Response
+    |--------------------------------------------------------------------------
+    */
+
+    sendJsonResponse([
+        'success' => true,
+        'message' => 'Data materi berhasil diambil.',
+        'data' => $tutorials,
+        'total' => count($tutorials),
+    ]);
+}
+
+/*
+|--------------------------------------------------------------------------
+| POST Tambah Materi
+|--------------------------------------------------------------------------
+*/
+
+function createMateri(PDO $database): void
+{
+    /*
+    |--------------------------------------------------------------------------
+    | Membaca JSON
+    |--------------------------------------------------------------------------
+    */
+
+    $rawBody = file_get_contents('php://input');
+
+    if (
+        $rawBody === false
+        || trim($rawBody) === ''
+    ) {
+        sendJsonResponse(
+            [
+                'success' => false,
+                'message' => 'Body request tidak boleh kosong.',
+            ],
+            400
+        );
+    }
+
+    try {
+        $requestData = json_decode(
+            $rawBody,
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+    } catch (JsonException $error) {
+        sendJsonResponse(
+            [
+                'success' => false,
+                'message' => 'Body request harus berupa JSON yang valid.',
+                'error' => $error->getMessage(),
+            ],
+            400
+        );
+    }
+
+    if (!is_array($requestData)) {
+        sendJsonResponse(
+            [
+                'success' => false,
+                'message' => 'Body request harus berupa object JSON.',
+            ],
+            400
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Validasi
+    |--------------------------------------------------------------------------
+    */
+
+    $errors = validateMateri($requestData);
+
+    if ($errors !== []) {
+        sendJsonResponse(
+            [
+                'success' => false,
+                'message' => 'Data materi belum lengkap.',
+                'errors' => $errors,
+                'data' => null,
+            ],
+            422
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Nested Object
+    |--------------------------------------------------------------------------
+    */
+
+    $descriptions =
+        isset($requestData['descriptions'])
+        && is_array($requestData['descriptions'])
+            ? $requestData['descriptions']
+            : [];
+
+    $cardImage =
+        isset($requestData['card_image'])
+        && is_array($requestData['card_image'])
+            ? $requestData['card_image']
+            : [];
+
+    $learning =
+        isset($requestData['learning_information'])
+        && is_array($requestData['learning_information'])
+            ? $requestData['learning_information']
+            : [];
+
+    $pageSettings =
+        isset($requestData['page_settings'])
+        && is_array($requestData['page_settings'])
+            ? $requestData['page_settings']
+            : [];
+
+    $accessSettings =
+        isset($requestData['access_settings'])
+        && is_array($requestData['access_settings'])
+            ? $requestData['access_settings']
+            : [];
+
+    $slides =
+        isset($requestData['slides'])
+        && is_array($requestData['slides'])
+            ? $requestData['slides']
+            : [];
+
+    /*
+    |--------------------------------------------------------------------------
+    | Timestamp Jakarta
+    |--------------------------------------------------------------------------
+    */
+
+    $currentTimestamp = (
+        new DateTimeImmutable(
+            'now',
+            new DateTimeZone('Asia/Jakarta')
+        )
+    )->format(DateTimeInterface::ATOM);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Simpan Materi
+    |--------------------------------------------------------------------------
+    */
+
+    try {
+        $database->beginTransaction();
+
+        $statement = $database->prepare(
+            'INSERT INTO tutorials (
+                title,
+                slug,
+                category,
+                display_order,
+                short_description,
+                full_description,
+                card_image_name,
+                card_image_type,
+                card_image_size,
+                difficulty_level,
+                estimated_time,
+                page_order,
+                status,
+                user_level,
+                access_requirement,
+                created_at,
+                updated_at
+            ) VALUES (
+                :title,
+                :slug,
+                :category,
+                :display_order,
+                :short_description,
+                :full_description,
+                :card_image_name,
+                :card_image_type,
+                :card_image_size,
+                :difficulty_level,
+                :estimated_time,
+                :page_order,
+                :status,
+                :user_level,
+                :access_requirement,
+                :created_at,
+                :updated_at
+            )'
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Execute Tutorial
+        |--------------------------------------------------------------------------
+        */
+
+        $statement->execute([
+            ':title' =>
+                trim(
+                    (string) $requestData['title']
+                ),
+
+            ':slug' =>
+                trim(
+                    (string) $requestData['slug']
+                ),
+
+            ':category' =>
+                (string) $requestData['category'],
+
+            ':display_order' =>
+                (int) $requestData['display_order'],
+
+            ':short_description' =>
+                trim(
+                    (string) $descriptions['short_description']
+                ),
+
+            ':full_description' =>
+                trim(
+                    (string) $descriptions['full_description']
+                ),
+
+            ':card_image_name' =>
+                isset($cardImage['file_name'])
+                    ? (string) $cardImage['file_name']
+                    : null,
+
+            ':card_image_type' =>
+                isset($cardImage['file_type'])
+                    ? (string) $cardImage['file_type']
+                    : null,
+
+            ':card_image_size' =>
+                isset($cardImage['file_size'])
+                    ? (int) $cardImage['file_size']
+                    : null,
+
+            ':difficulty_level' =>
+                isset($learning['difficulty_level'])
+                    ? (string) $learning['difficulty_level']
+                    : null,
+
+            ':estimated_time' =>
+                isset($learning['estimated_time'])
+                    ? (string) $learning['estimated_time']
+                    : null,
+
+            ':page_order' =>
+                (int) $pageSettings['page_order'],
+
+            ':status' =>
+                isset($pageSettings['status'])
+                    ? (string) $pageSettings['status']
+                    : 'draft',
+
+            ':user_level' =>
+                isset($accessSettings['user_level'])
+                    ? (string) $accessSettings['user_level']
+                    : 'semua_pengguna',
+
+            ':access_requirement' =>
+                isset($accessSettings['access_requirement'])
+                && $accessSettings['access_requirement'] !== ''
+                    ? (string) $accessSettings['access_requirement']
+                    : null,
+
+            ':created_at' =>
+                $currentTimestamp,
+
+            ':updated_at' =>
+                $currentTimestamp,
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | ID Tutorial
+        |--------------------------------------------------------------------------
+        */
+
+        $tutorialId =
+            (int) $database->lastInsertId();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Simpan Slides
+        |--------------------------------------------------------------------------
+        */
+
+        if ($slides !== []) {
+            $slideStatement = $database->prepare(
+                'INSERT INTO tutorial_slides (
+                    tutorial_id,
+                    slide_order,
+                    title,
+                    content_type,
+                    content,
+                    image_name,
+                    video_url,
+                    created_at,
+                    updated_at
+                ) VALUES (
+                    :tutorial_id,
+                    :slide_order,
+                    :title,
+                    :content_type,
+                    :content,
+                    :image_name,
+                    :video_url,
+                    :created_at,
+                    :updated_at
+                )'
+            );
+
+            foreach ($slides as $index => $slide) {
+                if (!is_array($slide)) {
+                    continue;
+                }
+
+                $slideStatement->execute([
+                    ':tutorial_id' =>
+                        $tutorialId,
+
+                    ':slide_order' =>
+                        isset($slide['order'])
+                            ? (int) $slide['order']
+                            : $index + 1,
+
+                    ':title' =>
+                        isset($slide['title'])
+                            ? trim(
+                                (string) $slide['title']
+                            )
+                            : 'Slide ' . ($index + 1),
+
+                    ':content_type' =>
+                        isset($slide['content_type'])
+                            ? (string) $slide['content_type']
+                            : 'text',
+
+                    ':content' =>
+                        isset($slide['content'])
+                            ? (string) $slide['content']
+                            : null,
+
+                    ':image_name' =>
+                        isset($slide['image_name'])
+                            ? (string) $slide['image_name']
+                            : null,
+
+                    ':video_url' =>
+                        isset($slide['video_url'])
+                            ? (string) $slide['video_url']
+                            : null,
+
+                    ':created_at' =>
+                        $currentTimestamp,
+
+                    ':updated_at' =>
+                        $currentTimestamp,
+                ]);
+            }
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Commit
+        |--------------------------------------------------------------------------
+        */
+
+        $database->commit();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Response Sukses
+        |--------------------------------------------------------------------------
+        */
+
+        sendJsonResponse(
+            [
+                'success' => true,
+                'message' => 'Materi berhasil ditambahkan.',
+                'data' => [
+                    'id' =>
+                        $tutorialId,
+
+                    'title' =>
+                        trim(
+                            (string) $requestData['title']
+                        ),
+
+                    'slug' =>
+                        trim(
+                            (string) $requestData['slug']
+                        ),
+
+                    'category' =>
+                        (string) $requestData['category'],
+
+                    'status' =>
+                        isset($pageSettings['status'])
+                            ? (string) $pageSettings['status']
+                            : 'draft',
+
+                    'page_order' =>
+                        (int) $pageSettings['page_order'],
+
+                    'total_slides' =>
+                        count($slides),
+
+                    'created_at' =>
+                        $currentTimestamp,
+                ],
+            ],
+            201
+        );
+    } catch (PDOException $error) {
+        /*
+        |--------------------------------------------------------------------------
+        | Rollback
+        |--------------------------------------------------------------------------
+        */
+
+        if ($database->inTransaction()) {
+            $database->rollBack();
+        }
+
+        $errorMessage =
+            strtolower($error->getMessage());
+
+        /*
+        |--------------------------------------------------------------------------
+        | Slug Duplikat
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            strpos(
+                $errorMessage,
+                'unique'
+            ) !== false
+        ) {
+            sendJsonResponse(
+                [
+                    'success' => false,
+                    'message' => 'Slug sudah digunakan.',
+                    'errors' => [
+                        'slug' =>
+                            'Slug sudah digunakan oleh materi lain.',
+                    ],
+                ],
+                409
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Error SQLite
+        |--------------------------------------------------------------------------
+        */
+
+        sendJsonResponse(
+            [
+                'success' => false,
+                'message' => 'Gagal menyimpan materi.',
+                'error' => $error->getMessage(),
+            ],
+            500
+        );
+    }
+}
+
+/*
+|--------------------------------------------------------------------------
+| Validasi Materi
+|--------------------------------------------------------------------------
+*/
+
+function validateMateri(array $data): array
+{
+    $errors = [];
+
+    /*
+    |--------------------------------------------------------------------------
+    | Judul
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        trim(
+            (string) ($data['title'] ?? '')
+        ) === ''
+    ) {
+        $errors['title'] =
+            'Kolom ini belum diisi.';
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Slug
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        trim(
+            (string) ($data['slug'] ?? '')
+        ) === ''
+    ) {
+        $errors['slug'] =
+            'Kolom ini belum diisi.';
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Category
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        trim(
+            (string) ($data['category'] ?? '')
+        ) === ''
+    ) {
+        $errors['category'] =
+            'Kolom ini belum diisi.';
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Display Order
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        !isset($data['display_order'])
+        || (int) $data['display_order'] < 1
+    ) {
+        $errors['display_order'] =
+            'Kolom ini belum diisi.';
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Description
+    |--------------------------------------------------------------------------
+    */
+
+    $descriptions =
+        isset($data['descriptions'])
+        && is_array($data['descriptions'])
+            ? $data['descriptions']
+            : [];
+
+    if (
+        trim(
+            (string) (
+                $descriptions['short_description']
+                ?? ''
+            )
+        ) === ''
+    ) {
+        $errors['short_description'] =
+            'Kolom ini belum diisi.';
+    }
+
+    if (
+        trim(
+            (string) (
+                $descriptions['full_description']
+                ?? ''
+            )
+        ) === ''
+    ) {
+        $errors['full_description'] =
+            'Kolom ini belum diisi.';
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Page Settings
+    |--------------------------------------------------------------------------
+    */
+
+    $pageSettings =
+        isset($data['page_settings'])
+        && is_array($data['page_settings'])
+            ? $data['page_settings']
+            : [];
+
+    if (
+        !isset($pageSettings['page_order'])
+        || (int) $pageSettings['page_order'] < 1
+    ) {
+        $errors['page_order'] =
+            'Kolom ini belum diisi.';
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Slides
+    |--------------------------------------------------------------------------
+    */
+
+    $slides =
+        isset($data['slides'])
+        && is_array($data['slides'])
+            ? $data['slides']
+            : [];
+
+    if ($slides === []) {
+        $errors['slides'] =
+            'Daftar materi harus mempunyai minimal satu slide.';
+    }
+
+    return $errors;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Response JSON
+|--------------------------------------------------------------------------
+*/
+
+function sendJsonResponse(
+    array $response,
+    int $statusCode = 200
+): void {
+    http_response_code($statusCode);
+
+    echo json_encode(
+        $response,
+        JSON_PRETTY_PRINT
+        | JSON_UNESCAPED_UNICODE
+        | JSON_UNESCAPED_SLASHES
+    );
+
+    exit;
+}

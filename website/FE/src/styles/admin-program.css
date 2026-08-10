@@ -159,6 +159,7 @@
 }
 
 .admin-program-filter button,
+.admin-program-filter a,
 .admin-program-pagination button,
 .admin-program-action,
 .admin-program-panel button,
@@ -173,7 +174,11 @@
   color: #111827;
 }
 
-.admin-program-filter button {
+.admin-program-filter button,
+.admin-program-filter a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0 14px;
 }
 

@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AdminSidebar } from './AdminSidebar.jsx';
 import {
   getInitialAdminSidebarCollapsed,
   persistAdminSidebarCollapsed,
 } from './adminSidebarState.js';
+
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
@@ -13,60 +14,112 @@ import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
 import arrowIcon from '../../assets/icons/icon-arrow-right-1.svg';
 import mapIcon from '../../assets/icons/icon-map-pin-1.svg';
 
-const programStats = [
-  { label: 'Total Workshop/Program', value: '48', note: 'Semua program', icon: clockIcon, tone: 'gray' },
-  { label: 'Program Aktif', value: '23', note: 'Published & berjalan', icon: checkIcon, tone: 'green' },
-  { label: 'Program Draft', value: '8', note: 'Belum dipublish', icon: bookIcon, tone: 'orange' },
-  { label: 'Peserta Terdaftar', value: '1.256', note: 'Di semua program', icon: usersIcon, tone: 'blue' },
-  { label: 'Kuota Hampir Penuh', value: '6', note: '> 80% kuota terisi', icon: clockIcon, tone: 'red' },
-  { label: 'Program Selesai', value: '17', note: 'Selesai / archived', icon: checkIcon, tone: 'purple' },
-];
+const API_URL =
+  import.meta.env.VITE_WORKSHOP_API_URL ||
+  'http://192.168.130.11:8000/api/workshop-api.php';
 
-const programs = [
-  ['Web Development 101', 'Belajar dasar-dasar web development', 'Web Dev', 'Online', '25 Mei 2024 09:00 - 12:00', 'https://zoom.us/j/123456', '50', '32 (64%)', 'Published', 'Aktif'],
-  ['UI/UX Design Essentials', 'Desain UI/UX untuk pemula', 'Desain', 'Online', '28 Mei 2024 13:00 - 16:00', 'https://zoom.us/j/789012', '30', '28 (93%)', 'Published', 'Aktif'],
-  ['Arduino & IoT Basics', 'Pengenalan Arduino dan IoT', 'IoT', 'Offline', '1 Jun 2024 09:00 - 15:00', 'Lab Arduflow, Jakarta', '40', '18 (45%)', 'Draft', 'Belum'],
-  ['Python for Beginners', 'Belajar Python dari nol', 'Programming', 'Online', '5 Jun 2024 19:00 - 21:00', 'https://zoom.us/j/334455', '60', '60 (100%)', 'Published', 'Aktif'],
-  ['Data Science Basic', 'Pengenalan data science', 'Data Science', 'Hybrid', '8 Jun 2024 09:00 - 14:00', 'Jakarta / https://zoom.us/j/556677', '40', '35 (88%)', 'Sedang Berlangsung', 'Aktif'],
-  ['Mobile App Development', 'Membuat aplikasi mobile', 'Mobile Dev', 'Online', '15 Jun 2024 09:00 - 12:00', '-', '30', '0 (0%)', 'Dibatalkan', '-'],
-];
+const WORKSHOP_ENDPOINT = `${API_URL}/http://192.168.130.11:8000/api/workshop-api.php`;
+const PAGE_SIZE = 6;
 
-const upcomingPrograms = [
-  ['Web Development 101', '25 Mei 2024', '32 / 50', 'Aman'],
-  ['UI/UX Design Essentials', '28 Mei 2024', '28 / 30', 'Hampir Penuh'],
-  ['Arduino & IoT Basics', '1 Jun 2024', '18 / 40', 'Aman'],
-  ['Python for Beginners', '5 Jun 2024', '60 / 60', 'Penuh'],
-  ['Data Science Basic', '8 Jun 2024', '35 / 40', 'Hampir Penuh'],
-];
+function normalizeWorkshop(row) {
+  const payload = row?.payload && typeof row.payload === 'object' ? row.payload : {};
 
-const participants = [
-  ['Dewi Lestari', 'Web Development 101', '20 Mei 2024 14:30', 'Lunas'],
-  ['Budi Santoso', 'UI/UX Design Essentials', '20 Mei 2024 14:05', 'Lunas'],
-  ['Siti Aminah', 'Arduino & IoT Basics', '20 Mei 2024 14:10', 'Lunas'],
-  ['Rudi Kurniawan', 'Python for Beginners', '20 Mei 2024 13:58', 'Menunggu'],
-  ['Nabila Putri', 'Data Science Basic', '20 Mei 2024 13:40', 'Lunas'],
-];
+  return {
+    id: row?.id ?? null,
+    title: payload.title || row?.title || '-',
+    slug: payload.slug || row?.slug || '',
+    summary: payload.summary || '-',
+    level: payload.level || '-',
+    duration: payload.duration || '-',
+    platform: payload.platform || '-',
+    category: payload.category || row?.category || '-',
+    type: payload.type || '-',
+    date: payload.schedule?.date || '',
+    time: payload.schedule?.time || '',
+    timezone: payload.schedule?.timezone || '',
+    location: payload.location || '-',
+    price: payload.price ?? '',
+    facilities: payload.facilities ?? null,
+    bringItems: payload.bringItems ?? null,
+    about: payload.about || '',
+    status: payload.publication?.status || row?.status || 'Draft',
+    visibility: payload.publication?.visibility || 'Publik',
+    homepageVisible: Boolean(payload.publication?.homepageVisible),
+    coverImage: payload.media?.coverImage ?? null,
+    gallery: Array.isArray(payload.media?.gallery) ? payload.media.gallery : [],
+    module: payload.attachment?.module ?? null,
+    metaTitle: payload.seo?.metaTitle ?? null,
+    metaDescription: payload.seo?.metaDescription ?? null,
+    createdAt: row?.createdAt || row?.created_at || '',
+    updatedAt: row?.updatedAt || row?.updated_at || '',
+    raw: payload,
+  };
+}
 
-const programProblems = [
-  ['Link Zoom kosong', 3],
-  ['Kuota penuh', 2],
-  ['Belum punya mentor', 4],
-  ['Sertifikat belum disiapkan', 5],
-  ['Jadwal bentrok', 1],
-];
+function formatDate(dateValue) {
+  if (!dateValue) return '-';
 
-function AdminProgramTopbar() {
+  const parts = String(dateValue).split('-').map(Number);
+
+  if (parts.length !== 3 || parts.some(Number.isNaN)) {
+    return dateValue;
+  }
+
+  const [year, month, day] = parts;
+  const date = new Date(year, month - 1, day);
+
+  return new Intl.DateTimeFormat('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
+function formatSchedule(workshop) {
+  const date = formatDate(workshop.date);
+  const time = workshop.time || '';
+
+  if (date === '-' && !time) return '-';
+  if (!time) return date;
+
+  return `${date} ${time}`;
+}
+
+function formatPrice(value) {
+  const number = Number(String(value ?? '').replace(/\D/g, ''));
+
+  if (!Number.isFinite(number) || number <= 0) {
+    return 'Gratis / -';
+  }
+
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0,
+  }).format(number);
+}
+
+function AdminProgramTopbar({ searchTerm, onSearchChange }) {
   return (
     <header className="admin-dashboard-topbar">
       <label className="admin-dashboard-search">
         <span aria-hidden="true" />
-        <input type="search" placeholder="Cari workshop / program" aria-label="Cari workshop atau program" />
+        <input
+          type="search"
+          placeholder="Cari workshop / program"
+          aria-label="Cari workshop atau program"
+          value={searchTerm}
+          onChange={(event) => onSearchChange(event.target.value)}
+        />
       </label>
+
       <div className="admin-dashboard-account">
         <button className="admin-dashboard-notif" type="button" aria-label="Notifikasi">
           <img src={bellIcon} alt="" />
         </button>
+
         <span className="admin-dashboard-avatar" aria-hidden="true" />
+
         <span>
           <strong>Admin</strong>
           <small>Super Admin</small>
@@ -77,20 +130,49 @@ function AdminProgramTopbar() {
 }
 
 function ProgramBadge({ children }) {
-  const slug = String(children).toLowerCase().replace(/\s+/g, '-').replace(/\//g, '-');
-  return <span className={`admin-program-badge admin-program-badge--${slug}`}>{children}</span>;
+  const label = String(children ?? '-');
+  const slug = label
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/\//g, '-');
+
+  return (
+    <span className={`admin-program-badge admin-program-badge--${slug}`}>
+      {label}
+    </span>
+  );
 }
 
-function ProgramAction({ label, children }) {
+function ProgramAction({ label, children, onClick, disabled = false }) {
   return (
-    <button className="admin-program-action" type="button" aria-label={label}>
+    <button
+      className="admin-program-action"
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      disabled={disabled}
+    >
       {children}
     </button>
   );
 }
 
 export function AdminProgram() {
-  const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialAdminSidebarCollapsed);
+  const [isSidebarCollapsed, setSidebarCollapsed] = useState(
+    getInitialAdminSidebarCollapsed,
+  );
+
+  const [workshops, setWorkshops] = useState([]);
+  const [selectedWorkshopId, setSelectedWorkshopId] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
+  const [page, setPage] = useState(1);
 
   const handleToggleSidebar = () => {
     setSidebarCollapsed((value) => {
@@ -100,28 +182,305 @@ export function AdminProgram() {
     });
   };
 
-  return (
-    <main className={`admin-dashboard-page admin-program-page${isSidebarCollapsed ? ' admin-dashboard-page--collapsed' : ''}`}>
-      <AdminSidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleSidebar} />
+  async function loadWorkshops() {
+    setIsLoading(true);
+    setLoadError('');
 
-      <section className="admin-dashboard-main" aria-label="Workshop dan program admin">
-        <AdminProgramTopbar />
+    try {
+      console.group('[AdminProgram] GET WORKSHOPS');
+      console.log('Endpoint:', WORKSHOP_ENDPOINT);
+      console.groupEnd();
+
+      const response = await fetch(WORKSHOP_ENDPOINT, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+
+      const rawText = await response.text();
+
+      let result;
+
+      try {
+        result = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        throw new Error(
+          `Response API bukan JSON. HTTP ${response.status}. Periksa URL ${WORKSHOP_ENDPOINT}.`,
+        );
+      }
+
+      console.group('[AdminProgram] RESPONSE API');
+      console.log('HTTP Status:', response.status);
+      console.log('Response:', result);
+      console.groupEnd();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || `Gagal mengambil workshop. HTTP ${response.status}.`);
+      }
+
+      const rows = Array.isArray(result.data?.workshops)
+        ? result.data.workshops
+        : [];
+
+      const normalized = rows.map(normalizeWorkshop);
+
+      setWorkshops(normalized);
+
+      setSelectedWorkshopId((currentId) => {
+        if (currentId && normalized.some((item) => item.id === currentId)) {
+          return currentId;
+        }
+
+        return normalized[0]?.id ?? null;
+      });
+    } catch (error) {
+      console.error('[AdminProgram] LOAD ERROR:', error);
+      setLoadError(error.message || 'Gagal mengambil data workshop.');
+      setWorkshops([]);
+      setSelectedWorkshopId(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadWorkshops();
+  }, []);
+
+  const statusOptions = useMemo(
+    () => [...new Set(workshops.map((item) => item.status).filter(Boolean))],
+    [workshops],
+  );
+
+  const typeOptions = useMemo(
+    () => [...new Set(workshops.map((item) => item.type).filter((item) => item && item !== '-'))],
+    [workshops],
+  );
+
+  const categoryOptions = useMemo(
+    () => [...new Set(workshops.map((item) => item.category).filter((item) => item && item !== '-'))],
+    [workshops],
+  );
+
+  const filteredWorkshops = useMemo(() => {
+    const keyword = searchTerm.trim().toLowerCase();
+
+    return workshops.filter((workshop) => {
+      const searchableText = [
+        workshop.title,
+        workshop.slug,
+        workshop.summary,
+        workshop.category,
+        workshop.type,
+        workshop.location,
+        workshop.status,
+        workshop.level,
+        workshop.platform,
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      if (keyword && !searchableText.includes(keyword)) {
+        return false;
+      }
+
+      if (statusFilter && workshop.status !== statusFilter) {
+        return false;
+      }
+
+      if (typeFilter && workshop.type !== typeFilter) {
+        return false;
+      }
+
+      if (categoryFilter && workshop.category !== categoryFilter) {
+        return false;
+      }
+
+      if (dateFilter && workshop.date !== dateFilter) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [
+    workshops,
+    searchTerm,
+    statusFilter,
+    typeFilter,
+    categoryFilter,
+    dateFilter,
+  ]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, statusFilter, typeFilter, categoryFilter, dateFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredWorkshops.length / PAGE_SIZE));
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const paginatedWorkshops = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filteredWorkshops.slice(start, start + PAGE_SIZE);
+  }, [filteredWorkshops, page]);
+
+  const selectedWorkshop = useMemo(
+    () =>
+      workshops.find((item) => item.id === selectedWorkshopId) ||
+      filteredWorkshops[0] ||
+      null,
+    [workshops, filteredWorkshops, selectedWorkshopId],
+  );
+
+  const stats = useMemo(() => {
+    const total = workshops.length;
+
+    const active = workshops.filter((item) =>
+      ['Terbit', 'Terjadwal'].includes(item.status),
+    ).length;
+
+    const draft = workshops.filter((item) => item.status === 'Draft').length;
+    const finished = workshops.filter((item) => item.status === 'Selesai').length;
+
+    return [
+      {
+        label: 'Total Workshop/Program',
+        value: String(total),
+        note: 'Data dari SQLite',
+        icon: clockIcon,
+        tone: 'gray',
+      },
+      {
+        label: 'Program Aktif',
+        value: String(active),
+        note: 'Terbit / terjadwal',
+        icon: checkIcon,
+        tone: 'green',
+      },
+      {
+        label: 'Program Draft',
+        value: String(draft),
+        note: 'Belum dipublish',
+        icon: bookIcon,
+        tone: 'orange',
+      },
+      {
+        label: 'Peserta Terdaftar',
+        value: '0',
+        note: 'Belum ada data peserta',
+        icon: usersIcon,
+        tone: 'blue',
+      },
+      {
+        label: 'Kuota Hampir Penuh',
+        value: '0',
+        note: 'Kuota belum tersedia',
+        icon: clockIcon,
+        tone: 'red',
+      },
+      {
+        label: 'Program Selesai',
+        value: String(finished),
+        note: 'Status selesai',
+        icon: checkIcon,
+        tone: 'purple',
+      },
+    ];
+  }, [workshops]);
+
+  const upcomingPrograms = useMemo(() => {
+    const today = new Date();
+    const todayString = [
+      today.getFullYear(),
+      String(today.getMonth() + 1).padStart(2, '0'),
+      String(today.getDate()).padStart(2, '0'),
+    ].join('-');
+
+    return [...workshops]
+      .filter(
+        (item) =>
+          item.date &&
+          item.date >= todayString &&
+          item.status !== 'Selesai',
+      )
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(0, 5);
+  }, [workshops]);
+
+  function resetFilters() {
+    setSearchTerm('');
+    setStatusFilter('');
+    setTypeFilter('');
+    setCategoryFilter('');
+    setDateFilter('');
+    setPage(1);
+  }
+
+  const firstShown = filteredWorkshops.length
+    ? (page - 1) * PAGE_SIZE + 1
+    : 0;
+
+  const lastShown = Math.min(
+    page * PAGE_SIZE,
+    filteredWorkshops.length,
+  );
+
+  return (
+    <main
+      className={`admin-dashboard-page admin-program-page${
+        isSidebarCollapsed ? ' admin-dashboard-page--collapsed' : ''
+      }`}
+    >
+      <AdminSidebar
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={handleToggleSidebar}
+      />
+
+      <section
+        className="admin-dashboard-main"
+        aria-label="Workshop dan program admin"
+      >
+        <AdminProgramTopbar
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+        />
 
         <div className="admin-program-layout">
           <section className="admin-program-content">
             <div className="admin-program-heading">
               <div>
                 <h1>Workshop / Program</h1>
-                <p>Dashboard <span>/</span> Workshop / Program</p>
+                <p>
+                  Dashboard <span>/</span> Workshop / Program
+                </p>
               </div>
             </div>
 
-            <section className="admin-program-stats" aria-label="Ringkasan workshop program">
-              {programStats.map((item) => (
+            {loadError && (
+              <div
+                className="admin-form-message is-error"
+                role="alert"
+                style={{ marginBottom: 16 }}
+              >
+                {loadError}
+              </div>
+            )}
+
+            <section
+              className="admin-program-stats"
+              aria-label="Ringkasan workshop program"
+            >
+              {stats.map((item) => (
                 <article className="admin-program-stat" key={item.label}>
                   <span className={`admin-program-stat-icon is-${item.tone}`}>
                     <img src={item.icon} alt="" />
                   </span>
+
                   <div>
                     <p>{item.label}</p>
                     <strong>{item.value}</strong>
@@ -131,27 +490,97 @@ export function AdminProgram() {
               ))}
             </section>
 
-            <section className="admin-program-filter" aria-label="Filter workshop program">
+            <section
+              className="admin-program-filter"
+              aria-label="Filter workshop program"
+            >
               <div className="admin-program-filter-top">
                 <label className="admin-program-search">
-                  <input type="search" placeholder="Cari nama program..." />
+                  <input
+                    type="search"
+                    placeholder="Cari nama program..."
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                  />
                 </label>
-                <button type="button">Reset Filter</button>
-                <button type="button" className="admin-program-primary">+ Tambah Program</button>
+
+                <button type="button" onClick={resetFilters}>
+                  Reset Filter
+                </button>
+
+                <button type="button" onClick={loadWorkshops}>
+                  Muat Ulang
+                </button>
+
+                <a
+                  href="/admin/tambah-workshop"
+                  className="admin-program-primary"
+                >
+                  + Tambah Program
+                </a>
               </div>
+
               <div className="admin-program-filter-grid">
-                {['Status', 'Metode', 'Kategori', 'Tanggal Mulai', 'Mentor / Pemateri'].map((label) => (
-                  <label key={label}>
-                    <span>{label}</span>
-                    {label === 'Tanggal Mulai' ? (
-                      <input type="text" placeholder="Pilih tanggal" />
-                    ) : (
-                      <select defaultValue="">
-                        <option value="">{label === 'Status' ? 'Semua Status' : label === 'Metode' ? 'Semua Metode' : label === 'Kategori' ? 'Semua Kategori' : 'Semua Mentor'}</option>
-                      </select>
-                    )}
-                  </label>
-                ))}
+                <label>
+                  <span>Status</span>
+                  <select
+                    value={statusFilter}
+                    onChange={(event) => setStatusFilter(event.target.value)}
+                  >
+                    <option value="">Semua Status</option>
+                    {statusOptions.map((status) => (
+                      <option value={status} key={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  <span>Metode</span>
+                  <select
+                    value={typeFilter}
+                    onChange={(event) => setTypeFilter(event.target.value)}
+                  >
+                    <option value="">Semua Metode</option>
+                    {typeOptions.map((type) => (
+                      <option value={type} key={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  <span>Kategori</span>
+                  <select
+                    value={categoryFilter}
+                    onChange={(event) => setCategoryFilter(event.target.value)}
+                  >
+                    <option value="">Semua Kategori</option>
+                    {categoryOptions.map((category) => (
+                      <option value={category} key={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  <span>Tanggal Mulai</span>
+                  <input
+                    type="date"
+                    value={dateFilter}
+                    onChange={(event) => setDateFilter(event.target.value)}
+                  />
+                </label>
+
+                <label>
+                  <span>Sumber Data</span>
+                  <select value="SQLite" disabled>
+                    <option>SQLite</option>
+                  </select>
+                </label>
               </div>
             </section>
 
@@ -171,45 +600,135 @@ export function AdminProgram() {
                     <th>Aksi</th>
                   </tr>
                 </thead>
+
                 <tbody>
-                  {programs.map((program) => (
-                    <tr key={program[0]}>
-                      <td>
-                        <span className="admin-program-thumb" />
-                        <span><b>{program[0]}</b><small>{program[1]}</small></span>
-                      </td>
-                      <td><ProgramBadge>{program[2]}</ProgramBadge></td>
-                      <td><ProgramBadge>{program[3]}</ProgramBadge></td>
-                      <td>{program[4]}</td>
-                      <td>{program[5]}</td>
-                      <td>{program[6]}</td>
-                      <td>{program[7]}</td>
-                      <td><ProgramBadge>{program[8]}</ProgramBadge></td>
-                      <td><ProgramBadge>{program[9]}</ProgramBadge></td>
-                      <td>
-                        <div className="admin-program-actions">
-                          <ProgramAction label={`Lihat ${program[0]}`}>
-                            <img src={eyeIcon} alt="" />
-                          </ProgramAction>
-                          <ProgramAction label={`Kelola peserta ${program[0]}`}>User</ProgramAction>
-                          <ProgramAction label={`Edit ${program[0]}`}>Edit</ProgramAction>
-                          <ProgramAction label={`Sertifikat ${program[0]}`}>Cert</ProgramAction>
-                          <ProgramAction label={`Menu ${program[0]}`}>...</ProgramAction>
-                        </div>
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan="10" style={{ textAlign: 'center', padding: 28 }}>
+                        Mengambil data workshop dari SQLite...
                       </td>
                     </tr>
-                  ))}
+                  ) : paginatedWorkshops.length === 0 ? (
+                    <tr>
+                      <td colSpan="10" style={{ textAlign: 'center', padding: 28 }}>
+                        Belum ada workshop yang cocok dengan filter.
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedWorkshops.map((workshop) => (
+                      <tr
+                        key={workshop.id ?? workshop.slug}
+                        className={
+                          selectedWorkshop?.id === workshop.id
+                            ? 'is-selected'
+                            : ''
+                        }
+                      >
+                        <td>
+                          <span className="admin-program-thumb" />
+
+                          <span>
+                            <b>{workshop.title}</b>
+                            <small>{workshop.summary}</small>
+                          </span>
+                        </td>
+
+                        <td>
+                          <ProgramBadge>{workshop.category}</ProgramBadge>
+                        </td>
+
+                        <td>
+                          <ProgramBadge>{workshop.type}</ProgramBadge>
+                        </td>
+
+                        <td>{formatSchedule(workshop)}</td>
+                        <td>{workshop.location}</td>
+                        <td>-</td>
+                        <td>-</td>
+
+                        <td>
+                          <ProgramBadge>{workshop.status}</ProgramBadge>
+                        </td>
+
+                        <td>-</td>
+
+                        <td>
+                          <div className="admin-program-actions">
+                            <ProgramAction
+                              label={`Lihat ${workshop.title}`}
+                              onClick={() => setSelectedWorkshopId(workshop.id)}
+                            >
+                              <img src={eyeIcon} alt="" />
+                            </ProgramAction>
+
+                            <ProgramAction
+                              label={`Kelola peserta ${workshop.title}`}
+                              disabled
+                            >
+                              User
+                            </ProgramAction>
+
+                            <ProgramAction
+                              label={`Edit ${workshop.title}`}
+                              disabled
+                            >
+                              Edit
+                            </ProgramAction>
+
+                            <ProgramAction
+                              label={`Sertifikat ${workshop.title}`}
+                              disabled
+                            >
+                              Cert
+                            </ProgramAction>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
+
               <div className="admin-program-pagination">
-                <span>Menampilkan 1 - 6 dari 48 program</span>
+                <span>
+                  Menampilkan {firstShown} - {lastShown} dari{' '}
+                  {filteredWorkshops.length} program
+                </span>
+
                 <div>
-                  <button type="button">&lt;</button>
-                  <button type="button" className="is-active">1</button>
-                  <button type="button">2</button>
-                  <button type="button">3</button>
-                  <button type="button">8</button>
-                  <button type="button">&gt;</button>
+                  <button
+                    type="button"
+                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                    disabled={page <= 1}
+                  >
+                    &lt;
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, index) => index + 1)
+                    .slice(
+                      Math.max(0, page - 3),
+                      Math.max(0, page - 3) + 5,
+                    )
+                    .map((pageNumber) => (
+                      <button
+                        type="button"
+                        key={pageNumber}
+                        className={pageNumber === page ? 'is-active' : ''}
+                        onClick={() => setPage(pageNumber)}
+                      >
+                        {pageNumber}
+                      </button>
+                    ))}
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPage((current) => Math.min(totalPages, current + 1))
+                    }
+                    disabled={page >= totalPages}
+                  >
+                    &gt;
+                  </button>
                 </div>
               </div>
             </section>
@@ -218,55 +737,90 @@ export function AdminProgram() {
               <article className="admin-program-panel">
                 <div className="admin-program-panel-head">
                   <h2>Program Mendatang</h2>
-                  <a href="/admin/program/upcoming">Lihat semua</a>
+                  <span>{upcomingPrograms.length} workshop</span>
                 </div>
-                {upcomingPrograms.map((item) => (
-                  <p key={item[0]}>
-                    <span className="admin-program-mini-thumb" />
-                    <b>{item[0]}</b>
-                    <span>{item[1]}</span>
-                    <span>{item[2]}</span>
-                    <ProgramBadge>{item[3]}</ProgramBadge>
-                  </p>
-                ))}
+
+                {upcomingPrograms.length === 0 ? (
+                  <p>Belum ada program mendatang.</p>
+                ) : (
+                  upcomingPrograms.map((item) => (
+                    <p key={item.id ?? item.slug}>
+                      <span className="admin-program-mini-thumb" />
+                      <b>{item.title}</b>
+                      <span>{formatDate(item.date)}</span>
+                      <span>{item.time || '-'}</span>
+                      <ProgramBadge>{item.status}</ProgramBadge>
+                    </p>
+                  ))
+                )}
               </article>
 
               <article className="admin-program-panel">
                 <div className="admin-program-panel-head">
                   <h2>Peserta Terbaru</h2>
-                  <a href="/admin/program/participants">Lihat semua</a>
                 </div>
-                {participants.map((item) => (
-                  <p key={`${item[0]}-${item[1]}`}>
-                    <span className="admin-program-user-dot" />
-                    <b>{item[0]}</b>
-                    <span>{item[1]}</span>
-                    <time>{item[2]}</time>
-                    <ProgramBadge>{item[3]}</ProgramBadge>
-                  </p>
-                ))}
+
+                <p>
+                  Data peserta belum tersedia pada payload workshop yang
+                  disimpan di SQLite.
+                </p>
               </article>
 
               <article className="admin-program-panel admin-program-problems">
                 <div className="admin-program-panel-head">
-                  <h2>Program Bermasalah</h2>
-                  <a href="/admin/program/problems">Lihat semua</a>
+                  <h2>Ringkasan Status</h2>
                 </div>
-                {programProblems.map((item) => (
-                  <p key={item[0]}>
-                    <span>{item[0]}</span>
-                    <strong>{item[1]}</strong>
-                  </p>
-                ))}
+
+                <p>
+                  <span>Draft</span>
+                  <strong>
+                    {workshops.filter((item) => item.status === 'Draft').length}
+                  </strong>
+                </p>
+
+                <p>
+                  <span>Terjadwal</span>
+                  <strong>
+                    {
+                      workshops.filter((item) => item.status === 'Terjadwal')
+                        .length
+                    }
+                  </strong>
+                </p>
+
+                <p>
+                  <span>Terbit</span>
+                  <strong>
+                    {workshops.filter((item) => item.status === 'Terbit').length}
+                  </strong>
+                </p>
+
+                <p>
+                  <span>Selesai</span>
+                  <strong>
+                    {
+                      workshops.filter((item) => item.status === 'Selesai')
+                        .length
+                    }
+                  </strong>
+                </p>
               </article>
             </section>
 
             <section className="admin-program-quick">
               <h2>Aksi Cepat</h2>
+
               <div>
-                {['Buat Program Baru', 'Export Peserta', 'Kirim Reminder H-1', 'Publish Semua Draft Terpilih', 'Generate Sertifikat Program Selesai'].map((item) => (
-                  <button type="button" key={item}>{item}</button>
-                ))}
+                <a
+                  href="/admin/tambah-workshop"
+                  className="admin-program-primary"
+                >
+                  Buat Program Baru
+                </a>
+
+                <button type="button" onClick={loadWorkshops}>
+                  Refresh Data SQLite
+                </button>
               </div>
             </section>
           </section>
@@ -274,41 +828,104 @@ export function AdminProgram() {
           <aside className="admin-program-detail" aria-label="Detail program">
             <div className="admin-program-detail-head">
               <h2>Detail Program</h2>
-              <button type="button" aria-label="Tutup detail">x</button>
+
+              <button
+                type="button"
+                aria-label="Tutup detail"
+                onClick={() => setSelectedWorkshopId(null)}
+              >
+                x
+              </button>
             </div>
-            <div className="admin-program-detail-profile">
-              <span className="admin-program-detail-image" />
-              <h3>Web Development 101</h3>
-              <ProgramBadge>Published</ProgramBadge>
-              <p>Belajar dasar-dasar web development</p>
-              <ProgramBadge>Web Development</ProgramBadge>
-            </div>
-            <dl>
-              <dt><img src={clockIcon} alt="" />Tanggal & Waktu</dt>
-              <dd>25 Mei 2024, 09:00 - 12:00 WIB</dd>
-              <dt><img src={mapIcon} alt="" />Metode</dt>
-              <dd>Online (Zoom)</dd>
-              <dt><img src={arrowIcon} alt="" />Link / Lokasi</dt>
-              <dd>https://zoom.us/j/123456</dd>
-              <dt><img src={usersIcon} alt="" />Kuota / Peserta</dt>
-              <dd>50 / 32 (64%)</dd>
-              <dt><img src={usersIcon} alt="" />Mentor / Pemateri</dt>
-              <dd>Ahmad Fauzi</dd>
-              <dt><img src={bookIcon} alt="" />Sertifikat</dt>
-              <dd>Aktif</dd>
-            </dl>
-            <section className="admin-program-description">
-              <h3>Deskripsi Singkat</h3>
-              <p>Workshop ini membahas dasar HTML, CSS, dan JavaScript untuk pemula.</p>
-            </section>
-            <div className="admin-program-detail-actions">
-              <button type="button" className="is-blue">Edit Program</button>
-              <button type="button">Kelola Peserta</button>
-              <button type="button">Kirim Notifikasi</button>
-              <button type="button">Generate Sertifikat</button>
-              <button type="button" className="is-danger">Batalkan Program</button>
-              <button type="button" disabled>Duplikasi Program</button>
-            </div>
+
+            {!selectedWorkshop ? (
+              <div style={{ padding: 20 }}>
+                <p>Pilih workshop pada tabel untuk melihat detail.</p>
+              </div>
+            ) : (
+              <>
+                <div className="admin-program-detail-profile">
+                  <span className="admin-program-detail-image" />
+
+                  <h3>{selectedWorkshop.title}</h3>
+
+                  <ProgramBadge>{selectedWorkshop.status}</ProgramBadge>
+
+                  <p>{selectedWorkshop.summary}</p>
+
+                  <ProgramBadge>{selectedWorkshop.category}</ProgramBadge>
+                </div>
+
+                <dl>
+                  <dt>
+                    <img src={clockIcon} alt="" />
+                    Tanggal & Waktu
+                  </dt>
+                  <dd>
+                    {formatSchedule(selectedWorkshop)}
+                    {selectedWorkshop.timezone
+                      ? ` ${selectedWorkshop.timezone}`
+                      : ''}
+                  </dd>
+
+                  <dt>
+                    <img src={mapIcon} alt="" />
+                    Metode
+                  </dt>
+                  <dd>{selectedWorkshop.type}</dd>
+
+                  <dt>
+                    <img src={arrowIcon} alt="" />
+                    Link / Lokasi
+                  </dt>
+                  <dd>{selectedWorkshop.location}</dd>
+
+                  <dt>
+                    <img src={bookIcon} alt="" />
+                    Level / Durasi
+                  </dt>
+                  <dd>
+                    {selectedWorkshop.level} / {selectedWorkshop.duration}
+                  </dd>
+
+                  <dt>
+                    <img src={bookIcon} alt="" />
+                    Platform
+                  </dt>
+                  <dd>{selectedWorkshop.platform}</dd>
+
+                  <dt>
+                    <img src={usersIcon} alt="" />
+                    Harga
+                  </dt>
+                  <dd>{formatPrice(selectedWorkshop.price)}</dd>
+                </dl>
+
+                <section className="admin-program-description">
+                  <h3>Deskripsi Singkat</h3>
+                  <p>{selectedWorkshop.summary}</p>
+                </section>
+
+                <section className="admin-program-description">
+                  <h3>Tentang Workshop</h3>
+                  <p>{selectedWorkshop.about || '-'}</p>
+                </section>
+
+                <div className="admin-program-detail-actions">
+                  <button type="button" className="is-blue" disabled>
+                    Edit Program
+                  </button>
+
+                  <button type="button" disabled>
+                    Kelola Peserta
+                  </button>
+
+                  <button type="button" disabled>
+                    Generate Sertifikat
+                  </button>
+                </div>
+              </>
+            )}
           </aside>
         </div>
       </section>
