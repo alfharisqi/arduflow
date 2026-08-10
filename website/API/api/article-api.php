@@ -38,7 +38,7 @@ if (
     header('Vary: Origin');
 }
 
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header(
     'Access-Control-Allow-Headers: Content-Type, Accept, Authorization'
 );
@@ -312,6 +312,14 @@ try {
 
         case 'POST':
             createMateri($database);
+            break;
+
+        case 'PUT':
+            updateMateri($database);
+            break;
+
+        case 'DELETE':
+            deleteMateri($database);
             break;
 
         default:
@@ -936,6 +944,470 @@ function createMateri(PDO $database): void
             [
                 'success' => false,
                 'message' => 'Gagal menyimpan materi.',
+                'error' => $error->getMessage(),
+            ],
+            500
+        );
+    }
+}
+
+/*
+|--------------------------------------------------------------------------
+| PUT Edit Materi
+|--------------------------------------------------------------------------
+*/
+
+function updateMateri(PDO $database): void
+{
+    $tutorialId = isset($_GET['id'])
+        ? filter_var($_GET['id'], FILTER_VALIDATE_INT)
+        : false;
+
+    if ($tutorialId === false || $tutorialId < 1) {
+        sendJsonResponse(
+            [
+                'success' => false,
+                'message' => 'ID materi tidak valid.',
+                'errors' => [
+                    'id' => 'Parameter id wajib berupa angka positif.',
+                ],
+            ],
+            400
+        );
+    }
+
+    $checkStatement = $database->prepare(
+        'SELECT
+            id,
+            card_image_name,
+            card_image_type,
+            card_image_size,
+            created_at
+         FROM tutorials
+         WHERE id = :id
+         LIMIT 1'
+    );
+
+    $checkStatement->execute([
+        ':id' => $tutorialId,
+    ]);
+
+    $existingTutorial = $checkStatement->fetch();
+
+    if (!$existingTutorial) {
+        sendJsonResponse(
+            [
+                'success' => false,
+                'message' => 'Materi tidak ditemukan.',
+                'data' => null,
+            ],
+            404
+        );
+    }
+
+    $rawBody = file_get_contents('php://input');
+
+    if ($rawBody === false || trim($rawBody) === '') {
+        sendJsonResponse(
+            [
+                'success' => false,
+                'message' => 'Body request tidak boleh kosong.',
+            ],
+            400
+        );
+    }
+
+    try {
+        $requestData = json_decode(
+            $rawBody,
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+    } catch (JsonException $error) {
+        sendJsonResponse(
+            [
+                'success' => false,
+                'message' => 'Body request harus berupa JSON yang valid.',
+                'error' => $error->getMessage(),
+            ],
+            400
+        );
+    }
+
+    if (!is_array($requestData)) {
+        sendJsonResponse(
+            [
+                'success' => false,
+                'message' => 'Body request harus berupa object JSON.',
+            ],
+            400
+        );
+    }
+
+    $errors = validateMateri($requestData);
+
+    if ($errors !== []) {
+        sendJsonResponse(
+            [
+                'success' => false,
+                'message' => 'Data materi belum lengkap.',
+                'errors' => $errors,
+                'data' => null,
+            ],
+            422
+        );
+    }
+
+    $descriptions =
+        isset($requestData['descriptions'])
+        && is_array($requestData['descriptions'])
+            ? $requestData['descriptions']
+            : [];
+
+    $learning =
+        isset($requestData['learning_information'])
+        && is_array($requestData['learning_information'])
+            ? $requestData['learning_information']
+            : [];
+
+    $pageSettings =
+        isset($requestData['page_settings'])
+        && is_array($requestData['page_settings'])
+            ? $requestData['page_settings']
+            : [];
+
+    $accessSettings =
+        isset($requestData['access_settings'])
+        && is_array($requestData['access_settings'])
+            ? $requestData['access_settings']
+            : [];
+
+    $slides =
+        isset($requestData['slides'])
+        && is_array($requestData['slides'])
+            ? $requestData['slides']
+            : [];
+
+    $cardImageName = $existingTutorial['card_image_name'];
+    $cardImageType = $existingTutorial['card_image_type'];
+    $cardImageSize = $existingTutorial['card_image_size'];
+
+    if (
+        isset($requestData['card_image'])
+        && is_array($requestData['card_image'])
+    ) {
+        $cardImage = $requestData['card_image'];
+
+        $cardImageName = isset($cardImage['file_name'])
+            ? (string) $cardImage['file_name']
+            : $cardImageName;
+
+        $cardImageType = isset($cardImage['file_type'])
+            ? (string) $cardImage['file_type']
+            : $cardImageType;
+
+        $cardImageSize = isset($cardImage['file_size'])
+            ? (int) $cardImage['file_size']
+            : $cardImageSize;
+    }
+
+    $currentTimestamp = (
+        new DateTimeImmutable(
+            'now',
+            new DateTimeZone('Asia/Jakarta')
+        )
+    )->format(DateTimeInterface::ATOM);
+
+    try {
+        $database->beginTransaction();
+
+        $statement = $database->prepare(
+            'UPDATE tutorials
+             SET
+                title = :title,
+                slug = :slug,
+                category = :category,
+                display_order = :display_order,
+                short_description = :short_description,
+                full_description = :full_description,
+                card_image_name = :card_image_name,
+                card_image_type = :card_image_type,
+                card_image_size = :card_image_size,
+                difficulty_level = :difficulty_level,
+                estimated_time = :estimated_time,
+                page_order = :page_order,
+                status = :status,
+                user_level = :user_level,
+                access_requirement = :access_requirement,
+                updated_at = :updated_at
+             WHERE id = :id'
+        );
+
+        $statement->execute([
+            ':title' => trim((string) $requestData['title']),
+            ':slug' => trim((string) $requestData['slug']),
+            ':category' => (string) $requestData['category'],
+            ':display_order' => (int) $requestData['display_order'],
+            ':short_description' => trim(
+                (string) $descriptions['short_description']
+            ),
+            ':full_description' => trim(
+                (string) $descriptions['full_description']
+            ),
+            ':card_image_name' => $cardImageName,
+            ':card_image_type' => $cardImageType,
+            ':card_image_size' => $cardImageSize,
+            ':difficulty_level' => isset($learning['difficulty_level'])
+                ? (string) $learning['difficulty_level']
+                : null,
+            ':estimated_time' => isset($learning['estimated_time'])
+                ? (string) $learning['estimated_time']
+                : null,
+            ':page_order' => (int) $pageSettings['page_order'],
+            ':status' => isset($pageSettings['status'])
+                ? (string) $pageSettings['status']
+                : 'draft',
+            ':user_level' => isset($accessSettings['user_level'])
+                ? (string) $accessSettings['user_level']
+                : 'semua_pengguna',
+            ':access_requirement' =>
+                isset($accessSettings['access_requirement'])
+                && $accessSettings['access_requirement'] !== ''
+                    ? (string) $accessSettings['access_requirement']
+                    : null,
+            ':updated_at' => $currentTimestamp,
+            ':id' => $tutorialId,
+        ]);
+
+        $deleteSlides = $database->prepare(
+            'DELETE FROM tutorial_slides
+             WHERE tutorial_id = :tutorial_id'
+        );
+
+        $deleteSlides->execute([
+            ':tutorial_id' => $tutorialId,
+        ]);
+
+        $slideStatement = $database->prepare(
+            'INSERT INTO tutorial_slides (
+                tutorial_id,
+                slide_order,
+                title,
+                content_type,
+                content,
+                image_name,
+                video_url,
+                created_at,
+                updated_at
+            ) VALUES (
+                :tutorial_id,
+                :slide_order,
+                :title,
+                :content_type,
+                :content,
+                :image_name,
+                :video_url,
+                :created_at,
+                :updated_at
+            )'
+        );
+
+        foreach ($slides as $index => $slide) {
+            if (!is_array($slide)) {
+                continue;
+            }
+
+            $slideStatement->execute([
+                ':tutorial_id' => $tutorialId,
+                ':slide_order' => isset($slide['order'])
+                    ? (int) $slide['order']
+                    : $index + 1,
+                ':title' => isset($slide['title'])
+                    ? trim((string) $slide['title'])
+                    : 'Slide ' . ($index + 1),
+                ':content_type' => isset($slide['content_type'])
+                    ? (string) $slide['content_type']
+                    : 'text',
+                ':content' => isset($slide['content'])
+                    ? (string) $slide['content']
+                    : null,
+                ':image_name' => isset($slide['image_name'])
+                    ? (string) $slide['image_name']
+                    : null,
+                ':video_url' => isset($slide['video_url'])
+                    ? (string) $slide['video_url']
+                    : null,
+                ':created_at' => $currentTimestamp,
+                ':updated_at' => $currentTimestamp,
+            ]);
+        }
+
+        $database->commit();
+
+        sendJsonResponse(
+            [
+                'success' => true,
+                'message' => 'Materi berhasil diperbarui.',
+                'data' => [
+                    'id' => $tutorialId,
+                    'title' => trim((string) $requestData['title']),
+                    'slug' => trim((string) $requestData['slug']),
+                    'category' => (string) $requestData['category'],
+                    'display_order' => (int) $requestData['display_order'],
+                    'status' => isset($pageSettings['status'])
+                        ? (string) $pageSettings['status']
+                        : 'draft',
+                    'page_order' => (int) $pageSettings['page_order'],
+                    'total_slides' => count($slides),
+                    'created_at' => $existingTutorial['created_at'],
+                    'updated_at' => $currentTimestamp,
+                ],
+            ],
+            200
+        );
+    } catch (PDOException $error) {
+        if ($database->inTransaction()) {
+            $database->rollBack();
+        }
+
+        $errorMessage =
+            strtolower($error->getMessage());
+
+        if (strpos($errorMessage, 'unique') !== false) {
+            sendJsonResponse(
+                [
+                    'success' => false,
+                    'message' => 'Slug sudah digunakan.',
+                    'errors' => [
+                        'slug' =>
+                            'Slug sudah digunakan oleh materi lain.',
+                    ],
+                ],
+                409
+            );
+        }
+
+        sendJsonResponse(
+            [
+                'success' => false,
+                'message' => 'Gagal memperbarui materi.',
+                'error' => $error->getMessage(),
+            ],
+            500
+        );
+    }
+}
+
+/*
+|--------------------------------------------------------------------------
+| DELETE Hapus Materi
+|--------------------------------------------------------------------------
+*/
+
+function deleteMateri(PDO $database): void
+{
+    $tutorialId = isset($_GET['id'])
+        ? filter_var($_GET['id'], FILTER_VALIDATE_INT)
+        : false;
+
+    if ($tutorialId === false || $tutorialId < 1) {
+        sendJsonResponse(
+            [
+                'success' => false,
+                'message' => 'ID materi tidak valid.',
+                'errors' => [
+                    'id' => 'Parameter id wajib berupa angka positif.',
+                ],
+            ],
+            400
+        );
+    }
+
+    $checkStatement = $database->prepare(
+        'SELECT id, title, slug
+         FROM tutorials
+         WHERE id = :id
+         LIMIT 1'
+    );
+
+    $checkStatement->execute([
+        ':id' => $tutorialId,
+    ]);
+
+    $tutorial = $checkStatement->fetch();
+
+    if (!$tutorial) {
+        sendJsonResponse(
+            [
+                'success' => false,
+                'message' => 'Materi tidak ditemukan.',
+                'data' => null,
+            ],
+            404
+        );
+    }
+
+    try {
+        $database->beginTransaction();
+
+        $deleteSlides = $database->prepare(
+            'DELETE FROM tutorial_slides
+             WHERE tutorial_id = :tutorial_id'
+        );
+
+        $deleteSlides->execute([
+            ':tutorial_id' => $tutorialId,
+        ]);
+
+        $deletedSlides = $deleteSlides->rowCount();
+
+        $deleteTutorial = $database->prepare(
+            'DELETE FROM tutorials
+             WHERE id = :id'
+        );
+
+        $deleteTutorial->execute([
+            ':id' => $tutorialId,
+        ]);
+
+        if ($deleteTutorial->rowCount() < 1) {
+            $database->rollBack();
+
+            sendJsonResponse(
+                [
+                    'success' => false,
+                    'message' => 'Materi gagal dihapus karena data tidak ditemukan.',
+                    'data' => null,
+                ],
+                404
+            );
+        }
+
+        $database->commit();
+
+        sendJsonResponse(
+            [
+                'success' => true,
+                'message' => 'Materi berhasil dihapus.',
+                'data' => [
+                    'id' => (int) $tutorial['id'],
+                    'title' => (string) $tutorial['title'],
+                    'slug' => (string) $tutorial['slug'],
+                    'deleted_slides' => $deletedSlides,
+                ],
+            ],
+            200
+        );
+    } catch (PDOException $error) {
+        if ($database->inTransaction()) {
+            $database->rollBack();
+        }
+
+        sendJsonResponse(
+            [
+                'success' => false,
+                'message' => 'Gagal menghapus materi.',
                 'error' => $error->getMessage(),
             ],
             500

@@ -17,6 +17,7 @@ $legacyRoutes = [
     '/api/projects-api.php' => __DIR__ . '/../api/projects-api.php',
     '/api/projects' => __DIR__ . '/../api/projects-api.php',
     '/api/workshop-api.php' => __DIR__ . '/../api/workshop-api.php',
+    '/api/workshops' => __DIR__ . '/../api/workshop-api.php',
     '/api/workshops-api.php' => __DIR__ . '/../api/workshop-api.php',
     '/api/workshops-api' => __DIR__ . '/../api/workshop-api.php',
     '/api/auth/login.php' => __DIR__ . '/../api/auth/login.php',

@@ -30,9 +30,8 @@ function normalizeWorkshop(workshop) {
 
 export function isPublicWorkshop(workshop) {
   const status = String(workshop.status || '').toLowerCase();
-  const visibility = String(workshop.visibility || '').toLowerCase();
 
-  return ['published', 'terbit', 'terjadwal', 'selesai'].includes(status) && visibility !== 'privat';
+  return ['published', 'terbit', 'terjadwal', 'selesai'].includes(status);
 }
 
 export async function fetchWorkshops() {
