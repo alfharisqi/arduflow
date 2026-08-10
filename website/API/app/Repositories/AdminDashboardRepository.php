@@ -50,6 +50,7 @@ final class AdminDashboardRepository
             'content' => [
                 'tutorials' => $this->contentRows('tutorials'),
                 'projects' => $this->contentRows('projects'),
+                'drafts' => $this->draftContentRows(),
             ],
             'logs' => $this->logs(),
             'system' => $this->system(),
@@ -148,15 +149,60 @@ final class AdminDashboardRepository
         ], $rows);
     }
 
-    private function contentRows(string $table): array
+    private function contentRows(string $table, bool $draftOnly = false): array
     {
         if (!in_array($table, ['tutorials', 'projects'], true)) {
             return [];
         }
 
         $where = $this->activeWhere($table);
-        $rows = $this->pdo->query("SELECT title, created_at FROM {$table} WHERE {$where} ORDER BY created_at DESC LIMIT 3")->fetchAll();
-        return array_map(fn (array $row): array => ['title' => $row['title'], 'date' => $this->formatDate($row['created_at'])], $rows);
+        $hasStatus = $this->hasColumn($table, 'status');
+        if ($draftOnly && !$hasStatus) {
+            return [];
+        }
+        if ($draftOnly) {
+            $where .= " AND LOWER(COALESCE(status, '')) IN ('draft', 'pending_review')";
+        }
+
+        $select = ['title', 'created_at'];
+        if ($hasStatus) {
+            $select[] = 'status';
+        }
+
+        $rows = $this->pdo->query(
+            'SELECT ' . implode(', ', $select) . " FROM {$table} WHERE {$where} ORDER BY created_at DESC LIMIT 3"
+        )->fetchAll();
+        $type = $table === 'projects' ? 'Proyek' : 'Tutorial';
+
+        return array_map(fn (array $row): array => [
+            'title' => $row['title'],
+            'type' => $type,
+            'status' => $row['status'] ?? null,
+            'statusLabel' => isset($row['status']) ? $this->contentStatusLabel((string) $row['status']) : null,
+            'createdAt' => $row['created_at'],
+            'date' => $this->formatDate($row['created_at']),
+        ], $rows);
+    }
+
+    private function draftContentRows(): array
+    {
+        $rows = [
+            ...$this->contentRows('tutorials', true),
+            ...$this->contentRows('projects', true),
+        ];
+
+        usort($rows, fn (array $left, array $right): int => strcmp($right['createdAt'] ?? '', $left['createdAt'] ?? ''));
+        return array_slice($rows, 0, 5);
+    }
+
+    private function contentStatusLabel(string $status): string
+    {
+        return match (strtolower($status)) {
+            'draft' => 'Draft',
+            'pending_review' => 'Menunggu Review',
+            'published' => 'Published',
+            default => $status,
+        };
     }
 
     private function logs(): array

@@ -88,6 +88,7 @@ function EmptyState({ children }) {
 export function AdminDashboard() {
   const [dashboardData, setDashboardData] = useState(null);
   const [dashboardError, setDashboardError] = useState('');
+  const [activeContentTab, setActiveContentTab] = useState('tutorials');
 
   useEffect(() => {
     let isMounted = true;
@@ -119,9 +120,13 @@ export function AdminDashboard() {
   const verificationItems = dashboardData?.verificationRows || [];
   const workshopItems = dashboardData?.workshopRows || [];
   const leadItems = dashboardData?.leads || [];
-  const contentItems = dashboardData?.content?.tutorials?.length
-    ? dashboardData.content.tutorials
-    : dashboardData?.content?.projects || [];
+  const contentTabs = [
+    { id: 'tutorials', label: 'Tutorial Terbaru', empty: 'Belum ada tutorial tersimpan.' },
+    { id: 'projects', label: 'Proyek Terbaru', empty: 'Belum ada proyek tersimpan.' },
+    { id: 'drafts', label: 'Draft Belum Publish', empty: 'Belum ada draft yang belum dipublish.' },
+  ];
+  const activeContent = contentTabs.find((tab) => tab.id === activeContentTab) || contentTabs[0];
+  const contentItems = dashboardData?.content?.[activeContent.id] || [];
   const systemItems = dashboardData?.system || [];
   const logItems = dashboardData?.logs || [];
 
@@ -235,23 +240,34 @@ export function AdminDashboard() {
                 <h2>Konten</h2>
               </div>
               <div className="admin-content-tabs">
-                <button type="button" className="is-active">Tutorial Terbaru</button>
-                <button type="button">Proyek Terbaru</button>
-                <button type="button">Draft Belum Publish</button>
+                {contentTabs.map((tab) => (
+                  <button
+                    type="button"
+                    className={tab.id === activeContent.id ? 'is-active' : ''}
+                    onClick={() => setActiveContentTab(tab.id)}
+                    key={tab.id}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
               </div>
               {contentItems.length ? (
                 contentItems.map((item) => (
-                  <div className="admin-content-item" key={`${item.title}-${item.date}`}>
+                  <div className="admin-content-item" key={`${item.type}-${item.title}-${item.createdAt || item.date}`}>
                     <span className="admin-image-placeholder" />
                     <span>
                       <strong>{item.title}</strong>
-                      <small>{item.date}</small>
+                      <small>
+                        {item.type ? `${item.type} - ` : ''}
+                        {item.statusLabel ? `${item.statusLabel} - ` : ''}
+                        {item.date}
+                      </small>
                     </span>
                     <button type="button">Lihat</button>
                   </div>
                 ))
               ) : (
-                <EmptyState>Belum ada konten tersimpan.</EmptyState>
+                <EmptyState>{activeContent.empty}</EmptyState>
               )}
               <button className="admin-panel-button" type="button">Kelola konten</button>
             </article>
