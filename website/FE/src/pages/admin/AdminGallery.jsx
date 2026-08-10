@@ -4,6 +4,7 @@ import {
   getInitialAdminSidebarCollapsed,
   persistAdminSidebarCollapsed,
 } from './adminSidebarState.js';
+import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import cameraIcon from '../../assets/icons/icon-image-placeholder-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
@@ -28,7 +29,10 @@ const galleryImages = [
 ];
 
 
-const GALLERY_API_URL = 'http://localhost/web_arduflow/api/gallery.php';
+const GALLERY_API_URL = apiEndpoint(
+  import.meta.env.VITE_GALLERY_API_URL,
+  '/api/galery-api.php',
+);
 
 function fileToJson(file) {
   return file
@@ -39,7 +43,7 @@ function fileToJson(file) {
 function resolveGalleryCoverUrl(coverPath) {
   if (!coverPath) return '';
   if (/^https?:\/\//i.test(coverPath)) return coverPath;
-  return `http://localhost/web_arduflow/${String(coverPath).replace(/^\/+/, '')}`;
+  return `${API_BASE_URL}/${String(coverPath).replace(/^\/+/, '')}`;
 }
 
 function formatGalleryDate(value) {
