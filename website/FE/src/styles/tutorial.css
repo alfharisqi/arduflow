@@ -1667,6 +1667,30 @@
   margin: 0;
 }
 
+.tutorial-data-state {
+  position: relative;
+  z-index: 2;
+  max-width: 520px;
+  margin: 0;
+  color: #8da4be;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.tutorial-material-inner > .tutorial-data-state {
+  position: absolute;
+  left: 34px;
+  top: 128px;
+}
+
+.all-tutorial-list > .tutorial-data-state {
+  padding: 18px 20px;
+  background: rgba(2, 14, 33, 0.78);
+  border: 1px solid rgba(0, 164, 255, 0.18);
+  border-radius: 2px;
+}
+
 .starter-material-card {
   position: relative;
   width: 223px;

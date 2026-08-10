@@ -1,3 +1,5 @@
+import { useEffect, useMemo, useState } from 'react';
+import { fetchTutorialArticles, isPublishedTutorial } from '../services/articleApi.js';
 import tutorialDevice from '../assets/images/tutorial-device.png';
 import apaItuArduflowImage from '../assets/images/apa itu arduflow.png';
 import daftarAkunImage from '../assets/images/cara daftar untuk mendatkan akun.png';
@@ -108,70 +110,153 @@ const recommendedFlow = [
   'Level 5 - Proyek Lanjutan',
 ];
 
-const starterMaterials = [
-  { title: 'Apa itu Arduflow?', meta: '8 menit - Gratis', visual: 'arduino', image: apaItuArduflowImage },
-  { title: 'Kenapa Belajar IoT dengan Visual', meta: '8 menit - Gratis', visual: 'iot', image: belajarIotImage },
-  { title: 'Cara Daftar untuk Mendapatkan Akun', meta: '8 menit - Gratis', visual: 'akun', image: daftarAkunImage },
-  { title: 'Cara Mendapatkan Token IDE', meta: '8 menit - Gratis', visual: 'token', image: tokenIdeImage },
-  { title: 'Cara Masuk ke Arduflow IDE', meta: '8 menit - Gratis', visual: 'ide', image: masukIdeImage },
-  { title: 'Membuat Proyek Pertama', meta: '8 menit - Gratis', visual: 'project', image: projectPertamaImage },
+const fallbackImages = [
+  apaItuArduflowImage,
+  belajarIotImage,
+  daftarAkunImage,
+  tokenIdeImage,
+  masukIdeImage,
+  projectPertamaImage,
+  boardTutorialImage,
+  ledTutorialImage,
+  dhtTutorialImage,
+  relayTutorialImage,
+  troubleshootingTutorialImage,
 ];
 
-const tutorialCategories = [
-  { icon: 'book', title: 'Panduan Pemula', count: '24 Materi' },
-  { icon: 'settings', title: 'Akses dan Akun', count: '18 Materi' },
-  { icon: 'code', title: 'Tutorial Penggunaan IDE', count: '36 Materi' },
-  { icon: 'cpu', title: 'Dasar Elektronika dan IoT', count: '29 Materi' },
-  { icon: 'layers', title: 'Contoh Proyek IoT', count: '32 Materi' },
-  { icon: 'help', title: 'FAQ dan Troubleshooting', count: '22 Materi' },
-];
+const visualClasses = ['arduino', 'iot', 'akun', 'token', 'ide', 'project'];
+const categoryIcons = ['book', 'settings', 'code', 'cpu', 'layers', 'help'];
 
-const materialFilters = [
-  { title: 'Kategori', items: ['Semua Materi', 'Panduan Pemula', 'Akses dan Akun', 'Penggunaan IDE'] },
-  { title: 'Level', items: ['Semua Materi', 'Panduan Pemula', 'Akses dan Akun'] },
-  { title: 'Format', items: ['Semua Materi', 'Panduan Pemula', 'Akses dan Akun'] },
-  { title: 'Akses', items: ['Semua Materi', 'Panduan Pemula', 'Akses dan Akun'] },
-];
+function categoryLabel(value) {
+  return String(value || 'Umum')
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
 
-const allTutorials = [
-  {
-    category: 'Dasar Elektronika Arduino',
-    title: 'Mengenal Board Arduino UNO',
-    meta: '8 mnt - Pemula - Gratis',
-    thumb: 'board',
-    image: boardTutorialImage,
-  },
-  {
-    category: 'Dasar Elektronika Arduino',
-    title: 'Menghubungkan LED ke Arduino',
-    meta: '7 mnt - Pemula - Gratis',
-    thumb: 'led',
-    image: ledTutorialImage,
-  },
-  {
-    category: 'Dasar Elektronika Arduino',
-    title: 'Menggunakan Sensor DHT22',
-    meta: '10 mnt - Dasar - Butuh Token',
-    thumb: 'sensor',
-    image: dhtTutorialImage,
-  },
-  {
-    category: 'Contoh Proyek IoT',
-    title: 'Kontrol Relay dengan Arduflow',
-    meta: '12 mnt - Dasar - Butuh Token',
-    thumb: 'relay',
-    image: relayTutorialImage,
-  },
-  {
-    category: 'FAQ dan Troubleshooting',
-    title: 'Troubleshooting: Board Tidak Terdeteksi',
-    meta: '6 mnt - Semua Level - Gratis',
-    thumb: 'trouble',
-    image: troubleshootingTutorialImage,
-  },
-];
+function tutorialMeta(tutorial) {
+  const access = tutorial.accessRequirement ? 'Butuh Akses' : 'Gratis';
+  const timeOrSlides = tutorial.estimatedTime || `${tutorial.totalSlides || 0} slide`;
+
+  return [timeOrSlides, tutorial.difficulty, access].filter(Boolean).join(' - ');
+}
+
+function sortTutorials(items) {
+  return [...items].sort((a, b) => {
+    const orderA = Number(a.pageOrder || a.displayOrder || 0);
+    const orderB = Number(b.pageOrder || b.displayOrder || 0);
+
+    if (orderA !== orderB) {
+      return orderA - orderB;
+    }
+
+    return String(a.title).localeCompare(String(b.title));
+  });
+}
+
+function tutorialImage(index) {
+  return fallbackImages[index % fallbackImages.length];
+}
 
 export function Tutorial() {
+  const [tutorials, setTutorials] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeCategory, setActiveCategory] = useState('all');
+  const [activeLevel, setActiveLevel] = useState('all');
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchTutorialArticles()
+      .then((items) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setTutorials(sortTutorials(items.filter(isPublishedTutorial)));
+        setError('');
+      })
+      .catch((fetchError) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setTutorials([]);
+        setError(fetchError.message || 'Gagal memuat materi tutorial.');
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const categoryOptions = useMemo(() => {
+    const categories = Array.from(new Set(tutorials.map((tutorial) => tutorial.category).filter(Boolean)));
+
+    return [
+      { value: 'all', label: 'Semua Materi' },
+      ...categories.map((category) => ({
+        value: category,
+        label: categoryLabel(category),
+      })),
+    ];
+  }, [tutorials]);
+
+  const levelOptions = useMemo(() => {
+    const levels = Array.from(new Set(tutorials.map((tutorial) => tutorial.difficulty).filter(Boolean)));
+
+    return ['Semua Level', ...levels];
+  }, [tutorials]);
+
+  const starterMaterials = useMemo(
+    () =>
+      tutorials.slice(0, 6).map((tutorial, index) => ({
+        ...tutorial,
+        image: tutorialImage(index),
+        meta: tutorialMeta(tutorial),
+        visual: visualClasses[index % visualClasses.length],
+      })),
+    [tutorials],
+  );
+
+  const tutorialCategories = useMemo(() => {
+    const counts = tutorials.reduce((summary, tutorial) => {
+      const key = tutorial.category || 'Umum';
+      summary.set(key, (summary.get(key) || 0) + 1);
+      return summary;
+    }, new Map());
+
+    return Array.from(counts.entries()).map(([category, count], index) => ({
+      icon: categoryIcons[index % categoryIcons.length],
+      title: categoryLabel(category),
+      count: `${count} Materi`,
+      value: category,
+    }));
+  }, [tutorials]);
+
+  const visibleTutorials = useMemo(() => {
+    const keyword = searchTerm.trim().toLowerCase();
+    const selectedLevel = activeLevel === 'Semua Level' ? 'all' : activeLevel;
+
+    return tutorials.filter((tutorial) => {
+      const matchesCategory = activeCategory === 'all' || tutorial.category === activeCategory;
+      const matchesLevel = selectedLevel === 'all' || tutorial.difficulty === selectedLevel;
+      const matchesSearch =
+        !keyword ||
+        [tutorial.title, tutorial.shortDescription, tutorial.fullDescription, tutorial.category]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(keyword));
+
+      return matchesCategory && matchesLevel && matchesSearch;
+    });
+  }, [activeCategory, activeLevel, searchTerm, tutorials]);
+
   return (
     <>
       <section className="tutorial-learning-hero" aria-labelledby="tutorial-learning-title">
@@ -186,11 +271,14 @@ export function Tutorial() {
             Pelajari dasar IoT, penggunaan Arduflow IDE, dan pembuatan proyek melalui panduan
             yang tersusun seperti workshop modern.
           </p>
-          <form className="tutorial-search" role="search">
+          <form className="tutorial-search" role="search" onSubmit={(event) => event.preventDefault()}>
             <label htmlFor="tutorial-search-input">Cari materi tutorial</label>
             <input
               id="tutorial-search-input"
+              name="tutorial-search"
               type="search"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
               placeholder="Cari tutorial, proyek, atau panduan..."
             />
           </form>
@@ -207,6 +295,7 @@ export function Tutorial() {
           <img src={tutorialDevice} alt="Rangkaian IoT Arduflow di breadboard" />
         </div>
       </section>
+
       <section
         className="tutorial-path-section"
         id="pilih-jalur-belajar"
@@ -260,9 +349,12 @@ export function Tutorial() {
             ))}
           </div>
 
-          <a className="tutorial-flow-button" href="#materi-tutorial">Lihat Jalur Lengkap</a>
+          <a className="tutorial-flow-button" href="#materi-tutorial">
+            Lihat Jalur Lengkap
+          </a>
         </div>
       </section>
+
       <section className="tutorial-material-section" id="materi-tutorial">
         <div className="tutorial-material-inner">
           <div className="tutorial-material-heading">
@@ -270,12 +362,18 @@ export function Tutorial() {
               <h2>Mulai Dari Materi Ini</h2>
               <p>Rekomendasi materi penting untuk memulai belajar Arduflow.</p>
             </div>
-            <a href="#materi-tutorial">Lihat Semua Tutorial &gt;</a>
+            <a href="#semua-materi-tutorial">Lihat Semua Tutorial &gt;</a>
           </div>
+
+          {isLoading && <p className="tutorial-data-state">Memuat materi tutorial...</p>}
+          {error && <p className="tutorial-data-state">{error}</p>}
+          {!isLoading && !error && starterMaterials.length === 0 && (
+            <p className="tutorial-data-state">Belum ada materi tutorial yang dipublish.</p>
+          )}
 
           <div className="starter-material-grid">
             {starterMaterials.map((material) => (
-              <article className="starter-material-card" key={material.title}>
+              <article className="starter-material-card" key={material.id}>
                 <div className={`starter-material-visual ${material.visual}`}>
                   <img src={material.image} alt="" />
                   <span />
@@ -283,7 +381,7 @@ export function Tutorial() {
                 <div className="starter-material-content">
                   <h3>{material.title}</h3>
                   <p>{material.meta}</p>
-                  <a href="#materi-tutorial">Pelajari</a>
+                  <a href={`#materi-${material.id}`}>Pelajari</a>
                 </div>
               </article>
             ))}
@@ -296,7 +394,7 @@ export function Tutorial() {
 
           <div className="tutorial-category-grid">
             {tutorialCategories.map((category) => (
-              <article className="tutorial-category-card" key={category.title}>
+              <article className="tutorial-category-card" key={category.value}>
                 <div className={`tutorial-category-icon ${category.icon}-icon`}>
                   <TutorialIcon type={category.icon} />
                 </div>
@@ -304,54 +402,94 @@ export function Tutorial() {
                   <h3>{category.title}</h3>
                   <p>{category.count}</p>
                 </div>
-                <a href="#materi-tutorial">Pelajari</a>
+                <a
+                  href="#semua-materi-tutorial"
+                  onClick={() => {
+                    setActiveCategory(category.value);
+                    setActiveLevel('Semua Level');
+                  }}
+                >
+                  Pelajari
+                </a>
               </article>
             ))}
           </div>
         </div>
       </section>
-      <section className="all-tutorial-section" aria-labelledby="all-tutorial-title">
+
+      <section
+        className="all-tutorial-section"
+        id="semua-materi-tutorial"
+        aria-labelledby="all-tutorial-title"
+      >
         <div className="all-tutorial-inner">
           <h2 id="all-tutorial-title">Semua Materi Tutorial</h2>
 
           <div className="all-tutorial-controls" aria-label="Kontrol tampilan materi">
-            <button type="button">Urutkan: Terbaru</button>
-            <button type="button" aria-label="Tampilan grid">▦</button>
-            <button type="button" aria-label="Tampilan list">≡</button>
+            <button type="button">Urutkan: Page Order</button>
+            <button type="button" aria-label="Tampilan grid">
+              Grid
+            </button>
+            <button type="button" aria-label="Tampilan list">
+              List
+            </button>
           </div>
 
           <aside className="tutorial-filter-panel" aria-label="Filter materi tutorial">
             <h3>Filter Materi</h3>
-            {materialFilters.map((group) => (
-              <fieldset key={group.title}>
-                <legend>{group.title}</legend>
-                {group.items.map((item) => (
-                  <label key={`${group.title}-${item}`}>
-                    <input type="checkbox" />
-                    <span>{item}</span>
-                  </label>
-                ))}
-              </fieldset>
-            ))}
+            <fieldset>
+              <legend>Kategori</legend>
+              {categoryOptions.map((option) => (
+                <label key={option.value}>
+                  <input
+                    type="radio"
+                    name="tutorial-category-filter"
+                    checked={activeCategory === option.value}
+                    onChange={() => setActiveCategory(option.value)}
+                  />
+                  <span>{option.label}</span>
+                </label>
+              ))}
+            </fieldset>
+            <fieldset>
+              <legend>Level</legend>
+              {levelOptions.map((level) => (
+                <label key={level}>
+                  <input
+                    type="radio"
+                    name="tutorial-level-filter"
+                    checked={activeLevel === level}
+                    onChange={() => setActiveLevel(level)}
+                  />
+                  <span>{level}</span>
+                </label>
+              ))}
+            </fieldset>
           </aside>
 
           <div className="all-tutorial-list">
-            {allTutorials.map((tutorial) => (
-              <article className="all-tutorial-row" key={tutorial.title}>
-                <div className={`all-tutorial-thumb ${tutorial.thumb}`}>
-                  <img src={tutorial.image} alt="" />
+            {!isLoading && !error && visibleTutorials.length === 0 && (
+              <p className="tutorial-data-state">Materi tidak ditemukan.</p>
+            )}
+
+            {visibleTutorials.map((tutorial, index) => (
+              <article className="all-tutorial-row" id={`materi-${tutorial.id}`} key={tutorial.id}>
+                <div className={`all-tutorial-thumb ${visualClasses[index % visualClasses.length]}`}>
+                  <img src={tutorialImage(index)} alt="" />
                 </div>
                 <div className="all-tutorial-row-copy">
-                  <p>{tutorial.category}</p>
+                  <p>{categoryLabel(tutorial.category)}</p>
                   <h3>{tutorial.title}</h3>
-                  <span>{tutorial.meta}</span>
+                  <span>{tutorialMeta(tutorial)}</span>
                 </div>
-                <a href="#materi-tutorial">Pelajari</a>
+                <a href={`#materi-${tutorial.id}`}>Pelajari</a>
               </article>
             ))}
           </div>
 
-          <button className="all-tutorial-load" type="button">Muat Lebih Banyak</button>
+          <button className="all-tutorial-load" type="button">
+            {visibleTutorials.length} Materi Tampil
+          </button>
         </div>
       </section>
     </>
