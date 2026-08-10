@@ -19,7 +19,7 @@ date_default_timezone_set('Asia/Jakarta');
 
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
 header('Access-Control-Max-Age: 86400');
 
@@ -75,12 +75,73 @@ function isEmptyRequiredValue($value): bool
     return false;
 }
 
+function textLength(string $value): int
+{
+    return function_exists('mb_strlen')
+        ? mb_strlen($value)
+        : strlen($value);
+}
+
 function validDateYmd(string $date): bool
 {
     $parsed = DateTime::createFromFormat('Y-m-d', $date);
 
     return $parsed !== false &&
         $parsed->format('Y-m-d') === $date;
+}
+
+function getRequestId(): int
+{
+    $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+
+    if ($id <= 0) {
+        respond(400, [
+            'success' => false,
+            'message' => 'Parameter id workshop wajib dan harus berupa angka lebih dari 0.',
+        ]);
+    }
+
+    return $id;
+}
+
+function readJsonBody(): array
+{
+    $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+
+    if (stripos($contentType, 'application/json') === false) {
+        respond(415, [
+            'success' => false,
+            'message' => 'Content-Type harus application/json.',
+        ]);
+    }
+
+    $rawBody = file_get_contents('php://input');
+
+    if ($rawBody === false || trim($rawBody) === '') {
+        respond(400, [
+            'success' => false,
+            'message' => 'Request body JSON kosong.',
+        ]);
+    }
+
+    if (strlen($rawBody) > 2 * 1024 * 1024) {
+        respond(413, [
+            'success' => false,
+            'message' => 'Payload JSON terlalu besar. Maksimal 2 MB.',
+        ]);
+    }
+
+    $data = json_decode($rawBody, true);
+
+    if (!is_array($data) || json_last_error() !== JSON_ERROR_NONE) {
+        respond(400, [
+            'success' => false,
+            'message' => 'JSON tidak valid.',
+            'error' => json_last_error_msg(),
+        ]);
+    }
+
+    return $data;
 }
 
 function decodeWorkshopRow(array $row): array
@@ -104,6 +165,180 @@ function decodeWorkshopRow(array $row): array
         'updatedAt' => $row['updated_at'],
         'payload' => $payload,
     ];
+}
+
+function validateWorkshop(array $data): array
+{
+    $requiredFields = [
+        'title' => 'Judul Workshop',
+        'slug' => 'Slug',
+        'summary' => 'Deskripsi Singkat',
+        'level' => 'Level',
+        'duration' => 'Durasi',
+        'platform' => 'Platform / Tempat',
+        'category' => 'Kategori',
+        'type' => 'Tipe Workshop',
+        'schedule.date' => 'Tanggal',
+        'schedule.time' => 'Waktu',
+        'location' => 'Lokasi',
+        'price' => 'Harga',
+        'about' => 'Tentang Workshop',
+        'media.coverImage' => 'Gambar Sampul',
+    ];
+    $errors = [];
+
+    foreach ($requiredFields as $path => $label) {
+        $value = getNestedValue($data, $path);
+
+        if (isEmptyRequiredValue($value)) {
+            $errors[$path] = $label . ' wajib diisi.';
+        }
+    }
+
+    if (isset($data['title']) && is_string($data['title']) && textLength(trim($data['title'])) > 200) {
+        $errors['title'] = 'Judul Workshop maksimal 200 karakter.';
+    }
+
+    if (isset($data['slug']) && is_string($data['slug'])) {
+        $slug = trim($data['slug']);
+
+        if ($slug !== '' && !preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $slug)) {
+            $errors['slug'] = 'Slug hanya boleh berisi huruf kecil, angka, dan tanda "-".';
+        }
+
+        if (textLength($slug) > 220) {
+            $errors['slug'] = 'Slug maksimal 220 karakter.';
+        }
+    }
+
+    if (isset($data['summary']) && is_string($data['summary']) && textLength($data['summary']) > 150) {
+        $errors['summary'] = 'Deskripsi Singkat maksimal 150 karakter.';
+    }
+
+    $allowedLevels = ['Pemula', 'Menengah', 'Lanjutan'];
+    if (isset($data['level']) && !in_array($data['level'], $allowedLevels, true)) {
+        $errors['level'] = 'Level tidak valid.';
+    }
+
+    $allowedCategories = ['Arduino', 'IoT', 'Visual Programming', 'Sekolah'];
+    if (isset($data['category']) && !in_array($data['category'], $allowedCategories, true)) {
+        $errors['category'] = 'Kategori tidak valid.';
+    }
+
+    $allowedTypes = ['Online', 'Offline', 'Hybrid'];
+    if (isset($data['type']) && !in_array($data['type'], $allowedTypes, true)) {
+        $errors['type'] = 'Tipe Workshop tidak valid.';
+    }
+
+    $date = getNestedValue($data, 'schedule.date');
+    if (is_string($date) && trim($date) !== '' && !validDateYmd($date)) {
+        $errors['schedule.date'] = 'Tanggal harus menggunakan format YYYY-MM-DD.';
+    }
+
+    $timezone = getNestedValue($data, 'schedule.timezone');
+    $allowedTimezones = ['WIB (GMT+7)', 'WITA (GMT+8)', 'WIT (GMT+9)'];
+    if ($timezone !== null && !in_array($timezone, $allowedTimezones, true)) {
+        $errors['schedule.timezone'] = 'Zona waktu tidak valid.';
+    }
+
+    if (isset($data['price'])) {
+        $price = trim((string) $data['price']);
+
+        if ($price !== '' && !preg_match('/^\d+$/', $price)) {
+            $errors['price'] = 'Harga harus berupa angka tanpa pemisah ribuan.';
+        }
+    }
+
+    $status = getNestedValue($data, 'publication.status');
+    $allowedStatuses = ['Draft', 'Terjadwal', 'Terbit', 'Selesai'];
+    if ($status !== null && !in_array($status, $allowedStatuses, true)) {
+        $errors['publication.status'] = 'Status publikasi tidak valid.';
+    }
+
+    $visibility = getNestedValue($data, 'publication.visibility');
+    $allowedVisibilities = ['Publik', 'Privat'];
+    if ($visibility !== null && !in_array($visibility, $allowedVisibilities, true)) {
+        $errors['publication.visibility'] = 'Visibilitas tidak valid.';
+    }
+
+    $homepageVisible = getNestedValue($data, 'publication.homepageVisible');
+    if ($homepageVisible !== null && !is_bool($homepageVisible)) {
+        $errors['publication.homepageVisible'] = 'homepageVisible harus boolean true/false.';
+    }
+
+    $coverImage = getNestedValue($data, 'media.coverImage');
+    if ($coverImage !== null && !is_array($coverImage)) {
+        $errors['media.coverImage'] = 'Gambar Sampul harus berupa object metadata file.';
+    }
+
+    if (is_array($coverImage)) {
+        if (empty($coverImage['name']) || !is_string($coverImage['name'])) {
+            $errors['media.coverImage.name'] = 'Nama file gambar sampul wajib tersedia.';
+        }
+
+        if (isset($coverImage['size']) && !is_numeric($coverImage['size'])) {
+            $errors['media.coverImage.size'] = 'Ukuran file gambar sampul harus berupa angka.';
+        }
+
+        if (
+            isset($coverImage['type']) &&
+            is_string($coverImage['type']) &&
+            strpos($coverImage['type'], 'image/') !== 0
+        ) {
+            $errors['media.coverImage.type'] = 'Tipe Gambar Sampul harus berupa image/*.';
+        }
+    }
+
+    $gallery = getNestedValue($data, 'media.gallery');
+    if ($gallery !== null && !is_array($gallery)) {
+        $errors['media.gallery'] = 'Galeri harus berupa array.';
+    }
+
+    $module = getNestedValue($data, 'attachment.module');
+    if ($module !== null && !is_array($module)) {
+        $errors['attachment.module'] = 'Lampiran modul harus berupa object metadata file atau null.';
+    }
+
+    $metaDescription = getNestedValue($data, 'seo.metaDescription');
+    if (is_string($metaDescription) && textLength($metaDescription) > 160) {
+        $errors['seo.metaDescription'] = 'Meta Description maksimal 160 karakter.';
+    }
+
+    return $errors;
+}
+
+function isDatabaseLocked(Throwable $exception): bool
+{
+    return stripos($exception->getMessage(), 'database is locked') !== false ||
+        stripos($exception->getMessage(), 'database table is locked') !== false;
+}
+
+function writeWithRetry(PDO $pdo, callable $callback, int $maxAttempts = 5)
+{
+    for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+        try {
+            return $callback();
+        } catch (PDOException $exception) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
+            if (isDatabaseLocked($exception) && $attempt < $maxAttempts) {
+                usleep(250000 * $attempt);
+                continue;
+            }
+
+            throw $exception;
+        } catch (Throwable $exception) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
+            throw $exception;
+        }
+    }
+
+    throw new RuntimeException('Operasi database gagal setelah beberapa percobaan.');
 }
 
 /* =========================================================
@@ -352,6 +587,296 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             ],
         ]);
     }
+}
+
+/* =========================================================
+ * DELETE - HAPUS DATA WORKSHOP
+ * ========================================================= */
+
+$method = $_SERVER['REQUEST_METHOD'];
+
+if ($method === 'DELETE') {
+    $id = getRequestId();
+
+    try {
+        $check = $pdo->prepare('SELECT id, title FROM workshops WHERE id = :id LIMIT 1');
+        $check->execute([':id' => $id]);
+        $existing = $check->fetch();
+
+        if (!$existing) {
+            respond(404, [
+                'success' => false,
+                'message' => 'Workshop tidak ditemukan.',
+            ]);
+        }
+
+        writeWithRetry($pdo, function () use ($pdo, $id): void {
+            $pdo->beginTransaction();
+
+            $statement = $pdo->prepare('DELETE FROM workshops WHERE id = :id');
+            $statement->execute([':id' => $id]);
+
+            $pdo->commit();
+        });
+
+        respond(200, [
+            'success' => true,
+            'message' => 'Workshop berhasil dihapus dari SQLite.',
+            'data' => [
+                'id' => $id,
+                'title' => $existing['title'],
+            ],
+        ]);
+    } catch (Throwable $exception) {
+        error_log('[Workshop API DELETE Error] ' . $exception->getMessage());
+
+        respond(500, [
+            'success' => false,
+            'message' => 'Terjadi kesalahan saat menghapus workshop dari SQLite.',
+            'debug' => [
+                'error' => $exception->getMessage(),
+            ],
+        ]);
+    }
+}
+
+/* =========================================================
+ * POST / PUT - SIMPAN DAN UPDATE DATA WORKSHOP
+ * ========================================================= */
+
+if (!in_array($method, ['POST', 'PUT'], true)) {
+    header('Allow: GET, POST, PUT, DELETE, OPTIONS');
+
+    respond(405, [
+        'success' => false,
+        'message' => 'Method tidak diizinkan. Gunakan GET, POST, PUT, atau DELETE.',
+    ]);
+}
+
+$data = readJsonBody();
+$errors = validateWorkshop($data);
+
+if (!empty($errors)) {
+    respond(422, [
+        'success' => false,
+        'message' => 'Validasi gagal. Masih ada data yang belum benar.',
+        'errors' => $errors,
+        'received' => $data,
+    ]);
+}
+
+$title = trim((string) $data['title']);
+$slug = trim((string) $data['slug']);
+$statusValue = (string) (getNestedValue($data, 'publication.status') ?? 'Draft');
+$category = (string) ($data['category'] ?? '');
+$payloadJson = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+if ($payloadJson === false) {
+    respond(500, [
+        'success' => false,
+        'message' => 'Payload gagal dikonversi menjadi JSON.',
+    ]);
+}
+
+$now = date('Y-m-d H:i:s');
+
+if ($method === 'POST') {
+    try {
+        $workshopId = writeWithRetry($pdo, function () use (
+            $pdo,
+            $title,
+            $slug,
+            $statusValue,
+            $category,
+            $payloadJson,
+            $now
+        ): int {
+            $pdo->beginTransaction();
+
+            $statement = $pdo->prepare(
+                'INSERT INTO workshops (
+                    title,
+                    slug,
+                    status,
+                    category,
+                    payload_json,
+                    created_at,
+                    updated_at
+                ) VALUES (
+                    :title,
+                    :slug,
+                    :status,
+                    :category,
+                    :payload_json,
+                    :created_at,
+                    :updated_at
+                )'
+            );
+
+            $statement->execute([
+                ':title' => $title,
+                ':slug' => $slug,
+                ':status' => $statusValue,
+                ':category' => $category,
+                ':payload_json' => $payloadJson,
+                ':created_at' => $now,
+                ':updated_at' => $now,
+            ]);
+
+            $id = (int) $pdo->lastInsertId();
+            $pdo->commit();
+
+            return $id;
+        });
+
+        respond(201, [
+            'success' => true,
+            'message' => 'Workshop berhasil disimpan ke database SQLite.',
+            'data' => [
+                'id' => $workshopId,
+                'title' => $title,
+                'slug' => $slug,
+                'status' => $statusValue,
+                'category' => $category,
+                'createdAt' => $now,
+                'updatedAt' => $now,
+                'payload' => $data,
+            ],
+        ]);
+    } catch (PDOException $exception) {
+        if (
+            (string) $exception->getCode() === '23000' ||
+            stripos($exception->getMessage(), 'UNIQUE constraint failed') !== false
+        ) {
+            respond(409, [
+                'success' => false,
+                'message' => 'Slug workshop sudah digunakan.',
+                'errors' => [
+                    'slug' => 'Gunakan slug yang berbeda.',
+                ],
+            ]);
+        }
+
+        error_log('[Workshop API POST Error] ' . $exception->getMessage());
+
+        respond(500, [
+            'success' => false,
+            'message' => 'Terjadi kesalahan saat menyimpan workshop ke SQLite.',
+            'debug' => [
+                'error' => $exception->getMessage(),
+            ],
+        ]);
+    } catch (Throwable $exception) {
+        error_log('[Workshop API POST Error] ' . $exception->getMessage());
+
+        respond(500, [
+            'success' => false,
+            'message' => 'Terjadi kesalahan internal saat menyimpan workshop.',
+            'debug' => [
+                'error' => $exception->getMessage(),
+            ],
+        ]);
+    }
+}
+
+$id = getRequestId();
+
+try {
+    $check = $pdo->prepare('SELECT id, created_at FROM workshops WHERE id = :id LIMIT 1');
+    $check->execute([':id' => $id]);
+    $existing = $check->fetch();
+
+    if (!$existing) {
+        respond(404, [
+            'success' => false,
+            'message' => 'Workshop yang akan diedit tidak ditemukan.',
+        ]);
+    }
+
+    writeWithRetry($pdo, function () use (
+        $pdo,
+        $id,
+        $title,
+        $slug,
+        $statusValue,
+        $category,
+        $payloadJson,
+        $now
+    ): void {
+        $pdo->beginTransaction();
+
+        $statement = $pdo->prepare(
+            'UPDATE workshops
+             SET
+                title = :title,
+                slug = :slug,
+                status = :status,
+                category = :category,
+                payload_json = :payload_json,
+                updated_at = :updated_at
+             WHERE id = :id'
+        );
+
+        $statement->execute([
+            ':title' => $title,
+            ':slug' => $slug,
+            ':status' => $statusValue,
+            ':category' => $category,
+            ':payload_json' => $payloadJson,
+            ':updated_at' => $now,
+            ':id' => $id,
+        ]);
+
+        $pdo->commit();
+    });
+
+    respond(200, [
+        'success' => true,
+        'message' => 'Workshop berhasil diperbarui di SQLite.',
+        'data' => [
+            'id' => $id,
+            'title' => $title,
+            'slug' => $slug,
+            'status' => $statusValue,
+            'category' => $category,
+            'createdAt' => $existing['created_at'],
+            'updatedAt' => $now,
+            'payload' => $data,
+        ],
+    ]);
+} catch (PDOException $exception) {
+    if (
+        (string) $exception->getCode() === '23000' ||
+        stripos($exception->getMessage(), 'UNIQUE constraint failed') !== false
+    ) {
+        respond(409, [
+            'success' => false,
+            'message' => 'Slug workshop sudah digunakan oleh workshop lain.',
+            'errors' => [
+                'slug' => 'Gunakan slug yang berbeda.',
+            ],
+        ]);
+    }
+
+    error_log('[Workshop API PUT Error] ' . $exception->getMessage());
+
+    respond(500, [
+        'success' => false,
+        'message' => 'Terjadi kesalahan saat memperbarui workshop di SQLite.',
+        'debug' => [
+            'error' => $exception->getMessage(),
+        ],
+    ]);
+} catch (Throwable $exception) {
+    error_log('[Workshop API PUT Error] ' . $exception->getMessage());
+
+    respond(500, [
+        'success' => false,
+        'message' => 'Terjadi kesalahan internal saat memperbarui workshop.',
+        'debug' => [
+            'error' => $exception->getMessage(),
+        ],
+    ]);
 }
 
 /* =========================================================

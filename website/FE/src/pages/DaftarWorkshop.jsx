@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import workshopPresentationMain from '../assets/images/workshop-list-presentation-main.jpg';
 import workshopPresentationMarket from '../assets/images/workshop-list-presentation-market.jpg';
 import workshopPresentationSpeaker from '../assets/images/workshop-list-presentation-speaker.jpg';
+import { fetchWorkshops, isPublicWorkshop } from '../services/workshopApi.js';
 
 const filters = ['Semua', 'Hari ini', 'Minggu ini', 'Bulan ini'];
 const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -20,66 +21,104 @@ const monthNames = [
   'Desember',
 ];
 const years = Array.from({ length: 12 }, (_, index) => 2021 + index);
+const fallbackImages = [workshopPresentationSpeaker, workshopPresentationMarket, workshopPresentationMain];
 
-const workshops = [
-  {
-    title: 'Workshop Pemula Arduflow dan IoT',
-    date: '30 Juli 2026',
-    time: '08.00 - 12.00',
-    location: 'Universitas Negeri Malang',
-    image: workshopPresentationSpeaker,
-    period: 'Hari ini',
-  },
-  {
-    title: 'Workshop Arduflow IDE untuk Siswa',
-    date: '12 Agustus 2026',
-    time: '7.30 - 10.00',
-    location: 'SMKN 1 Glagah',
-    image: workshopPresentationMarket,
-    period: 'Bulan ini',
-  },
-  {
-    title: 'Program IoT untuk Sekolah',
-    date: '19 Agustus 2026',
-    time: '13.00 - 16.00',
-    location: 'Universitas Muhammadiah Malang',
-    image: workshopPresentationMain,
-    period: 'Bulan ini',
-  },
-  {
-    title: 'Workshop Pemula Arduflow dan IoT',
-    date: '30 Juli 2026',
-    time: '08.00 - 11.30',
-    location: 'Universitas Negeri Malang',
-    image: workshopPresentationSpeaker,
-    period: 'Hari ini',
-  },
-  {
-    title: 'Workshop Arduflow IDE untuk Siswa',
-    date: '12 Agustus 2026',
-    time: '7.30 - 10.00',
-    location: 'SMKN 1 Glagah',
-    image: workshopPresentationMarket,
-    period: 'Bulan ini',
-  },
-  {
-    title: 'Program IoT untuk Sekolah',
-    date: '19 Agustus 2026',
-    time: '13.00 - 16.00',
-    location: 'Universitas Muhammadiah Malang',
-    image: workshopPresentationMain,
-    period: 'Bulan ini',
-  },
-];
+function parseDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function sameDay(left, right) {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  );
+}
+
+function getPeriod(startsAt) {
+  const date = parseDate(startsAt);
+  if (!date) return '';
+
+  const today = new Date();
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const startOfWeek = new Date(startOfToday);
+  startOfWeek.setDate(startOfToday.getDate() - ((startOfToday.getDay() + 6) % 7));
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 7);
+
+  if (sameDay(date, today)) return 'Hari ini';
+  if (date >= startOfWeek && date < endOfWeek) return 'Minggu ini';
+  if (date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth()) return 'Bulan ini';
+
+  return '';
+}
+
+function formatDate(value) {
+  const date = parseDate(value);
+  if (!date) return '-';
+
+  return new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+}
+
+function formatTime(startValue, endValue, timeText = '') {
+  if (timeText) return timeText;
+
+  const start = parseDate(startValue);
+  const end = parseDate(endValue);
+  const formatter = new Intl.DateTimeFormat('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  if (!start) return '-';
+  if (!end) return formatter.format(start);
+
+  return `${formatter.format(start)} - ${formatter.format(end)}`;
+}
+
+function detailHref(workshop) {
+  return `/detail-workshop?id=${encodeURIComponent(workshop.id)}`;
+}
 
 export function DaftarWorkshop() {
   const [activeFilter, setActiveFilter] = useState('Semua');
   const [query, setQuery] = useState('');
   const [dateQuery, setDateQuery] = useState('');
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [calendarMonth, setCalendarMonth] = useState(6);
-  const [calendarYear, setCalendarYear] = useState(2026);
+  const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth());
+  const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
+  const [workshops, setWorkshops] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const calendarRef = useRef(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchWorkshops()
+      .then((items) => {
+        if (!isMounted) return;
+        setWorkshops(items.filter(isPublicWorkshop));
+        setError('');
+      })
+      .catch((requestError) => {
+        if (!isMounted) return;
+        setError(requestError.message || 'Gagal memuat data workshop.');
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!isCalendarOpen) {
@@ -91,7 +130,6 @@ export function DaftarWorkshop() {
         setIsCalendarOpen(false);
       }
     };
-
     const closeWithEscape = (event) => {
       if (event.key === 'Escape') {
         setIsCalendarOpen(false);
@@ -134,14 +172,24 @@ export function DaftarWorkshop() {
     const dateKeyword = dateQuery.trim().toLowerCase();
 
     return workshops.filter((item) => {
-      const matchesFilter = activeFilter === 'Semua' || item.period === activeFilter;
-      const searchable = `${item.title} ${item.date} ${item.time} ${item.location}`.toLowerCase();
+      const period = getPeriod(item.startsAt);
+      const itemDate = formatDate(item.startsAt).toLowerCase();
+      const searchable = [
+        item.title,
+        item.description,
+        item.category,
+        item.method,
+        item.location,
+        itemDate,
+        formatTime(item.startsAt, item.endsAt, item.timeText),
+      ].join(' ').toLowerCase();
+      const matchesFilter = activeFilter === 'Semua' || period === activeFilter;
       const matchesQuery = !keyword || searchable.includes(keyword);
-      const matchesDate = !dateKeyword || item.date.toLowerCase().includes(dateKeyword);
+      const matchesDate = !dateKeyword || itemDate.includes(dateKeyword);
 
       return matchesFilter && matchesQuery && matchesDate;
     });
-  }, [activeFilter, query, dateQuery]);
+  }, [activeFilter, query, dateQuery, workshops]);
 
   return (
     <div className="workshop-list-page">
@@ -149,6 +197,7 @@ export function DaftarWorkshop() {
         <div className="workshop-list-heading">
           <h1 id="daftar-workshop-title">Temukan Workshop yang Tepat Untukmu</h1>
           <p>Cari dan pilih program workshop IoT berdasarkan materi dan jadwal yang tersedia</p>
+          {error ? <p className="workshop-empty-state">{error}</p> : null}
         </div>
 
         <div className="workshop-list-controls" aria-label="Cari dan filter workshop">
@@ -156,6 +205,8 @@ export function DaftarWorkshop() {
             <span className="sr-only">Cari workshop</span>
             <input
               type="search"
+              id="workshop-search"
+              name="workshop-search"
               placeholder="Cari workshop, materi, atau jadwal..."
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -167,6 +218,7 @@ export function DaftarWorkshop() {
             <label className="sr-only" htmlFor="workshop-date-filter">Filter tanggal workshop</label>
             <input
               id="workshop-date-filter"
+              name="workshop-date-filter"
               type="text"
               placeholder="Filter tanggal workshop"
               value={dateQuery}
@@ -231,7 +283,7 @@ export function DaftarWorkshop() {
                         key={`${date.day}-${index}`}
                         disabled={date.muted}
                         onClick={() => {
-                          setDateQuery(`${date.day} ${monthNames[calendarMonth]} ${calendarYear}`);
+                          setDateQuery(`${date.day} ${monthNames[calendarMonth]} ${calendarYear}`.toLowerCase());
                           setIsCalendarOpen(false);
                         }}
                       >
@@ -288,46 +340,36 @@ export function DaftarWorkshop() {
           {visibleWorkshops.map((item, index) => (
             <article
               className={`workshop-list-card image-crop-${index % 3}`}
-              key={`${item.title}-${item.date}-${index}`}
+              key={item.id}
             >
-              <img src={item.image} alt="" />
+              <img src={fallbackImages[index % fallbackImages.length]} alt="" />
               <div className="workshop-list-card-body">
                 <h2>{item.title}</h2>
                 <div className="workshop-list-meta" aria-label={`Detail ${item.title}`}>
                   <div>
                     <strong>Tanggal</strong>
-                    <span>{item.date}</span>
+                    <span>{formatDate(item.startsAt)}</span>
                   </div>
                   <div>
                     <strong>Waktu</strong>
-                    <span>{item.time}</span>
+                    <span>{formatTime(item.startsAt, item.endsAt, item.timeText)}</span>
                   </div>
                   <div>
                     <strong>Lokasi</strong>
                     <span>{item.location}</span>
                   </div>
                 </div>
-                <a className="workshop-detail-button" href="/detail-workshop">Lihat Detail</a>
+                <a className="workshop-detail-button" href={detailHref(item)}>Lihat Detail</a>
               </div>
             </article>
           ))}
         </div>
 
         {visibleWorkshops.length === 0 && (
-          <p className="workshop-empty-state">Workshop tidak ditemukan. Coba kata kunci atau filter lain.</p>
+          <p className="workshop-empty-state">
+            {loading ? 'Memuat workshop dari database...' : 'Workshop tidak ditemukan. Coba kata kunci atau filter lain.'}
+          </p>
         )}
-
-        <nav className="workshop-pagination" aria-label="Navigasi halaman workshop">
-          <button className="disabled" type="button" aria-label="Halaman sebelumnya">
-            <span aria-hidden="true" />
-          </button>
-          <span className="active" aria-label="Halaman 1" />
-          <span aria-label="Halaman 2" />
-          <span aria-label="Halaman 3" />
-          <button type="button" aria-label="Halaman berikutnya">
-            <span aria-hidden="true" />
-          </button>
-        </nav>
       </section>
     </div>
   );
