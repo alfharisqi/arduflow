@@ -26,10 +26,10 @@ final class AdminDashboardRepository
         $newUsers = $this->count('SELECT COUNT(*) FROM users WHERE deleted_at IS NULL AND created_at >= :since', ['since' => $weekAgo]);
         $activeUsers = $this->count('SELECT COUNT(DISTINCT user_id) FROM user_sessions WHERE expires_at > :now', ['now' => Clock::now()]);
         $unverified = $this->count('SELECT COUNT(*) FROM users WHERE deleted_at IS NULL AND email_verified_at IS NULL');
-        $workshops = $this->count('SELECT COUNT(*) FROM workshops WHERE deleted_at IS NULL');
-        $programs = $this->count('SELECT COUNT(*) FROM programs WHERE deleted_at IS NULL');
-        $projects = $this->count('SELECT COUNT(*) FROM projects WHERE deleted_at IS NULL');
-        $leads = $this->count('SELECT COUNT(*) FROM leads WHERE deleted_at IS NULL');
+        $workshops = $this->countActiveRows('workshops');
+        $programs = $this->countActiveRows('programs');
+        $projects = $this->countActiveRows('projects');
+        $leads = $this->countActiveRows('leads');
         $sync = $this->syncStatus->summary();
 
         return [
@@ -63,9 +63,10 @@ final class AdminDashboardRepository
 
     private function activities(): array
     {
+        $leadWhere = $this->activeWhere('leads');
         $rows = $this->pdo->query(
             "SELECT event_type, actor_id, created_at FROM auth_logs " .
-            "UNION ALL SELECT 'lead_created', id, created_at FROM leads WHERE deleted_at IS NULL " .
+            "UNION ALL SELECT 'lead_created', id, created_at FROM leads WHERE {$leadWhere} " .
             'ORDER BY created_at DESC LIMIT 7'
         )->fetchAll();
         $labels = [
@@ -102,20 +103,44 @@ final class AdminDashboardRepository
 
     private function workshopRows(): array
     {
+        $where = $this->activeWhere('workshops');
+        $select = ['title', 'status', 'created_at'];
+
+        foreach (['method', 'start_at', 'capacity', 'payload_json'] as $column) {
+            if ($this->hasColumn('workshops', $column)) {
+                $select[] = $column;
+            }
+        }
+
         $rows = $this->pdo->query(
-            'SELECT title, method, start_at, capacity, status FROM workshops WHERE deleted_at IS NULL ' .
-            'ORDER BY start_at IS NULL, start_at ASC, created_at DESC LIMIT 5'
+            'SELECT ' . implode(', ', $select) . " FROM workshops WHERE {$where} " .
+            'ORDER BY created_at DESC LIMIT 5'
         )->fetchAll();
-        return array_map(fn (array $row): array => [
-            'program' => $row['title'], 'date' => $this->formatDate($row['start_at']),
-            'participants' => '0 / ' . (int) $row['capacity'], 'status' => $row['method'] ?: $row['status'],
-        ], $rows);
+
+        return array_map(function (array $row): array {
+            $payload = [];
+            if (isset($row['payload_json'])) {
+                $decoded = json_decode((string) $row['payload_json'], true);
+                $payload = is_array($decoded) ? $decoded : [];
+            }
+
+            $date = $row['start_at'] ?? $payload['schedule']['date'] ?? $row['created_at'] ?? null;
+            $method = $row['method'] ?? $payload['type'] ?? '';
+            $capacity = isset($row['capacity']) ? (int) $row['capacity'] : 0;
+
+            return [
+                'program' => $row['title'],
+                'date' => $this->formatDate($date),
+                'participants' => $capacity > 0 ? '0 / ' . $capacity : '-',
+                'status' => $method ?: ($row['status'] ?? '-'),
+            ];
+        }, $rows);
     }
 
     private function leads(): array
     {
         $rows = $this->pdo->query(
-            'SELECT name, email, topic, created_at, status FROM leads WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 5'
+            'SELECT name, email, topic, created_at, status FROM leads WHERE ' . $this->activeWhere('leads') . ' ORDER BY created_at DESC LIMIT 5'
         )->fetchAll();
         return array_map(fn (array $row): array => [
             'name' => $row['name'], 'email' => $row['email'], 'topic' => $row['topic'] ?: '-',
@@ -128,7 +153,9 @@ final class AdminDashboardRepository
         if (!in_array($table, ['tutorials', 'projects'], true)) {
             return [];
         }
-        $rows = $this->pdo->query("SELECT title, created_at FROM {$table} WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 3")->fetchAll();
+
+        $where = $this->activeWhere($table);
+        $rows = $this->pdo->query("SELECT title, created_at FROM {$table} WHERE {$where} ORDER BY created_at DESC LIMIT 3")->fetchAll();
         return array_map(fn (array $row): array => ['title' => $row['title'], 'date' => $this->formatDate($row['created_at'])], $rows);
     }
 
@@ -164,6 +191,23 @@ final class AdminDashboardRepository
         $statement = $this->pdo->prepare($sql);
         $statement->execute($params);
         return (int) $statement->fetchColumn();
+    }
+
+    private function countActiveRows(string $table): int
+    {
+        return $this->count("SELECT COUNT(*) FROM {$table} WHERE " . $this->activeWhere($table));
+    }
+
+    private function activeWhere(string $table): string
+    {
+        return $this->hasColumn($table, 'deleted_at') ? 'deleted_at IS NULL' : '1 = 1';
+    }
+
+    private function hasColumn(string $table, string $column): bool
+    {
+        $statement = $this->pdo->query("PRAGMA table_info({$table})");
+        $columns = array_column($statement->fetchAll(), 'name');
+        return in_array($column, $columns, true);
     }
 
     private function formatDate(?string $value): string

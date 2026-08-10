@@ -22,9 +22,16 @@ $legacyRoutes = [
     '/api/auth/profile.php' => __DIR__ . '/../api/auth/profile.php',
     '/api/admin/login.php' => __DIR__ . '/../api/admin/login.php',
     '/api/admin/session.php' => __DIR__ . '/../api/admin/session.php',
+    '/api/admin/dashboard.php' => null,
 ];
 
-if (isset($legacyRoutes[$path])) {
+if (array_key_exists($path, $legacyRoutes)) {
+    if ($legacyRoutes[$path] === null) {
+        $_SERVER['REQUEST_URI'] = '/api/admin/dashboard';
+        require __DIR__ . '/index.php';
+        return true;
+    }
+
     require $legacyRoutes[$path];
     return true;
 }

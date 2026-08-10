@@ -20,8 +20,19 @@ final class AdminDashboardController
     public function show(Request $request): Response
     {
         $admin = $this->sessions->admin($request);
-        return $admin
-            ? Response::json($this->dashboard->data($admin))
-            : Response::json(['message' => 'Sesi admin tidak valid atau sudah kedaluwarsa.'], 401);
+        if (!$admin) {
+            return Response::json([
+                'success' => false,
+                'message' => 'Sesi admin tidak valid atau sudah kedaluwarsa.',
+            ], 401);
+        }
+
+        $data = $this->dashboard->data($admin);
+
+        return Response::json([
+            'success' => true,
+            ...$data,
+            'data' => $data,
+        ]);
     }
 }

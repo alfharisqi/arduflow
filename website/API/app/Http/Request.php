@@ -20,7 +20,15 @@ final class Request
 
     public static function fromGlobals(): self
     {
-        $headers = function_exists('getallheaders') ? (getallheaders() ?: []) : self::headersFromServer($_SERVER);
+        $headers = self::headersFromServer($_SERVER);
+
+        if (function_exists('getallheaders')) {
+            $headers = [
+                ...$headers,
+                ...(getallheaders() ?: []),
+            ];
+        }
+
         $normalizedHeaders = [];
         foreach ($headers as $name => $value) {
             $normalizedHeaders[strtolower((string) $name)] = (string) $value;
