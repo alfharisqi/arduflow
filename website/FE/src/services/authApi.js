@@ -154,6 +154,30 @@ export function getAdminDashboard(
   });
 }
 
+export function getAdminUsers(
+  filters = {},
+  token = window.localStorage.getItem(
+    "arduflow_admin_token"
+  )
+) {
+  const params = new URLSearchParams();
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value) !== "") {
+      params.set(key, String(value));
+    }
+  });
+
+  const query = params.toString();
+
+  return request(`/api/admin/users${query ? `?${query}` : ""}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token || ""}`,
+    },
+  });
+}
+
 /*
 |--------------------------------------------------------------------------
 | Email verification

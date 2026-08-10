@@ -1,6 +1,6 @@
 .admin-users-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 290px;
+  grid-template-columns: minmax(0, 1fr);
   min-height: calc(100vh - 56px);
   background: #ffffff;
 }
@@ -133,6 +133,7 @@
 }
 
 .admin-users-search input,
+.admin-users-select-grid input,
 .admin-users-select-grid select {
   width: 100%;
   height: 34px;
@@ -165,7 +166,7 @@
 
 .admin-users-select-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
 }
 
@@ -177,6 +178,7 @@
   color: #4b5563;
 }
 
+.admin-users-select-grid input,
 .admin-users-select-grid select {
   padding: 0 12px;
 }
@@ -204,6 +206,7 @@
 
 .admin-users-table-card {
   overflow: hidden;
+  overflow-x: auto;
   margin-bottom: 18px;
 }
 
@@ -313,6 +316,14 @@
 .admin-users-pagination button.is-active {
   border-color: #2563eb;
   color: #2563eb;
+}
+
+.admin-users-heading button:disabled,
+.admin-users-toolbar button:disabled,
+.admin-users-pagination button:disabled,
+.admin-users-panel button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .admin-users-bottom {
@@ -505,5 +516,5 @@
 }
 
 .admin-dashboard-page--collapsed .admin-users-layout {
-  grid-template-columns: minmax(0, 1fr) 290px;
+  grid-template-columns: minmax(0, 1fr);
 }

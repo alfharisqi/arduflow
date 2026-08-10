@@ -258,11 +258,194 @@ final class UserRepository
         });
     }
 
+    public function adminIndex(array $filters = []): array
+    {
+        $page = max(1, (int) ($filters['page'] ?? 1));
+        $perPage = max(1, min(50, (int) ($filters['perPage'] ?? 10)));
+        $offset = ($page - 1) * $perPage;
+        [$where, $params] = $this->adminWhere($filters);
+
+        $total = $this->countAdminUsers($where, $params);
+        $statement = $this->pdo->prepare(
+            'SELECT users.id, users.name, users.username, users.email, users.whatsapp, users.occupation, ' .
+            'users.institution_name, users.avatar_path, users.email_verified_at, users.verification_sent_at, ' .
+            'users.created_at, latest_session.last_login_at, active_session.user_id AS active_user_id ' .
+            'FROM users ' .
+            'LEFT JOIN (SELECT user_id, MAX(COALESCE(last_used_at, created_at)) AS last_login_at FROM user_sessions GROUP BY user_id) latest_session ' .
+            'ON latest_session.user_id = users.id ' .
+            'LEFT JOIN (SELECT DISTINCT user_id FROM user_sessions WHERE expires_at > :now) active_session ' .
+            'ON active_session.user_id = users.id ' .
+            "WHERE {$where} ORDER BY users.created_at DESC LIMIT :limit OFFSET :offset"
+        );
+
+        foreach ($params as $name => $value) {
+            $statement->bindValue(':' . $name, $value);
+        }
+        $statement->bindValue(':now', Clock::now());
+        $statement->bindValue(':limit', $perPage, PDO::PARAM_INT);
+        $statement->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $statement->execute();
+
+        return [
+            'users' => array_map([$this, 'adminUserRow'], $statement->fetchAll()),
+            'pagination' => [
+                'page' => $page,
+                'perPage' => $perPage,
+                'total' => $total,
+                'from' => $total === 0 ? 0 : $offset + 1,
+                'to' => min($offset + $perPage, $total),
+                'lastPage' => max(1, (int) ceil($total / $perPage)),
+            ],
+        ];
+    }
+
+    public function adminSummary(): array
+    {
+        $now = Clock::now();
+        $weekAgo = gmdate('c', time() - 604800);
+        $total = $this->count('SELECT COUNT(*) FROM users WHERE deleted_at IS NULL');
+        $active = $this->count(
+            'SELECT COUNT(DISTINCT users.id) FROM users INNER JOIN user_sessions ON user_sessions.user_id = users.id ' .
+            'WHERE users.deleted_at IS NULL AND user_sessions.expires_at > :now',
+            ['now' => $now],
+        );
+        $unverified = $this->count('SELECT COUNT(*) FROM users WHERE deleted_at IS NULL AND email_verified_at IS NULL');
+        $newUsers = $this->count(
+            'SELECT COUNT(*) FROM users WHERE deleted_at IS NULL AND created_at >= :since',
+            ['since' => $weekAgo],
+        );
+
+        return [
+            ['id' => 'total', 'label' => 'Total User', 'value' => $total, 'note' => 'Semua akun terdaftar'],
+            ['id' => 'active', 'label' => 'User Aktif', 'value' => $active, 'note' => $total > 0 ? round(($active / $total) * 100, 1) . '% dari total user' : 'Belum ada sesi aktif'],
+            ['id' => 'unverified', 'label' => 'Belum Verifikasi Email', 'value' => $unverified, 'note' => $total > 0 ? round(($unverified / $total) * 100, 1) . '% dari total user' : 'Belum ada user'],
+            ['id' => 'newUsers', 'label' => 'User Baru (7 Hari)', 'value' => $newUsers, 'note' => 'Bergabung dalam 7 hari'],
+            ['id' => 'inactive', 'label' => 'User Tidak Aktif', 'value' => max(0, $total - $active), 'note' => 'Tidak memiliki sesi aktif saat ini'],
+        ];
+    }
+
+    public function adminProblems(): array
+    {
+        $threeDaysAgo = gmdate('c', time() - 259200);
+
+        return [
+            ['label' => 'Email belum verifikasi > 3 hari', 'count' => $this->count(
+                'SELECT COUNT(*) FROM users WHERE deleted_at IS NULL AND email_verified_at IS NULL AND created_at < :since',
+                ['since' => $threeDaysAgo],
+            )],
+            ['label' => 'Email verifikasi belum terkirim', 'count' => $this->count(
+                'SELECT COUNT(*) FROM users WHERE deleted_at IS NULL AND email_verified_at IS NULL AND verification_sent_at IS NULL'
+            )],
+            ['label' => 'Banyak percobaan login gagal', 'count' => $this->count(
+                "SELECT COUNT(*) FROM auth_logs WHERE success = 0 AND event_type = 'login_failed' AND created_at >= :since",
+                ['since' => gmdate('c', time() - 604800)],
+            )],
+            ['label' => 'WhatsApp kosong', 'count' => $this->count(
+                "SELECT COUNT(*) FROM users WHERE deleted_at IS NULL AND (whatsapp IS NULL OR whatsapp = '')"
+            )],
+        ];
+    }
+
+    public function adminActivities(): array
+    {
+        $rows = $this->pdo->query(
+            'SELECT auth_logs.event_type, auth_logs.created_at, users.name, users.email FROM auth_logs ' .
+            'LEFT JOIN users ON users.id = auth_logs.actor_id ' .
+            "WHERE auth_logs.actor_type = 'user' OR users.id IS NOT NULL " .
+            'ORDER BY auth_logs.created_at DESC LIMIT 5'
+        )->fetchAll();
+        $labels = [
+            'register_success' => 'Registrasi',
+            'login_success' => 'Login',
+            'login_failed' => 'Login gagal',
+            'email_verified' => 'Verifikasi email',
+            'profile_updated' => 'Update profil',
+        ];
+
+        return array_map(fn (array $row): array => [
+            'name' => $row['name'] ?: ($row['email'] ?: 'User'),
+            'action' => $labels[$row['event_type']] ?? $row['event_type'],
+            'time' => $row['created_at'],
+        ], $rows);
+    }
+
     private function one(string $sql, array $params): ?array
     {
         $statement = $this->pdo->prepare($sql);
         $statement->execute($params);
         $row = $statement->fetch();
         return $row ?: null;
+    }
+
+    private function adminWhere(array $filters): array
+    {
+        $where = ['users.deleted_at IS NULL'];
+        $params = [];
+        $search = trim((string) ($filters['search'] ?? ''));
+
+        if ($search !== '') {
+            $where[] = '(' .
+                'LOWER(COALESCE(users.name, \'\')) LIKE :search OR ' .
+                'LOWER(COALESCE(users.username, \'\')) LIKE :search OR ' .
+                'LOWER(COALESCE(users.email, \'\')) LIKE :search OR ' .
+                'LOWER(COALESCE(users.whatsapp, \'\')) LIKE :search' .
+            ')';
+            $params['search'] = '%' . strtolower($search) . '%';
+        }
+
+        if (($filters['emailStatus'] ?? '') === 'verified') {
+            $where[] = 'users.email_verified_at IS NOT NULL';
+        } elseif (($filters['emailStatus'] ?? '') === 'unverified') {
+            $where[] = 'users.email_verified_at IS NULL';
+        }
+
+        if (trim((string) ($filters['occupation'] ?? '')) !== '') {
+            $where[] = 'LOWER(COALESCE(users.occupation, \'\') || \' / \' || COALESCE(users.institution_name, \'\')) LIKE :occupation';
+            $params['occupation'] = '%' . strtolower(trim((string) $filters['occupation'])) . '%';
+        }
+
+        if (trim((string) ($filters['dateFrom'] ?? '')) !== '') {
+            $where[] = 'users.created_at >= :date_from';
+            $params['date_from'] = trim((string) $filters['dateFrom']);
+        }
+
+        if (trim((string) ($filters['dateTo'] ?? '')) !== '') {
+            $where[] = 'users.created_at <= :date_to';
+            $params['date_to'] = trim((string) $filters['dateTo']);
+        }
+
+        return [implode(' AND ', $where), $params];
+    }
+
+    private function countAdminUsers(string $where, array $params): int
+    {
+        return $this->count("SELECT COUNT(*) FROM users WHERE {$where}", $params);
+    }
+
+    private function count(string $sql, array $params = []): int
+    {
+        $statement = $this->pdo->prepare($sql);
+        $statement->execute($params);
+        return (int) $statement->fetchColumn();
+    }
+
+    private function adminUserRow(array $row): array
+    {
+        $work = trim((string) ($row['occupation'] ?? ''));
+        $institution = trim((string) ($row['institution_name'] ?? ''));
+
+        return [
+            'id' => (int) $row['id'],
+            'name' => $row['name'],
+            'username' => $row['username'] ?: '-',
+            'email' => $row['email'],
+            'whatsapp' => $row['whatsapp'] ?: '-',
+            'workplace' => trim($work . ($work !== '' && $institution !== '' ? ' / ' : '') . $institution) ?: '-',
+            'emailStatus' => $row['email_verified_at'] ? 'Terverifikasi' : 'Belum Verifikasi',
+            'accountStatus' => $row['active_user_id'] ? 'Aktif' : 'Tidak Aktif',
+            'registeredAt' => $row['created_at'],
+            'lastLoginAt' => $row['last_login_at'] ?: null,
+            'avatarPath' => $row['avatar_path'] ?? null,
+        ];
     }
 }

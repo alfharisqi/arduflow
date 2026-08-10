@@ -8,6 +8,7 @@ use Arduflow\Api\Controllers\HealthController;
 use Arduflow\Api\Controllers\AdminAuthController;
 use Arduflow\Api\Controllers\AdminDatabaseSyncController;
 use Arduflow\Api\Controllers\AdminDashboardController;
+use Arduflow\Api\Controllers\AdminUsersController;
 use Arduflow\Api\Controllers\InternalSyncController;
 use Arduflow\Api\Controllers\ProgramController;
 use Arduflow\Api\Controllers\UserAuthController;
@@ -94,6 +95,7 @@ final class Application
             $sessions,
             new AdminDashboardRepository($sqlite, $syncStatus, $config, $connections->sqlitePath()),
         );
+        $adminUsers = new AdminUsersController($sessions, $users);
 
         $this->router = new Router();
         $this->router->get('/api/health', [$health, 'basic']);
@@ -113,6 +115,7 @@ final class Application
         $this->router->get('/api/admin/session', [$adminAuth, 'session']);
         $this->router->post('/api/admin/logout', [$adminAuth, 'logout']);
         $this->router->get('/api/admin/dashboard', [$adminDashboard, 'show']);
+        $this->router->get('/api/admin/users', [$adminUsers, 'index']);
         $this->router->get('/api/admin/database-sync/status', [$adminSync, 'status']);
         $this->router->post('/api/admin/database-sync/run', [$adminSync, 'run']);
         $this->router->post('/api/admin/database-sync/retry-failed', [$adminSync, 'retryFailed']);

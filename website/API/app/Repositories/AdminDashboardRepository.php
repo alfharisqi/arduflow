@@ -207,15 +207,50 @@ final class AdminDashboardRepository
 
     private function logs(): array
     {
+        $sources = [];
+
+        if ($this->tableExists('sync_outbox') && $this->hasColumn('sync_outbox', 'last_error')) {
+            $sources[] = (
+                "SELECT CASE WHEN status = 'failed' THEN 'ERROR' ELSE 'WARNING' END AS level, " .
+                "'Sync outbox: ' || COALESCE(last_error, 'Event sinkronisasi belum berhasil.') AS message, " .
+                'updated_at AS created_at FROM sync_outbox WHERE last_error IS NOT NULL'
+            );
+        }
+
+        if ($this->tableExists('sync_logs')) {
+            $hasMysqlStatus = $this->hasColumn('sync_logs', 'mysql_status');
+            $mysqlLevel = $hasMysqlStatus ? "mysql_status = 'unreachable' OR " : '';
+            $mysqlWhere = $hasMysqlStatus ? " OR mysql_status = 'unreachable'" : '';
+
+            $sources[] = (
+                "SELECT CASE WHEN {$mysqlLevel}failed_events > 0 THEN 'ERROR' ELSE 'WARNING' END AS level, " .
+                "COALESCE(error_message, 'Sinkronisasi gagal pada ' || failed_events || ' event.') AS message, " .
+                'COALESCE(finished_at, started_at) AS created_at FROM sync_logs ' .
+                "WHERE error_message IS NOT NULL OR failed_events > 0{$mysqlWhere}"
+            );
+        }
+
+        if ($this->tableExists('auth_logs')) {
+            $sources[] = (
+                "SELECT 'WARNING' AS level, " .
+                "CASE event_type WHEN 'login_failed' THEN 'Login gagal' ELSE event_type END AS message, " .
+                'created_at FROM auth_logs WHERE success = 0'
+            );
+        }
+
+        if ($sources === []) {
+            return [];
+        }
+
         $rows = $this->pdo->query(
-            "SELECT CASE WHEN status = 'failed' THEN 'ERROR' ELSE 'WARNING' END AS level, " .
-            "COALESCE(last_error, 'Event sinkronisasi belum berhasil.') AS message, updated_at AS created_at " .
-            'FROM sync_outbox WHERE last_error IS NOT NULL UNION ALL ' .
-            "SELECT CASE WHEN mysql_status = 'unreachable' THEN 'ERROR' ELSE 'WARNING' END, " .
-            "COALESCE(error_message, 'Sinkronisasi selesai dengan catatan.'), COALESCE(finished_at, started_at) " .
-            'FROM sync_logs WHERE error_message IS NOT NULL ORDER BY created_at DESC LIMIT 3'
+            implode(' UNION ALL ', $sources) . ' ORDER BY created_at DESC LIMIT 5'
         )->fetchAll();
-        return array_map(fn (array $row): array => ['level' => $row['level'], 'message' => $row['message'], 'time' => $row['created_at']], $rows);
+
+        return array_map(fn (array $row): array => [
+            'level' => $row['level'],
+            'message' => $row['message'],
+            'time' => $row['created_at'],
+        ], $rows);
     }
 
     private function system(): array
@@ -258,6 +293,13 @@ final class AdminDashboardRepository
         $statement = $this->pdo->query("PRAGMA table_info({$table})");
         $columns = array_column($statement->fetchAll(), 'name');
         return in_array($column, $columns, true);
+    }
+
+    private function tableExists(string $table): bool
+    {
+        $statement = $this->pdo->prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = :name");
+        $statement->execute(['name' => $table]);
+        return (bool) $statement->fetchColumn();
     }
 
     private function formatDate(?string $value): string
