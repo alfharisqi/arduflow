@@ -179,34 +179,6 @@ export function AdminDashboard() {
 
             <article className="admin-panel">
               <div className="admin-panel-head">
-                <h2>Verifikasi Akun</h2>
-                <button type="button">Lihat semua</button>
-              </div>
-              <table className="admin-table">
-                <thead>
-                  <tr><th>Nama</th><th>Email</th><th>Tanggal</th><th>Status</th><th>Aksi</th></tr>
-                </thead>
-                <tbody>
-                  {verificationItems.length ? (
-                    verificationItems.map((row) => (
-                      <tr key={`${row.no}-${row.email}`}>
-                        <td>{row.name}</td>
-                        <td>{row.email}</td>
-                        <td>{row.date}</td>
-                        <td><StatusBadge>{row.status}</StatusBadge></td>
-                        <td>↗</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr><td colSpan="5">Tidak ada akun yang menunggu verifikasi.</td></tr>
-                  )}
-                </tbody>
-              </table>
-              <button className="admin-panel-button" type="button">Kelola verifikasi akun</button>
-            </article>
-
-            <article className="admin-panel">
-              <div className="admin-panel-head">
                 <h2>Workshop / Program Mendatang</h2>
                 <button type="button">Lihat semua</button>
               </div>
@@ -229,6 +201,33 @@ export function AdminDashboard() {
                 </tbody>
               </table>
               <button className="admin-panel-button" type="button">Kelola workshop / program</button>
+            </article>
+
+            <article className="admin-panel">
+              <div className="admin-panel-head">
+                <h2>Verifikasi Akun</h2>
+                <button type="button">Lihat semua</button>
+              </div>
+              <table className="admin-table">
+                <thead>
+                  <tr><th>Email</th><th>Tanggal</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                  {verificationItems.length ? (
+                    verificationItems.map((row) => (
+                      <tr key={`${row.no}-${row.email}`}>
+                        {/* <td>{row.name}</td> */}
+                        <td>{row.email}</td>
+                        <td>{row.date}</td>
+                        <td><StatusBadge>{row.status}</StatusBadge></td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr><td colSpan="5">Tidak ada akun yang menunggu verifikasi.</td></tr>
+                  )}
+                </tbody>
+              </table>
+              <button className="admin-panel-button" type="button">Kelola verifikasi akun</button>
             </article>
 
             <article className="admin-panel">
@@ -264,14 +263,13 @@ export function AdminDashboard() {
               </div>
               <table className="admin-table">
                 <thead>
-                  <tr><th>Nama</th><th>Email</th><th>Topik</th><th>Tanggal</th></tr>
+                  <tr><th>Nama</th><th>Topik</th><th>Tanggal</th></tr>
                 </thead>
                 <tbody>
                   {leadItems.length ? (
                     leadItems.map((row, index) => (
                       <tr key={`${row.email}-${row.topic}-${row.date}-${index}`}>
                         <td>{row.name}</td>
-                        <td>{row.email}</td>
                         <td>{row.topic}</td>
                         <td>{row.date}</td>
                       </tr>

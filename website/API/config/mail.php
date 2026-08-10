@@ -12,4 +12,5 @@ return [
     'username' => Env::get('MAIL_USERNAME', ''),
     'password' => Env::get('MAIL_PASSWORD', ''),
     'from' => Env::get('MAIL_FROM', 'Arduflow <no-reply@arduflow.local>'),
+    'mailpit_url' => Env::get('MAILPIT_URL', 'http://localhost:8025/'),
 ];

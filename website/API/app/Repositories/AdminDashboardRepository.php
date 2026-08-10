@@ -182,7 +182,11 @@ final class AdminDashboardRepository
         return [
             ['title' => 'MySQL', 'status' => $mysqlStatus, 'detail' => 'Status dari worker terakhir; tidak wajib untuk request user'],
             ['title' => 'SQLite (Operasional)', 'status' => 'Online', 'detail' => 'Size: ' . $size],
-            ['title' => 'SMTP / Mailpit', 'status' => $this->config->get('mail.enabled', true) ? 'Configured' : 'Disabled', 'detail' => $this->config->get('mail.host') . ':' . $this->config->get('mail.port')],
+            [
+                'title' => 'SMTP / Mailpit',
+                'status' => $this->config->get('mail.enabled', true) ? 'Online' : 'Disabled',
+                'detail' => (string) $this->config->get('mail.mailpit_url', 'http://localhost:8025/'),
+            ],
         ];
     }
 
