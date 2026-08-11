@@ -19,7 +19,12 @@ $allowedOrigins = [
     'http://127.0.0.1:5175',
 ];
 
-if (in_array($origin, $allowedOrigins, true)) {
+$isLocalOrigin = preg_match(
+    '#^http://(localhost|127\.0\.0\.1|192\.168\.[0-9]+\.[0-9]+|10\.[0-9]+\.[0-9]+\.[0-9]+|172\.(1[6-9]|2[0-9]|3[0-1])\.[0-9]+\.[0-9]+):[0-9]+$#',
+    $origin
+) === 1;
+
+if (in_array($origin, $allowedOrigins, true) || $isLocalOrigin) {
     header("Access-Control-Allow-Origin: {$origin}");
     header('Vary: Origin');
 }

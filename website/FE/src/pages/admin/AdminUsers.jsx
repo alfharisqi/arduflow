@@ -63,12 +63,66 @@ function timeAgo(value) {
   return formatDate(value);
 }
 
+function userInitials(name) {
+  return String(name || '-')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase() || '-';
+}
+
+function csvCell(value) {
+  return `"${String(value ?? '').replace(/"/g, '""')}"`;
+}
+
+function exportUsersCsv(users, filename = 'arduflow-users.csv') {
+  const headers = [
+    'ID',
+    'Nama',
+    'Username',
+    'Email',
+    'WhatsApp',
+    'Pekerjaan / Instansi',
+    'Status Email',
+    'Status Akun',
+    'Tanggal Daftar',
+    'Login Terakhir',
+  ];
+  const rows = users.map((user) => [
+    user.id,
+    user.name,
+    user.username,
+    user.email,
+    user.whatsapp,
+    user.workplace,
+    user.emailStatus,
+    user.accountStatus,
+    user.registeredAt,
+    user.lastLoginAt || '',
+  ]);
+  const csv = [headers, ...rows]
+    .map((row) => row.map(csvCell).join(','))
+    .join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export function AdminUsers() {
   const [filters, setFilters] = useState(initialFilters);
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [isDetailOpen, setDetailOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -100,6 +154,7 @@ export function AdminUsers() {
   const activities = data?.activities || [];
   const pagination = data?.pagination || { page: 1, perPage: 10, total: 0, from: 0, to: 0, lastPage: 1 };
   const allCurrentUsersSelected = users.length > 0 && selectedIds.length === users.length;
+  const selectedUser = users.find((user) => user.id === selectedUserId) || null;
   const pages = useMemo(() => {
     const current = Number(pagination.page) || 1;
     const last = Number(pagination.lastPage) || 1;
@@ -107,6 +162,24 @@ export function AdminUsers() {
       .filter((page) => page >= 1 && page <= last)
       .sort((left, right) => left - right);
   }, [pagination.page, pagination.lastPage]);
+
+  useEffect(() => {
+    if (!isDetailOpen) {
+      return undefined;
+    }
+
+    function closeWithEscape(event) {
+      if (event.key === 'Escape') {
+        setDetailOpen(false);
+      }
+    }
+
+    document.addEventListener('keydown', closeWithEscape);
+
+    return () => {
+      document.removeEventListener('keydown', closeWithEscape);
+    };
+  }, [isDetailOpen]);
 
   function updateFilter(key, value) {
     setFilters((current) => ({ ...current, [key]: value, page: 1 }));
@@ -134,6 +207,26 @@ export function AdminUsers() {
     setSelectedIds(allCurrentUsersSelected ? [] : users.map((user) => user.id));
   }
 
+  function openUserDetail(user) {
+    setSelectedUserId(user.id);
+    setDetailOpen(true);
+  }
+
+  function copyUser(user) {
+    navigator.clipboard?.writeText([
+      user.name,
+      user.username,
+      user.email,
+      user.whatsapp,
+      user.workplace,
+    ].join('\n'));
+  }
+
+  function exportSelectedUsers() {
+    const selectedUsers = users.filter((user) => selectedIds.includes(user.id));
+    exportUsersCsv(selectedUsers.length ? selectedUsers : users, 'arduflow-selected-users.csv');
+  }
+
   return (
     <AdminPage pageClassName="admin-users-page" ariaLabel="Manajemen user admin">
       <AdminTopbar searchPlaceholder="Cari data user" searchLabel="Cari data user" />
@@ -146,7 +239,7 @@ export function AdminUsers() {
               <p>Dashboard <span>/</span> Manajemen User</p>
               {error ? <small className="admin-dashboard-error">{error}</small> : null}
             </div>
-            <button type="button" disabled>Tambah User</button>
+            <button type="button" onClick={refreshUsers}>Refresh Data</button>
           </div>
 
           <section className="admin-users-summary" aria-label="Ringkasan user">
@@ -227,8 +320,8 @@ export function AdminUsers() {
 
           <section className="admin-users-toolbar">
             <span>{selectedIds.length} dipilih</span>
-            <button type="button" className="admin-users-primary" disabled={!selectedIds.length}>Bulk Action</button>
-            <button type="button" disabled>Export CSV</button>
+            <button type="button" className="admin-users-primary" disabled={!selectedIds.length} onClick={exportSelectedUsers}>Export Terpilih</button>
+            <button type="button" disabled={!users.length} onClick={() => exportUsersCsv(users)}>Export CSV</button>
             <button type="button" onClick={refreshUsers}>Refresh</button>
           </section>
 
@@ -276,7 +369,16 @@ export function AdminUsers() {
                     <td><UserBadge>{user.accountStatus}</UserBadge></td>
                     <td>{formatDate(user.registeredAt)}</td>
                     <td>{user.lastLoginAt ? timeAgo(user.lastLoginAt) : '-'}</td>
-                    <td><button type="button" aria-label={`Aksi ${user.name}`}>...</button></td>
+                    <td>
+                      <div className="admin-users-actions">
+                        <button type="button" aria-label={`Lihat ${user.name}`} onClick={() => openUserDetail(user)}>Detail</button>
+                        <button type="button" aria-label={`Salin ${user.name}`} onClick={() => copyUser(user)}>Copy</button>
+                        <a href={`mailto:${user.email}`} aria-label={`Email ${user.name}`}>Email</a>
+                        {user.whatsapp !== '-' ? (
+                          <a href={`https://wa.me/${String(user.whatsapp).replace(/\D/g, '')}`} target="_blank" rel="noreferrer" aria-label={`WhatsApp ${user.name}`}>WA</a>
+                        ) : null}
+                      </div>
+                    </td>
                   </tr>
                 )) : (
                   <tr>
@@ -336,13 +438,71 @@ export function AdminUsers() {
 
             <article className="admin-users-panel">
               <h2>Aksi Cepat</h2>
-              <button type="button" disabled>Kirim Ulang Verifikasi</button>
-              <button type="button" disabled>Export Semua User</button>
-              <button type="button" disabled>Lihat Log Aktivitas User</button>
+              <button type="button" disabled={!selectedIds.length} onClick={exportSelectedUsers}>Export User Terpilih</button>
+              <button type="button" disabled={!users.length} onClick={() => exportUsersCsv(users)}>Export Semua User</button>
+              <button type="button" onClick={refreshUsers}>Muat Ulang Data</button>
             </article>
           </section>
         </section>
       </div>
+
+      {isDetailOpen && selectedUser && (
+        <div
+          className="admin-users-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Detail user ${selectedUser.name}`}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setDetailOpen(false);
+            }
+          }}
+        >
+          <aside className="admin-users-detail admin-users-detail--modal">
+            <div className="admin-users-detail-head">
+              <h2>Detail User</h2>
+              <button type="button" aria-label="Tutup detail user" onClick={() => setDetailOpen(false)}>x</button>
+            </div>
+            <div className="admin-users-detail-profile">
+              <span className="admin-users-detail-avatar">{userInitials(selectedUser.name)}</span>
+              <h3>{selectedUser.name}</h3>
+              <p>{selectedUser.email}</p>
+              <UserBadge>{selectedUser.accountStatus}</UserBadge>
+            </div>
+            <dl>
+              <dt>ID User</dt><dd>{selectedUser.id}</dd>
+              <dt>Username</dt><dd>{selectedUser.username}</dd>
+              <dt>WhatsApp</dt><dd>{selectedUser.whatsapp}</dd>
+              <dt>Pekerjaan / Instansi</dt><dd>{selectedUser.workplace}</dd>
+              <dt>Status Email</dt><dd><UserBadge>{selectedUser.emailStatus}</UserBadge></dd>
+              <dt>Status Akun</dt><dd><UserBadge>{selectedUser.accountStatus}</UserBadge></dd>
+              <dt>Tanggal Daftar</dt><dd>{formatDate(selectedUser.registeredAt, true)}</dd>
+              <dt>Login Terakhir</dt><dd>{selectedUser.lastLoginAt ? formatDate(selectedUser.lastLoginAt, true) : '-'}</dd>
+            </dl>
+            <section className="admin-users-detail-stats">
+              <span><b>Email</b>{selectedUser.email}</span>
+              <span><b>WhatsApp</b>{selectedUser.whatsapp}</span>
+              <span><b>Terdaftar</b>{formatDate(selectedUser.registeredAt)}</span>
+              <span><b>Sesi</b>{selectedUser.accountStatus}</span>
+            </section>
+            <h3>Aksi User</h3>
+            <div className="admin-users-detail-actions">
+              <a href={`mailto:${selectedUser.email}`}>Balas Email</a>
+              {selectedUser.whatsapp !== '-' ? (
+                <a href={`https://wa.me/${String(selectedUser.whatsapp).replace(/\D/g, '')}`} target="_blank" rel="noreferrer">Hubungi WhatsApp</a>
+              ) : null}
+              <button type="button" onClick={() => copyUser(selectedUser)}>Salin Data</button>
+              <button type="button" onClick={() => {
+                setSelectedIds((current) => (
+                  current.includes(selectedUser.id) ? current : [...current, selectedUser.id]
+                ));
+              }}>
+                Pilih User
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
     </AdminPage>
   );
 }

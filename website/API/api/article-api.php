@@ -26,7 +26,7 @@ $allowedOrigins = [
 ];
 
 $isLocalOrigin = preg_match(
-    '#^http://(localhost|127\.0\.0\.1):[0-9]+$#',
+    '#^http://(localhost|127\.0\.0\.1|192\.168\.[0-9]+\.[0-9]+|10\.[0-9]+\.[0-9]+\.[0-9]+|172\.(1[6-9]|2[0-9]|3[0-1])\.[0-9]+\.[0-9]+):[0-9]+$#',
     $origin
 ) === 1;
 
@@ -433,6 +433,184 @@ function createTables(PDO $database): void
     }
 }
 
+function readCreateMateriRequest(): array
+{
+    $contentType = strtolower((string) ($_SERVER['CONTENT_TYPE'] ?? ''));
+
+    if (
+        isset($_POST['payload'])
+        && is_string($_POST['payload'])
+        && trim($_POST['payload']) !== ''
+    ) {
+        $requestData = json_decode((string) $_POST['payload'], true);
+
+        if (!is_array($requestData)) {
+            sendJsonResponse(
+                [
+                    'success' => false,
+                    'message' => 'Payload multipart bukan JSON yang valid.',
+                    'debug' => [
+                        'content_type' => $contentType,
+                        'post_keys' => array_keys($_POST),
+                        'file_keys' => array_keys($_FILES),
+                    ],
+                ],
+                400
+            );
+        }
+
+        return $requestData;
+    }
+
+    $rawBody = file_get_contents('php://input');
+
+    if (is_string($rawBody) && trim($rawBody) !== '') {
+        try {
+            $requestData = json_decode($rawBody, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException $error) {
+            sendJsonResponse(
+                [
+                    'success' => false,
+                    'message' => 'Body request harus berupa JSON yang valid.',
+                    'error' => $error->getMessage(),
+                    'debug' => [
+                        'content_type' => $contentType,
+                        'body_length' => strlen($rawBody),
+                    ],
+                ],
+                400
+            );
+        }
+
+        if (!is_array($requestData)) {
+            sendJsonResponse(
+                [
+                    'success' => false,
+                    'message' => 'Body request harus berupa object JSON.',
+                ],
+                400
+            );
+        }
+
+        return $requestData;
+    }
+
+    sendJsonResponse(
+        [
+            'success' => false,
+            'message' => 'Payload request tidak ditemukan.',
+            'debug' => [
+                'content_type' => $contentType,
+                'post_keys' => array_keys($_POST),
+                'file_keys' => array_keys($_FILES),
+                'post_max_size' => ini_get('post_max_size'),
+                'upload_max_filesize' => ini_get('upload_max_filesize'),
+                'content_length' => isset($_SERVER['CONTENT_LENGTH'])
+                    ? (string) $_SERVER['CONTENT_LENGTH']
+                    : null,
+            ],
+        ],
+        400
+    );
+}
+
+function saveUploadedArticleImage(array $uploadedFile): array
+{
+    $uploadError = (int) ($uploadedFile['error'] ?? UPLOAD_ERR_NO_FILE);
+
+    if ($uploadError === UPLOAD_ERR_NO_FILE) {
+        throw new RuntimeException('File gambar belum dipilih.');
+    }
+
+    if ($uploadError !== UPLOAD_ERR_OK) {
+        throw new RuntimeException('Upload gambar gagal. Kode error: ' . $uploadError);
+    }
+
+    $temporaryPath = (string) ($uploadedFile['tmp_name'] ?? '');
+
+    if ($temporaryPath === '' || !is_uploaded_file($temporaryPath)) {
+        throw new RuntimeException('Temporary file upload tidak valid.');
+    }
+
+    $fileSize = (int) ($uploadedFile['size'] ?? 0);
+    $maxFileSize = 3 * 1024 * 1024;
+
+    if ($fileSize <= 0) {
+        throw new RuntimeException('Ukuran gambar tidak valid.');
+    }
+
+    if ($fileSize > $maxFileSize) {
+        throw new RuntimeException('Ukuran gambar maksimal 3 MB.');
+    }
+
+    $originalName = (string) ($uploadedFile['name'] ?? 'image');
+    $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+    $allowedExtensions = [
+        'jpg' => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'png' => 'image/png',
+        'svg' => 'image/svg+xml',
+    ];
+
+    if (!isset($allowedExtensions[$extension])) {
+        throw new RuntimeException('Format gambar harus JPG, JPEG, PNG, atau SVG.');
+    }
+
+    $storage = $GLOBALS['articleImageStorage'] ?? [
+        'path' => dirname(__DIR__) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'articles',
+        'url' => '/uploads/articles',
+    ];
+
+    $uploadDirectory = (string) ($storage['path'] ?? '');
+
+    if (
+        $uploadDirectory === ''
+        || (!is_dir($uploadDirectory) && !mkdir($uploadDirectory, 0775, true) && !is_dir($uploadDirectory))
+    ) {
+        throw new RuntimeException('Folder storage/uploads/articles gagal dibuat.');
+    }
+
+    if (!is_writable($uploadDirectory)) {
+        throw new RuntimeException('Folder storage/uploads/articles tidak dapat ditulis.');
+    }
+
+    $storedFileName = bin2hex(random_bytes(16)) . '.' . $extension;
+    $destination = $uploadDirectory . DIRECTORY_SEPARATOR . $storedFileName;
+
+    if (!move_uploaded_file($temporaryPath, $destination)) {
+        throw new RuntimeException('Gambar gagal disimpan ke storage/uploads/articles.');
+    }
+
+    return [
+        'file_name' => $storedFileName,
+        'file_type' => $allowedExtensions[$extension],
+        'file_size' => $fileSize,
+        'file_path' => $destination,
+        'file_url' => rtrim((string) ($storage['url'] ?? '/uploads/articles'), '/') . '/' . $storedFileName,
+    ];
+}
+
+function deleteArticleImageFile(?string $fileName, ?string $filePath = null): bool
+{
+    $path = trim((string) $filePath);
+
+    if ($path === '' && $fileName !== null && trim($fileName) !== '') {
+        $storage = $GLOBALS['articleImageStorage'] ?? [
+            'path' => dirname(__DIR__) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'articles',
+        ];
+
+        $path = (string) ($storage['path'] ?? '')
+            . DIRECTORY_SEPARATOR
+            . basename($fileName);
+    }
+
+    if ($path === '' || !is_file($path)) {
+        return false;
+    }
+
+    return @unlink($path);
+}
+
 /*
 |--------------------------------------------------------------------------
 | GET Semua Materi
@@ -529,52 +707,11 @@ function createMateri(PDO $database): void
 {
     /*
     |--------------------------------------------------------------------------
-    | Membaca JSON
+    | Membaca Request
     |--------------------------------------------------------------------------
     */
 
-    $rawBody = file_get_contents('php://input');
-
-    if (
-        $rawBody === false
-        || trim($rawBody) === ''
-    ) {
-        sendJsonResponse(
-            [
-                'success' => false,
-                'message' => 'Body request tidak boleh kosong.',
-            ],
-            400
-        );
-    }
-
-    try {
-        $requestData = json_decode(
-            $rawBody,
-            true,
-            512,
-            JSON_THROW_ON_ERROR
-        );
-    } catch (JsonException $error) {
-        sendJsonResponse(
-            [
-                'success' => false,
-                'message' => 'Body request harus berupa JSON yang valid.',
-                'error' => $error->getMessage(),
-            ],
-            400
-        );
-    }
-
-    if (!is_array($requestData)) {
-        sendJsonResponse(
-            [
-                'success' => false,
-                'message' => 'Body request harus berupa object JSON.',
-            ],
-            400
-        );
-    }
+    $requestData = readCreateMateriRequest();
 
     /*
     |--------------------------------------------------------------------------
@@ -613,6 +750,28 @@ function createMateri(PDO $database): void
         && is_array($requestData['card_image'])
             ? $requestData['card_image']
             : [];
+
+    if (
+        isset($_FILES['card_image'])
+        && is_array($_FILES['card_image'])
+        && (int) ($_FILES['card_image']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE
+    ) {
+        try {
+            $cardImage = saveUploadedArticleImage($_FILES['card_image']);
+            $requestData['card_image'] = $cardImage;
+        } catch (RuntimeException $error) {
+            sendJsonResponse(
+                [
+                    'success' => false,
+                    'message' => 'Gagal mengupload gambar materi.',
+                    'errors' => [
+                        'card_image' => $error->getMessage(),
+                    ],
+                ],
+                422
+            );
+        }
+    }
 
     $storedCardImage = function_exists('normalizeStoredImage')
         ? normalizeStoredImage(
@@ -1470,7 +1629,7 @@ function deleteMateri(PDO $database): void
     }
 
     $checkStatement = $database->prepare(
-        'SELECT id, title, slug
+        'SELECT id, title, slug, card_image_name, card_image_path
          FROM tutorials
          WHERE id = :id
          LIMIT 1'
@@ -1531,6 +1690,15 @@ function deleteMateri(PDO $database): void
 
         $database->commit();
 
+        $imageDeleted = deleteArticleImageFile(
+            isset($tutorial['card_image_name'])
+                ? (string) $tutorial['card_image_name']
+                : null,
+            isset($tutorial['card_image_path'])
+                ? (string) $tutorial['card_image_path']
+                : null
+        );
+
         sendJsonResponse(
             [
                 'success' => true,
@@ -1540,6 +1708,7 @@ function deleteMateri(PDO $database): void
                     'title' => (string) $tutorial['title'],
                     'slug' => (string) $tutorial['slug'],
                     'deleted_slides' => $deletedSlides,
+                    'image_deleted' => $imageDeleted,
                 ],
             ],
             200

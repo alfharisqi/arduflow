@@ -4,7 +4,7 @@ import {
   getInitialAdminSidebarCollapsed,
   persistAdminSidebarCollapsed,
 } from './adminSidebarState.js';
-import { apiEndpoint } from '../../services/apiEndpoints.js';
+import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
 
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
@@ -21,6 +21,7 @@ const PAGE_SIZE = 6;
 
 function normalizeWorkshop(row) {
   const payload = row?.payload && typeof row.payload === 'object' ? row.payload : {};
+  const coverImage = payload.media?.coverImage ?? row?.coverImage ?? null;
 
   return {
     id: row?.id ?? null,
@@ -43,7 +44,7 @@ function normalizeWorkshop(row) {
     status: payload.publication?.status || row?.status || 'Draft',
     visibility: payload.publication?.visibility || 'Publik',
     homepageVisible: Boolean(payload.publication?.homepageVisible),
-    coverImage: payload.media?.coverImage ?? null,
+    coverImage,
     gallery: Array.isArray(payload.media?.gallery) ? payload.media.gallery : [],
     module: payload.attachment?.module ?? null,
     metaTitle: payload.seo?.metaTitle ?? null,
@@ -55,8 +56,19 @@ function normalizeWorkshop(row) {
 }
 
 function getWorkshopImageUrl(workshop) {
-  const url = workshop?.coverImage?.url;
-  return typeof url === 'string' ? url.trim() : '';
+  const image = workshop?.coverImage;
+  const url = image?.url || image?.file_url || image?.relativeUrl || image?.relative_url || '';
+  const cleanUrl = typeof url === 'string' ? url.trim() : '';
+
+  if (!cleanUrl) {
+    return '';
+  }
+
+  if (/^https?:\/\//i.test(cleanUrl) || cleanUrl.startsWith('data:')) {
+    return cleanUrl;
+  }
+
+  return `${API_BASE_URL}/${cleanUrl.replace(/^\/+/, '')}`;
 }
 
 function WorkshopImage({ workshop, className, compact = false }) {

@@ -137,6 +137,11 @@ $isLocalOrigin = preg_match(
     $origin
 ) === 1;
 
+$isPrivateNetworkOrigin = preg_match(
+    '#^http://((10|127)\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}|192\.168\.[0-9]{1,3}\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[0-1])\.[0-9]{1,3}\.[0-9]{1,3}):[0-9]+$#',
+    $origin
+) === 1;
+
 $allowedOrigins = [
     'https://arduflow.indobilliard.com',
     'https://www.arduflow.indobilliard.com',
@@ -144,13 +149,14 @@ $allowedOrigins = [
 
 if (
     $isLocalOrigin
+    || $isPrivateNetworkOrigin
     || in_array($origin, $allowedOrigins, true)
 ) {
     header('Access-Control-Allow-Origin: ' . $origin);
     header('Vary: Origin');
 }
 
-header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header(
     'Access-Control-Allow-Headers: '
     . 'Content-Type, Accept, Authorization'
@@ -170,13 +176,13 @@ if ($method === 'OPTIONS') {
     exit;
 }
 
-if ($method !== 'POST') {
-    header('Allow: POST, OPTIONS');
+if (!in_array($method, ['GET', 'POST'], true)) {
+    header('Allow: GET, POST, OPTIONS');
 
     sendJson(
         405,
         false,
-        'Method tidak diizinkan. Gunakan method POST.'
+        'Method tidak diizinkan. Gunakan method GET atau POST.'
     );
 }
 
@@ -242,6 +248,357 @@ set_exception_handler(function (Throwable $exception): void {
         ]
     );
 });
+
+function openSqliteConnection(array $sqliteConfig, string $projectRoot): PDO
+{
+    $databasePath = trim(
+        (string) ($sqliteConfig['path'] ?? '')
+    );
+
+    $busyTimeout = (int) (
+        $sqliteConfig['busy_timeout_ms'] ?? 15000
+    );
+
+    if ($databasePath === '') {
+        sendJson(
+            500,
+            false,
+            'Path database SQLite belum dikonfigurasi.'
+        );
+    }
+
+    $isWindowsAbsolutePath = preg_match(
+        '/^[A-Za-z]:[\\\\\/]/',
+        $databasePath
+    ) === 1;
+
+    $isUnixAbsolutePath = str_starts_with(
+        $databasePath,
+        '/'
+    );
+
+    if (
+        !$isWindowsAbsolutePath
+        && !$isUnixAbsolutePath
+    ) {
+        $databasePath =
+            $projectRoot
+            . DIRECTORY_SEPARATOR
+            . str_replace(
+                ['/', '\\'],
+                DIRECTORY_SEPARATOR,
+                $databasePath
+            );
+    }
+
+    $databaseDirectory = dirname($databasePath);
+
+    if (
+        !is_dir($databaseDirectory)
+        && !mkdir($databaseDirectory, 0775, true)
+        && !is_dir($databaseDirectory)
+    ) {
+        sendJson(
+            500,
+            false,
+            'Folder database tidak dapat dibuat.',
+            [
+                'database_directory' => $databaseDirectory,
+            ]
+        );
+    }
+
+    $pdo = new PDO(
+        'sqlite:' . $databasePath,
+        null,
+        null,
+        [
+            PDO::ATTR_ERRMODE =>
+                PDO::ERRMODE_EXCEPTION,
+
+            PDO::ATTR_DEFAULT_FETCH_MODE =>
+                PDO::FETCH_ASSOC,
+
+            PDO::ATTR_EMULATE_PREPARES =>
+                false,
+        ]
+    );
+
+    $pdo->exec('PRAGMA foreign_keys = ON');
+    $pdo->exec('PRAGMA journal_mode = WAL');
+    $pdo->exec('PRAGMA synchronous = NORMAL');
+    $pdo->exec(
+        'PRAGMA busy_timeout = '
+        . max(15000, $busyTimeout)
+    );
+
+    return $pdo;
+}
+
+function normalizeAdminStatus(?string $status): string
+{
+    return match (strtolower(trim((string) $status))) {
+        'new', 'baru' => 'Baru',
+        'in_progress', 'processing', 'processed', 'diproses' => 'Diproses',
+        'waiting', 'pending', 'menunggu' => 'Menunggu Balasan',
+        'done', 'completed', 'selesai' => 'Selesai',
+        'rejected', 'spam', 'ditolak' => 'Ditolak',
+        default => 'Baru',
+    };
+}
+
+function formatAdminDate(?string $value): string
+{
+    if (!$value) {
+        return '-';
+    }
+
+    try {
+        $date = new DateTimeImmutable($value);
+    } catch (Throwable) {
+        return $value;
+    }
+
+    return $date
+        ->setTimezone(new DateTimeZone('Asia/Jakarta'))
+        ->format('d M Y H:i');
+}
+
+function leadPriority(string $topic, string $message, string $status): string
+{
+    $text = strtolower($topic . ' ' . $message);
+
+    if (
+        str_contains($text, 'partner')
+        || str_contains($text, 'kolaborasi')
+        || str_contains($text, 'workshop')
+        || normalizeAdminStatus($status) === 'Baru'
+    ) {
+        return 'Tinggi';
+    }
+
+    if (trim($message) === '') {
+        return 'Rendah';
+    }
+
+    return 'Normal';
+}
+
+function truncateText(string $value, int $limit = 56): string
+{
+    $cleanValue = trim(preg_replace('/\s+/', ' ', $value) ?? $value);
+
+    if (textLength($cleanValue) <= $limit) {
+        return $cleanValue !== '' ? $cleanValue : '-';
+    }
+
+    return function_exists('mb_substr')
+        ? mb_substr($cleanValue, 0, $limit - 3) . '...'
+        : substr($cleanValue, 0, $limit - 3) . '...';
+}
+
+function fetchAdminLeads(PDO $pdo): array
+{
+    $items = [];
+
+    if (tableExists($pdo, 'leads')) {
+        $statement = $pdo->query(
+            "SELECT
+                id,
+                name,
+                email,
+                whatsapp,
+                topic,
+                message,
+                source,
+                status,
+                created_at,
+                updated_at
+             FROM leads
+             WHERE deleted_at IS NULL"
+        );
+
+        foreach ($statement->fetchAll() as $row) {
+            $status = normalizeAdminStatus($row['status'] ?? 'new');
+            $topic = (string) ($row['topic'] ?? 'Lead');
+            $message = (string) ($row['message'] ?? '');
+
+            $items[] = [
+                'id' => 'lead-' . (int) $row['id'],
+                'numeric_id' => (int) $row['id'],
+                'form_type' => 'lead',
+                'name' => (string) $row['name'],
+                'email' => (string) $row['email'],
+                'whatsapp' => (string) $row['whatsapp'],
+                'topic' => $topic,
+                'message' => $message,
+                'message_short' => truncateText($message),
+                'priority' => leadPriority($topic, $message, $status),
+                'status' => $status,
+                'pic' => '-',
+                'source' => (string) ($row['source'] ?? 'website'),
+                'created_at' => (string) $row['created_at'],
+                'updated_at' => (string) $row['updated_at'],
+                'created_at_label' => formatAdminDate($row['created_at'] ?? null),
+                'updated_at_label' => formatAdminDate($row['updated_at'] ?? null),
+            ];
+        }
+    }
+
+    if (tableExists($pdo, 'collaborations')) {
+        $statement = $pdo->query(
+            "SELECT
+                id,
+                pic_name,
+                pic_email,
+                pic_whatsapp,
+                institution_name,
+                institution_type,
+                goal,
+                participant_estimate,
+                demo_schedule,
+                source,
+                status,
+                created_at,
+                updated_at
+             FROM collaborations
+             WHERE deleted_at IS NULL"
+        );
+
+        foreach ($statement->fetchAll() as $row) {
+            $status = normalizeAdminStatus($row['status'] ?? 'new');
+            $topic = 'Partner';
+            $message = trim(
+                (string) ($row['institution_name'] ?? '')
+                . ' - '
+                . (string) ($row['goal'] ?? '')
+            );
+
+            $items[] = [
+                'id' => 'collaboration-' . (int) $row['id'],
+                'numeric_id' => (int) $row['id'],
+                'form_type' => 'collaboration',
+                'name' => (string) $row['pic_name'],
+                'email' => (string) $row['pic_email'],
+                'whatsapp' => (string) $row['pic_whatsapp'],
+                'topic' => $topic,
+                'message' => $message,
+                'message_short' => truncateText($message),
+                'priority' => leadPriority($topic, $message, $status),
+                'status' => $status,
+                'pic' => '-',
+                'source' => (string) ($row['source'] ?? 'website'),
+                'created_at' => (string) $row['created_at'],
+                'updated_at' => (string) $row['updated_at'],
+                'created_at_label' => formatAdminDate($row['created_at'] ?? null),
+                'updated_at_label' => formatAdminDate($row['updated_at'] ?? null),
+                'meta' => [
+                    'institution_type' => $row['institution_type'] ?? null,
+                    'participant_estimate' => $row['participant_estimate'] ?? null,
+                    'demo_schedule' => $row['demo_schedule'] ?? null,
+                ],
+            ];
+        }
+    }
+
+    if (tableExists($pdo, 'workshop_registrations')) {
+        $statement = $pdo->query(
+            "SELECT
+                id,
+                participant_name,
+                participant_email,
+                participant_whatsapp,
+                institution_name,
+                workshop_choice,
+                participant_estimate,
+                notes,
+                source,
+                status,
+                created_at,
+                updated_at
+             FROM workshop_registrations
+             WHERE deleted_at IS NULL"
+        );
+
+        foreach ($statement->fetchAll() as $row) {
+            $status = normalizeAdminStatus($row['status'] ?? 'new');
+            $topic = 'Workshop';
+            $message = trim(
+                (string) ($row['workshop_choice'] ?? '')
+                . ' - '
+                . (string) ($row['notes'] ?? '')
+            );
+
+            $items[] = [
+                'id' => 'workshop-' . (int) $row['id'],
+                'numeric_id' => (int) $row['id'],
+                'form_type' => 'workshop',
+                'name' => (string) $row['participant_name'],
+                'email' => (string) $row['participant_email'],
+                'whatsapp' => (string) $row['participant_whatsapp'],
+                'topic' => $topic,
+                'message' => $message,
+                'message_short' => truncateText($message),
+                'priority' => leadPriority($topic, $message, $status),
+                'status' => $status,
+                'pic' => '-',
+                'source' => (string) ($row['source'] ?? 'website'),
+                'created_at' => (string) $row['created_at'],
+                'updated_at' => (string) $row['updated_at'],
+                'created_at_label' => formatAdminDate($row['created_at'] ?? null),
+                'updated_at_label' => formatAdminDate($row['updated_at'] ?? null),
+                'meta' => [
+                    'institution_name' => $row['institution_name'] ?? null,
+                    'participant_estimate' => $row['participant_estimate'] ?? null,
+                ],
+            ];
+        }
+    }
+
+    usort(
+        $items,
+        static fn (array $a, array $b): int =>
+            strcmp((string) $b['created_at'], (string) $a['created_at'])
+    );
+
+    return $items;
+}
+
+if ($method === 'GET') {
+    $databaseConfig = require $configPath;
+    $sqliteConfig = $databaseConfig['sqlite'] ?? null;
+
+    if (!is_array($sqliteConfig)) {
+        sendJson(
+            500,
+            false,
+            'Konfigurasi SQLite tidak ditemukan.'
+        );
+    }
+
+    $pdo = openSqliteConnection($sqliteConfig, $projectRoot);
+    $items = fetchAdminLeads($pdo);
+    $statusCounts = [];
+    $topicCounts = [];
+
+    foreach ($items as $item) {
+        $statusCounts[$item['status']] = ($statusCounts[$item['status']] ?? 0) + 1;
+        $topicCounts[$item['topic']] = ($topicCounts[$item['topic']] ?? 0) + 1;
+    }
+
+    sendJson(
+        200,
+        true,
+        'Data lead berhasil diambil.',
+        [
+            'leads' => $items,
+            'total' => count($items),
+            'status_counts' => $statusCounts,
+            'topic_counts' => $topicCounts,
+            'generated_at' => gmdate('Y-m-d\TH:i:s\Z'),
+        ]
+    );
+}
 
 /*
 |--------------------------------------------------------------------------

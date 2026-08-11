@@ -244,6 +244,12 @@
     #e5e7eb;
 }
 
+img.admin-tutorial-thumb,
+img.admin-tutorial-detail-image {
+  display: block;
+  object-fit: cover;
+}
+
 .admin-tutorial-thumb {
   width: 40px;
   height: 28px;
@@ -652,4 +658,338 @@
 
 .admin-dashboard-page--collapsed .admin-tutorial-layout {
   grid-template-columns: minmax(0, 1fr) 320px;
+}
+
+/* Admin tutorial dashboard polish */
+.admin-tutorial-page .admin-dashboard-main {
+  overflow-x: hidden;
+  background: #fbfcfd;
+}
+
+.admin-tutorial-layout {
+  grid-template-columns: minmax(0, 1fr);
+  background: #fbfcfd;
+}
+
+.admin-dashboard-page--collapsed .admin-tutorial-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.admin-tutorial-content {
+  padding: 24px 26px 32px;
+}
+
+.admin-tutorial-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.admin-tutorial-stats {
+  grid-template-columns: repeat(6, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.admin-tutorial-stat {
+  min-height: 118px;
+  padding: 16px 14px;
+}
+
+.admin-tutorial-stat strong {
+  max-width: 150px;
+  font-size: 24px;
+}
+
+.admin-tutorial-stat:nth-child(5) strong {
+  max-width: 150px;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.admin-tutorial-filter {
+  grid-template-columns: minmax(220px, 1.35fr) repeat(4, minmax(135px, 0.8fr)) minmax(190px, 1fr) 100px;
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.admin-tutorial-filter button {
+  width: 100%;
+}
+
+.admin-tutorial-table-toolbar {
+  align-items: center;
+  gap: 0;
+  margin: 10px 0 12px;
+}
+
+.admin-tutorial-table-toolbar .admin-tutorial-primary,
+.admin-tutorial-table-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  white-space: nowrap;
+}
+
+.admin-tutorial-table-toolbar .admin-tutorial-primary {
+  border-radius: 7px 0 0 7px;
+}
+
+.admin-tutorial-table-toolbar button {
+  min-width: 140px;
+  padding: 0 12px;
+  border: 1px solid #9ca3af;
+  border-left: 0;
+  border-radius: 0 7px 7px 0;
+  background: #ffffff;
+  color: #111827;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+}
+
+.admin-tutorial-table-card {
+  overflow-x: auto;
+}
+
+.admin-tutorial-table {
+  min-width: 1120px;
+}
+
+.admin-tutorial-table th,
+.admin-tutorial-table td {
+  height: 50px;
+  padding: 0 10px;
+  vertical-align: middle;
+}
+
+.admin-tutorial-table th {
+  color: #111827;
+}
+
+.admin-tutorial-table td:nth-child(2) {
+  min-width: 245px;
+}
+
+.admin-tutorial-table td:nth-child(2) small {
+  max-width: 230px;
+}
+
+.admin-tutorial-thumb {
+  object-fit: cover;
+}
+
+.admin-tutorial-actions {
+  min-width: 132px;
+}
+
+.admin-tutorial-bottom {
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.admin-tutorial-panel {
+  min-height: 214px;
+}
+
+.admin-tutorial-panel table {
+  table-layout: fixed;
+}
+
+.admin-tutorial-panel th,
+.admin-tutorial-panel td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-tutorial-issues p {
+  min-height: 36px;
+}
+
+.admin-tutorial-activity p {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 40px;
+}
+
+.admin-tutorial-activity b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-tutorial-quick {
+  margin-bottom: 22px;
+}
+
+.admin-tutorial-quick a,
+.admin-tutorial-quick button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid #d8dde6;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #111827;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  text-align: center;
+  text-decoration: none;
+}
+
+.admin-tutorial-detail-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.admin-tutorial-detail-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(15, 23, 42, 0.46);
+  cursor: pointer;
+}
+
+.admin-tutorial-detail {
+  position: relative;
+  z-index: 1;
+  width: min(680px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  border: 1px solid #dfe5ee;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.25);
+}
+
+.admin-tutorial-detail-profile {
+  grid-template-columns: 96px minmax(0, 1fr);
+  padding: 22px 18px;
+}
+
+.admin-tutorial-detail-image {
+  width: 96px;
+  height: 78px;
+  object-fit: cover;
+}
+
+.admin-tutorial-detail-profile h3 {
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.admin-tutorial-detail dl {
+  grid-template-columns: 116px minmax(0, 1fr);
+  gap: 14px 12px;
+}
+
+.admin-tutorial-detail dd {
+  word-break: break-word;
+}
+
+.admin-tutorial-detail-stats {
+  gap: 12px;
+}
+
+.admin-tutorial-detail-stats article {
+  min-height: 76px;
+}
+
+.admin-tutorial-detail-actions {
+  padding-bottom: 24px;
+}
+
+@media (max-width: 1500px) {
+  .admin-tutorial-layout,
+  .admin-dashboard-page--collapsed .admin-tutorial-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-tutorial-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .admin-tutorial-filter {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .admin-tutorial-bottom {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1180px) {
+  .admin-tutorial-layout,
+  .admin-dashboard-page--collapsed .admin-tutorial-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-tutorial-content {
+    padding: 18px 14px 28px;
+  }
+
+  .admin-tutorial-stats,
+  .admin-tutorial-filter,
+  .admin-tutorial-bottom,
+  .admin-tutorial-quick div {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-tutorial-table-toolbar {
+    justify-content: stretch;
+  }
+
+  .admin-tutorial-table-toolbar .admin-tutorial-primary,
+  .admin-tutorial-table-toolbar button {
+    flex: 1;
+    min-width: 0;
+    font-size: 11px;
+  }
+
+  .admin-tutorial-pagination {
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+
+  .admin-tutorial-detail dl,
+  .admin-tutorial-detail-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-tutorial-detail-modal {
+    align-items: flex-start;
+    padding: 14px;
+  }
+
+  .admin-tutorial-detail {
+    width: 100%;
+    max-height: calc(100vh - 28px);
+    border-radius: 10px;
+  }
+
+  .admin-tutorial-detail-profile {
+    grid-template-columns: 72px minmax(0, 1fr);
+    padding: 16px 14px;
+  }
+
+  .admin-tutorial-detail-image {
+    width: 72px;
+    height: 58px;
+  }
+
+  .admin-tutorial-detail-head,
+  .admin-tutorial-detail dl,
+  .admin-tutorial-detail-stats,
+  .admin-tutorial-history,
+  .admin-tutorial-detail-actions {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
 }

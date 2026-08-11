@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
 import { AdminSidebar } from './AdminSidebar.jsx';
 import {
   getInitialAdminSidebarCollapsed,
   persistAdminSidebarCollapsed,
 } from './adminSidebarState.js';
-import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import cameraIcon from '../../assets/icons/icon-image-placeholder-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
@@ -33,17 +33,23 @@ const GALLERY_API_URL = apiEndpoint(
   import.meta.env.VITE_GALLERY_API_URL,
   '/api/galery-api.php',
 );
-
 function fileToJson(file) {
   return file
     ? { name: file.name, size: file.size, type: file.type || 'application/octet-stream' }
     : null;
 }
 
-function resolveGalleryCoverUrl(coverPath) {
-  if (!coverPath) return '';
-  if (/^https?:\/\//i.test(coverPath)) return coverPath;
-  return `${API_BASE_URL}/${String(coverPath).replace(/^\/+/, '')}`;
+function resolveGalleryCoverUrl(coverPath, coverUrl = '') {
+  const rawUrl = coverUrl || coverPath;
+
+  if (!rawUrl) return '';
+  if (/^(https?:\/\/|data:image\/|blob:)/i.test(rawUrl)) return rawUrl;
+
+  const normalizedPath = String(rawUrl)
+    .replace(/^\/+/, '')
+    .replace(/^storage\/uploads\//i, 'uploads/');
+
+  return `${API_BASE_URL}/${normalizedPath}`;
 }
 
 function formatGalleryDate(value) {
@@ -86,15 +92,6 @@ async function getGalleryFromApi() {
 
   return Array.isArray(result.data) ? result.data : [];
 }
-
-const galleryStats = [
-  { label: 'Total Media', value: '1.248', note: 'Semua media', icon: cameraIcon, tone: 'blue' },
-  { label: 'Foto Published', value: '842', note: '67.6% dari total', icon: checkIcon, tone: 'green' },
-  { label: 'Video Published', value: '186', note: '14.9% dari total', icon: galleryIcon, tone: 'blue' },
-  { label: 'Draft / Belum Publish', value: '126', note: '10.1% dari total', icon: fileIcon, tone: 'orange' },
-  { label: 'Perlu Review', value: '74', note: '5.9% dari total', icon: clockIcon, tone: 'purple' },
-  { label: 'Total Viewer Galeri', value: '24.352', note: 'Semua galeri', icon: eyeIcon, tone: 'blue' },
-];
 
 const galleryItems = [
   ['Workshop IoT Beginner', 'Pelatihan dasar IoT untuk pemula', 'Foto', 'Workshop', '42', 'Published', '1.245', '18 Mei 2024', '20 Mei 2024', 'Ahmad Fauzi'],
@@ -277,16 +274,16 @@ function GalleryRichTextEditor({ value, onChange, hasError }) {
   );
 }
 
-function AdminGalleryUploadForm({ onCancel, onSaved }) {
+function AdminGalleryUploadForm({ onCancel, onSaved, mode = 'create', initialGallery = null }) {
   const [formData, setFormData] = useState({
     coverImage: null,
-    tag: '',
-    title: '',
-    description: '',
-    userName: '',
-    eventDate: '',
-    detailLink: '',
-    note: '',
+    tag: initialGallery?.tag || '',
+    title: initialGallery?.title || '',
+    description: initialGallery?.description || '',
+    userName: initialGallery?.userName || '',
+    eventDate: initialGallery?.eventDate || '',
+    detailLink: initialGallery?.detailLink || '',
+    note: initialGallery?.note || '',
   });
   const [coverPreviewUrl, setCoverPreviewUrl] = useState('');
   const [errors, setErrors] = useState({});
@@ -321,7 +318,7 @@ function AdminGalleryUploadForm({ onCancel, onSaved }) {
     const isDraft = status === 'draft';
     const nextErrors = {};
 
-    if (!isDraft && !formData.coverImage) nextErrors.coverImage = 'Cover kegiatan wajib diupload.';
+    if (!isDraft && mode !== 'edit' && !formData.coverImage) nextErrors.coverImage = 'Cover kegiatan wajib diupload.';
     if (!isDraft && !formData.tag) nextErrors.tag = 'Tag kegiatan wajib dipilih.';
     if (!isDraft && !formData.title.trim()) nextErrors.title = 'Judul kegiatan wajib diisi.';
     if (!isDraft && !stripHtml(formData.description)) nextErrors.description = 'Deskripsi kegiatan wajib diisi.';
@@ -372,6 +369,10 @@ function AdminGalleryUploadForm({ onCancel, onSaved }) {
       payload.append('cover_image', formData.coverImage);
     }
 
+    if (mode === 'edit' && initialGallery?.id) {
+      payload.append('id', String(initialGallery.id));
+    }
+
     payload.append('tag', formData.tag);
     payload.append('title', formData.title);
     payload.append('description', formData.description);
@@ -389,7 +390,13 @@ function AdminGalleryUploadForm({ onCancel, onSaved }) {
     if (!galleryJson) return;
 
     try {
-      setMessage(status === 'draft' ? 'Menyimpan draft kegiatan...' : 'Mengupload kegiatan...');
+      setMessage(
+        mode === 'edit'
+          ? 'Menyimpan perubahan kegiatan...'
+          : status === 'draft'
+            ? 'Menyimpan draft kegiatan...'
+            : 'Mengupload kegiatan...'
+      );
 
       const response = await fetch(GALLERY_API_URL, {
         method: 'POST',
@@ -451,7 +458,7 @@ function AdminGalleryUploadForm({ onCancel, onSaved }) {
     <section className="admin-gallery-upload-page" aria-label="Form upload kegiatan">
       <form className="admin-gallery-upload-shell" onSubmit={handleSubmit} noValidate>
         <div className="admin-gallery-upload-main">
-          <h1>Form Upload Kegiatan</h1>
+          <h1>{mode === 'edit' ? 'Edit Kegiatan' : 'Form Upload Kegiatan'}</h1>
 
           <label className="admin-gallery-upload-label">Upload Cover Kegiatan</label>
           <label className={`admin-gallery-upload-cover-drop${errors.coverImage ? ' is-invalid' : ''}`}>
@@ -465,6 +472,9 @@ function AdminGalleryUploadForm({ onCancel, onSaved }) {
             <small>Rekomendasi: 1280×720px (16:9)</small>
             <em>Pilih Gambar</em>
           </label>
+          {mode === 'edit' && initialGallery?.coverPath && !formData.coverImage ? (
+            <p className="admin-gallery-upload-message">Cover lama tetap digunakan jika tidak memilih gambar baru.</p>
+          ) : null}
           {errors.coverImage && <p className="admin-gallery-upload-error">{errors.coverImage}</p>}
 
           <label className="admin-gallery-upload-field">
@@ -604,6 +614,8 @@ export function AdminGallery() {
   const [galleryData, setGalleryData] = useState([]);
   const [isGalleryLoading, setGalleryLoading] = useState(false);
   const [galleryError, setGalleryError] = useState('');
+  const [editingGallery, setEditingGallery] = useState(null);
+  const [busyGalleryId, setBusyGalleryId] = useState(null);
   const selectedGallery = selectedGalleryIndex !== null ? galleryData[selectedGalleryIndex] : null;
 
   const loadGalleryData = async () => {
@@ -640,8 +652,106 @@ export function AdminGallery() {
 
   const handleOpenUploadForm = () => {
     setSelectedGalleryIndex(null);
+    setEditingGallery(null);
     setUploadFormOpen(true);
   };
+
+  const handleViewGallery = (index) => {
+    setEditingGallery(null);
+    setUploadFormOpen(false);
+    setSelectedGalleryIndex(index);
+  };
+
+  const handleEditGallery = (gallery) => {
+    setSelectedGalleryIndex(null);
+    setEditingGallery(gallery);
+    setUploadFormOpen(true);
+  };
+
+  const handleDeleteGallery = async (gallery) => {
+    if (!gallery?.id) {
+      setGalleryError('ID galeri tidak tersedia.');
+      return;
+    }
+
+    const confirmed = window.confirm(`Yakin ingin menghapus galeri "${gallery.title || 'Tanpa Judul'}"?`);
+    if (!confirmed) return;
+
+    try {
+      setBusyGalleryId(gallery.id);
+      setGalleryError('');
+
+      const response = await fetch(`${GALLERY_API_URL}?id=${encodeURIComponent(gallery.id)}`, {
+        method: 'DELETE',
+        headers: { Accept: 'application/json' },
+      });
+      const responseText = await response.text();
+      let result;
+
+      try {
+        result = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        throw new Error(`Response API bukan JSON: ${responseText}`);
+      }
+
+      if (!response.ok || result.success === false) {
+        throw new Error(result.message || `Gagal menghapus galeri. HTTP ${response.status}`);
+      }
+
+      setGalleryData((currentData) => currentData.filter((item) => item.id !== gallery.id));
+      setSelectedGalleryIndex(null);
+    } catch (error) {
+      console.error('Gagal menghapus galeri:', error);
+      setGalleryError(error.message || 'Gagal menghapus galeri.');
+    } finally {
+      setBusyGalleryId(null);
+    }
+  };
+
+  const galleryStats = useMemo(() => {
+    const toNumber = (...values) => {
+      const rawValue = values.find((value) => value !== undefined && value !== null && value !== '');
+      if (rawValue === undefined) return 0;
+      if (typeof rawValue === 'number') return Number.isFinite(rawValue) ? rawValue : 0;
+
+      const normalizedValue = String(rawValue).replace(/\./g, '').replace(',', '.');
+      const parsedValue = Number(normalizedValue);
+      return Number.isFinite(parsedValue) ? parsedValue : 0;
+    };
+
+    const getMediaCount = (item) => {
+      const count = toNumber(item.mediaCount, item.jumlahMedia, item.totalMedia, item.media_count, item.total_media);
+      return count > 0 ? count : 1;
+    };
+
+    const normalizeStatus = (item) => String(item.status || '').trim().toLowerCase();
+    const normalizeType = (item) => String(item.mediaType || item.type || item.jenisMedia || item.jenis_media || 'foto').trim().toLowerCase();
+
+    const totalGallery = galleryData.length;
+    const totalMedia = galleryData.reduce((sum, item) => sum + getMediaCount(item), 0);
+    const publishedItems = galleryData.filter((item) => ['published', 'publish', 'publik'].includes(normalizeStatus(item)));
+    const draftItems = galleryData.filter((item) => ['draft', 'belum publish', 'unpublished'].includes(normalizeStatus(item)));
+    const reviewItems = galleryData.filter((item) => ['review', 'perlu review', 'pending', 'menunggu review'].includes(normalizeStatus(item)));
+    const videoPublished = publishedItems.reduce((sum, item) => (
+      normalizeType(item).includes('video') ? sum + getMediaCount(item) : sum
+    ), 0);
+    const photoPublished = publishedItems.reduce((sum, item) => (
+      normalizeType(item).includes('video') ? sum : sum + getMediaCount(item)
+    ), 0);
+    const totalViewer = galleryData.reduce((sum, item) => (
+      sum + toNumber(item.viewer, item.viewers, item.totalViewer, item.total_viewer, item.views, item.view_count)
+    ), 0);
+    const percent = (value) => (totalGallery > 0 ? `${((value / totalGallery) * 100).toFixed(1)}% dari total` : '0% dari total');
+
+    return [
+      { label: 'Total Media', value: totalMedia.toLocaleString('id-ID'), note: `${totalGallery.toLocaleString('id-ID')} galeri`, icon: cameraIcon, tone: 'blue' },
+      { label: 'Foto Published', value: photoPublished.toLocaleString('id-ID'), note: percent(publishedItems.length), icon: checkIcon, tone: 'green' },
+      { label: 'Video Published', value: videoPublished.toLocaleString('id-ID'), note: percent(videoPublished), icon: galleryIcon, tone: 'blue' },
+      { label: 'Draft / Belum Publish', value: draftItems.length.toLocaleString('id-ID'), note: percent(draftItems.length), icon: fileIcon, tone: 'orange' },
+      { label: 'Perlu Review', value: reviewItems.length.toLocaleString('id-ID'), note: percent(reviewItems.length), icon: clockIcon, tone: 'purple' },
+      { label: 'Total Viewer Galeri', value: totalViewer.toLocaleString('id-ID'), note: 'Sesuai data tabel', icon: eyeIcon, tone: 'blue' },
+    ];
+  }, [galleryData]);
 
   return (
     <main className={`admin-dashboard-page admin-gallery-page${isSidebarCollapsed ? ' admin-dashboard-page--collapsed' : ''}`}>
@@ -650,12 +760,18 @@ export function AdminGallery() {
       <section className="admin-dashboard-main" aria-label="Galeri kegiatan admin">
         <AdminGalleryTopbar />
 
-        <div className={`admin-gallery-layout${selectedGallery && !isUploadFormOpen ? ' admin-gallery-layout--detail-open' : ''}`}>
+        <div className="admin-gallery-layout">
           {isUploadFormOpen ? (
             <AdminGalleryUploadForm
-              onCancel={() => setUploadFormOpen(false)}
+              mode={editingGallery ? 'edit' : 'create'}
+              initialGallery={editingGallery}
+              onCancel={() => {
+                setUploadFormOpen(false);
+                setEditingGallery(null);
+              }}
               onSaved={() => {
                 setUploadFormOpen(false);
+                setEditingGallery(null);
                 loadGalleryData();
               }}
             />
@@ -718,8 +834,8 @@ export function AdminGallery() {
                       <input
                         type="checkbox"
                         aria-label="Pilih semua galeri"
-                        checked={selectedGalleryIndex !== null}
-                        onChange={() => setSelectedGalleryIndex(selectedGalleryIndex === null ? 0 : null)}
+                        checked={false}
+                        onChange={() => {}}
                       />
                     </th>
                     <th>Thumbnail</th>
@@ -762,10 +878,10 @@ export function AdminGallery() {
                           />
                         </td>
                         <td>
-                          {item.coverPath ? (
+                          {item.coverUrl || item.coverPath ? (
                             <img
                               className="admin-gallery-thumb"
-                              src={resolveGalleryCoverUrl(item.coverPath)}
+                              src={resolveGalleryCoverUrl(item.coverPath, item.coverUrl)}
                               alt={item.title}
                             />
                           ) : (
@@ -783,10 +899,30 @@ export function AdminGallery() {
                         <td>{item.userName || 'Admin'}</td>
                         <td>
                           <div className="admin-gallery-actions">
-                            <GalleryAction label={`Preview ${item.title}`}><img src={eyeIcon} alt="" /></GalleryAction>
-                            <GalleryAction label={`Edit ${item.title}`}>✎</GalleryAction>
-                            <GalleryAction label={`Featured ${item.title}`}>☆</GalleryAction>
-                            <GalleryAction label={`Menu ${item.title}`}>...</GalleryAction>
+                            <button
+                              className="admin-gallery-action admin-gallery-action--view"
+                              type="button"
+                              onClick={() => handleViewGallery(index)}
+                              disabled={busyGalleryId === item.id}
+                            >
+                              <img src={eyeIcon} alt="" /> Lihat
+                            </button>
+                            <button
+                              className="admin-gallery-action"
+                              type="button"
+                              onClick={() => handleEditGallery(item)}
+                              disabled={busyGalleryId === item.id}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="admin-gallery-action admin-gallery-action--delete"
+                              type="button"
+                              onClick={() => handleDeleteGallery(item)}
+                              disabled={busyGalleryId === item.id}
+                            >
+                              Hapus
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -870,16 +1006,27 @@ export function AdminGallery() {
             </section>
           </section>
 
-          {selectedGallery && (
-            <aside className="admin-gallery-detail" aria-label="Detail galeri">
+          {selectedGallery && !isUploadFormOpen && (
+            <div
+              className="admin-gallery-detail-modal"
+              role="presentation"
+              onMouseDown={() => setSelectedGalleryIndex(null)}
+            >
+            <aside
+              className="admin-gallery-detail"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Detail galeri"
+              onMouseDown={(event) => event.stopPropagation()}
+            >
               <div className="admin-gallery-detail-head">
                 <h2>Detail Galeri</h2>
                 <button type="button" aria-label="Tutup detail" onClick={() => setSelectedGalleryIndex(null)}>x</button>
               </div>
-              {selectedGallery.coverPath ? (
+              {selectedGallery.coverUrl || selectedGallery.coverPath ? (
                 <img
                   className="admin-gallery-detail-image"
-                  src={resolveGalleryCoverUrl(selectedGallery.coverPath)}
+                  src={resolveGalleryCoverUrl(selectedGallery.coverPath, selectedGallery.coverUrl)}
                   alt={selectedGallery.title}
                 />
               ) : (
@@ -902,10 +1049,10 @@ export function AdminGallery() {
               <section className="admin-gallery-preview">
                 <h3>Preview Media</h3>
                 <div>
-                  {selectedGallery.coverPath ? (
+                  {selectedGallery.coverUrl || selectedGallery.coverPath ? (
                     <img
                       className="admin-gallery-mini-thumb"
-                      src={resolveGalleryCoverUrl(selectedGallery.coverPath)}
+                      src={resolveGalleryCoverUrl(selectedGallery.coverPath, selectedGallery.coverUrl)}
                       alt={selectedGallery.title}
                     />
                   ) : (
@@ -923,6 +1070,7 @@ export function AdminGallery() {
                 <button type="button" className="is-danger">Arsipkan</button>
               </div>
             </aside>
+            </div>
           )}            </>
           )}
         </div>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
-import { apiEndpoint } from '../../services/apiEndpoints.js';
+import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
 
 import bookIcon from '../../assets/icons/icon-book-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
@@ -21,6 +21,29 @@ const ARTICLE_API_URL = (
 );
 const DEBUG_ADMIN_TUTORIAL =
   import.meta.env.DEV && import.meta.env.VITE_DEBUG_API === 'true';
+
+const tutorialImageModules = import.meta.glob('../../assets/images/*', {
+  eager: true,
+  import: 'default',
+  query: '?url',
+});
+
+const tutorialImageMap = Object.entries(tutorialImageModules).reduce(
+  (images, [path, url]) => {
+    const fileName = path.split('/').pop() || '';
+    const key = fileName
+      .replace(/\.[^.]+$/, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+
+    images[key] = url;
+    images[fileName.toLowerCase()] = url;
+
+    return images;
+  },
+  {}
+);
 
 /* =========================================================
    BADGE
@@ -127,12 +150,130 @@ function formatDate(
 }
 
 /* =========================================================
+   RESOLVE IMAGE
+========================================================= */
+
+function parseImageValue(value) {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === 'object') {
+    return value;
+  }
+
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
+function normalizeImageKey(value) {
+  return String(value || '')
+    .split(/[\\/]/)
+    .pop()
+    .replace(/\.[^.]+$/, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function resolveApiAssetUrl(value) {
+  const assetPath = String(value || '').trim();
+
+  if (!assetPath) {
+    return '';
+  }
+
+  if (/^(data:image\/|https?:\/\/|blob:)/i.test(assetPath)) {
+    return assetPath;
+  }
+
+  if (/^(\/?uploads\/|\/?storage\/|\/?api\/uploads\/)/i.test(assetPath)) {
+    return `${API_BASE_URL}/${assetPath.replace(/^\/+/, '')}`;
+  }
+
+  return '';
+}
+
+function resolveTutorialImage(item) {
+  const imageData = parseImageValue(
+    item?.card_image ||
+      item?.cardImage ||
+      item?.thumbnail ||
+      item?.image ||
+      item?.card_image_name
+  );
+
+  const candidates = [];
+
+  if (typeof imageData === 'string') {
+    candidates.push(imageData);
+  }
+
+  if (imageData && typeof imageData === 'object') {
+    candidates.push(
+      imageData.data_url,
+      imageData.dataUrl,
+      imageData.file_url,
+      imageData.fileUrl,
+      imageData.url,
+      imageData.src,
+      imageData.path,
+      imageData.relative_url,
+      imageData.relativeUrl,
+      imageData.file_name,
+      imageData.fileName,
+      imageData.name
+    );
+  }
+
+  candidates.push(
+    item?.card_image_url,
+    item?.image_url,
+    item?.thumbnail_url,
+    item?.card_image_path,
+    item?.card_image_name,
+    item?.title
+  );
+
+  for (const candidate of candidates.filter(Boolean)) {
+    const apiAssetUrl = resolveApiAssetUrl(candidate);
+
+    if (apiAssetUrl) {
+      return apiAssetUrl;
+    }
+
+    const fileName = String(candidate).split(/[\\/]/).pop().toLowerCase();
+    const key = normalizeImageKey(candidate);
+
+    if (tutorialImageMap[fileName]) {
+      return tutorialImageMap[fileName];
+    }
+
+    if (tutorialImageMap[key]) {
+      return tutorialImageMap[key];
+    }
+  }
+
+  return '';
+}
+
+/* =========================================================
    NORMALIZE TUTORIAL DATA
 ========================================================= */
 
 function normalizeTutorial(item) {
   const status = normalizeStatus(
     item?.status
+  );
+  const imageSrc = resolveTutorialImage(
+    item
   );
 
   return {
@@ -204,6 +345,8 @@ function normalizeTutorial(item) {
       item?.card_image_name ||
       item?.thumbnail ||
       null,
+
+    imageSrc,
 
     createdAtRaw:
       item?.created_at ||
@@ -286,6 +429,16 @@ export function AdminTutorial() {
     levelFilter,
     setLevelFilter,
   ] = useState('');
+
+  const handleEditTutorial = (tutorial) => {
+    if (!tutorial?.id) {
+      return;
+    }
+
+    window.location.href = `/admin/tutorial/edit?id=${encodeURIComponent(
+      tutorial.id
+    )}`;
+  };
 
   /* =======================================================
      FETCH ARTICLE API
@@ -482,7 +635,7 @@ export function AdminTutorial() {
           }
 
           if (!current) {
-            return normalizedRows[0];
+            return null;
           }
 
           return (
@@ -491,7 +644,7 @@ export function AdminTutorial() {
                 item.id ===
                 current.id
             ) ||
-            normalizedRows[0]
+            null
           );
         }
       );
@@ -892,7 +1045,7 @@ export function AdminTutorial() {
       const thumbnailEmpty =
         tutorials.filter(
           (item) =>
-            !item.card_image_name
+            !item.imageSrc
         ).length;
 
       const categoryEmpty =
@@ -1436,12 +1589,21 @@ export function AdminTutorial() {
                           </td>
 
                           <td>
-                            <span
-                              className={`admin-tutorial-thumb is-${
-                                index %
-                                4
-                              }`}
-                            />
+                            {item.imageSrc ? (
+                              <img
+                                className="admin-tutorial-thumb"
+                                src={item.imageSrc}
+                                alt=""
+                                loading="lazy"
+                              />
+                            ) : (
+                              <span
+                                className={`admin-tutorial-thumb is-${
+                                  index %
+                                  4
+                                }`}
+                              />
+                            )}
 
                             <span>
                               <b>
@@ -1539,7 +1701,7 @@ export function AdminTutorial() {
                               <TutorialAction
                                 label={`Edit ${item.title}`}
                                 onClick={() =>
-                                  setSelectedTutorial(
+                                  handleEditTutorial(
                                     item
                                   )
                                 }
@@ -1904,36 +2066,53 @@ export function AdminTutorial() {
             </section>
           </section>
 
-          {/* =========================
-              DETAIL
-          ========================= */}
-
-          <aside
-            className="admin-tutorial-detail"
-            aria-label="Detail tutorial"
-          >
-            <div className="admin-tutorial-detail-head">
-              <h2>
-                Detail Tutorial
-              </h2>
-
+          {selectedTutorial && (
+            <div
+              className="admin-tutorial-detail-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Detail tutorial"
+            >
               <button
+                className="admin-tutorial-detail-backdrop"
                 type="button"
-                aria-label="Tutup detail"
+                aria-label="Tutup detail tutorial"
                 onClick={() =>
                   setSelectedTutorial(
                     null
                   )
                 }
-              >
-                x
-              </button>
-            </div>
+              />
 
-            {selectedTutorial ? (
-              <>
+              <aside className="admin-tutorial-detail">
+                <div className="admin-tutorial-detail-head">
+                  <h2>
+                    Detail Tutorial
+                  </h2>
+
+                  <button
+                    type="button"
+                    aria-label="Tutup detail"
+                    onClick={() =>
+                      setSelectedTutorial(
+                        null
+                      )
+                    }
+                  >
+                    x
+                  </button>
+                </div>
+
                 <div className="admin-tutorial-detail-profile">
-                  <span className="admin-tutorial-detail-image" />
+                  {selectedTutorial.imageSrc ? (
+                    <img
+                      className="admin-tutorial-detail-image"
+                      src={selectedTutorial.imageSrc}
+                      alt=""
+                    />
+                  ) : (
+                    <span className="admin-tutorial-detail-image" />
+                  )}
 
                   <div>
                     <h3>
@@ -2083,6 +2262,11 @@ export function AdminTutorial() {
                   <button
                     type="button"
                     className="is-blue"
+                    onClick={() =>
+                      handleEditTutorial(
+                        selectedTutorial
+                      )
+                    }
                   >
                     Edit Tutorial
                   </button>
@@ -2112,13 +2296,9 @@ export function AdminTutorial() {
                     Arsipkan Tutorial
                   </button>
                 </div>
-              </>
-            ) : (
-              <p>
-                Pilih salah satu materi pada tabel untuk melihat detail.
-              </p>
-            )}
-          </aside>
+              </aside>
+            </div>
+          )}
         </div>
     </AdminPage>
   );

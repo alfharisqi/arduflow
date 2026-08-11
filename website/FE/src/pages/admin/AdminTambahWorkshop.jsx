@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { apiEndpoint } from '../../services/apiEndpoints.js';
+import { WorkshopImageCropper } from '../../features/profile-image-crop/WorkshopImageCropper.jsx';
+import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
 
 const levels = ['Pemula', 'Menengah', 'Lanjutan'];
 const categories = ['Arduino', 'IoT', 'Visual Programming', 'Sekolah'];
@@ -14,6 +15,7 @@ const DEBUG_WORKSHOP_FORM =
 const WORKSHOP_IMAGE_UPLOAD_ENDPOINT = `${WORKSHOP_ENDPOINT}${
   WORKSHOP_ENDPOINT.includes('?') ? '&' : '?'
 }action=upload-image`;
+const IMAGE_UPLOAD_TIMEOUT_MS = 60000;
 
 const requiredFields = [
   ['title', 'Judul Workshop'],
@@ -81,11 +83,29 @@ function formatFileMetadata(file) {
 async function uploadImageFile(file) {
   const uploadData = new FormData();
   uploadData.append('image', file);
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(
+    () => controller.abort(),
+    IMAGE_UPLOAD_TIMEOUT_MS,
+  );
 
-  const response = await fetch(WORKSHOP_IMAGE_UPLOAD_ENDPOINT, {
-    method: 'POST',
-    body: uploadData,
-  });
+  let response;
+
+  try {
+    response = await fetch(WORKSHOP_IMAGE_UPLOAD_ENDPOINT, {
+      method: 'POST',
+      body: uploadData,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('Upload gambar terlalu lama. Periksa koneksi VPN gate atau kecilkan ukuran gambar.');
+    }
+
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 
   const rawText = await response.text();
   let result;
@@ -126,6 +146,21 @@ function formatPrice(value) {
     currency: 'IDR',
     maximumFractionDigits: 0,
   }).format(number);
+}
+
+function resolveImageUrl(image) {
+  const url = image?.url || image?.file_url || image?.relativeUrl || image?.relative_url || '';
+  const cleanUrl = typeof url === 'string' ? url.trim() : '';
+
+  if (!cleanUrl) {
+    return '';
+  }
+
+  if (/^https?:\/\//i.test(cleanUrl) || cleanUrl.startsWith('data:')) {
+    return cleanUrl;
+  }
+
+  return `${API_BASE_URL}/${cleanUrl.replace(/^\/+/, '')}`;
 }
 
 function SectionTitle({ number, title }) {
@@ -200,6 +235,7 @@ export function AdminTambahWorkshop() {
   const [coverPreview, setCoverPreview] = useState('');
   const [galleryImages, setGalleryImages] = useState([]);
   const [moduleFile, setModuleFile] = useState(null);
+  const [coverCrop, setCoverCrop] = useState(null);
   const [errors, setErrors] = useState({});
   const [formMessage, setFormMessage] = useState('');
   const [debugMode, setDebugMode] = useState('live');
@@ -216,6 +252,15 @@ export function AdminTambahWorkshop() {
 
   const isEditMode = editingId !== null;
   const [isLoadingEdit, setIsLoadingEdit] = useState(isEditMode);
+
+  useEffect(
+    () => () => {
+      if (coverCrop?.source) {
+        URL.revokeObjectURL(coverCrop.source);
+      }
+    },
+    [coverCrop],
+  );
 
 
   const requestPayload = useMemo(
@@ -338,7 +383,7 @@ export function AdminTambahWorkshop() {
 
         const existingCoverImage = payload.media?.coverImage ?? null;
         setCoverImage(existingCoverImage);
-        setCoverPreview(existingCoverImage?.url || '');
+        setCoverPreview(resolveImageUrl(existingCoverImage));
         setGalleryImages(
           Array.isArray(payload.media?.gallery) ? payload.media.gallery : [],
         );
@@ -480,44 +525,21 @@ export function AdminTambahWorkshop() {
     updateField('price', event.target.value.replace(/\D/g, ''));
   }
 
-  async function handleCoverChange(event) {
-    const file = event.target.files?.[0] || null;
-
-    if (!file) {
-      setCoverImage(null);
-      setCoverPreview('');
-      return;
-    }
-
-    if (!file.type.startsWith('image/')) {
-      setCoverImage(null);
-      setCoverPreview('');
-      setErrors((current) => ({
-        ...current,
-        coverImage: 'Gambar sampul harus berupa file gambar.',
-      }));
-      event.target.value = '';
-      return;
-    }
-
+  async function uploadCroppedCover(file, previewUrl) {
     if (file.size > 5 * 1024 * 1024) {
-      setCoverImage(null);
-      setCoverPreview('');
       setErrors((current) => ({
         ...current,
-        coverImage: 'Ukuran gambar sampul maksimal 5 MB.',
+        coverImage: 'Hasil crop masih lebih dari 5 MB. Gunakan gambar yang lebih kecil.',
       }));
-      event.target.value = '';
+      setFormMessage('Hasil crop terlalu besar untuk diupload.');
+      setDebugMode('error');
       return;
     }
-
-    const reader = new FileReader();
-    reader.onload = () => setCoverPreview(String(reader.result || ''));
-    reader.readAsDataURL(file);
 
     setIsUploadingCover(true);
-    setFormMessage('Mengupload gambar sampul ke server...');
+    setFormMessage('Mengupload gambar sampul hasil crop ke server...');
     setDebugMode('live');
+    setCoverPreview(previewUrl);
 
     try {
       const uploadedImage = await uploadImageFile(file);
@@ -529,20 +551,18 @@ export function AdminTambahWorkshop() {
       setCoverImage(uploadedImage);
       setCoverPreview(uploadedImage.url);
       clearFieldError('coverImage');
-      setFormMessage('Gambar sampul berhasil diupload.');
+      setFormMessage('Gambar sampul berhasil dicrop dan diupload.');
       setDebugMode('success');
 
       if (DEBUG_WORKSHOP_FORM) {
         console.log(
-          '[AdminTambahWorkshop] cover image uploaded:',
+          '[AdminTambahWorkshop] cropped cover image uploaded:',
           uploadedImage,
         );
       }
     } catch (error) {
       console.error('[AdminTambahWorkshop] COVER UPLOAD ERROR:', error);
 
-      setCoverImage(null);
-      setCoverPreview('');
       setErrors((current) => ({
         ...current,
         coverImage: error.message || 'Upload gambar sampul gagal.',
@@ -554,6 +574,39 @@ export function AdminTambahWorkshop() {
     } finally {
       setIsUploadingCover(false);
     }
+  }
+
+  function handleCoverChange(event) {
+    const file = event.target.files?.[0] || null;
+    event.target.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      setErrors((current) => ({
+        ...current,
+        coverImage: 'Gambar sampul harus berupa file gambar.',
+      }));
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setErrors((current) => ({
+        ...current,
+        coverImage: 'Ukuran gambar sampul maksimal 5 MB.',
+      }));
+      return;
+    }
+
+    clearFieldError('coverImage');
+    setFormMessage('Atur crop gambar sampul sebelum upload.');
+    setDebugMode('live');
+    setCoverCrop({
+      source: URL.createObjectURL(file),
+      fileName: file.name,
+    });
   }
 
   async function handleGalleryChange(event) {
@@ -881,6 +934,7 @@ export function AdminTambahWorkshop() {
   }
 
   return (
+    <>
     <main className="admin-workshop-page">
       <header className="admin-workshop-header">
         <a
@@ -1291,7 +1345,7 @@ export function AdminTambahWorkshop() {
                 inputRef={registerFieldRef('coverImage')}
                 title="Upload gambar sampul"
                 selectedText={isUploadingCover ? 'Mengupload gambar...' : coverImage?.originalName || coverImage?.name}
-                note="Rekomendasi: 1280x720px (16:9), maksimal 5 MB"
+                note="Crop 16:9, otomatis dikompresi, maksimal 5 MB"
                 buttonLabel="Pilih Gambar"
                 accept="image/*"
                 onChange={handleCoverChange}
@@ -1403,5 +1457,19 @@ export function AdminTambahWorkshop() {
         </div>
       </form>
     </main>
+
+    <WorkshopImageCropper
+      source={coverCrop?.source || ''}
+      fileName={coverCrop?.fileName || 'workshop-cover.png'}
+      onCancel={() => {
+        setCoverCrop(null);
+        setFormMessage('');
+      }}
+      onApply={({ file, dataUrl }) => {
+        setCoverCrop(null);
+        uploadCroppedCover(file, dataUrl);
+      }}
+    />
+    </>
   );
 }

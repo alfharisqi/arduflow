@@ -10,7 +10,7 @@ import { Program } from './pages/Program.jsx';
 import { Workshop } from './pages/Workshop.jsx';
 import { DaftarWorkshop } from './pages/DaftarWorkshop.jsx';
 import { DetailWorkshop } from './pages/DetailWorkshop.jsx';
-import { AdminTambahWorkshop } from './pages/AdminTambahWorkshop.jsx';
+import { AdminTambahWorkshop } from './pages/admin/AdminTambahWorkshop.jsx';
 
 import { Tutorial } from './pages/Tutorial.jsx';
 import { BeginnerEbook } from './pages/BeginnerEbook.jsx';
@@ -76,6 +76,7 @@ const AdminLeads = lazyNamed(() => import('./pages/admin/AdminLeads.jsx'), 'Admi
 const AdminCertificates = lazyNamed(() => import('./pages/admin/AdminCertificates.jsx'), 'AdminCertificates');
 const AdminTutorial = lazyNamed(() => import('./pages/admin/AdminTutorial.jsx'), 'AdminTutorial');
 const AdminTutorialCreate = lazyNamed(() => import('./pages/admin/AdminTutorialCreate.jsx'), 'AdminTutorialCreate');
+const AdminTutorialEdit = lazyNamed(() => import('./pages/admin/AdminTutorialEdit.jsx'), 'AdminTutorialEdit');
 const AdminProjects = lazyNamed(() => import('./pages/admin/AdminProjects.jsx'), 'AdminProjects');
 const AdminGallery = lazyNamed(() => import('./pages/admin/AdminGallery.jsx'), 'AdminGallery');
 const AdminPartners = lazyNamed(() => import('./pages/admin/AdminPartners.jsx'), 'AdminPartners');
@@ -162,6 +163,7 @@ const routes = {
 
   '/admin/tutorial': AdminTutorial,
   '/admin/tutorial/tambah': AdminTutorialCreate,
+  '/admin/tutorial/edit': AdminTutorialEdit,
 
   '/admin/projects': AdminProjects,
   '/admin/gallery': AdminGallery,
@@ -215,6 +217,7 @@ const standaloneRoutes = new Set([
 
   '/admin/tutorial',
   '/admin/tutorial/tambah',
+  '/admin/tutorial/edit',
 
   '/admin/projects',
   '/admin/gallery',
