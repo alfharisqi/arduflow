@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { apiEndpoint } from '../../services/apiEndpoints.js';
 
 const levels = ['Pemula', 'Menengah', 'Lanjutan'];
@@ -6,8 +6,14 @@ const categories = ['Arduino', 'IoT', 'Visual Programming', 'Sekolah'];
 const timezones = ['WIB (GMT+7)', 'WITA (GMT+8)', 'WIT (GMT+9)'];
 const workshopTypes = ['Online', 'Offline', 'Hybrid'];
 
-const API_URL =
+const WORKSHOP_ENDPOINT =
   apiEndpoint(import.meta.env.VITE_WORKSHOP_API_URL, '/api/workshop-api.php');
+const DEBUG_WORKSHOP_FORM =
+  import.meta.env.DEV && import.meta.env.VITE_DEBUG_API === 'true';
+
+const WORKSHOP_IMAGE_UPLOAD_ENDPOINT = `${WORKSHOP_ENDPOINT}${
+  WORKSHOP_ENDPOINT.includes('?') ? '&' : '?'
+}action=upload-image`;
 
 const requiredFields = [
   ['title', 'Judul Workshop'],
@@ -69,6 +75,46 @@ function formatFileMetadata(file) {
     sizeKB: Number((file.size / 1024).toFixed(2)),
     lastModified: file.lastModified,
     lastModifiedISO: new Date(file.lastModified).toISOString(),
+  };
+}
+
+async function uploadImageFile(file) {
+  const uploadData = new FormData();
+  uploadData.append('image', file);
+
+  const response = await fetch(WORKSHOP_IMAGE_UPLOAD_ENDPOINT, {
+    method: 'POST',
+    body: uploadData,
+  });
+
+  const rawText = await response.text();
+  let result;
+
+  try {
+    result = rawText ? JSON.parse(rawText) : {};
+  } catch {
+    throw new Error(
+      `Response upload gambar bukan JSON. HTTP ${response.status}.`,
+    );
+  }
+
+  if (!response.ok || !result.success) {
+    throw new Error(
+      result.message || `Upload gambar gagal. HTTP ${response.status}.`,
+    );
+  }
+
+  const uploaded = result.data || {};
+  const size = Number(uploaded.size ?? file.size ?? 0);
+
+  return {
+    name: uploaded.originalName || file.name,
+    storedName: uploaded.name || '',
+    originalName: uploaded.originalName || file.name,
+    type: uploaded.type || file.type || 'application/octet-stream',
+    size,
+    sizeKB: Number((size / 1024).toFixed(2)),
+    url: uploaded.url || '',
   };
 }
 
@@ -157,6 +203,19 @@ export function AdminTambahWorkshop() {
   const [errors, setErrors] = useState({});
   const [formMessage, setFormMessage] = useState('');
   const [debugMode, setDebugMode] = useState('live');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const [isUploadingGallery, setIsUploadingGallery] = useState(false);
+
+  const editingId = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    const id = Number(params.get('id'));
+
+    return Number.isInteger(id) && id > 0 ? id : null;
+  }, []);
+
+  const isEditMode = editingId !== null;
+  const [isLoadingEdit, setIsLoadingEdit] = useState(isEditMode);
 
 
   const requestPayload = useMemo(
@@ -199,38 +258,158 @@ export function AdminTambahWorkshop() {
     [formData, coverImage, galleryImages, moduleFile],
   );
 
-  async function sendWorkshopToApi(payload) {
-    try {
-      console.group('[AdminTambahWorkshop] REQUEST API');
-      console.log('Endpoint:', API_URL);
-      console.log('Payload:', payload);
-      console.log('JSON:', JSON.stringify(payload, null, 2));
-      console.groupEnd();
+  useEffect(() => {
+    if (!editingId) {
+      setIsLoadingEdit(false);
+      return undefined;
+    }
 
-      const response = await fetch(API_URL, {
-        method: 'POST',
+    let isActive = true;
+
+    async function loadWorkshopForEdit() {
+      setIsLoadingEdit(true);
+      setFormMessage('Mengambil data workshop untuk diedit...');
+      setDebugMode('live');
+
+      try {
+        const endpoint = `${WORKSHOP_ENDPOINT}?id=${encodeURIComponent(editingId)}`;
+
+        if (DEBUG_WORKSHOP_FORM) {
+          console.group('[AdminTambahWorkshop] LOAD EDIT DATA');
+          console.log('Endpoint:', endpoint);
+          console.groupEnd();
+        }
+
+        const response = await fetch(endpoint, {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+          },
+        });
+
+        const rawText = await response.text();
+        let result;
+
+        try {
+          result = rawText ? JSON.parse(rawText) : {};
+        } catch {
+          throw new Error(`Response API bukan JSON. HTTP ${response.status}.`);
+        }
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.message || `Gagal mengambil workshop. HTTP ${response.status}.`);
+        }
+
+        const workshop = result.data?.workshop;
+        const payload = workshop?.payload && typeof workshop.payload === 'object'
+          ? workshop.payload
+          : {};
+
+        if (!workshop) {
+          throw new Error('Data workshop tidak ditemukan pada response API.');
+        }
+
+        if (!isActive) return;
+
+        setFormData({
+          ...initialFormData,
+          title: payload.title || workshop.title || '',
+          slug: payload.slug || workshop.slug || '',
+          summary: payload.summary || '',
+          level: payload.level || '',
+          duration: payload.duration || '',
+          platform: payload.platform || '',
+          category: payload.category || workshop.category || '',
+          type: payload.type || 'Online',
+          workshopDate: payload.schedule?.date || '',
+          time: payload.schedule?.time || '',
+          timezone: payload.schedule?.timezone || 'WIB (GMT+7)',
+          location: payload.location || '',
+          price: String(payload.price ?? ''),
+          facilities: payload.facilities || '',
+          bringItems: payload.bringItems || '',
+          about: payload.about || '',
+          status: payload.publication?.status || workshop.status || 'Draft',
+          visibility: payload.publication?.visibility || 'Publik',
+          isHomepageVisible: Boolean(payload.publication?.homepageVisible),
+          metaTitle: payload.seo?.metaTitle || '',
+          metaDescription: payload.seo?.metaDescription || '',
+        });
+
+        const existingCoverImage = payload.media?.coverImage ?? null;
+        setCoverImage(existingCoverImage);
+        setCoverPreview(existingCoverImage?.url || '');
+        setGalleryImages(
+          Array.isArray(payload.media?.gallery) ? payload.media.gallery : [],
+        );
+        setModuleFile(payload.attachment?.module ?? null);
+        setErrors({});
+        setFormMessage(`Mode edit aktif. Workshop ID ${editingId} berhasil dimuat.`);
+        setDebugMode('success');
+      } catch (error) {
+        if (!isActive) return;
+
+        console.error('[AdminTambahWorkshop] LOAD EDIT ERROR:', error);
+        setFormMessage(`Gagal memuat workshop untuk diedit: ${error.message}`);
+        setDebugMode('error');
+      } finally {
+        if (isActive) setIsLoadingEdit(false);
+      }
+    }
+
+    loadWorkshopForEdit();
+
+    return () => {
+      isActive = false;
+    };
+  }, [editingId]);
+
+  async function sendWorkshopToApi(payload) {
+    const endpoint = isEditMode
+      ? `${WORKSHOP_ENDPOINT}?id=${encodeURIComponent(editingId)}`
+      : WORKSHOP_ENDPOINT;
+
+    const method = isEditMode ? 'PUT' : 'POST';
+
+    try {
+      if (DEBUG_WORKSHOP_FORM) {
+        console.group('[AdminTambahWorkshop] REQUEST API');
+        console.log('Mode:', isEditMode ? 'EDIT' : 'CREATE');
+        console.log('Method:', method);
+        console.log('Endpoint:', endpoint);
+        console.log('Payload:', payload);
+        console.log('JSON:', JSON.stringify(payload, null, 2));
+        console.groupEnd();
+      }
+
+      const response = await fetch(endpoint, {
+        method,
         headers: {
           'Content-Type': 'application/json',
+          Accept: 'application/json',
         },
         body: JSON.stringify(payload),
       });
 
+      const rawText = await response.text();
       let result;
 
       try {
-        result = await response.json();
+        result = rawText ? JSON.parse(rawText) : {};
       } catch {
         throw new Error(
-          `Response API bukan JSON. HTTP ${response.status}. Pastikan workshops.php tidak menghasilkan warning/error HTML.`,
+          `Response API bukan JSON. HTTP ${response.status}. Pastikan workshop-api.php tidak menghasilkan warning/error HTML.`,
         );
       }
 
-      console.group('[AdminTambahWorkshop] RESPONSE API');
-      console.log('HTTP Status:', response.status);
-      console.log('Response:', result);
-      console.groupEnd();
+      if (DEBUG_WORKSHOP_FORM) {
+        console.group('[AdminTambahWorkshop] RESPONSE API');
+        console.log('HTTP Status:', response.status);
+        console.log('Response:', result);
+        console.groupEnd();
+      }
 
-      if (!response.ok) {
+      if (!response.ok || !result.success) {
         const apiError = new Error(result.message || 'Gagal menyimpan workshop.');
         apiError.status = response.status;
         apiError.response = result;
@@ -265,7 +444,9 @@ export function AdminTambahWorkshop() {
     setFormMessage('');
     setDebugMode('live');
 
-    console.log(`[AdminTambahWorkshop] ${name}:`, value);
+    if (DEBUG_WORKSHOP_FORM) {
+      console.log(`[AdminTambahWorkshop] ${name}:`, value);
+    }
   }
 
   function handleTitleChange(event) {
@@ -286,7 +467,9 @@ export function AdminTambahWorkshop() {
     clearFieldError('slug');
     setFormMessage('');
     setDebugMode('live');
-    console.log('[AdminTambahWorkshop] title:', nextTitle);
+    if (DEBUG_WORKSHOP_FORM) {
+      console.log('[AdminTambahWorkshop] title:', nextTitle);
+    }
   }
 
   function handleSlugChange(event) {
@@ -297,7 +480,7 @@ export function AdminTambahWorkshop() {
     updateField('price', event.target.value.replace(/\D/g, ''));
   }
 
-  function handleCoverChange(event) {
+  async function handleCoverChange(event) {
     const file = event.target.files?.[0] || null;
 
     if (!file) {
@@ -309,32 +492,125 @@ export function AdminTambahWorkshop() {
     if (!file.type.startsWith('image/')) {
       setCoverImage(null);
       setCoverPreview('');
-      setErrors((current) => ({ ...current, coverImage: 'Gambar sampul harus berupa file gambar.' }));
+      setErrors((current) => ({
+        ...current,
+        coverImage: 'Gambar sampul harus berupa file gambar.',
+      }));
       event.target.value = '';
       return;
     }
 
-    const metadata = formatFileMetadata(file);
-    setCoverImage(metadata);
-    clearFieldError('coverImage');
-    setFormMessage('');
-    setDebugMode('live');
+    if (file.size > 5 * 1024 * 1024) {
+      setCoverImage(null);
+      setCoverPreview('');
+      setErrors((current) => ({
+        ...current,
+        coverImage: 'Ukuran gambar sampul maksimal 5 MB.',
+      }));
+      event.target.value = '';
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = () => setCoverPreview(String(reader.result || ''));
     reader.readAsDataURL(file);
 
-    console.log('[AdminTambahWorkshop] cover image metadata:', metadata);
+    setIsUploadingCover(true);
+    setFormMessage('Mengupload gambar sampul ke server...');
+    setDebugMode('live');
+
+    try {
+      const uploadedImage = await uploadImageFile(file);
+
+      if (!uploadedImage.url) {
+        throw new Error('Server tidak mengembalikan URL gambar.');
+      }
+
+      setCoverImage(uploadedImage);
+      setCoverPreview(uploadedImage.url);
+      clearFieldError('coverImage');
+      setFormMessage('Gambar sampul berhasil diupload.');
+      setDebugMode('success');
+
+      if (DEBUG_WORKSHOP_FORM) {
+        console.log(
+          '[AdminTambahWorkshop] cover image uploaded:',
+          uploadedImage,
+        );
+      }
+    } catch (error) {
+      console.error('[AdminTambahWorkshop] COVER UPLOAD ERROR:', error);
+
+      setCoverImage(null);
+      setCoverPreview('');
+      setErrors((current) => ({
+        ...current,
+        coverImage: error.message || 'Upload gambar sampul gagal.',
+      }));
+      setFormMessage(
+        `Upload gambar sampul gagal: ${error.message || 'Terjadi kesalahan.'}`,
+      );
+      setDebugMode('error');
+    } finally {
+      setIsUploadingCover(false);
+    }
   }
 
-  function handleGalleryChange(event) {
+  async function handleGalleryChange(event) {
     const files = Array.from(event.target.files || []);
-    const imageFiles = files.filter((file) => file.type.startsWith('image/'));
-    const metadata = imageFiles.map(formatFileMetadata);
 
-    setGalleryImages(metadata);
+    if (files.length === 0) {
+      setGalleryImages([]);
+      return;
+    }
+
+    const invalidFile = files.find((file) => !file.type.startsWith('image/'));
+
+    if (invalidFile) {
+      setFormMessage(`File ${invalidFile.name} bukan gambar.`);
+      setDebugMode('error');
+      event.target.value = '';
+      return;
+    }
+
+    const oversizedFile = files.find((file) => file.size > 5 * 1024 * 1024);
+
+    if (oversizedFile) {
+      setFormMessage(`Ukuran ${oversizedFile.name} melebihi 5 MB.`);
+      setDebugMode('error');
+      event.target.value = '';
+      return;
+    }
+
+    setIsUploadingGallery(true);
+    setFormMessage(`Mengupload ${files.length} gambar galeri...`);
     setDebugMode('live');
-    console.log('[AdminTambahWorkshop] gallery metadata:', metadata);
+
+    try {
+      const uploadedImages = await Promise.all(
+        files.map((file) => uploadImageFile(file)),
+      );
+
+      setGalleryImages(uploadedImages);
+      setFormMessage(`${uploadedImages.length} gambar galeri berhasil diupload.`);
+      setDebugMode('success');
+
+      if (DEBUG_WORKSHOP_FORM) {
+        console.log(
+          '[AdminTambahWorkshop] gallery images uploaded:',
+          uploadedImages,
+        );
+      }
+    } catch (error) {
+      console.error('[AdminTambahWorkshop] GALLERY UPLOAD ERROR:', error);
+      setGalleryImages([]);
+      setFormMessage(
+        `Upload galeri gagal: ${error.message || 'Terjadi kesalahan.'}`,
+      );
+      setDebugMode('error');
+    } finally {
+      setIsUploadingGallery(false);
+    }
   }
 
   function handleModuleChange(event) {
@@ -363,7 +639,9 @@ export function AdminTambahWorkshop() {
     const metadata = formatFileMetadata(file);
     setModuleFile(metadata);
     setDebugMode('live');
-    console.log('[AdminTambahWorkshop] module metadata:', metadata);
+    if (DEBUG_WORKSHOP_FORM) {
+      console.log('[AdminTambahWorkshop] module metadata:', metadata);
+    }
   }
 
   function validateForm() {
@@ -412,11 +690,13 @@ export function AdminTambahWorkshop() {
       .filter(([field]) => nextErrors[field])
       .map(([, label]) => label);
 
-    console.group('[AdminTambahWorkshop] DEBUG PUBLISH');
-    console.log('Request JSON:', requestPayload);
-    console.log('Request JSON string:', JSON.stringify(requestPayload, null, 2));
-    console.log('Validation errors:', nextErrors);
-    console.groupEnd();
+    if (DEBUG_WORKSHOP_FORM) {
+      console.group('[AdminTambahWorkshop] DEBUG PUBLISH');
+      console.log('Request JSON:', requestPayload);
+      console.log('Request JSON string:', JSON.stringify(requestPayload, null, 2));
+      console.log('Validation errors:', nextErrors);
+      console.groupEnd();
+    }
 
     if (missingFields.length > 0) {
       setErrors(nextErrors);
@@ -429,24 +709,37 @@ export function AdminTambahWorkshop() {
     }
 
     setErrors({});
-    setFormMessage('Mengirim data workshop ke server...');
+    setFormMessage(isEditMode ? 'Menyimpan perubahan workshop...' : 'Mengirim data workshop ke server...');
     setDebugMode('live');
+    setIsSaving(true);
 
-    console.info('[AdminTambahWorkshop] VALIDASI BERHASIL. Mengirim payload ke backend...');
+    if (DEBUG_WORKSHOP_FORM) {
+      console.info('[AdminTambahWorkshop] VALIDASI BERHASIL. Mengirim payload ke backend...');
+    }
 
     try {
       const result = await sendWorkshopToApi(requestPayload);
 
       setFormMessage(
-        `Workshop berhasil disimpan ke SQLite. ID Workshop: ${result.data?.id ?? '-'}.`,
+        isEditMode
+          ? `Workshop berhasil diperbarui. ID Workshop: ${result.data?.id ?? editingId ?? '-'}.`
+          : `Workshop berhasil disimpan ke SQLite. ID Workshop: ${result.data?.id ?? '-'}.`,
       );
       setDebugMode('success');
 
-      console.info('[AdminTambahWorkshop] WORKSHOP BERHASIL DISIMPAN:', result);
+      if (DEBUG_WORKSHOP_FORM) {
+        console.info('[AdminTambahWorkshop] WORKSHOP BERHASIL DISIMPAN:', result);
+      }
 
       window.alert(
-        `Workshop berhasil disimpan!\nID: ${result.data?.id ?? '-'}`,
+        isEditMode
+          ? `Workshop berhasil diperbarui!\nID: ${result.data?.id ?? editingId ?? '-'}`
+          : `Workshop berhasil disimpan!\nID: ${result.data?.id ?? '-'}`,
       );
+
+      if (isEditMode) {
+        window.location.href = '/admin/program';
+      }
     } catch (error) {
       const backendErrors = error.response?.errors;
 
@@ -488,6 +781,8 @@ export function AdminTambahWorkshop() {
       setDebugMode('error');
 
       console.error('[AdminTambahWorkshop] GAGAL MENYIMPAN:', error);
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -504,10 +799,12 @@ export function AdminTambahWorkshop() {
     setFormMessage('Draft debug berhasil dibuat. Draft boleh disimpan meskipun field wajib belum lengkap.');
     setDebugMode('draft');
 
-    console.group('[AdminTambahWorkshop] DEBUG SAVE DRAFT');
-    console.log('Draft JSON:', draftPayload);
-    console.log('Draft JSON string:', JSON.stringify(draftPayload, null, 2));
-    console.groupEnd();
+    if (DEBUG_WORKSHOP_FORM) {
+      console.group('[AdminTambahWorkshop] DEBUG SAVE DRAFT');
+      console.log('Draft JSON:', draftPayload);
+      console.log('Draft JSON string:', JSON.stringify(draftPayload, null, 2));
+      console.groupEnd();
+    }
   }
 
   function restoreEditorSelection(start, end) {
@@ -586,8 +883,21 @@ export function AdminTambahWorkshop() {
   return (
     <main className="admin-workshop-page">
       <header className="admin-workshop-header">
-        <h1>Tambah Workshop</h1>
-        <p>Buat workshop baru yang akan ditampilkan di halaman daftar dan detail workshop.</p>
+        <a
+          className="admin-workshop-back"
+          href="/admin/program"
+          aria-label="Kembali ke halaman Workshop Program"
+        >
+          <span aria-hidden="true">&lt;</span>
+          Kembali
+        </a>
+
+        <h1>{isEditMode ? 'Edit Workshop' : 'Tambah Workshop'}</h1>
+        <p>
+          {isEditMode
+            ? `Perbarui data workshop ID ${editingId}. Perubahan akan disimpan ke SQLite.`
+            : 'Buat workshop baru yang akan ditampilkan di halaman daftar dan detail workshop.'}
+        </p>
       </header>
 
       {formMessage && (
@@ -924,7 +1234,7 @@ export function AdminTambahWorkshop() {
         </div>
 
         <div className="admin-workshop-sidebar">
-          <SidebarCard title="Terbitkan">
+          <SidebarCard title={isEditMode ? "Perbarui" : "Terbitkan"}>
             <Field label="Status">
               <select
                 value={formData.status}
@@ -961,8 +1271,16 @@ export function AdminTambahWorkshop() {
               <button className="admin-muted-button" type="button" onClick={handleSaveDraft}>
                 Simpan Draft
               </button>
-              <button className="admin-primary-button" type="submit">
-                Terbitkan
+              <button
+                className="admin-primary-button"
+                type="submit"
+                disabled={isLoadingEdit || isSaving || isUploadingCover || isUploadingGallery}
+              >
+                {isSaving
+                  ? 'Menyimpan...'
+                  : isEditMode
+                    ? 'Simpan Perubahan'
+                    : 'Terbitkan'}
               </button>
             </div>
           </SidebarCard>
@@ -972,8 +1290,8 @@ export function AdminTambahWorkshop() {
               <UploadBox
                 inputRef={registerFieldRef('coverImage')}
                 title="Upload gambar sampul"
-                selectedText={coverImage?.name}
-                note="Rekomendasi: 1280x720px (16:9)"
+                selectedText={isUploadingCover ? 'Mengupload gambar...' : coverImage?.originalName || coverImage?.name}
+                note="Rekomendasi: 1280x720px (16:9), maksimal 5 MB"
                 buttonLabel="Pilih Gambar"
                 accept="image/*"
                 onChange={handleCoverChange}
@@ -983,8 +1301,8 @@ export function AdminTambahWorkshop() {
             <Field label="Galeri (Opsional)">
               <UploadBox
                 title="Tambah gambar galeri"
-                selectedText={galleryImages.length ? `${galleryImages.length} gambar dipilih` : ''}
-                note="Boleh dikosongkan. Bisa memilih beberapa gambar."
+                selectedText={isUploadingGallery ? 'Mengupload galeri...' : galleryImages.length ? `${galleryImages.length} gambar tersimpan` : ''}
+                note="Boleh dikosongkan. Maksimal 5 MB per gambar."
                 buttonLabel="Pilih Gambar"
                 accept="image/*"
                 multiple
@@ -1056,14 +1374,31 @@ export function AdminTambahWorkshop() {
         </div>
 
         <div className="admin-bottom-bar">
-          <button className="admin-text-button" type="button">
+          <button
+            className="admin-text-button"
+            type="button"
+            onClick={() => {
+              window.location.href = '/admin/program';
+            }}
+          >
             Batal
           </button>
           <button className="admin-muted-button save" type="button" onClick={handleSaveDraft}>
             <span className="admin-action-icon draft-icon" aria-hidden="true" /> Simpan Draft
           </button>
-          <button className="admin-primary-button publish" type="submit">
-            <span className="admin-action-icon send-icon" aria-hidden="true" /> Terbitkan
+          <button
+            className="admin-primary-button publish"
+            type="submit"
+            disabled={isLoadingEdit || isSaving}
+          >
+            <span className="admin-action-icon send-icon" aria-hidden="true" />{' '}
+            {isUploadingCover || isUploadingGallery
+              ? 'Menunggu Upload...'
+              : isSaving
+                ? 'Menyimpan...'
+                : isEditMode
+                  ? 'Simpan Perubahan'
+                  : 'Terbitkan'}
           </button>
         </div>
       </form>

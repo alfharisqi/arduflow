@@ -11,150 +11,121 @@ $allowedOrigins = [
     'http://127.0.0.1:5173',
     'http://localhost:5174',
     'http://127.0.0.1:5174',
+    'http://localhost:5175',
+    'http://127.0.0.1:5175',
 ];
 
 if (in_array($origin, $allowedOrigins, true)) {
     header("Access-Control-Allow-Origin: {$origin}");
+    header('Vary: Origin');
 }
 
 header('Access-Control-Allow-Credentials: true');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
     http_response_code(204);
     exit;
 }
 
-$method = $_SERVER['REQUEST_METHOD'];
+$method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
 
-if (!in_array($method, ['GET', 'POST'], true)) {
-    http_response_code(405);
-
-    echo json_encode([
+if (!in_array($method, ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], true)) {
+    header('Allow: GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    sendJson(405, [
         'success' => false,
-        'message' => 'Method tidak diizinkan.'
-    ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        'message' => 'Method tidak diizinkan.',
+    ]);
+}
 
+function sendJson(int $status, array $payload): never
+{
+    http_response_code($status);
+    echo json_encode(
+        $payload,
+        JSON_UNESCAPED_UNICODE |
+        JSON_UNESCAPED_SLASHES |
+        JSON_PRETTY_PRINT
+    );
     exit;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Path project dan konfigurasi database
-|--------------------------------------------------------------------------
-*/
+function getProjectId(): ?int
+{
+    if (!isset($_GET['id']) || $_GET['id'] === '') {
+        return null;
+    }
 
-$projectRoot = dirname(__DIR__);
-$configPath = $projectRoot . '/config/database.php';
+    $id = filter_var($_GET['id'], FILTER_VALIDATE_INT, [
+        'options' => ['min_range' => 1],
+    ]);
 
-$imageStoragePath = $projectRoot . '/api/support/image-storage.php';
+    if ($id === false) {
+        throw new InvalidArgumentException('ID proyek tidak valid.');
+    }
 
-if (file_exists($imageStoragePath)) {
-    require_once $imageStoragePath;
+    return (int) $id;
 }
 
-$projectImageStorage = function_exists('ensureUploadStorage')
-    ? ensureUploadStorage($projectRoot, 'projects')
-    : null;
+function readJsonBody(): array
+{
+    $rawJson = file_get_contents('php://input');
 
-if (!file_exists($configPath)) {
-    http_response_code(500);
+    if ($rawJson === false || trim($rawJson) === '') {
+        throw new InvalidArgumentException('Body JSON tidak boleh kosong.');
+    }
 
-    echo json_encode([
-        'success' => false,
-        'message' => 'Konfigurasi database tidak ditemukan.',
-        'data' => [
-            'path' => $configPath,
-        ],
-    ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    $data = json_decode($rawJson, true, 512, JSON_THROW_ON_ERROR);
 
-    exit;
+    if (!is_array($data)) {
+        throw new InvalidArgumentException('Struktur JSON harus berupa object.');
+    }
+
+    return isset($data['data']) && is_array($data['data'])
+        ? $data['data']
+        : $data;
 }
 
-try {
-
-    $databaseConfig = require $configPath;
+function resolveDatabasePath(string $projectRoot, array $databaseConfig): array
+{
     $sqliteConfig = $databaseConfig['sqlite'] ?? null;
 
     if (!is_array($sqliteConfig)) {
-        throw new RuntimeException(
-            'Konfigurasi SQLite tidak ditemukan.'
-        );
+        throw new RuntimeException('Konfigurasi SQLite tidak ditemukan.');
     }
 
-    $databasePath = trim(
-        (string) ($sqliteConfig['path'] ?? '')
-    );
-
-    $busyTimeout = (int) (
-        $sqliteConfig['busy_timeout_ms'] ?? 15000
-    );
+    $databasePath = trim((string) ($sqliteConfig['path'] ?? ''));
+    $busyTimeout = (int) ($sqliteConfig['busy_timeout_ms'] ?? 15000);
 
     if ($databasePath === '') {
-        throw new RuntimeException(
-            'Path database SQLite belum dikonfigurasi.'
+        throw new RuntimeException('Path database SQLite belum dikonfigurasi.');
+    }
+
+    $isWindowsAbsolutePath = preg_match('/^[A-Za-z]:[\\\\\/]/', $databasePath) === 1;
+    $isUnixAbsolutePath = str_starts_with($databasePath, '/');
+
+    if (!$isWindowsAbsolutePath && !$isUnixAbsolutePath) {
+        $databasePath = $projectRoot . DIRECTORY_SEPARATOR . str_replace(
+            ['/', '\\'],
+            DIRECTORY_SEPARATOR,
+            $databasePath
         );
     }
 
-    $isWindowsAbsolutePath = preg_match(
-        '/^[A-Za-z]:[\\\\\/]/',
-        $databasePath
-    ) === 1;
+    return [$databasePath, $busyTimeout];
+}
 
-    $isUnixAbsolutePath = str_starts_with(
-        $databasePath,
-        '/'
-    );
+function jakartaNow(): string
+{
+    return (new DateTimeImmutable(
+        'now',
+        new DateTimeZone('Asia/Jakarta')
+    ))->format(DateTimeInterface::ATOM);
+}
 
-    if (
-        !$isWindowsAbsolutePath
-        && !$isUnixAbsolutePath
-    ) {
-        $databasePath =
-            $projectRoot
-            . DIRECTORY_SEPARATOR
-            . str_replace(
-                ['/', '\\'],
-                DIRECTORY_SEPARATOR,
-                $databasePath
-            );
-    }
-
-    $databaseDirectory = dirname($databasePath);
-
-    if (
-        !is_dir($databaseDirectory)
-        && !mkdir($databaseDirectory, 0775, true)
-        && !is_dir($databaseDirectory)
-    ) {
-        throw new RuntimeException(
-            'Folder database tidak dapat dibuat.'
-        );
-    }
-
-    if (!is_writable($databaseDirectory)) {
-        throw new RuntimeException(
-            'Folder database tidak memiliki izin tulis.'
-        );
-    }
-
-    $pdo = new PDO(
-        'sqlite:' . $databasePath,
-        null,
-        null,
-        [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
-        ]
-    );
-
-    $pdo->exec('PRAGMA foreign_keys = ON');
-    $pdo->exec(
-        'PRAGMA busy_timeout = ' . max(15000, $busyTimeout)
-    );
-
+function ensureProjectTables(PDO $pdo): void
+{
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS project_submissions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -181,230 +152,216 @@ try {
         addColumnIfMissing($pdo, 'project_submissions', 'cover_image_path', 'TEXT');
         addColumnIfMissing($pdo, 'project_submissions', 'cover_image_url', 'TEXT');
     }
+}
+
+function rowToProject(array $row): array
+{
+    $payload = json_decode((string) ($row['payload_json'] ?? '{}'), true);
+    $payload = is_array($payload) ? $payload : [];
+
+    $coverImage = [
+        'file_name' => $row['cover_image_name'] ?? null,
+        'file_type' => $row['cover_image_type'] ?? null,
+        'file_size' => isset($row['cover_image_size']) ? (int) $row['cover_image_size'] : null,
+        'file_path' => $row['cover_image_path'] ?? null,
+        'file_url' => $row['cover_image_url'] ?? null,
+    ];
+
+    return [
+        'id' => (int) $row['id'],
+        'title' => $row['title'],
+        'category' => $row['category'],
+        'description' => $row['description'],
+        'status' => $row['status'],
+        'visibility' => $row['visibility'],
+        'coverImage' => $payload['coverImage'] ?? $coverImage,
+        'ownerName' => $payload['ownerName'] ?? 'User',
+        'ownerUsername' => $payload['ownerUsername'] ?? '-',
+        'userId' => $payload['userId'] ?? null,
+        'difficulty' => $payload['difficulty'] ?? '',
+        'estimatedTime' => $payload['estimatedTime'] ?? '',
+        'programmingLanguage' => $payload['programmingLanguage'] ?? '',
+        'payment' => $payload['payment'] ?? null,
+        'tags' => $payload['tags'] ?? [],
+        'tools' => $payload['tools'] ?? [],
+        'nodes' => $payload['nodes'] ?? [],
+        'steps' => $payload['steps'] ?? [],
+        'viewer' => $payload['viewer'] ?? 0,
+        'likes' => $payload['likes'] ?? 0,
+        'saves' => $payload['saves'] ?? 0,
+        'createdAt' => $row['created_at'],
+        'updatedAt' => $row['updated_at'],
+        'payload' => $payload,
+    ];
+}
+
+function findProject(PDO $pdo, int $id): ?array
+{
+    $statement = $pdo->prepare(
+        'SELECT * FROM project_submissions WHERE id = :id LIMIT 1'
+    );
+    $statement->execute([':id' => $id]);
+    $row = $statement->fetch();
+
+    return $row === false ? null : $row;
+}
+
+function validateProject(array $project): array
+{
+    $errors = [];
+
+    if (trim((string) ($project['title'] ?? '')) === '') {
+        $errors['title'] = 'Judul proyek wajib diisi.';
+    }
+
+    if (trim((string) ($project['category'] ?? '')) === '') {
+        $errors['category'] = 'Kategori proyek wajib diisi.';
+    }
+
+    if (trim((string) ($project['description'] ?? '')) === '') {
+        $errors['description'] = 'Deskripsi proyek wajib diisi.';
+    }
+
+    return $errors;
+}
+
+function extractCoverImage(array $project, array $fallbackStorage): ?array
+{
+    $coverImageData =
+        isset($project['coverImage']) && is_array($project['coverImage'])
+            ? $project['coverImage']
+            : (isset($project['cover_image']) && is_array($project['cover_image'])
+                ? $project['cover_image']
+                : (isset($project['image']) && is_array($project['image'])
+                    ? $project['image']
+                    : (isset($project['thumbnail']) && is_array($project['thumbnail'])
+                        ? $project['thumbnail']
+                        : [])));
+
+    return function_exists('normalizeStoredImage')
+        ? normalizeStoredImage($coverImageData, $fallbackStorage, 'project-cover')
+        : null;
+}
+
+try {
+    $projectRoot = dirname(__DIR__);
+    $configPath = $projectRoot . '/config/database.php';
+    $imageStoragePath = $projectRoot . '/api/support/image-storage.php';
+
+    if (file_exists($imageStoragePath)) {
+        require_once $imageStoragePath;
+    }
+
+    $projectImageStorage = function_exists('ensureUploadStorage')
+        ? ensureUploadStorage($projectRoot, 'projects')
+        : [
+            'path' => $projectRoot . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'projects',
+            'url' => '/uploads/projects',
+        ];
+
+    if (!file_exists($configPath)) {
+        sendJson(500, [
+            'success' => false,
+            'message' => 'Konfigurasi database tidak ditemukan.',
+            'data' => [
+                'path' => $configPath,
+            ],
+        ]);
+    }
+
+    $databaseConfig = require $configPath;
+    [$databasePath, $busyTimeout] = resolveDatabasePath($projectRoot, $databaseConfig);
+    $databaseDirectory = dirname($databasePath);
+
+    if (
+        !is_dir($databaseDirectory)
+        && !mkdir($databaseDirectory, 0775, true)
+        && !is_dir($databaseDirectory)
+    ) {
+        throw new RuntimeException('Folder database tidak dapat dibuat.');
+    }
+
+    if (!is_writable($databaseDirectory)) {
+        throw new RuntimeException('Folder database tidak memiliki izin tulis.');
+    }
+
+    $pdo = new PDO(
+        'sqlite:' . $databasePath,
+        null,
+        null,
+        [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+        ]
+    );
+
+    $pdo->exec('PRAGMA foreign_keys = ON');
+    $pdo->exec('PRAGMA busy_timeout = ' . max(15000, $busyTimeout));
+    ensureProjectTables($pdo);
+
+    $projectId = getProjectId();
 
     if ($method === 'GET') {
+        if ($projectId !== null) {
+            $row = findProject($pdo, $projectId);
 
-        $statement = $pdo->query(
-            'SELECT *
-             FROM project_submissions
-             ORDER BY id DESC'
-        );
+            if ($row === null) {
+                sendJson(404, [
+                    'success' => false,
+                    'message' => 'Proyek tidak ditemukan.',
+                ]);
+            }
 
-        $rows = $statement->fetchAll();
-
-        $projects = [];
-
-        foreach ($rows as $row) {
-
-            $payload = json_decode(
-                $row['payload_json'],
-                true
-            ) ?: [];
-
-            $projects[] = [
-                'id' => (int) $row['id'],
-
-                'title' =>
-                    $row['title'],
-
-                'category' =>
-                    $row['category'],
-
-                'description' =>
-                    $row['description'],
-
-                'status' =>
-                    $row['status'],
-
-                'visibility' =>
-                    $row['visibility'],
-
-                'coverImage' => [
-                    'file_name' => $row['cover_image_name'] ?? null,
-                    'file_type' => $row['cover_image_type'] ?? null,
-                    'file_size' => isset($row['cover_image_size']) ? (int) $row['cover_image_size'] : null,
-                    'file_path' => $row['cover_image_path'] ?? null,
-                    'file_url' => $row['cover_image_url'] ?? null,
-                ],
-
-                'ownerName' =>
-                    $payload['ownerName'] ?? 'User',
-
-                'ownerUsername' =>
-                    $payload['ownerUsername'] ?? '-',
-
-                'userId' =>
-                    $payload['userId'] ?? null,
-
-                'difficulty' =>
-                    $payload['difficulty'] ?? '',
-
-                'estimatedTime' =>
-                    $payload['estimatedTime'] ?? '',
-
-                'programmingLanguage' =>
-                    $payload['programmingLanguage'] ?? '',
-
-                'payment' =>
-                    $payload['payment'] ?? null,
-
-                'tags' =>
-                    $payload['tags'] ?? [],
-
-                'tools' =>
-                    $payload['tools'] ?? [],
-
-                'nodes' =>
-                    $payload['nodes'] ?? [],
-
-                'steps' =>
-                    $payload['steps'] ?? [],
-
-                'viewer' =>
-                    $payload['viewer'] ?? 0,
-
-                'likes' =>
-                    $payload['likes'] ?? 0,
-
-                'saves' =>
-                    $payload['saves'] ?? 0,
-
-                'createdAt' =>
-                    $row['created_at'],
-
-                'updatedAt' =>
-                    $row['updated_at'],
-            ];
+            sendJson(200, [
+                'success' => true,
+                'message' => 'Detail proyek berhasil diambil.',
+                'data' => rowToProject($row),
+            ]);
         }
 
-        echo json_encode([
+        $statement = $pdo->query(
+            'SELECT * FROM project_submissions ORDER BY id DESC'
+        );
+        $projects = array_map('rowToProject', $statement->fetchAll());
+
+        sendJson(200, [
             'success' => true,
             'message' => 'Data proyek berhasil diambil.',
             'total' => count($projects),
-            'data' => $projects
-        ], JSON_UNESCAPED_UNICODE |
-           JSON_UNESCAPED_SLASHES |
-           JSON_PRETTY_PRINT);
-
-        exit;
+            'data' => $projects,
+        ]);
     }
 
     if ($method === 'POST') {
+        $project = readJsonBody();
+        $errors = validateProject($project);
 
-        $rawJson = file_get_contents('php://input');
-
-        if (
-            $rawJson === false ||
-            trim($rawJson) === ''
-        ) {
-            throw new InvalidArgumentException(
-                'Body JSON tidak boleh kosong.'
-            );
+        if ($errors !== []) {
+            sendJson(422, [
+                'success' => false,
+                'message' => 'Validasi data proyek gagal.',
+                'errors' => $errors,
+            ]);
         }
 
-        $data = json_decode(
-            $rawJson,
-            true,
-            512,
-            JSON_THROW_ON_ERROR
-        );
+        $title = trim((string) $project['title']);
+        $category = trim((string) $project['category']);
+        $description = trim((string) $project['description']);
+        $status = trim((string) ($project['status'] ?? 'draft')) ?: 'draft';
+        $visibility = trim((string) ($project['visibility'] ?? 'draft')) ?: 'draft';
+        $coverImage = extractCoverImage($project, $projectImageStorage);
 
-        if (!is_array($data)) {
-            throw new InvalidArgumentException(
-                'Struktur JSON harus berupa object.'
-            );
-        }
-
-        $project =
-            isset($data['data']) &&
-            is_array($data['data'])
-                ? $data['data']
-                : $data;
-
-        $title = trim(
-            (string) ($project['title'] ?? '')
-        );
-
-        $category = trim(
-            (string) ($project['category'] ?? '')
-        );
-
-        $description = trim(
-            (string) ($project['description'] ?? '')
-        );
-
-        $status = trim(
-            (string) ($project['status'] ?? 'draft')
-        );
-
-        $visibility = trim(
-            (string) ($project['visibility'] ?? 'draft')
-        );
-
-        $coverImageData =
-            isset($project['coverImage']) && is_array($project['coverImage'])
-                ? $project['coverImage']
-                : (isset($project['cover_image']) && is_array($project['cover_image'])
-                    ? $project['cover_image']
-                    : (isset($project['image']) && is_array($project['image'])
-                        ? $project['image']
-                        : (isset($project['thumbnail']) && is_array($project['thumbnail'])
-                            ? $project['thumbnail']
-                            : [])));
-
-        $coverImage = function_exists('normalizeStoredImage')
-            ? normalizeStoredImage(
-                $coverImageData,
-                $GLOBALS['projectImageStorage'] ?? [
-                    'path' => $projectRoot . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'projects',
-                    'url' => '/uploads/projects',
-                ],
-                'project-cover'
-            )
-            : null;
+        $now = jakartaNow();
+        $project['title'] = $title;
+        $project['category'] = $category;
+        $project['description'] = $description;
+        $project['status'] = $status;
+        $project['visibility'] = $visibility;
 
         if ($coverImage !== null) {
             $project['coverImage'] = $coverImage;
         }
-
-        $errors = [];
-
-        if ($title === '') {
-            $errors['title'] =
-                'Judul proyek wajib diisi.';
-        }
-
-        if ($category === '') {
-            $errors['category'] =
-                'Kategori proyek wajib diisi.';
-        }
-
-        if ($description === '') {
-            $errors['description'] =
-                'Deskripsi proyek wajib diisi.';
-        }
-
-        if ($errors !== []) {
-
-            http_response_code(422);
-
-            echo json_encode([
-                'success' => false,
-                'message' =>
-                    'Validasi data proyek gagal.',
-                'errors' => $errors
-            ], JSON_UNESCAPED_UNICODE |
-               JSON_PRETTY_PRINT);
-
-            exit;
-        }
-
-        $now = (
-            new DateTimeImmutable(
-                'now',
-                new DateTimeZone('Asia/Jakarta')
-            )
-        )->format(DateTimeInterface::ATOM);
 
         $payloadJson = json_encode(
             $project,
@@ -446,142 +403,188 @@ try {
         );
 
         $statement->execute([
-            ':title' =>
-                $title,
-
-            ':category' =>
-                $category,
-
-            ':description' =>
-                $description,
-
-            ':status' =>
-                $status !== ''
-                    ? $status
-                    : 'draft',
-
-            ':visibility' =>
-                $visibility !== ''
-                    ? $visibility
-                    : 'draft',
-
-            ':cover_image_name' =>
-                $coverImage['file_name'] ?? null,
-
-            ':cover_image_type' =>
-                $coverImage['file_type'] ?? null,
-
-            ':cover_image_size' =>
-                $coverImage['file_size'] ?? null,
-
-            ':cover_image_path' =>
-                $coverImage['file_path'] ?? null,
-
-            ':cover_image_url' =>
-                $coverImage['file_url'] ?? null,
-
-            ':payload_json' =>
-                $payloadJson,
-
-            ':created_at' =>
-                $now,
-
-            ':updated_at' =>
-                $now,
+            ':title' => $title,
+            ':category' => $category,
+            ':description' => $description,
+            ':status' => $status,
+            ':visibility' => $visibility,
+            ':cover_image_name' => $coverImage['file_name'] ?? null,
+            ':cover_image_type' => $coverImage['file_type'] ?? null,
+            ':cover_image_size' => $coverImage['file_size'] ?? null,
+            ':cover_image_path' => $coverImage['file_path'] ?? null,
+            ':cover_image_url' => $coverImage['file_url'] ?? null,
+            ':payload_json' => $payloadJson,
+            ':created_at' => $now,
+            ':updated_at' => $now,
         ]);
 
-        $projectId =
-            (int) $pdo->lastInsertId();
+        $newId = (int) $pdo->lastInsertId();
+        $row = findProject($pdo, $newId);
 
-        http_response_code(201);
-
-        echo json_encode([
+        sendJson(201, [
             'success' => true,
-            'message' =>
-                'Proyek berhasil disimpan ke SQLite.',
-            'data' => [
-                'id' =>
-                    $projectId,
-
-                'title' =>
-                    $title,
-
-                'category' =>
-                    $category,
-
-                'description' =>
-                    $description,
-
-                'status' =>
-                    $status !== ''
-                        ? $status
-                        : 'draft',
-
-                'visibility' =>
-                    $visibility !== ''
-                        ? $visibility
-                        : 'draft',
-
-                'coverImage' =>
-                    $coverImage,
-
-                'createdAt' =>
-                    $now,
-
-                'payload' =>
-                    $project
-            ]
-        ], JSON_UNESCAPED_UNICODE |
-           JSON_UNESCAPED_SLASHES |
-           JSON_PRETTY_PRINT);
-
-        exit;
+            'message' => 'Proyek berhasil disimpan ke SQLite.',
+            'data' => rowToProject($row),
+        ]);
     }
 
+    if ($method === 'PUT' || $method === 'PATCH') {
+        if ($projectId === null) {
+            throw new InvalidArgumentException('Parameter id wajib diisi untuk edit proyek.');
+        }
+
+        $existingRow = findProject($pdo, $projectId);
+
+        if ($existingRow === null) {
+            sendJson(404, [
+                'success' => false,
+                'message' => 'Proyek yang akan diedit tidak ditemukan.',
+            ]);
+        }
+
+        $incoming = readJsonBody();
+        $existingPayload = json_decode((string) $existingRow['payload_json'], true);
+        $existingPayload = is_array($existingPayload) ? $existingPayload : [];
+        $project = array_replace_recursive($existingPayload, $incoming);
+
+        $title = trim((string) ($incoming['title'] ?? $existingRow['title']));
+        $category = trim((string) ($incoming['category'] ?? $existingRow['category']));
+        $description = trim((string) ($incoming['description'] ?? $existingRow['description']));
+        $status = trim((string) ($incoming['status'] ?? $existingRow['status']));
+        $visibility = trim((string) ($incoming['visibility'] ?? $existingRow['visibility']));
+
+        $project['title'] = $title;
+        $project['category'] = $category;
+        $project['description'] = $description;
+        $project['status'] = $status !== '' ? $status : 'draft';
+        $project['visibility'] = $visibility !== '' ? $visibility : 'draft';
+
+        $errors = validateProject($project);
+
+        if ($errors !== []) {
+            sendJson(422, [
+                'success' => false,
+                'message' => 'Validasi data proyek gagal.',
+                'errors' => $errors,
+            ]);
+        }
+
+        $coverImage = extractCoverImage($incoming, $projectImageStorage);
+
+        if ($coverImage === null) {
+            $coverImage = [
+                'file_name' => $existingRow['cover_image_name'] ?? null,
+                'file_type' => $existingRow['cover_image_type'] ?? null,
+                'file_size' => isset($existingRow['cover_image_size']) ? (int) $existingRow['cover_image_size'] : null,
+                'file_path' => $existingRow['cover_image_path'] ?? null,
+                'file_url' => $existingRow['cover_image_url'] ?? null,
+            ];
+        }
+
+        if (($coverImage['file_name'] ?? null) !== null) {
+            $project['coverImage'] = $coverImage;
+        }
+
+        $now = jakartaNow();
+        $payloadJson = json_encode(
+            $project,
+            JSON_UNESCAPED_UNICODE |
+            JSON_UNESCAPED_SLASHES |
+            JSON_THROW_ON_ERROR
+        );
+
+        $statement = $pdo->prepare(
+            'UPDATE project_submissions
+             SET
+                title = :title,
+                category = :category,
+                description = :description,
+                status = :status,
+                visibility = :visibility,
+                cover_image_name = :cover_image_name,
+                cover_image_type = :cover_image_type,
+                cover_image_size = :cover_image_size,
+                cover_image_path = :cover_image_path,
+                cover_image_url = :cover_image_url,
+                payload_json = :payload_json,
+                updated_at = :updated_at
+             WHERE id = :id'
+        );
+
+        $statement->execute([
+            ':title' => $title,
+            ':category' => $category,
+            ':description' => $description,
+            ':status' => $project['status'],
+            ':visibility' => $project['visibility'],
+            ':cover_image_name' => $coverImage['file_name'] ?? null,
+            ':cover_image_type' => $coverImage['file_type'] ?? null,
+            ':cover_image_size' => $coverImage['file_size'] ?? null,
+            ':cover_image_path' => $coverImage['file_path'] ?? null,
+            ':cover_image_url' => $coverImage['file_url'] ?? null,
+            ':payload_json' => $payloadJson,
+            ':updated_at' => $now,
+            ':id' => $projectId,
+        ]);
+
+        $updatedRow = findProject($pdo, $projectId);
+
+        sendJson(200, [
+            'success' => true,
+            'message' => 'Proyek berhasil diperbarui.',
+            'data' => rowToProject($updatedRow),
+        ]);
+    }
+
+    if ($method === 'DELETE') {
+        if ($projectId === null) {
+            throw new InvalidArgumentException('Parameter id wajib diisi untuk menghapus proyek.');
+        }
+
+        $existingRow = findProject($pdo, $projectId);
+
+        if ($existingRow === null) {
+            sendJson(404, [
+                'success' => false,
+                'message' => 'Proyek yang akan dihapus tidak ditemukan.',
+            ]);
+        }
+
+        $statement = $pdo->prepare(
+            'DELETE FROM project_submissions WHERE id = :id'
+        );
+        $statement->execute([':id' => $projectId]);
+
+        sendJson(200, [
+            'success' => true,
+            'message' => 'Proyek berhasil dihapus.',
+            'data' => [
+                'id' => $projectId,
+                'title' => $existingRow['title'],
+            ],
+        ]);
+    }
 } catch (JsonException $error) {
-
-    http_response_code(400);
-
-    echo json_encode([
+    sendJson(400, [
         'success' => false,
         'message' => 'JSON tidak valid.',
-        'error' => $error->getMessage()
-    ], JSON_UNESCAPED_UNICODE |
-       JSON_PRETTY_PRINT);
-
+        'error' => $error->getMessage(),
+    ]);
 } catch (InvalidArgumentException $error) {
-
-    http_response_code(400);
-
-    echo json_encode([
+    sendJson(400, [
         'success' => false,
-        'message' => $error->getMessage()
-    ], JSON_UNESCAPED_UNICODE |
-       JSON_PRETTY_PRINT);
-
+        'message' => $error->getMessage(),
+    ]);
 } catch (PDOException $error) {
-
-    http_response_code(500);
-
-    echo json_encode([
+    sendJson(500, [
         'success' => false,
-        'message' =>
-            'Gagal mengakses SQLite.',
-        'error' =>
-            $error->getMessage()
-    ], JSON_UNESCAPED_UNICODE |
-       JSON_PRETTY_PRINT);
-
+        'message' => 'Gagal mengakses SQLite.',
+        'error' => $error->getMessage(),
+    ]);
 } catch (Throwable $error) {
-
-    http_response_code(500);
-
-    echo json_encode([
+    sendJson(500, [
         'success' => false,
-        'message' =>
-            'Terjadi kesalahan pada server.',
-        'error' =>
-            $error->getMessage()
-    ], JSON_UNESCAPED_UNICODE |
-       JSON_PRETTY_PRINT);
+        'message' => 'Terjadi kesalahan pada server.',
+        'error' => $error->getMessage(),
+    ]);
 }

@@ -359,6 +359,173 @@ function writeWithRetry(PDO $pdo, callable $callback, int $maxAttempts = 5)
     throw new RuntimeException('Operasi database gagal setelah beberapa percobaan.');
 }
 
+function handleImageUpload(): never
+{
+    if (!isset($_FILES['image']) || !is_array($_FILES['image'])) {
+        respond(400, [
+            'success' => false,
+            'message' => 'File gambar tidak ditemukan. Gunakan field multipart bernama image.',
+        ]);
+    }
+
+    $file = $_FILES['image'];
+    $errorCode = isset($file['error']) ? (int) $file['error'] : UPLOAD_ERR_NO_FILE;
+
+    if ($errorCode !== UPLOAD_ERR_OK) {
+        $uploadMessages = [
+            UPLOAD_ERR_INI_SIZE => 'Ukuran file melebihi upload_max_filesize PHP.',
+            UPLOAD_ERR_FORM_SIZE => 'Ukuran file melebihi batas form.',
+            UPLOAD_ERR_PARTIAL => 'File hanya terupload sebagian.',
+            UPLOAD_ERR_NO_FILE => 'Tidak ada file yang dipilih.',
+            UPLOAD_ERR_NO_TMP_DIR => 'Folder temporary PHP tidak tersedia.',
+            UPLOAD_ERR_CANT_WRITE => 'PHP gagal menulis file ke disk.',
+            UPLOAD_ERR_EXTENSION => 'Upload dihentikan oleh ekstensi PHP.',
+        ];
+
+        respond(400, [
+            'success' => false,
+            'message' => $uploadMessages[$errorCode] ?? 'Upload gambar gagal.',
+            'errorCode' => $errorCode,
+        ]);
+    }
+
+    $tmpName = (string) ($file['tmp_name'] ?? '');
+    $originalName = basename((string) ($file['name'] ?? 'image'));
+    $fileSize = (int) ($file['size'] ?? 0);
+
+    if ($tmpName === '' || !is_uploaded_file($tmpName)) {
+        respond(400, [
+            'success' => false,
+            'message' => 'Temporary file upload tidak valid.',
+        ]);
+    }
+
+    if ($fileSize <= 0) {
+        respond(400, [
+            'success' => false,
+            'message' => 'Ukuran file gambar tidak valid.',
+        ]);
+    }
+
+    if ($fileSize > 5 * 1024 * 1024) {
+        respond(413, [
+            'success' => false,
+            'message' => 'Ukuran gambar maksimal 5 MB.',
+        ]);
+    }
+
+    if (!class_exists('finfo')) {
+        respond(500, [
+            'success' => false,
+            'message' => 'Ekstensi PHP fileinfo belum aktif.',
+        ]);
+    }
+
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mimeType = (string) $finfo->file($tmpName);
+    $allowedTypes = [
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/webp' => 'webp',
+        'image/gif' => 'gif',
+    ];
+
+    if (!isset($allowedTypes[$mimeType])) {
+        respond(415, [
+            'success' => false,
+            'message' => 'Format gambar harus JPG, JPEG, PNG, WEBP, atau GIF.',
+            'detectedType' => $mimeType,
+        ]);
+    }
+
+    $projectRoot = dirname(__DIR__);
+    $storage = function_exists('ensureUploadStorage')
+        ? ensureUploadStorage($projectRoot, 'workshops')
+        : [
+            'path' => $projectRoot . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'workshops',
+            'url' => '/uploads/workshops',
+        ];
+
+    if (!is_dir($storage['path']) && !mkdir($storage['path'], 0775, true) && !is_dir($storage['path'])) {
+        respond(500, [
+            'success' => false,
+            'message' => 'Folder upload workshop gagal dibuat.',
+            'directory' => $storage['path'],
+        ]);
+    }
+
+    $extension = $allowedTypes[$mimeType];
+
+    try {
+        $randomPart = bin2hex(random_bytes(6));
+    } catch (Throwable) {
+        $randomPart = str_replace('.', '', uniqid('', true));
+    }
+
+    $storedName = sprintf(
+        'workshop-%s-%s.%s',
+        date('YmdHis'),
+        $randomPart,
+        $extension
+    );
+    $destination = $storage['path'] . DIRECTORY_SEPARATOR . $storedName;
+
+    if (!move_uploaded_file($tmpName, $destination)) {
+        respond(500, [
+            'success' => false,
+            'message' => 'Gambar gagal disimpan ke folder upload workshop.',
+            'destination' => $destination,
+        ]);
+    }
+
+    $relativeUrl = rtrim((string) $storage['url'], '/') . '/' . rawurlencode($storedName);
+
+    respond(201, [
+        'success' => true,
+        'message' => 'Gambar berhasil diupload.',
+        'data' => [
+            'name' => $storedName,
+            'file_name' => $storedName,
+            'originalName' => $originalName,
+            'type' => $mimeType,
+            'file_type' => $mimeType,
+            'size' => $fileSize,
+            'file_size' => $fileSize,
+            'sizeKB' => round($fileSize / 1024, 2),
+            'path' => $destination,
+            'file_path' => $destination,
+            'url' => $relativeUrl,
+            'file_url' => $relativeUrl,
+            'relativeUrl' => $relativeUrl,
+            'uploadedAt' => date('Y-m-d H:i:s'),
+        ],
+    ]);
+}
+
+$method = $_SERVER['REQUEST_METHOD'];
+$action = isset($_GET['action']) ? trim((string) $_GET['action']) : '';
+
+if ($action === 'upload-image') {
+    if ($method !== 'POST') {
+        header('Allow: POST, OPTIONS');
+
+        respond(405, [
+            'success' => false,
+            'message' => 'Upload gambar hanya menerima method POST.',
+        ]);
+    }
+
+    handleImageUpload();
+}
+
+if ($action !== '') {
+    respond(400, [
+        'success' => false,
+        'message' => 'Action API tidak dikenal.',
+        'action' => $action,
+    ]);
+}
+
 /* =========================================================
  * PROJECT PATH & DATABASE CONFIG
  * =========================================================
@@ -545,6 +712,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                     slug,
                     status,
                     category,
+                    cover_image_name,
+                    cover_image_type,
+                    cover_image_size,
+                    cover_image_path,
+                    cover_image_url,
                     payload_json,
                     created_at,
                     updated_at
@@ -582,6 +754,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 slug,
                 status,
                 category,
+                cover_image_name,
+                cover_image_type,
+                cover_image_size,
+                cover_image_path,
+                cover_image_url,
                 payload_json,
                 created_at,
                 updated_at

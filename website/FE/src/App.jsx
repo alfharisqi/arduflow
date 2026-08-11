@@ -248,6 +248,7 @@ const adminPublicRoutes = new Set([
   '/admin/forgot-password',
 ]);
 
+const DEBUG_AUTH = import.meta.env.DEV && import.meta.env.VITE_DEBUG_API === 'true';
 
 /* =========================================================
    USER PROTECTED ROUTE
@@ -263,10 +264,14 @@ function UserProtectedRoute({ children }) {
       'arduflow_user_token'
     );
 
-    console.log('Token user:', token);
+    if (DEBUG_AUTH) {
+      console.log('Token user:', token);
+    }
 
     if (!token) {
-      console.warn('Token user tidak ditemukan.');
+      if (DEBUG_AUTH) {
+        console.warn('Token user tidak ditemukan.');
+      }
 
       window.localStorage.removeItem(
         'arduflow_user'
@@ -283,10 +288,12 @@ function UserProtectedRoute({ children }) {
           return;
         }
 
-        console.log(
-          'Response session user di App.jsx:',
-          response
-        );
+        if (DEBUG_AUTH) {
+          console.log(
+            'Response session user di App.jsx:',
+            response
+          );
+        }
 
         const user =
           response?.user ||
@@ -296,10 +303,12 @@ function UserProtectedRoute({ children }) {
           response?.success !== false &&
           user
         ) {
-          console.log(
-            'Session user valid:',
-            user
-          );
+          if (DEBUG_AUTH) {
+            console.log(
+              'Session user valid:',
+              user
+            );
+          }
 
           window.localStorage.setItem(
             'arduflow_user',
@@ -311,10 +320,12 @@ function UserProtectedRoute({ children }) {
           return;
         }
 
-        console.warn(
-          'Session tidak valid atau data user tidak ditemukan:',
-          response
-        );
+        if (DEBUG_AUTH) {
+          console.warn(
+            'Session tidak valid atau data user tidak ditemukan:',
+            response
+          );
+        }
 
         window.localStorage.removeItem(
           'arduflow_user'
@@ -327,10 +338,12 @@ function UserProtectedRoute({ children }) {
         setStatus('blocked');
       })
       .catch((error) => {
-        console.error(
-          'Gagal memvalidasi session user:',
-          error
-        );
+        if (DEBUG_AUTH) {
+          console.error(
+            'Gagal memvalidasi session user:',
+            error
+          );
+        }
 
         if (!isActive) {
           return;
@@ -394,19 +407,23 @@ function AdminProtectedRoute({ children }) {
           'arduflow_admin_token'
         );
 
-      console.log(
-        'Token admin tersedia:',
-        Boolean(token)
-      );
+      if (DEBUG_AUTH) {
+        console.log(
+          'Token admin tersedia:',
+          Boolean(token)
+        );
+      }
 
       if (
         !token ||
         token === 'undefined' ||
         token === 'null'
       ) {
-        console.warn(
-          'Token admin tidak ditemukan di localStorage.'
-        );
+        if (DEBUG_AUTH) {
+          console.warn(
+            'Token admin tidak ditemukan di localStorage.'
+          );
+        }
 
         window.localStorage.removeItem(
           'arduflow_admin'
@@ -431,10 +448,12 @@ function AdminProtectedRoute({ children }) {
           return;
         }
 
-        console.log(
-          'Response session admin di App.jsx:',
-          response
-        );
+        if (DEBUG_AUTH) {
+          console.log(
+            'Response session admin di App.jsx:',
+            response
+          );
+        }
 
         const admin =
           response?.admin ||
@@ -444,10 +463,12 @@ function AdminProtectedRoute({ children }) {
           response?.success !== false &&
           admin
         ) {
-          console.log(
-            'Session admin valid:',
-            admin
-          );
+          if (DEBUG_AUTH) {
+            console.log(
+              'Session admin valid:',
+              admin
+            );
+          }
 
           window.localStorage.setItem(
             'arduflow_admin',
@@ -459,10 +480,12 @@ function AdminProtectedRoute({ children }) {
           return;
         }
 
-        console.warn(
-          'Session admin tidak valid atau data admin tidak ditemukan:',
-          response
-        );
+        if (DEBUG_AUTH) {
+          console.warn(
+            'Session admin tidak valid atau data admin tidak ditemukan:',
+            response
+          );
+        }
 
         window.localStorage.removeItem(
           'arduflow_admin'
@@ -474,10 +497,12 @@ function AdminProtectedRoute({ children }) {
 
         setStatus('blocked');
       } catch (error) {
-        console.error(
-          'Gagal memvalidasi session admin:',
-          error
-        );
+        if (DEBUG_AUTH) {
+          console.error(
+            'Gagal memvalidasi session admin:',
+            error
+          );
+        }
 
         if (!isActive) {
           return;

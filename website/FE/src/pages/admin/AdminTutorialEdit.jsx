@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import '../../styles/admin-tutorial-create.css';
+import { apiEndpoint } from '../../services/apiEndpoints.js';
 
-const TUTORIAL_API_URL = (
-  import.meta.env.VITE_TUTORIAL_API_URL ||
-  'http://192.168.130.10:8000/api/'
-).replace(/\/+$/, '');
+const ARTICLE_API_URL = apiEndpoint(
+  import.meta.env.VITE_ARTICLE_API_URL || import.meta.env.VITE_TUTORIAL_API_URL,
+  '/api/article-api.php'
+);
+const DEBUG_TUTORIAL_EDIT =
+  import.meta.env.DEV && import.meta.env.VITE_DEBUG_API === 'true';
 
 const emptyForm = {
   title: '',
@@ -74,7 +77,7 @@ export function AdminTutorialEdit() {
       setLoadError('');
 
       try {
-        const response = await fetch(`${TUTORIAL_API_URL}/article-api.php`, {
+        const response = await fetch(ARTICLE_API_URL, {
           method: 'GET',
           headers: {
             Accept: 'application/json',
@@ -130,11 +133,13 @@ export function AdminTutorialEdit() {
           accessRequirement: tutorial.access_requirement || '',
         });
 
-        console.group('DEBUG EDIT MATERI SQLITE');
-        console.log('ID:', tutorialId);
-        console.log('Endpoint:', `${TUTORIAL_API_URL}/article-api.php`);
-        console.log('Data materi:', tutorial);
-        console.groupEnd();
+        if (DEBUG_TUTORIAL_EDIT) {
+          console.group('DEBUG EDIT MATERI SQLITE');
+          console.log('ID:', tutorialId);
+          console.log('Endpoint:', ARTICLE_API_URL);
+          console.log('Data materi:', tutorial);
+          console.groupEnd();
+        }
       } catch (error) {
         console.error('Gagal memuat materi untuk edit:', error);
         setLoadError(
@@ -351,17 +356,19 @@ export function AdminTutorialEdit() {
     setSaveStatus('idle');
     setSaveMessage('');
 
-    console.group('DEBUG UPDATE MATERI SQLITE');
-    console.log('Method:', 'PUT');
-    console.log(
-      'Endpoint:',
-      `${TUTORIAL_API_URL}/article-api.php?id=${tutorialId}`
-    );
-    console.log('Request JSON:', payload);
+    if (DEBUG_TUTORIAL_EDIT) {
+      console.group('DEBUG UPDATE MATERI SQLITE');
+      console.log('Method:', 'PUT');
+      console.log(
+        'Endpoint:',
+        `${ARTICLE_API_URL}?id=${tutorialId}`
+      );
+      console.log('Request JSON:', payload);
+    }
 
     try {
       const response = await fetch(
-        `${TUTORIAL_API_URL}/article-api.php?id=${encodeURIComponent(
+        `${ARTICLE_API_URL}?id=${encodeURIComponent(
           tutorialId
         )}`,
         {
@@ -389,7 +396,9 @@ export function AdminTutorialEdit() {
         );
       }
 
-      console.log('Response:', result);
+      if (DEBUG_TUTORIAL_EDIT) {
+        console.log('Response:', result);
+      }
 
       if (!response.ok || result.success === false) {
         setSaveStatus('error');
@@ -435,7 +444,9 @@ export function AdminTutorialEdit() {
       );
     } finally {
       setIsSaving(false);
-      console.groupEnd();
+      if (DEBUG_TUTORIAL_EDIT) {
+        console.groupEnd();
+      }
     }
   };
 

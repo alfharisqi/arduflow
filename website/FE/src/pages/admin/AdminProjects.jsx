@@ -1,10 +1,17 @@
-import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
+import { useEffect, useState } from 'react';
+import { AdminSidebar } from './AdminSidebar.jsx';
+import { ProjectUploadForm } from '../User/UserProjectGallery.jsx';
+import {
+  getInitialAdminSidebarCollapsed,
+  persistAdminSidebarCollapsed,
+} from './adminSidebarState.js';
+import { apiEndpoint } from '../../services/apiEndpoints.js';
+import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
 import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
 import fileIcon from '../../assets/icons/icon-file-text-1.svg';
 import galleryIcon from '../../assets/icons/icon-image-placeholder-1.svg';
-import mailIcon from '../../assets/icons/icon-mail-1.svg';
 import zapIcon from '../../assets/icons/icon-zap-1.svg';
 
 const projectStats = [
@@ -16,16 +23,11 @@ const projectStats = [
   { label: 'Proyek Paling Populer', value: 'Smart Home Monitoring', note: 'Viewer: 2.845', icon: zapIcon, tone: 'red' },
 ];
 
-const projects = [
-  ['Smart Home Monitoring', 'Sistem monitoring rumah berbasis IoT', 'Ahmad Fauzi', '@ahmadfauzi', 'IoT', 'Advanced', 'Published', '2.845', '512 / 286', '18 Mei 2024', '20 Mei 2024'],
-  ['Penyiraman Tanaman Otomatis', 'Sistem siram otomatis dengan sensor', 'Siti Aisyah', '@sitiaisyah', 'Automation', 'Intermediate', 'Review', '1.234', '244 / 120', '20 Mei 2024', '20 Mei 2024'],
-  ['Sistem Keamanan Pintu', 'Keamanan pintu berbasis RFID', 'Rudi Kurniawan', '@rudik', 'Arduino', 'Beginner', 'Revisi', '945', '132 / 64', '19 Mei 2024', '20 Mei 2024'],
-  ['Weather Station IoT', 'Stasiun cuaca dengan BME280', 'Dewi Lestari', '@dewilestari', 'Sensor', 'Intermediate', 'Published', '2.156', '398 / 178', '16 Mei 2024', '18 Mei 2024'],
-  ['Smart Traffic Light', 'Lampu lalu lintas cerdas', 'Budi Santoso', '@budisantoso', 'Automation', 'Advanced', 'Ditolak', '312', '45 / 19', '17 Mei 2024', '19 Mei 2024'],
-  ['Greenhouse Monitoring', 'Monitoring suhu & kelembapan', 'Nabila Putri', '@nabilaputri', 'IoT', 'Intermediate', 'Draft', '0', '0 / 0', '15 Mei 2024', '18 Mei 2024'],
-  ['Energy Meter IoT', 'Monitoring energi listrik real-time', 'Agung Setiawan', '@agungsetiawan', 'IoT', 'Advanced', 'Published', '1.890', '276 / 98', '14 Mei 2024', '17 Mei 2024'],
-  ['Sistem Parkir Otomatis', 'Parkir otomatis berbasis sensor', 'Rina Marlina', '@rinamarlina', 'Automation', 'Beginner', 'Review', '578', '86 / 32', '20 Mei 2024', '20 Mei 2024'],
-];
+
+const PROJECT_API_URL = apiEndpoint(
+  import.meta.env.VITE_PROJECT_API_URL,
+  '/api/projects-api.php'
+);
 
 const reviewProjects = [
   ['Penyiraman Tanaman Otomatis', 'Siti Aisyah', '20 Mei 2024'],
@@ -57,31 +59,308 @@ const activityItems = [
   ['Proyek "Energy Meter IoT" diupdate', '17 Mei 2024 16:30', 'green'],
 ];
 
-function ProjectBadge({ children }) {
-  return <span className={`admin-projects-badge admin-projects-badge--${createSlug(children)}`}>{children}</span>;
+function AdminProjectsTopbar() {
+  return (
+    <header className="admin-dashboard-topbar">
+      <label className="admin-dashboard-search">
+        <span aria-hidden="true" />
+        <input type="search" placeholder="Cari proyek" aria-label="Cari proyek" />
+      </label>
+      <div className="admin-dashboard-account">
+        <button className="admin-dashboard-notif" type="button" aria-label="Notifikasi">
+          <img src={bellIcon} alt="" />
+        </button>
+        <span className="admin-dashboard-avatar" aria-hidden="true" />
+        <span>
+          <strong>Admin</strong>
+          <small>Super Admin</small>
+        </span>
+      </div>
+    </header>
+  );
 }
 
-function ProjectAction({ label, children, active = false }) {
+function ProjectBadge({ children }) {
+  const slug = String(children).toLowerCase().replace(/\s+/g, '-').replace(/\//g, '-');
+  return <span className={`admin-projects-badge admin-projects-badge--${slug}`}>{children}</span>;
+}
+
+function ProjectAction({ label, children, active = false, onClick, disabled = false }) {
   return (
-    <button className={`admin-projects-action${active ? ' is-active' : ''}`} type="button" aria-label={label}>
+    <button
+      className={`admin-projects-action${active ? ' is-active' : ''}`}
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      disabled={disabled}
+    >
       {children}
     </button>
   );
 }
 
-export function AdminProjects() {
-  return (
-    <AdminPage pageClassName="admin-projects-page" ariaLabel="Proyek admin">
-        <AdminTopbar searchPlaceholder="Cari proyek" searchLabel="Cari proyek" />
+function formatProjectDateTime(value) {
+  if (!value) {
+    return { date: '-', time: '' };
+  }
 
-        <div className="admin-projects-layout">
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return { date: String(value), time: '' };
+  }
+
+  return {
+    date: date.toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }),
+    time: date.toLocaleTimeString('id-ID', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }),
+  };
+}
+
+function ProjectDateTime({ value }) {
+  const formatted = formatProjectDateTime(value);
+
+  return (
+    <span className="admin-projects-date">
+      <b>{formatted.date}</b>
+      {formatted.time ? <small>{formatted.time}</small> : null}
+    </span>
+  );
+}
+
+export function AdminProjects() {
+  const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialAdminSidebarCollapsed);
+  const [projects, setProjects] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [projectError, setProjectError] = useState('');
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [editingProject, setEditingProject] = useState(null);
+  const [actionMessage, setActionMessage] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [busyProjectId, setBusyProjectId] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadProjects() {
+      try {
+        setIsLoading(true);
+        setProjectError('');
+
+        const response = await fetch(PROJECT_API_URL, {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+          },
+        });
+
+        const responseText = await response.text();
+
+        let result;
+
+        try {
+          result = JSON.parse(responseText);
+        } catch {
+          throw new Error(`Response API bukan JSON: ${responseText}`);
+        }
+
+        console.log('Admin API URL:', PROJECT_API_URL);
+        console.log('Admin API Status:', response.status);
+        console.log('Admin API Response:', result);
+
+        if (!response.ok) {
+          throw new Error(
+            result.message || `Gagal mengambil data proyek. HTTP ${response.status}`
+          );
+        }
+
+        if (isMounted) {
+          const projectData = Array.isArray(result.data) ? result.data : [];
+          setProjects(projectData);
+          setSelectedProject(null);
+        }
+      } catch (error) {
+        console.error('Gagal mengambil proyek:', error);
+
+        if (isMounted) {
+          setProjectError(
+            error instanceof TypeError
+              ? `API tidak dapat dihubungi di ${PROJECT_API_URL}. Pastikan Apache aktif dan endpoint GET dapat diakses.`
+              : error.message || 'Gagal mengambil data proyek.'
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadProjects();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleToggleSidebar = () => {
+    setSidebarCollapsed((value) => {
+      const nextValue = !value;
+      persistAdminSidebarCollapsed(nextValue);
+      return nextValue;
+    });
+  };
+
+  const handleSelectProject = (project) => {
+    if (editingProject) return;
+
+    setSelectedProject((currentProject) => {
+      const currentKey = currentProject?.id ?? currentProject?.title;
+      const nextKey = project?.id ?? project?.title;
+      return currentKey === nextKey ? null : project;
+    });
+  };
+
+
+  const parseApiResponse = async (response) => {
+    const responseText = await response.text();
+
+    let result;
+    try {
+      result = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      throw new Error(`Response API bukan JSON: ${responseText}`);
+    }
+
+    if (!response.ok) {
+      throw new Error(result.message || `Request gagal. HTTP ${response.status}`);
+    }
+
+    return result;
+  };
+
+  const handleViewProject = async (project) => {
+    if (!project?.id) {
+      setActionError('ID proyek tidak tersedia.');
+      return;
+    }
+
+    try {
+      setBusyProjectId(project.id);
+      setActionError('');
+      setActionMessage('');
+
+      const response = await fetch(`${PROJECT_API_URL}?id=${encodeURIComponent(project.id)}`, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      });
+
+      const result = await parseApiResponse(response);
+      setSelectedProject(result.data || project);
+      setActionMessage('Detail proyek berhasil dibuka.');
+    } catch (error) {
+      console.error('Gagal melihat proyek:', error);
+      setActionError(error.message || 'Gagal melihat detail proyek.');
+    } finally {
+      setBusyProjectId(null);
+    }
+  };
+
+  const handleEditProject = (project) => {
+    if (!project?.id) {
+      setActionError('ID proyek tidak tersedia.');
+      return;
+    }
+
+    setActionError('');
+    setActionMessage('');
+    setSelectedProject(null);
+    setEditingProject(project);
+  };
+
+  const handleDeleteProject = async (project) => {
+    if (!project?.id) {
+      setActionError('ID proyek tidak tersedia.');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Yakin ingin menghapus proyek "${project.title || 'Tanpa Judul'}"? Data yang dihapus tidak dapat dikembalikan.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setBusyProjectId(project.id);
+      setActionError('');
+      setActionMessage('');
+
+      const response = await fetch(`${PROJECT_API_URL}?id=${encodeURIComponent(project.id)}`, {
+        method: 'DELETE',
+        headers: { Accept: 'application/json' },
+      });
+
+      const result = await parseApiResponse(response);
+
+      setProjects((currentProjects) =>
+        currentProjects.filter((item) => item.id !== project.id)
+      );
+
+      setSelectedProject((currentProject) =>
+        currentProject?.id === project.id ? null : currentProject
+      );
+
+      setActionMessage(result.message || 'Proyek berhasil dihapus.');
+    } catch (error) {
+      console.error('Gagal menghapus proyek:', error);
+      setActionError(error.message || 'Gagal menghapus proyek.');
+    } finally {
+      setBusyProjectId(null);
+    }
+  };
+
+  return (
+    <main className={`admin-dashboard-page admin-projects-page${isSidebarCollapsed ? ' admin-dashboard-page--collapsed' : ''}`}>
+      <AdminSidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleSidebar} />
+
+      <section className="admin-dashboard-main" aria-label="Proyek admin">
+        <AdminProjectsTopbar />
+
+        <div className={`admin-projects-layout${selectedProject && !editingProject ? ' admin-projects-layout--detail-open' : ''}`}>
           <section className="admin-projects-content">
+            {editingProject ? (
+              <ProjectUploadForm
+                mode="edit"
+                projectId={String(editingProject.id)}
+                initialProject={editingProject}
+                onCancel={() => setEditingProject(null)}
+              />
+            ) : (
+              <>
             <div className="admin-projects-heading">
               <div>
                 <h1>Proyek</h1>
                 <p>Dashboard <span>/</span> Proyek</p>
               </div>
             </div>
+
+            {actionMessage ? (
+              <p role="status" style={{ margin: '0 0 16px', color: '#15803d' }}>
+                {actionMessage}
+              </p>
+            ) : null}
+
+            {actionError ? (
+              <p role="alert" style={{ margin: '0 0 16px', color: '#dc2626' }}>
+                {actionError}
+              </p>
+            ) : null}
 
             <section className="admin-projects-stats" aria-label="Ringkasan proyek">
               {projectStats.map((item) => (
@@ -121,9 +400,29 @@ export function AdminProjects() {
 
             <section className="admin-projects-table-card">
               <table className="admin-projects-table">
+                <colgroup>
+                  <col className="admin-projects-col-check" />
+                  <col className="admin-projects-col-title" />
+                  <col className="admin-projects-col-owner" />
+                  <col className="admin-projects-col-category" />
+                  <col className="admin-projects-col-level" />
+                  <col className="admin-projects-col-status" />
+                  <col className="admin-projects-col-viewer" />
+                  <col className="admin-projects-col-like" />
+                  <col className="admin-projects-col-date" />
+                  <col className="admin-projects-col-date" />
+                  <col className="admin-projects-col-actions" />
+                </colgroup>
                 <thead>
                   <tr>
-                    <th><input type="checkbox" aria-label="Pilih semua proyek" /></th>
+                    <th>
+                      <input
+                        type="checkbox"
+                        aria-label="Pilih semua proyek"
+                        checked={Boolean(selectedProject)}
+                        onChange={() => setSelectedProject(selectedProject ? null : projects[0] || null)}
+                      />
+                    </th>
                     <th>Judul Proyek</th>
                     <th>Pemilik / User</th>
                     <th>Kategori</th>
@@ -137,39 +436,132 @@ export function AdminProjects() {
                   </tr>
                 </thead>
                 <tbody>
-                  {projects.map((item, index) => (
-                    <tr key={item[0]}>
-                      <td><input type="checkbox" aria-label={`Pilih ${item[0]}`} /></td>
-                      <td>
-                        <span className={`admin-projects-thumb is-${index % 5}`} />
-                        <span><b>{item[0]}</b><small>{item[1]}</small></span>
-                      </td>
-                      <td>
-                        <span className="admin-projects-avatar" />
-                        <span><b>{item[2]}</b><small>{item[3]}</small></span>
-                      </td>
-                      <td><ProjectBadge>{item[4]}</ProjectBadge></td>
-                      <td><ProjectBadge>{item[5]}</ProjectBadge></td>
-                      <td><ProjectBadge>{item[6]}</ProjectBadge></td>
-                      <td>{item[7]}</td>
-                      <td>{item[8]}</td>
-                      <td>{item[9]}</td>
-                      <td>{item[10]}</td>
-                      <td>
-                        <div className="admin-projects-actions">
-                          <ProjectAction label={`Preview ${item[0]}`}><img src={eyeIcon} alt="" /></ProjectAction>
-                          <ProjectAction label={`Edit ${item[0]}`}>Edit</ProjectAction>
-                          <ProjectAction label={`Featured ${item[0]}`} active={index === 3}>Star</ProjectAction>
-                          <ProjectAction label={`Email ${item[0]}`}><img src={mailIcon} alt="" /></ProjectAction>
-                          <ProjectAction label={`Menu ${item[0]}`}>...</ProjectAction>
-                        </div>
-                      </td>
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan="11">Memuat data proyek...</td>
                     </tr>
-                  ))}
+                  ) : projectError ? (
+                    <tr>
+                      <td colSpan="11">{projectError}</td>
+                    </tr>
+                  ) : projects.length === 0 ? (
+                    <tr>
+                      <td colSpan="11">Belum ada proyek yang tersimpan.</td>
+                    </tr>
+                  ) : (
+                    projects.map((project, index) => {
+                      const ownerName =
+                        project.ownerName ||
+                        project.userName ||
+                        project.user?.name ||
+                        'User';
+
+                      const ownerUsername =
+                        project.ownerUsername ||
+                        project.username ||
+                        project.user?.username ||
+                        '-';
+
+                      const level = project.difficulty || '-';
+                      const status = project.status || 'draft';
+
+                      return (
+                        <tr
+                          key={project.id ?? `${project.title}-${index}`}
+                          onClick={() => handleSelectProject(project)}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <td>
+                            <input
+                              type="checkbox"
+                              aria-label={`Pilih ${project.title || 'proyek'}`}
+                              checked={(selectedProject?.id ?? selectedProject?.title) === (project.id ?? project.title)}
+                              onChange={() => handleSelectProject(project)}
+                              onClick={(event) => event.stopPropagation()}
+                            />
+                          </td>
+
+                          <td>
+                            <div className="admin-projects-title-cell">
+                              <span className={`admin-projects-thumb is-${index % 5}`} />
+                              <span>
+                                <b>{project.title || '-'}</b>
+                                <small>{project.description || '-'}</small>
+                              </span>
+                            </div>
+                          </td>
+
+                          <td>
+                            <div className="admin-projects-owner-cell">
+                              <span className="admin-projects-avatar" />
+                              <span>
+                                <b>{ownerName}</b>
+                                <small>{ownerUsername}</small>
+                              </span>
+                            </div>
+                          </td>
+
+                          <td>
+                            <ProjectBadge>{project.category || '-'}</ProjectBadge>
+                          </td>
+
+                          <td>
+                            <ProjectBadge>{level}</ProjectBadge>
+                          </td>
+
+                          <td>
+                            <ProjectBadge>{status}</ProjectBadge>
+                          </td>
+
+                          <td>{project.viewer ?? 0}</td>
+
+                          <td>
+                            {`${project.likes ?? 0} / ${project.saves ?? 0}`}
+                          </td>
+
+                          <td><ProjectDateTime value={project.createdAt} /></td>
+                          <td><ProjectDateTime value={project.updatedAt} /></td>
+
+                          <td>
+                            <div
+                              className="admin-projects-actions"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              <ProjectAction
+                                label={`Lihat ${project.title}`}
+                                active
+                                disabled={busyProjectId === project.id}
+                                onClick={() => handleViewProject(project)}
+                              >
+                                <img src={eyeIcon} alt="" />
+                                <span>Lihat</span>
+                              </ProjectAction>
+
+                              <ProjectAction
+                                label={`Edit ${project.title}`}
+                                disabled={busyProjectId === project.id}
+                                onClick={() => handleEditProject(project)}
+                              >
+                                Edit
+                              </ProjectAction>
+
+                              <ProjectAction
+                                label={`Hapus ${project.title}`}
+                                disabled={busyProjectId === project.id}
+                                onClick={() => handleDeleteProject(project)}
+                              >
+                                Hapus
+                              </ProjectAction>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
               <div className="admin-projects-pagination">
-                <span>Menampilkan 1 - 8 dari 1.248 proyek</span>
+                <span>Menampilkan {projects.length} proyek</span>
                 <div>
                   <button type="button">&lt;</button>
                   <button type="button" className="is-active">1</button>
@@ -248,61 +640,106 @@ export function AdminProjects() {
                 ))}
               </div>
             </section>
+              </>
+            )}
           </section>
 
-          <aside className="admin-projects-detail" aria-label="Detail proyek">
-            <div className="admin-projects-detail-head">
-              <h2>Detail Proyek</h2>
-              <button type="button" aria-label="Tutup detail">x</button>
-            </div>
-            <div className="admin-projects-detail-profile">
-              <span className="admin-projects-detail-image" />
-              <div>
-                <h3>Smart Home Monitoring</h3>
-                <ProjectBadge>Published</ProjectBadge>
-                <p><span className="admin-projects-avatar" />Ahmad Fauzi<br /><small>@ahmadfauzi</small></p>
+          {selectedProject && !editingProject && (
+            <aside className="admin-projects-detail" aria-label="Detail proyek">
+              <div className="admin-projects-detail-head">
+                <h2>Detail Proyek</h2>
+                <button type="button" aria-label="Tutup detail" onClick={() => setSelectedProject(null)}>x</button>
               </div>
-            </div>
-            <dl>
-              <dt>Kategori</dt><dd>IoT</dd>
-              <dt>Level</dt><dd>Advanced</dd>
-              <dt>Tanggal Upload</dt><dd>18 Mei 2024, 10:32</dd>
-              <dt>Update Terakhir</dt><dd>20 Mei 2024, 14:25</dd>
-              <dt>Deskripsi Singkat</dt>
-              <dd>Proyek IoT untuk memonitor suhu, kelembapan, dan status perangkat rumah secara real-time melalui dashboard web.</dd>
-            </dl>
-            <section className="admin-projects-components">
-              <h3>Komponen Utama</h3>
-              <div>
-                {['ESP32', 'DHT22', 'MQ-2', 'Relay 4CH', 'LCD I2C'].map((item) => <span key={item}>{item}</span>)}
-              </div>
-            </section>
-            <section className="admin-projects-links">
-              <h3>Link & Dokumentasi</h3>
-              <a href="/admin/projects/docs">GitHub Repository</a>
-              <a href="/admin/projects/docs">Dokumentasi (PDF)</a>
-              <a href="/admin/projects/docs">Video Demo</a>
-            </section>
-            <section className="admin-projects-detail-stats">
-              <article><span>Viewer</span><strong>2.845</strong></article>
-              <article><span>Like</span><strong>512</strong></article>
-              <article><span>Save</span><strong>286</strong></article>
-            </section>
-            <section className="admin-projects-history">
-              <h3>Riwayat Review</h3>
-              <p><span className="admin-projects-dot is-green" />Dipublish oleh Admin (Budi S.)<br /><small>20 Mei 2024 14:25</small></p>
-              <p><span className="admin-projects-dot is-purple" />Revisi diminta: Tambah skematik & foto alat<br /><small>19 Mei 2024 11:10</small></p>
-              <p><span className="admin-projects-dot is-orange" />Menunggu review<br /><small>18 Mei 2024 10:05</small></p>
-            </section>
-            <div className="admin-projects-detail-actions">
-              <button type="button" className="is-blue">Preview Proyek</button>
-              <button type="button" className="is-green">Publish / Unpublish</button>
-              <button type="button" className="is-purple">Minta Revisi</button>
-              <button type="button" className="is-orange">Tandai Featured</button>
-              <button type="button">Arsipkan</button>
-            </div>
-          </aside>
+
+              <>
+                <div className="admin-projects-detail-profile">
+                  <span className="admin-projects-detail-image" />
+                  <div>
+                    <h3>{selectedProject.title || '-'}</h3>
+                    <ProjectBadge>{selectedProject.status || 'draft'}</ProjectBadge>
+                    <p>
+                      <span className="admin-projects-avatar" />
+                      {selectedProject.ownerName || selectedProject.userName || selectedProject.user?.name || 'User'}
+                      <br />
+                      <small>
+                        {selectedProject.ownerUsername ||
+                          selectedProject.username ||
+                          selectedProject.user?.username ||
+                          '-'}
+                      </small>
+                    </p>
+                  </div>
+                </div>
+
+                <dl>
+                  <dt>Kategori</dt>
+                  <dd>{selectedProject.category || '-'}</dd>
+
+                  <dt>Level</dt>
+                  <dd>{selectedProject.difficulty || '-'}</dd>
+
+                  <dt>Tanggal Upload</dt>
+                  <dd>
+                    {selectedProject.createdAt
+                      ? new Date(selectedProject.createdAt).toLocaleString('id-ID')
+                      : '-'}
+                  </dd>
+
+                  <dt>Update Terakhir</dt>
+                  <dd>
+                    {selectedProject.updatedAt
+                      ? new Date(selectedProject.updatedAt).toLocaleString('id-ID')
+                      : '-'}
+                  </dd>
+
+                  <dt>Deskripsi Singkat</dt>
+                  <dd>{selectedProject.description || '-'}</dd>
+                </dl>
+
+                <section className="admin-projects-components">
+                  <h3>Komponen Utama</h3>
+                  <div>
+                    {Array.isArray(selectedProject.tools) && selectedProject.tools.length > 0 ? (
+                      selectedProject.tools.map((tool, index) => (
+                        <span key={`${tool.name || 'tool'}-${index}`}>
+                          {tool.name || '-'}
+                        </span>
+                      ))
+                    ) : (
+                      <span>Belum ada komponen</span>
+                    )}
+                  </div>
+                </section>
+
+                <section className="admin-projects-detail-stats">
+                  <article>
+                    <span>Viewer</span>
+                    <strong>{selectedProject.viewer ?? 0}</strong>
+                  </article>
+
+                  <article>
+                    <span>Like</span>
+                    <strong>{selectedProject.likes ?? 0}</strong>
+                  </article>
+
+                  <article>
+                    <span>Save</span>
+                    <strong>{selectedProject.saves ?? 0}</strong>
+                  </article>
+                </section>
+
+                <div className="admin-projects-detail-actions">
+                  <button type="button" className="is-blue">Preview Proyek</button>
+                  <button type="button" className="is-green">Publish / Unpublish</button>
+                  <button type="button" className="is-purple">Minta Revisi</button>
+                  <button type="button" className="is-orange">Tandai Featured</button>
+                  <button type="button">Arsipkan</button>
+                </div>
+              </>
+            </aside>
+          )}
         </div>
-    </AdminPage>
+      </section>
+    </main>
   );
 }

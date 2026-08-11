@@ -19,6 +19,8 @@ import zapIcon from '../../assets/icons/icon-zap-1.svg';
 const ARTICLE_API_URL = (
   apiEndpoint(import.meta.env.VITE_ARTICLE_API_URL, '/api/article-api.php')
 );
+const DEBUG_ADMIN_TUTORIAL =
+  import.meta.env.DEV && import.meta.env.VITE_DEBUG_API === 'true';
 
 /* =========================================================
    BADGE
@@ -321,18 +323,22 @@ export function AdminTutorial() {
           }
         );
 
-      console.log(
-        'HTTP Status:',
-        response.status
-      );
+      if (DEBUG_ADMIN_TUTORIAL) {
+        console.log(
+          'HTTP Status:',
+          response.status
+        );
+      }
 
       const responseText =
         await response.text();
 
-      console.log(
-        'Response mentah API:',
-        responseText
-      );
+      if (DEBUG_ADMIN_TUTORIAL) {
+        console.log(
+          'Response mentah API:',
+          responseText
+        );
+      }
 
       /* -----------------------------------------------
          RESPONSE KOSONG
@@ -366,10 +372,12 @@ export function AdminTutorial() {
         );
       }
 
-      console.log(
-        'Response JSON API:',
-        result
-      );
+      if (DEBUG_ADMIN_TUTORIAL) {
+        console.log(
+          'Response JSON API:',
+          result
+        );
+      }
 
       /* -----------------------------------------------
          HTTP ERROR

@@ -8,6 +8,12 @@
   min-height: 1392px;
 }
 
+.user-project-page--upload,
+.user-project-page--upload .dashboard-sidebar,
+.user-project-page--upload .dashboard-shell {
+  min-height: 1740px;
+}
+
 .user-project-content {
   width: 1217px;
   min-height: 1328px;
@@ -249,7 +255,7 @@
 .project-upload-page {
   box-sizing: border-box;
   width: 1011px;
-  min-height: 1555px;
+  min-height: 1641px;
   padding: 13px 0 0;
   background: #ffffff;
   color: #000000;
@@ -263,6 +269,20 @@
   font-size: 20px;
   font-weight: 700;
   line-height: 24px;
+}
+
+.project-upload-edit-notice {
+  box-sizing: border-box;
+  width: 100%;
+  margin: -6px 0 18px 4px;
+  padding: 10px 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .project-upload-layout {
@@ -279,7 +299,7 @@
   flex-direction: column;
   gap: 20px;
   width: 636px;
-  min-height: 1409px;
+  min-height: 1493px;
   padding: 26px 20px 28px 17px;
   border: 1px solid #dbdbdb;
   border-radius: 10px;
@@ -332,6 +352,28 @@
   padding: 0 8px;
 }
 
+.project-upload-field.has-error input,
+.project-upload-field.has-error select,
+.project-upload-price-input.has-error,
+.project-upload-code-row input.has-error,
+.project-upload-file-box.has-error,
+.project-upload-cover-box.has-error,
+.project-upload-editor.has-error,
+.project-upload-table.has-error {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.08);
+}
+
+.project-upload-error {
+  margin: 0;
+  color: #dc2626;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 14px;
+}
+
 .project-upload-field input::placeholder,
 .project-upload-field select:invalid,
 .project-upload-price-input input::placeholder,
@@ -363,10 +405,14 @@
   background: #ffffff;
 }
 
+.project-upload-editor--legacy-hidden {
+  display: none;
+}
+
 .project-upload-editor__toolbar {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
   width: 100%;
   height: 40px;
   padding: 0 13px;
@@ -375,20 +421,41 @@
   line-height: 1;
 }
 
+.project-upload-editor__toolbar button,
+.project-upload-editor__toolbar select,
 .project-upload-editor__toolbar span {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   white-space: nowrap;
 }
 
-.project-upload-editor__toolbar span:nth-child(3) {
-  font-size: 16px;
-  font-weight: 400;
+.project-upload-editor__toolbar button,
+.project-upload-editor__toolbar select {
+  height: 28px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #24282d;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.project-upload-editor__toolbar select {
+  width: 116px;
+}
+
+.project-upload-editor__toolbar button:hover,
+.project-upload-editor__toolbar select:hover {
+  background: #f3f4f6;
 }
 
 .project-upload-editor__color {
   width: 19px;
   height: 19px;
+  min-width: 19px;
+  padding: 0 !important;
   border-radius: 3px;
   background: #24282d;
 }
@@ -409,6 +476,37 @@
 
 .project-upload-editor textarea::placeholder {
   color: rgba(0, 0, 0, 0.4);
+}
+
+.project-upload-editor__content {
+  box-sizing: border-box;
+  width: 100%;
+  height: 118px;
+  padding: 7px 10px 12px;
+  overflow-y: auto;
+  border-top: 1px solid #eeeeee;
+  outline: 0;
+  color: #111827;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.project-upload-editor__content:empty::before {
+  content: attr(data-placeholder);
+  color: rgba(0, 0, 0, 0.4);
+}
+
+.project-upload-editor__content ul,
+.project-upload-editor__content ol {
+  margin: 4px 0 4px 18px;
+  padding: 0;
+}
+
+.project-upload-editor__content h2,
+.project-upload-editor__content h3,
+.project-upload-editor__content p {
+  margin: 0 0 6px;
 }
 
 .project-upload-list-section {
@@ -588,6 +686,128 @@
   min-width: 0;
   border-radius: 0;
   background: #ffffff;
+}
+
+.project-upload-payment {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 568px;
+  margin-top: -10px;
+}
+
+.project-upload-payment > span {
+  color: rgba(0, 0, 0, 0.4);
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 15px;
+}
+
+.project-upload-code-row {
+  display: grid;
+  grid-template-columns: 332px 110px 78px;
+  align-items: center;
+  gap: 22px;
+  width: 568px;
+}
+
+.project-upload-code-row input {
+  box-sizing: border-box;
+  width: 332px;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid #dbdbdb;
+  border-radius: 4px;
+  outline: 0;
+  background: #f9f9f9;
+  color: #000000;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.project-upload-table__head--actions {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 112px;
+  gap: 8px;
+}
+
+.project-upload-table__head > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-upload-row-actions {
+  display: inline-flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.project-upload-row-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  height: 22px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #111827;
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.project-upload-row-actions button.danger {
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+.project-upload-code-row input::placeholder {
+  color: rgba(0, 0, 0, 0.4);
+}
+
+.project-upload-code-row button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 28px;
+  border: 1px solid #dbdbdb;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #000000;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 13px;
+  cursor: pointer;
+}
+
+.project-upload-payment-info {
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 568px;
+  min-height: 35px;
+  margin: 4px 0 0;
+  padding: 7px 10px;
+  border: 1px solid #dbdbdb;
+  border-radius: 4px;
+  background: #f9f9f9;
+  color: rgba(0, 0, 0, 0.4);
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 12px;
+}
+
+.project-upload-payment-info svg {
+  flex: 0 0 auto;
+  color: #000000;
 }
 
 .project-upload-file-section {
@@ -812,18 +1032,21 @@
   margin-bottom: 16px;
 }
 
-.project-upload-tag-list span {
+.project-upload-tag-list span,
+.project-upload-tag-list button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 43px;
   height: 21px;
   padding: 0 10px;
+  border: 0;
   border-radius: 999px;
   background: #dbdbdb;
   color: #000000;
   font-size: 9px;
   line-height: 11px;
+  cursor: pointer;
 }
 
 .project-upload-actions {

@@ -1,13 +1,15 @@
 .admin-program-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr);
   min-height: calc(100vh - 56px);
   background: #ffffff;
+  overflow: hidden;
 }
 
 .admin-program-content {
   min-width: 0;
   padding: 22px;
+  overflow: hidden;
 }
 
 .admin-program-heading {
@@ -35,14 +37,17 @@
 
 .admin-program-stats {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(172px, 1fr));
   gap: 14px;
   margin-bottom: 16px;
+  overflow-x: auto;
+  padding-bottom: 4px;
 }
 
 .admin-program-stat {
   display: flex;
   align-items: center;
+  min-width: 172px;
   min-height: 104px;
   gap: 14px;
   padding: 16px;
@@ -78,6 +83,7 @@
 .admin-program-stat small {
   margin: 0;
   font-family: 'Inter', sans-serif;
+  overflow-wrap: anywhere;
 }
 
 .admin-program-stat p {
@@ -117,14 +123,15 @@
 
 .admin-program-filter-top {
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) auto auto;
+  grid-template-columns: minmax(260px, 1fr) auto auto auto;
+  align-items: center;
   gap: 14px;
   margin-bottom: 16px;
 }
 
 .admin-program-filter-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
   gap: 18px;
 }
 
@@ -138,7 +145,8 @@
 
 .admin-program-search input,
 .admin-program-filter select,
-.admin-program-filter input[type='text'] {
+.admin-program-filter input[type='text'],
+.admin-program-filter input[type='date'] {
   width: 100%;
   height: 38px;
   border: 1px solid #d8dde6;
@@ -154,7 +162,8 @@
 }
 
 .admin-program-filter select,
-.admin-program-filter input[type='text'] {
+.admin-program-filter input[type='text'],
+.admin-program-filter input[type='date'] {
   padding: 0 12px;
 }
 
@@ -180,6 +189,8 @@
   align-items: center;
   justify-content: center;
   padding: 0 14px;
+  text-decoration: none;
+  white-space: nowrap;
 }
 
 .admin-program-primary {
@@ -189,30 +200,50 @@
 }
 
 .admin-program-table-card {
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   margin-bottom: 18px;
 }
 
 .admin-program-table {
   width: 100%;
+  min-width: 1180px;
   border-collapse: collapse;
   font-family: 'Inter', sans-serif;
+  table-layout: fixed;
 }
 
 .admin-program-table th,
 .admin-program-table td {
   height: 44px;
-  padding: 0 10px;
+  padding: 10px 12px;
   border-bottom: 1px solid #e5e7eb;
   font-size: 11px;
   color: #111827;
   text-align: left;
-  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .admin-program-table th {
   background: #fafafa;
   font-weight: 700;
+}
+
+.admin-program-table th:nth-child(1),
+.admin-program-table td:nth-child(1) {
+  width: 270px;
+}
+
+.admin-program-table th:nth-child(4),
+.admin-program-table td:nth-child(4),
+.admin-program-table th:nth-child(5),
+.admin-program-table td:nth-child(5) {
+  width: 150px;
+}
+
+.admin-program-table th:nth-child(10),
+.admin-program-table td:nth-child(10) {
+  width: 178px;
 }
 
 .admin-program-table td:first-child {
@@ -224,6 +255,10 @@
 .admin-program-table td:first-child b,
 .admin-program-table td:first-child small {
   display: block;
+  max-width: 210px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .admin-program-table td:first-child small {
@@ -308,13 +343,31 @@
 
 .admin-program-actions {
   display: flex;
+  align-items: center;
   gap: 6px;
+  white-space: nowrap;
 }
 
 .admin-program-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 34px;
+  height: 34px;
   padding: 0 8px;
   font-size: 10px;
+  cursor: pointer;
+}
+
+.admin-program-action:last-child,
+.admin-program-action.is-danger {
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+.admin-program-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .admin-program-action img {
@@ -350,14 +403,14 @@
 
 .admin-program-bottom {
   display: grid;
-  grid-template-columns: 1fr 1.1fr 1fr;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
   gap: 16px;
   margin-bottom: 18px;
 }
 
 .admin-program-panel {
   min-height: 210px;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .admin-program-panel-head {
@@ -437,7 +490,7 @@
 
 .admin-program-quick div {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(190px, 230px));
   gap: 14px;
 }
 
@@ -445,12 +498,47 @@
   width: 100%;
 }
 
+.admin-program-quick a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  border-radius: 6px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  text-decoration: none;
+}
+
 .admin-program-detail {
-  border-top: 0;
-  border-right: 0;
-  border-bottom: 0;
-  border-radius: 0;
-  min-height: calc(100vh - 56px);
+  overflow: hidden;
+}
+
+.admin-program-detail-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.admin-program-detail-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(15, 23, 42, 0.46);
+  backdrop-filter: blur(2px);
+  cursor: pointer;
+}
+
+.admin-program-detail-modal .admin-program-detail {
+  position: relative;
+  z-index: 1;
+  width: min(720px, calc(100vw - 32px));
+  max-height: min(760px, calc(100vh - 48px));
+  overflow: auto;
+  border-radius: 12px;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.22);
 }
 
 .admin-program-detail-head {
@@ -572,5 +660,40 @@
 }
 
 .admin-dashboard-page--collapsed .admin-program-layout {
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (max-width: 1180px) {
+  .admin-program-layout,
+  .admin-dashboard-page--collapsed .admin-program-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 860px) {
+  .admin-program-content {
+    padding: 18px;
+  }
+
+  .admin-program-filter-top {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-program-filter-grid,
+  .admin-program-bottom {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .admin-program-detail-modal {
+    align-items: end;
+    padding: 12px;
+  }
+
+  .admin-program-detail-modal .admin-program-detail {
+    width: 100%;
+    max-height: calc(100vh - 24px);
+    border-radius: 10px;
+  }
 }

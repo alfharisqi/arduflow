@@ -4,12 +4,16 @@ const apiBaseUrl = (
   API_BASE_URL
 ).replace(/\/$/, "");
 
+const DEBUG_API = import.meta.env.DEV && import.meta.env.VITE_DEBUG_API === "true";
+
 async function request(path, options = {}) {
   const { headers = {}, ...fetchOptions } = options;
 
   const endpoint = `${apiBaseUrl}${path}`;
 
-  console.log("Request API:", endpoint);
+  if (DEBUG_API) {
+    console.log("Request API:", endpoint);
+  }
 
   let response;
 
@@ -23,7 +27,9 @@ async function request(path, options = {}) {
       },
     });
   } catch (error) {
-    console.error("Request API gagal:", error);
+    if (DEBUG_API) {
+      console.error("Request API gagal:", error);
+    }
 
     throw new Error(
       `API tidak dapat dihubungi di ${endpoint}. ` +
@@ -33,8 +39,10 @@ async function request(path, options = {}) {
 
   const responseText = await response.text();
 
-  console.log("HTTP Status:", response.status);
-  console.log("Response mentah API:", responseText);
+  if (DEBUG_API) {
+    console.log("HTTP Status:", response.status);
+    console.log("Response mentah API:", responseText);
+  }
 
   if (!responseText.trim()) {
     throw new Error(
@@ -53,7 +61,9 @@ async function request(path, options = {}) {
     );
   }
 
-  console.log("Response JSON API:", data);
+  if (DEBUG_API) {
+    console.log("Response JSON API:", data);
+  }
 
   if (!response.ok || data.success === false) {
     const apiError = new Error(

@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
+import { AdminSidebar } from './AdminSidebar.jsx';
+import {
+  getInitialAdminSidebarCollapsed,
+  persistAdminSidebarCollapsed,
+} from './adminSidebarState.js';
 import { apiEndpoint } from '../../services/apiEndpoints.js';
 
+import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
@@ -10,10 +15,8 @@ import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
 import arrowIcon from '../../assets/icons/icon-arrow-right-1.svg';
 import mapIcon from '../../assets/icons/icon-map-pin-1.svg';
 
-const API_URL =
+const WORKSHOP_ENDPOINT =
   apiEndpoint(import.meta.env.VITE_WORKSHOP_API_URL, '/api/workshop-api.php');
-
-const WORKSHOP_ENDPOINT = API_URL;
 const PAGE_SIZE = 6;
 
 function normalizeWorkshop(row) {
@@ -49,6 +52,61 @@ function normalizeWorkshop(row) {
     updatedAt: row?.updatedAt || row?.updated_at || '',
     raw: payload,
   };
+}
+
+function getWorkshopImageUrl(workshop) {
+  const url = workshop?.coverImage?.url;
+  return typeof url === 'string' ? url.trim() : '';
+}
+
+function WorkshopImage({ workshop, className, compact = false }) {
+  const imageUrl = getWorkshopImageUrl(workshop);
+
+  const containerStyle = compact
+    ? {
+        width: 36,
+        height: 36,
+        overflow: 'hidden',
+        borderRadius: 8,
+        flexShrink: 0,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }
+    : {
+        overflow: 'hidden',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      };
+
+  return (
+    <span className={className} style={containerStyle}>
+      {imageUrl ? (
+        <img
+          src={imageUrl}
+          alt={workshop?.title || 'Gambar workshop'}
+          style={{
+            width: '100%',
+            height: '100%',
+            display: 'block',
+            objectFit: 'cover',
+          }}
+        />
+      ) : (
+        <span
+          aria-hidden="true"
+          style={{
+            fontSize: compact ? 8 : 10,
+            opacity: 0.55,
+            textAlign: 'center',
+          }}
+        >
+          No Image
+        </span>
+      )}
+    </span>
+  );
 }
 
 function formatDate(dateValue) {
@@ -94,9 +152,42 @@ function formatPrice(value) {
   }).format(number);
 }
 
+function AdminProgramTopbar({ searchTerm, onSearchChange }) {
+  return (
+    <header className="admin-dashboard-topbar">
+      <label className="admin-dashboard-search">
+        <span aria-hidden="true" />
+        <input
+          type="search"
+          placeholder="Cari workshop / program"
+          aria-label="Cari workshop atau program"
+          value={searchTerm}
+          onChange={(event) => onSearchChange(event.target.value)}
+        />
+      </label>
+
+      <div className="admin-dashboard-account">
+        <button className="admin-dashboard-notif" type="button" aria-label="Notifikasi">
+          <img src={bellIcon} alt="" />
+        </button>
+
+        <span className="admin-dashboard-avatar" aria-hidden="true" />
+
+        <span>
+          <strong>Admin</strong>
+          <small>Super Admin</small>
+        </span>
+      </div>
+    </header>
+  );
+}
+
 function ProgramBadge({ children }) {
   const label = String(children ?? '-');
-  const slug = createSlug(label);
+  const slug = label
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/\//g, '-');
 
   return (
     <span className={`admin-program-badge admin-program-badge--${slug}`}>
@@ -105,10 +196,10 @@ function ProgramBadge({ children }) {
   );
 }
 
-function ProgramAction({ label, children, onClick, disabled = false }) {
+function ProgramAction({ label, children, onClick, disabled = false, className = '' }) {
   return (
     <button
-      className="admin-program-action"
+      className={`admin-program-action ${className}`.trim()}
       type="button"
       aria-label={label}
       onClick={onClick}
@@ -120,6 +211,10 @@ function ProgramAction({ label, children, onClick, disabled = false }) {
 }
 
 export function AdminProgram() {
+  const [isSidebarCollapsed, setSidebarCollapsed] = useState(
+    getInitialAdminSidebarCollapsed,
+  );
+
   const [workshops, setWorkshops] = useState([]);
   const [selectedWorkshopId, setSelectedWorkshopId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -131,6 +226,16 @@ export function AdminProgram() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [page, setPage] = useState(1);
+  const [deletingId, setDeletingId] = useState(null);
+  const [isDetailModalOpen, setDetailModalOpen] = useState(false);
+
+  const handleToggleSidebar = () => {
+    setSidebarCollapsed((value) => {
+      const nextValue = !value;
+      persistAdminSidebarCollapsed(nextValue);
+      return nextValue;
+    });
+  };
 
   async function loadWorkshops() {
     setIsLoading(true);
@@ -173,7 +278,7 @@ export function AdminProgram() {
           return currentId;
         }
 
-        return normalized[0]?.id ?? null;
+        return null;
       });
     } catch (error) {
       console.error('[AdminProgram] LOAD ERROR:', error);
@@ -188,6 +293,77 @@ export function AdminProgram() {
   useEffect(() => {
     loadWorkshops();
   }, []);
+
+  useEffect(() => {
+    if (!isDetailModalOpen) {
+      return undefined;
+    }
+
+    function closeWithEscape(event) {
+      if (event.key === 'Escape') {
+        setDetailModalOpen(false);
+      }
+    }
+
+    document.addEventListener('keydown', closeWithEscape);
+
+    return () => {
+      document.removeEventListener('keydown', closeWithEscape);
+    };
+  }, [isDetailModalOpen]);
+
+  function handleEditWorkshop(workshop) {
+    if (!workshop?.id) return;
+
+    window.location.href = `/admin/tambah-workshop?id=${encodeURIComponent(workshop.id)}`;
+  }
+
+  async function handleDeleteWorkshop(workshop) {
+    if (!workshop?.id) return;
+
+    const confirmed = window.confirm(
+      `Hapus workshop "${workshop.title}"?\n\nData yang dihapus tidak dapat dikembalikan.`,
+    );
+
+    if (!confirmed) return;
+
+    setDeletingId(workshop.id);
+    setLoadError('');
+
+    try {
+      const endpoint = `${WORKSHOP_ENDPOINT}?id=${encodeURIComponent(workshop.id)}`;
+
+      const response = await fetch(endpoint, {
+        method: 'DELETE',
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+
+      const rawText = await response.text();
+      let result;
+
+      try {
+        result = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        throw new Error(
+          `Response DELETE bukan JSON. HTTP ${response.status}.`,
+        );
+      }
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || `Gagal menghapus workshop. HTTP ${response.status}.`);
+      }
+
+      window.alert(`Workshop "${workshop.title}" berhasil dihapus.`);
+      await loadWorkshops();
+    } catch (error) {
+      console.error('[AdminProgram] DELETE ERROR:', error);
+      setLoadError(error.message || 'Gagal menghapus workshop.');
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   const statusOptions = useMemo(
     () => [...new Set(workshops.map((item) => item.status).filter(Boolean))],
@@ -272,10 +448,8 @@ export function AdminProgram() {
 
   const selectedWorkshop = useMemo(
     () =>
-      workshops.find((item) => item.id === selectedWorkshopId) ||
-      filteredWorkshops[0] ||
-      null,
-    [workshops, filteredWorkshops, selectedWorkshopId],
+      workshops.find((item) => item.id === selectedWorkshopId) || null,
+    [workshops, selectedWorkshopId],
   );
 
   const stats = useMemo(() => {
@@ -372,11 +546,22 @@ export function AdminProgram() {
   );
 
   return (
-    <AdminPage pageClassName="admin-program-page" ariaLabel="Workshop dan program admin">
-        <AdminTopbar
-          searchPlaceholder="Cari workshop / program"
-          searchLabel="Cari workshop atau program"
-          searchValue={searchTerm}
+    <main
+      className={`admin-dashboard-page admin-program-page${
+        isSidebarCollapsed ? ' admin-dashboard-page--collapsed' : ''
+      }`}
+    >
+      <AdminSidebar
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={handleToggleSidebar}
+      />
+
+      <section
+        className="admin-dashboard-main"
+        aria-label="Workshop dan program admin"
+      >
+        <AdminProgramTopbar
+          searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
         />
 
@@ -555,7 +740,7 @@ export function AdminProgram() {
                         }
                       >
                         <td>
-                          <span className="admin-program-thumb" />
+                          <WorkshopImage workshop={workshop} className="admin-program-thumb" />
 
                           <span>
                             <b>{workshop.title}</b>
@@ -586,30 +771,28 @@ export function AdminProgram() {
                           <div className="admin-program-actions">
                             <ProgramAction
                               label={`Lihat ${workshop.title}`}
-                              onClick={() => setSelectedWorkshopId(workshop.id)}
+                              onClick={() => {
+                                setSelectedWorkshopId(workshop.id);
+                                setDetailModalOpen(true);
+                              }}
                             >
                               <img src={eyeIcon} alt="" />
                             </ProgramAction>
 
                             <ProgramAction
-                              label={`Kelola peserta ${workshop.title}`}
-                              disabled
-                            >
-                              User
-                            </ProgramAction>
-
-                            <ProgramAction
                               label={`Edit ${workshop.title}`}
-                              disabled
+                              onClick={() => handleEditWorkshop(workshop)}
                             >
                               Edit
                             </ProgramAction>
 
                             <ProgramAction
-                              label={`Sertifikat ${workshop.title}`}
-                              disabled
+                              label={`Hapus ${workshop.title}`}
+                              onClick={() => handleDeleteWorkshop(workshop)}
+                              disabled={deletingId === workshop.id}
+                              className="is-danger"
                             >
-                              Cert
+                              {deletingId === workshop.id ? '...' : 'Delete'}
                             </ProgramAction>
                           </div>
                         </td>
@@ -675,7 +858,7 @@ export function AdminProgram() {
                 ) : (
                   upcomingPrograms.map((item) => (
                     <p key={item.id ?? item.slug}>
-                      <span className="admin-program-mini-thumb" />
+                      <WorkshopImage workshop={item} className="admin-program-mini-thumb" compact />
                       <b>{item.title}</b>
                       <span>{formatDate(item.date)}</span>
                       <span>{item.time || '-'}</span>
@@ -754,110 +937,124 @@ export function AdminProgram() {
               </div>
             </section>
           </section>
-
-          <aside className="admin-program-detail" aria-label="Detail program">
-            <div className="admin-program-detail-head">
-              <h2>Detail Program</h2>
-
-              <button
-                type="button"
-                aria-label="Tutup detail"
-                onClick={() => setSelectedWorkshopId(null)}
-              >
-                x
-              </button>
-            </div>
-
-            {!selectedWorkshop ? (
-              <div style={{ padding: 20 }}>
-                <p>Pilih workshop pada tabel untuk melihat detail.</p>
-              </div>
-            ) : (
-              <>
-                <div className="admin-program-detail-profile">
-                  <span className="admin-program-detail-image" />
-
-                  <h3>{selectedWorkshop.title}</h3>
-
-                  <ProgramBadge>{selectedWorkshop.status}</ProgramBadge>
-
-                  <p>{selectedWorkshop.summary}</p>
-
-                  <ProgramBadge>{selectedWorkshop.category}</ProgramBadge>
-                </div>
-
-                <dl>
-                  <dt>
-                    <img src={clockIcon} alt="" />
-                    Tanggal & Waktu
-                  </dt>
-                  <dd>
-                    {formatSchedule(selectedWorkshop)}
-                    {selectedWorkshop.timezone
-                      ? ` ${selectedWorkshop.timezone}`
-                      : ''}
-                  </dd>
-
-                  <dt>
-                    <img src={mapIcon} alt="" />
-                    Metode
-                  </dt>
-                  <dd>{selectedWorkshop.type}</dd>
-
-                  <dt>
-                    <img src={arrowIcon} alt="" />
-                    Link / Lokasi
-                  </dt>
-                  <dd>{selectedWorkshop.location}</dd>
-
-                  <dt>
-                    <img src={bookIcon} alt="" />
-                    Level / Durasi
-                  </dt>
-                  <dd>
-                    {selectedWorkshop.level} / {selectedWorkshop.duration}
-                  </dd>
-
-                  <dt>
-                    <img src={bookIcon} alt="" />
-                    Platform
-                  </dt>
-                  <dd>{selectedWorkshop.platform}</dd>
-
-                  <dt>
-                    <img src={usersIcon} alt="" />
-                    Harga
-                  </dt>
-                  <dd>{formatPrice(selectedWorkshop.price)}</dd>
-                </dl>
-
-                <section className="admin-program-description">
-                  <h3>Deskripsi Singkat</h3>
-                  <p>{selectedWorkshop.summary}</p>
-                </section>
-
-                <section className="admin-program-description">
-                  <h3>Tentang Workshop</h3>
-                  <p>{selectedWorkshop.about || '-'}</p>
-                </section>
-
-                <div className="admin-program-detail-actions">
-                  <button type="button" className="is-blue" disabled>
-                    Edit Program
-                  </button>
-
-                  <button type="button" disabled>
-                    Kelola Peserta
-                  </button>
-
-                  <button type="button" disabled>
-                    Generate Sertifikat
-                  </button>
-                </div>
-              </>
-            )}
-          </aside>
         </div>
-    </AdminPage>
+
+        {isDetailModalOpen && selectedWorkshop && (
+          <div
+            className="admin-program-detail-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-program-detail-title"
+          >
+            <button
+              className="admin-program-detail-backdrop"
+              type="button"
+              aria-label="Tutup detail program"
+              onClick={() => setDetailModalOpen(false)}
+            />
+
+            <article className="admin-program-detail" aria-label="Detail program">
+              <div className="admin-program-detail-head">
+                <h2 id="admin-program-detail-title">Detail Program</h2>
+
+                <button
+                  type="button"
+                  aria-label="Tutup detail"
+                  onClick={() => setDetailModalOpen(false)}
+                >
+                  x
+                </button>
+              </div>
+
+              <div className="admin-program-detail-profile">
+                <WorkshopImage workshop={selectedWorkshop} className="admin-program-detail-image" />
+
+                <h3>{selectedWorkshop.title}</h3>
+
+                <ProgramBadge>{selectedWorkshop.status}</ProgramBadge>
+
+                <p>{selectedWorkshop.summary}</p>
+
+                <ProgramBadge>{selectedWorkshop.category}</ProgramBadge>
+              </div>
+
+              <dl>
+                <dt>
+                  <img src={clockIcon} alt="" />
+                  Tanggal & Waktu
+                </dt>
+                <dd>
+                  {formatSchedule(selectedWorkshop)}
+                  {selectedWorkshop.timezone
+                    ? ` ${selectedWorkshop.timezone}`
+                    : ''}
+                </dd>
+
+                <dt>
+                  <img src={mapIcon} alt="" />
+                  Metode
+                </dt>
+                <dd>{selectedWorkshop.type}</dd>
+
+                <dt>
+                  <img src={arrowIcon} alt="" />
+                  Link / Lokasi
+                </dt>
+                <dd>{selectedWorkshop.location}</dd>
+
+                <dt>
+                  <img src={bookIcon} alt="" />
+                  Level / Durasi
+                </dt>
+                <dd>
+                  {selectedWorkshop.level} / {selectedWorkshop.duration}
+                </dd>
+
+                <dt>
+                  <img src={bookIcon} alt="" />
+                  Platform
+                </dt>
+                <dd>{selectedWorkshop.platform}</dd>
+
+                <dt>
+                  <img src={usersIcon} alt="" />
+                  Harga
+                </dt>
+                <dd>{formatPrice(selectedWorkshop.price)}</dd>
+              </dl>
+
+              <section className="admin-program-description">
+                <h3>Deskripsi Singkat</h3>
+                <p>{selectedWorkshop.summary}</p>
+              </section>
+
+              <section className="admin-program-description">
+                <h3>Tentang Workshop</h3>
+                <p>{selectedWorkshop.about || '-'}</p>
+              </section>
+
+              <div className="admin-program-detail-actions">
+                <button
+                  type="button"
+                  className="is-blue"
+                  onClick={() => handleEditWorkshop(selectedWorkshop)}
+                >
+                  Edit Program
+                </button>
+
+                <button
+                  type="button"
+                  className="is-danger"
+                  onClick={() => handleDeleteWorkshop(selectedWorkshop)}
+                  disabled={deletingId === selectedWorkshop.id}
+                >
+                  {deletingId === selectedWorkshop.id ? 'Menghapus...' : 'Hapus Program'}
+                </button>
+              </div>
+            </article>
+          </div>
+        )}
+      </section>
+    </main>
   );
 }
