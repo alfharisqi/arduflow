@@ -1,6 +1,6 @@
 .admin-verification-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr);
   min-height: calc(100vh - 56px);
   background: #ffffff;
 }
@@ -11,6 +11,10 @@
 }
 
 .admin-verification-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   margin-bottom: 18px;
 }
 
@@ -31,6 +35,19 @@
 
 .admin-verification-heading span {
   margin: 0 8px;
+}
+
+.admin-verification-heading button {
+  height: 38px;
+  padding: 0 16px;
+  border: 1px solid #1d4ed8;
+  border-radius: 6px;
+  background: #1d4ed8;
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .admin-verification-stats {
@@ -141,7 +158,8 @@
 
 .admin-verification-search input,
 .admin-verification-filter select,
-.admin-verification-filter input[type='text'] {
+.admin-verification-filter input[type='text'],
+.admin-verification-filter input[type='date'] {
   width: 100%;
   height: 38px;
   border: 1px solid #d8dde6;
@@ -157,7 +175,8 @@
 }
 
 .admin-verification-filter select,
-.admin-verification-filter input[type='text'] {
+.admin-verification-filter input[type='text'],
+.admin-verification-filter input[type='date'] {
   padding: 0 12px;
 }
 
@@ -175,12 +194,29 @@
   color: #111827;
 }
 
+.admin-verification-filter button,
+.admin-verification-pagination button,
+.admin-verification-action,
+.admin-verification-panel button,
+.admin-verification-detail-actions button {
+  cursor: pointer;
+}
+
+.admin-verification-pagination button:disabled,
+.admin-verification-action:disabled,
+.admin-verification-panel button:disabled,
+.admin-verification-detail-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .admin-verification-filter button {
   padding: 0 14px;
 }
 
 .admin-verification-table-card {
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   margin-bottom: 18px;
 }
 
@@ -201,6 +237,7 @@
 
 .admin-verification-table {
   width: 100%;
+  min-width: 1180px;
   border-collapse: collapse;
   font-family: 'Inter', sans-serif;
 }
@@ -251,6 +288,14 @@
 .admin-verification-avatar {
   width: 24px;
   height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-family: 'Inter', sans-serif;
+  font-size: 9px;
+  font-weight: 800;
 }
 
 .admin-verification-badge {
@@ -276,7 +321,10 @@
 }
 
 .admin-verification-badge--gagal,
-.admin-verification-badge--expired {
+.admin-verification-badge--expired,
+.admin-verification-badge--token-kosong,
+.admin-verification-badge--belum-terkirim,
+.admin-verification-badge--nonaktif {
   background: #fee2e2;
   color: #dc2626;
 }
@@ -290,6 +338,7 @@
 .admin-verification-actions {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 .admin-verification-action {
@@ -357,11 +406,17 @@
   color: #111827;
 }
 
+.admin-verification-panel-head button,
 .admin-verification-panel-head a {
   font-family: 'Inter', sans-serif;
   font-size: 12px;
   color: #2563eb;
   text-decoration: none;
+}
+
+.admin-verification-panel-head button {
+  height: 28px;
+  padding: 0 10px;
 }
 
 .admin-verification-panel table {
@@ -499,11 +554,22 @@
 }
 
 .admin-verification-detail {
-  border-top: 0;
-  border-right: 0;
-  border-bottom: 0;
-  border-radius: 0;
-  min-height: calc(100vh - 56px);
+  width: min(460px, calc(100vw - 40px));
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+  border-radius: 8px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+}
+
+.admin-verification-detail-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  background: rgba(15, 23, 42, 0.42);
 }
 
 .admin-verification-detail-head {
@@ -538,6 +604,14 @@
   width: 70px;
   height: 70px;
   margin-bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-family: 'Inter', sans-serif;
+  font-size: 20px;
+  font-weight: 800;
 }
 
 .admin-verification-detail-profile h3,
@@ -632,6 +706,25 @@
   color: #dc2626;
 }
 
-.admin-dashboard-page--collapsed .admin-verification-layout {
-  grid-template-columns: minmax(0, 1fr) 320px;
+@media (max-width: 960px) {
+  .admin-verification-stats,
+  .admin-verification-bottom {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-verification-filter {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-verification-stats,
+  .admin-verification-bottom,
+  .admin-verification-filter {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-verification-detail-overlay {
+    padding: 14px;
+  }
 }

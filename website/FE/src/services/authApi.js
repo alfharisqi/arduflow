@@ -218,6 +218,47 @@ export function deleteAdminUser(
   });
 }
 
+export function verifyAdminUserEmail(
+  userId,
+  token = window.localStorage.getItem(
+    "arduflow_admin_token"
+  )
+) {
+  return request(`/api/admin/users/${encodeURIComponent(userId)}/verify-email`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token || ""}`,
+    },
+  });
+}
+
+export function resendAdminUserVerification(
+  userId,
+  token = window.localStorage.getItem(
+    "arduflow_admin_token"
+  )
+) {
+  return request(`/api/admin/users/${encodeURIComponent(userId)}/resend-verification`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token || ""}`,
+    },
+  });
+}
+
+export function clearAdminVerificationTokens(
+  token = window.localStorage.getItem(
+    "arduflow_admin_token"
+  )
+) {
+  return request("/api/admin/users/verification/clear-tokens", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token || ""}`,
+    },
+  });
+}
+
 /*
 |--------------------------------------------------------------------------
 | Email verification

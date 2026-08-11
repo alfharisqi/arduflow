@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS workshop_registrations (
+    id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+    participant_name VARCHAR(191) NOT NULL,
+    participant_email VARCHAR(191) NOT NULL,
+    participant_whatsapp VARCHAR(64) NOT NULL,
+    institution_name VARCHAR(255) NULL,
+    workshop_id BIGINT UNSIGNED NULL,
+    workshop_choice VARCHAR(255) NOT NULL,
+    participant_estimate VARCHAR(191) NULL,
+    member_names TEXT NULL,
+    notes TEXT NULL,
+    source VARCHAR(64) NOT NULL DEFAULT 'website',
+    status VARCHAR(64) NOT NULL DEFAULT 'new',
+    deleted_at DATETIME NULL,
+    version INT NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    INDEX workshop_registrations_workshop_idx (workshop_id, status, created_at),
+    CONSTRAINT workshop_registrations_workshop_fk FOREIGN KEY (workshop_id) REFERENCES workshops(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

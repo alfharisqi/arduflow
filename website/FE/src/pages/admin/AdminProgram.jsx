@@ -5,6 +5,7 @@ import {
   persistAdminSidebarCollapsed,
 } from './adminSidebarState.js';
 import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
+import { showConfirmAlert, showSuccessAlert } from '../../utils/alerts.js';
 
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
@@ -333,9 +334,11 @@ export function AdminProgram() {
   async function handleDeleteWorkshop(workshop) {
     if (!workshop?.id) return;
 
-    const confirmed = window.confirm(
-      `Hapus workshop "${workshop.title}"?\n\nData yang dihapus tidak dapat dikembalikan.`,
-    );
+    const confirmed = await showConfirmAlert({
+      title: 'Hapus Workshop?',
+      text: `Hapus workshop "${workshop.title}"? Data yang dihapus tidak dapat dikembalikan.`,
+      confirmButtonText: 'Hapus',
+    });
 
     if (!confirmed) return;
 
@@ -367,7 +370,7 @@ export function AdminProgram() {
         throw new Error(result.message || `Gagal menghapus workshop. HTTP ${response.status}.`);
       }
 
-      window.alert(`Workshop "${workshop.title}" berhasil dihapus.`);
+      await showSuccessAlert('Workshop Terhapus', `Workshop "${workshop.title}" berhasil dihapus.`);
       await loadWorkshops();
     } catch (error) {
       console.error('[AdminProgram] DELETE ERROR:', error);

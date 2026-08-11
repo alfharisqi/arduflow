@@ -68,6 +68,25 @@ function countBy(items, getter) {
   }, {});
 }
 
+const META_LABELS = {
+  institution_name: 'Asal Institusi',
+  institution_type: 'Tipe Institusi',
+  workshop_id: 'ID Workshop',
+  workshop_choice: 'Pilihan Workshop',
+  participant_estimate: 'Jumlah Peserta',
+  member_names: 'Nama Anggota',
+  demo_schedule: 'Jadwal Demo',
+};
+
+function leadMetaRows(meta) {
+  return Object.entries(meta || {})
+    .filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== '')
+    .map(([key, value]) => ({
+      label: META_LABELS[key] || key.replaceAll('_', ' '),
+      value: String(value),
+    }));
+}
+
 function isTodayIso(value) {
   if (!value) return false;
   const date = new Date(value);
@@ -206,6 +225,7 @@ export function AdminLeads() {
   const priorityOptions = Object.keys(countBy(leads, (lead) => lead.priority));
   const picOptions = Object.keys(countBy(leads, (lead) => lead.pic)).filter((item) => item !== '-');
   const priorityLeads = leads.filter((lead) => lead.priority === 'Tinggi').slice(0, 4);
+  const selectedLeadMetaRows = leadMetaRows(selectedLead?.meta);
   const activityItems = leads.slice(0, 4).map((lead) => ({
     text: `Lead baru dari ${lead.name}`,
     time: lead.createdAtLabel,
@@ -476,6 +496,19 @@ export function AdminLeads() {
               <h3>Pesan Masuk</h3>
               <p>{selectedLead.message || '-'}</p>
             </section>
+            {selectedLeadMetaRows.length > 0 && (
+              <section className="admin-leads-message">
+                <h3>Detail Form</h3>
+                <dl>
+                  {selectedLeadMetaRows.map((item) => (
+                    <div key={item.label}>
+                      <dt>{item.label}</dt>
+                      <dd>{item.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            )}
             <section className="admin-leads-note">
               <h3>Catatan Internal</h3>
               <textarea placeholder="Tambah catatan..." />

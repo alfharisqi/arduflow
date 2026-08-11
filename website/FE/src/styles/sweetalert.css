@@ -40,6 +40,25 @@
   outline-offset: 2px;
 }
 
+.arduflow-swal-cancel {
+  min-width: 118px;
+  height: 42px;
+  padding: 0 22px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.arduflow-swal-cancel:focus {
+  outline: 2px solid #00a2ff;
+  outline-offset: 2px;
+}
+
 .arduflow-swal-timer {
   background: linear-gradient(90deg, #ff6a00, #00a2ff);
 }

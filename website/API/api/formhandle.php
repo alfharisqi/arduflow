@@ -124,6 +124,60 @@ function tableExists(PDO $pdo, string $table): bool
     return $statement->fetchColumn() !== false;
 }
 
+function columnExists(PDO $pdo, string $table, string $column): bool
+{
+    $statement = $pdo->query(
+        'PRAGMA table_info(' . $table . ')'
+    );
+
+    $columns = array_map(
+        static fn (array $row): string =>
+            (string) ($row['name'] ?? ''),
+        $statement->fetchAll()
+    );
+
+    return in_array($column, $columns, true);
+}
+
+function addColumnIfMissing(
+    PDO $pdo,
+    string $table,
+    string $column,
+    string $definition
+): void {
+    if (!columnExists($pdo, $table, $column)) {
+        $pdo->exec(
+            'ALTER TABLE '
+            . $table
+            . ' ADD COLUMN '
+            . $column
+            . ' '
+            . $definition
+        );
+    }
+}
+
+function ensureWorkshopRegistrationColumns(PDO $pdo): void
+{
+    if (!tableExists($pdo, 'workshop_registrations')) {
+        return;
+    }
+
+    addColumnIfMissing(
+        $pdo,
+        'workshop_registrations',
+        'workshop_id',
+        'INTEGER NULL'
+    );
+
+    addColumnIfMissing(
+        $pdo,
+        'workshop_registrations',
+        'member_names',
+        'TEXT NULL'
+    );
+}
+
 /*
 |--------------------------------------------------------------------------
 | CORS
@@ -502,6 +556,8 @@ function fetchAdminLeads(PDO $pdo): array
     }
 
     if (tableExists($pdo, 'workshop_registrations')) {
+        ensureWorkshopRegistrationColumns($pdo);
+
         $statement = $pdo->query(
             "SELECT
                 id,
@@ -509,8 +565,10 @@ function fetchAdminLeads(PDO $pdo): array
                 participant_email,
                 participant_whatsapp,
                 institution_name,
+                workshop_id,
                 workshop_choice,
                 participant_estimate,
+                member_names,
                 notes,
                 source,
                 status,
@@ -549,7 +607,10 @@ function fetchAdminLeads(PDO $pdo): array
                 'updated_at_label' => formatAdminDate($row['updated_at'] ?? null),
                 'meta' => [
                     'institution_name' => $row['institution_name'] ?? null,
+                    'workshop_id' => $row['workshop_id'] ?? null,
+                    'workshop_choice' => $row['workshop_choice'] ?? null,
                     'participant_estimate' => $row['participant_estimate'] ?? null,
+                    'member_names' => $row['member_names'] ?? null,
                 ],
             ];
         }
@@ -1247,9 +1308,46 @@ if ($formType === 'workshop') {
         (string) ($payload['pilihan_workshop'] ?? '')
     );
 
+    $workshopIdRaw = trim(
+        (string) ($payload['pilihan_workshop_id'] ?? '')
+    );
+
+    $workshopId =
+        ctype_digit($workshopIdRaw) && (int) $workshopIdRaw > 0
+            ? (int) $workshopIdRaw
+            : null;
+
+    if (
+        $workshopChoice === ''
+        && $workshopId !== null
+        && tableExists($pdo, 'workshops')
+    ) {
+        $workshopStatement = $pdo->prepare(
+            'SELECT title
+             FROM workshops
+             WHERE id = :id
+             AND deleted_at IS NULL
+             LIMIT 1'
+        );
+
+        $workshopStatement->execute([
+            ':id' => $workshopId,
+        ]);
+
+        $workshopChoice = trim(
+            (string) ($workshopStatement->fetchColumn() ?: '')
+        );
+    }
+
     $participantEstimate = trim(
         (string) (
             $payload['jumlah_peserta_workshop'] ?? ''
+        )
+    );
+
+    $memberNames = trim(
+        (string) (
+            $payload['nama_anggota_workshop'] ?? ''
         )
     );
 
@@ -1301,9 +1399,19 @@ if ($formType === 'workshop') {
             'Pilihan workshop maksimal 200 karakter.';
     }
 
+    if ($workshopIdRaw !== '' && $workshopId === null) {
+        $errors['pilihan_workshop'] =
+            'Pilihan workshop tidak valid.';
+    }
+
     if (textLength($participantEstimate) > 150) {
         $errors['jumlah_peserta_workshop'] =
             'Jumlah peserta maksimal 150 karakter.';
+    }
+
+    if (textLength($memberNames) > 2000) {
+        $errors['nama_anggota_workshop'] =
+            'Nama anggota maksimal 2000 karakter.';
     }
 
     if (textLength($notes) > 2000) {
@@ -1333,6 +1441,8 @@ if ($formType === 'workshop') {
         );
     }
 
+    ensureWorkshopRegistrationColumns($pdo);
+
     $institutionNameValue =
         $institutionName !== ''
             ? $institutionName
@@ -1341,6 +1451,11 @@ if ($formType === 'workshop') {
     $participantEstimateValue =
         $participantEstimate !== ''
             ? $participantEstimate
+            : null;
+
+    $memberNamesValue =
+        $memberNames !== ''
+            ? $memberNames
             : null;
 
     $notesValue =
@@ -1357,8 +1472,10 @@ if ($formType === 'workshop') {
                 participant_email,
                 participant_whatsapp,
                 institution_name,
+                workshop_id,
                 workshop_choice,
                 participant_estimate,
+                member_names,
                 notes,
                 source,
                 status,
@@ -1371,8 +1488,10 @@ if ($formType === 'workshop') {
                 :participant_email,
                 :participant_whatsapp,
                 :institution_name,
+                :workshop_id,
                 :workshop_choice,
                 :participant_estimate,
+                :member_names,
                 :notes,
                 :source,
                 :status,
@@ -1390,9 +1509,11 @@ if ($formType === 'workshop') {
                 $participantWhatsapp,
             ':institution_name' =>
                 $institutionNameValue,
+            ':workshop_id' => $workshopId,
             ':workshop_choice' => $workshopChoice,
             ':participant_estimate' =>
                 $participantEstimateValue,
+            ':member_names' => $memberNamesValue,
             ':notes' => $notesValue,
             ':source' => 'website',
             ':status' => 'new',
@@ -1420,10 +1541,13 @@ if ($formType === 'workshop') {
                         $participantWhatsapp,
                     'institution_name' =>
                         $institutionNameValue,
+                    'workshop_id' => $workshopId,
                     'workshop_choice' =>
                         $workshopChoice,
                     'participant_estimate' =>
                         $participantEstimateValue,
+                    'member_names' =>
+                        $memberNamesValue,
                     'notes' => $notesValue,
                     'source' => 'website',
                     'status' => 'new',

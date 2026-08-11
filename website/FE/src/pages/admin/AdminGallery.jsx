@@ -6,6 +6,7 @@ import {
   getInitialAdminSidebarCollapsed,
   persistAdminSidebarCollapsed,
 } from './adminSidebarState.js';
+import { showConfirmAlert, showPromptAlert, showSuccessAlert } from '../../utils/alerts.js';
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import cameraIcon from '../../assets/icons/icon-image-placeholder-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
@@ -233,8 +234,12 @@ function GalleryRichTextEditor({ value, onChange, hasError }) {
     event.target.value = 'p';
   };
 
-  const handleLink = () => {
-    const url = window.prompt('Masukkan URL link');
+  const handleLink = async () => {
+    const url = await showPromptAlert({
+      title: 'Masukkan URL Link',
+      inputPlaceholder: 'https://contoh.com',
+      confirmButtonText: 'Tambahkan',
+    });
     if (url) {
       runCommand('createLink', url);
     }
@@ -439,7 +444,7 @@ function AdminGalleryUploadForm({ onCancel, onSaved, mode = 'create', initialGal
       setJsonResult(result);
       setFormError('');
       setMessage(result.message || 'Galeri berhasil disimpan.');
-      alert(result.message || 'Galeri berhasil disimpan.');
+      await showSuccessAlert('Berhasil', result.message || 'Galeri berhasil disimpan.');
 
       if (typeof onSaved === 'function') {
         onSaved();
@@ -752,7 +757,11 @@ export function AdminGallery() {
       return;
     }
 
-    const confirmed = window.confirm(`Yakin ingin menghapus galeri "${gallery.title || 'Tanpa Judul'}"?`);
+    const confirmed = await showConfirmAlert({
+      title: 'Hapus Galeri?',
+      text: `Yakin ingin menghapus galeri "${gallery.title || 'Tanpa Judul'}"?`,
+      confirmButtonText: 'Hapus',
+    });
     if (!confirmed) return;
 
     try {

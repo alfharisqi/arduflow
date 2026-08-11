@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import '../../styles/admin-tutorial-create.css';
 import { apiEndpoint } from '../../services/apiEndpoints.js';
+import { showConfirmAlert, showPromptAlert } from '../../utils/alerts.js';
 
 const ARTICLE_API_URL = apiEndpoint(
   import.meta.env.VITE_ARTICLE_API_URL || import.meta.env.VITE_TUTORIAL_API_URL,
@@ -231,10 +232,14 @@ export function AdminTutorialEdit() {
     setSelectedSlideId(newSlide.id);
   };
 
-  const renameSlide = (slideIndex) => {
+  const renameSlide = async (slideIndex) => {
     const slide = slides[slideIndex];
     const currentTitle = slide?.title || `Slide ${slideIndex + 1}`;
-    const nextTitle = window.prompt('Ubah judul materi:', currentTitle);
+    const nextTitle = await showPromptAlert({
+      title: 'Ubah Judul Materi',
+      inputValue: currentTitle,
+      requiredMessage: 'Judul materi wajib diisi.',
+    });
 
     if (!nextTitle?.trim()) {
       return;
@@ -247,10 +252,14 @@ export function AdminTutorialEdit() {
     );
   };
 
-  const removeSlide = (slideIndex) => {
+  const removeSlide = async (slideIndex) => {
     const slide = slides[slideIndex];
     const slideTitle = slide?.title || `Slide ${slideIndex + 1}`;
-    const confirmed = window.confirm(`Hapus "${slideTitle}" dari daftar materi?`);
+    const confirmed = await showConfirmAlert({
+      title: 'Hapus Materi?',
+      text: `Hapus "${slideTitle}" dari daftar materi?`,
+      confirmButtonText: 'Hapus',
+    });
 
     if (!confirmed) {
       return;

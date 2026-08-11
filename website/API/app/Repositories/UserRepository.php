@@ -294,7 +294,7 @@ final class UserRepository
         $total = $this->countAdminUsers($where, $params);
         $statement = $this->pdo->prepare(
             'SELECT users.id, users.name, users.username, users.email, users.whatsapp, users.occupation, ' .
-            'users.institution_name, users.avatar_path, users.is_active, users.email_verified_at, users.verification_sent_at, ' .
+            'users.institution_name, users.avatar_path, users.is_active, users.email_verified_at, users.verification_token, users.verification_sent_at, ' .
             'users.created_at, latest_session.last_login_at, active_session.user_id AS active_user_id ' .
             'FROM users ' .
             'LEFT JOIN (SELECT user_id, MAX(COALESCE(last_used_at, created_at)) AS last_login_at FROM user_sessions GROUP BY user_id) latest_session ' .
@@ -395,6 +395,69 @@ final class UserRepository
         ], $rows);
     }
 
+    public function adminVerifyEmail(int $id): ?array
+    {
+        return Transaction::immediate($this->pdo, function () use ($id): ?array {
+            $user = $this->findById($id);
+            if (!$user) {
+                return null;
+            }
+
+            $now = Clock::now();
+            $statement = $this->pdo->prepare(
+                'UPDATE users SET email_verified_at = :verified_at, verification_token = NULL, ' .
+                'version = version + 1, updated_at = :updated_at WHERE id = :id AND deleted_at IS NULL'
+            );
+            $statement->execute([
+                'verified_at' => $now,
+                'updated_at' => $now,
+                'id' => $id,
+            ]);
+            $this->outbox->enqueue($this->pdo, 'users', $id, 'update');
+
+            return $this->findById($id);
+        });
+    }
+
+    public function adminSetVerificationToken(int $id, string $hashedToken): ?array
+    {
+        return Transaction::immediate($this->pdo, function () use ($id, $hashedToken): ?array {
+            $user = $this->findById($id);
+            if (!$user) {
+                return null;
+            }
+
+            $now = Clock::now();
+            $statement = $this->pdo->prepare(
+                'UPDATE users SET verification_token = :token, verification_sent_at = :sent_at, ' .
+                'email_verified_at = NULL, version = version + 1, updated_at = :updated_at ' .
+                'WHERE id = :id AND deleted_at IS NULL'
+            );
+            $statement->execute([
+                'token' => $hashedToken,
+                'sent_at' => $now,
+                'updated_at' => $now,
+                'id' => $id,
+            ]);
+            $this->outbox->enqueue($this->pdo, 'users', $id, 'update');
+
+            return $this->findById($id);
+        });
+    }
+
+    public function adminClearUnverifiedTokens(): int
+    {
+        return Transaction::immediate($this->pdo, function (): int {
+            $statement = $this->pdo->prepare(
+                'UPDATE users SET verification_token = NULL, version = version + 1, updated_at = :updated_at ' .
+                'WHERE deleted_at IS NULL AND email_verified_at IS NULL AND verification_token IS NOT NULL'
+            );
+            $statement->execute(['updated_at' => Clock::now()]);
+
+            return $statement->rowCount();
+        });
+    }
+
     private function one(string $sql, array $params): ?array
     {
         $statement = $this->pdo->prepare($sql);
@@ -468,6 +531,9 @@ final class UserRepository
             'whatsapp' => $row['whatsapp'] ?: '-',
             'workplace' => trim($work . ($work !== '' && $institution !== '' ? ' / ' : '') . $institution) ?: '-',
             'emailStatus' => $row['email_verified_at'] ? 'Terverifikasi' : 'Belum Verifikasi',
+            'emailVerifiedAt' => $row['email_verified_at'] ?: null,
+            'verificationSentAt' => $row['verification_sent_at'] ?: null,
+            'hasVerificationToken' => !empty($row['verification_token']),
             'accountStatus' => ((int) ($row['is_active'] ?? 1)) === 1 ? 'Aktif' : 'Nonaktif',
             'sessionStatus' => $row['active_user_id'] ? 'Online' : 'Offline',
             'isActive' => ((int) ($row['is_active'] ?? 1)) === 1,

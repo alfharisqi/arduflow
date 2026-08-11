@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { WorkshopImageCropper } from '../../features/profile-image-crop/WorkshopImageCropper.jsx';
 import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
+import { showSuccessAlert } from '../../utils/alerts.js';
 
 const levels = ['Pemula', 'Menengah', 'Lanjutan'];
 const categories = ['Arduino', 'IoT', 'Visual Programming', 'Sekolah'];
@@ -784,10 +785,11 @@ export function AdminTambahWorkshop() {
         console.info('[AdminTambahWorkshop] WORKSHOP BERHASIL DISIMPAN:', result);
       }
 
-      window.alert(
+      await showSuccessAlert(
+        isEditMode ? 'Workshop Diperbarui' : 'Workshop Disimpan',
         isEditMode
-          ? `Workshop berhasil diperbarui!\nID: ${result.data?.id ?? editingId ?? '-'}`
-          : `Workshop berhasil disimpan!\nID: ${result.data?.id ?? '-'}`,
+          ? `ID: ${result.data?.id ?? editingId ?? '-'}`
+          : `ID: ${result.data?.id ?? '-'}`
       );
 
       if (isEditMode) {

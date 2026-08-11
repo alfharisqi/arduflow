@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { apiEndpoint } from '../../services/apiEndpoints.js';
+import { showErrorAlert, showPromptAlert, showSuccessAlert } from '../../utils/alerts.js';
 import '../../styles/admin-tutorial-create.css';
 
 const ARTICLE_API_URL = apiEndpoint(import.meta.env.VITE_ARTICLE_API_URL, '/api/article-api.php');
@@ -279,11 +280,15 @@ export function AdminTutorialCreate() {
     });
   };
 
-  const renameSlide = (slideId) => {
+  const renameSlide = async (slideId) => {
     const slide = slides.find((item) => item.id === slideId);
     if (!slide) return;
 
-    const nextTitle = window.prompt('Ubah judul materi:', slide.title);
+    const nextTitle = await showPromptAlert({
+      title: 'Ubah Judul Materi',
+      inputValue: slide.title,
+      requiredMessage: 'Judul materi wajib diisi.',
+    });
     if (!nextTitle?.trim()) return;
 
     setSlides((previousSlides) =>
@@ -516,10 +521,10 @@ export function AdminTutorialCreate() {
   const copyJson = async (data) => {
     try {
       await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
-      window.alert('JSON berhasil disalin.');
+      await showSuccessAlert('Berhasil', 'JSON berhasil disalin.');
     } catch (error) {
       console.error('Gagal menyalin JSON:', error);
-      window.alert('JSON gagal disalin.');
+      await showErrorAlert('Gagal', 'JSON gagal disalin.');
     }
   };
 

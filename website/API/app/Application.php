@@ -95,7 +95,7 @@ final class Application
             $sessions,
             new AdminDashboardRepository($sqlite, $syncStatus, $config, $connections->sqlitePath()),
         );
-        $adminUsers = new AdminUsersController($sessions, $users);
+        $adminUsers = new AdminUsersController($sessions, $users, $tokens, new MailService($config));
 
         $this->router = new Router();
         $this->router->get('/api/health', [$health, 'basic']);
@@ -116,7 +116,10 @@ final class Application
         $this->router->post('/api/admin/logout', [$adminAuth, 'logout']);
         $this->router->get('/api/admin/dashboard', [$adminDashboard, 'show']);
         $this->router->get('/api/admin/users', [$adminUsers, 'index']);
+        $this->router->post('/api/admin/users/verification/clear-tokens', [$adminUsers, 'clearVerificationTokens']);
         $this->router->put('/api/admin/users/{id}/status', [$adminUsers, 'updateStatus']);
+        $this->router->post('/api/admin/users/{id}/verify-email', [$adminUsers, 'verifyEmail']);
+        $this->router->post('/api/admin/users/{id}/resend-verification', [$adminUsers, 'resendVerification']);
         $this->router->delete('/api/admin/users/{id}', [$adminUsers, 'delete']);
         $this->router->get('/api/admin/database-sync/status', [$adminSync, 'status']);
         $this->router->post('/api/admin/database-sync/run', [$adminSync, 'run']);

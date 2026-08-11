@@ -1,14 +1,71 @@
-import { useState } from "react";
-import { workshopOptions } from "./leadOptions";
+import { useEffect, useMemo, useState } from "react";
 import { submitWorkshop } from "./leadApi";
+import {
+  fetchWorkshops,
+  isPublicWorkshop,
+} from "../../services/workshopApi.js";
 
 function WorkshopForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingWorkshops, setIsLoadingWorkshops] =
+    useState(true);
+  const [workshopLoadError, setWorkshopLoadError] =
+    useState("");
+  const [workshops, setWorkshops] = useState([]);
+  const [selectedWorkshopId, setSelectedWorkshopId] =
+    useState("");
   const [errors, setErrors] = useState({});
   const [notification, setNotification] = useState({
     type: "",
     message: "",
   });
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadWorkshops() {
+      setIsLoadingWorkshops(true);
+      setWorkshopLoadError("");
+
+      try {
+        const rows = await fetchWorkshops();
+        const publicWorkshops = rows.filter(isPublicWorkshop);
+        const visibleWorkshops =
+          publicWorkshops.length > 0 ? publicWorkshops : rows;
+
+        if (!isActive) return;
+
+        setWorkshops(visibleWorkshops);
+      } catch (error) {
+        if (!isActive) return;
+
+        setWorkshopLoadError(
+          error.message ||
+            "Data workshop tidak dapat dimuat dari database."
+        );
+        setWorkshops([]);
+      } finally {
+        if (isActive) {
+          setIsLoadingWorkshops(false);
+        }
+      }
+    }
+
+    loadWorkshops();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  const selectedWorkshop = useMemo(
+    () =>
+      workshops.find(
+        (workshop) =>
+          String(workshop.id) === String(selectedWorkshopId)
+      ) || null,
+    [selectedWorkshopId, workshops]
+  );
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -39,8 +96,16 @@ function WorkshopForm() {
         formData.get("pilihan_workshop") || ""
       ).trim(),
 
+      pilihan_workshop_id: String(
+        formData.get("pilihan_workshop_id") || ""
+      ).trim(),
+
       jumlah_peserta_workshop: String(
         formData.get("jumlah_peserta_workshop") || ""
+      ).trim(),
+
+      nama_anggota_workshop: String(
+        formData.get("nama_anggota_workshop") || ""
       ).trim(),
 
       catatan_workshop: String(
@@ -73,6 +138,7 @@ function WorkshopForm() {
       });
 
       form.reset();
+      setSelectedWorkshopId("");
     } catch (error) {
       console.error("Workshop gagal:", error);
 
@@ -191,20 +257,38 @@ function WorkshopForm() {
             <span>Pilihan Workshop *</span>
 
             <select
-              name="pilihan_workshop"
-              defaultValue=""
+              name="pilihan_workshop_id"
+              value={selectedWorkshopId}
+              onChange={(event) =>
+                setSelectedWorkshopId(event.target.value)
+              }
+              disabled={isLoadingWorkshops}
               required
             >
               <option value="" disabled>
-                Pilih workshop
+                {isLoadingWorkshops
+                  ? "Memuat workshop..."
+                  : "Pilih workshop"}
               </option>
 
-              {workshopOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
+              {workshops.map((workshop) => (
+                <option key={workshop.id} value={workshop.id}>
+                  {workshop.title}
                 </option>
               ))}
             </select>
+
+            <input
+              name="pilihan_workshop"
+              type="hidden"
+              value={selectedWorkshop?.title || ""}
+            />
+
+            {workshopLoadError && (
+              <small className="lead-field-error">
+                {workshopLoadError}
+              </small>
+            )}
 
             {errors.pilihan_workshop && (
               <small className="lead-field-error">
@@ -214,7 +298,7 @@ function WorkshopForm() {
           </label>
 
           <label className="lead-field">
-            <span>Jumlah Peserta</span>
+            <span>Jumlah Anggota / Peserta</span>
 
             <input
               name="jumlah_peserta_workshop"
@@ -226,6 +310,23 @@ function WorkshopForm() {
             {errors.jumlah_peserta_workshop && (
               <small className="lead-field-error">
                 {errors.jumlah_peserta_workshop}
+              </small>
+            )}
+          </label>
+
+          <label className="lead-field">
+            <span>Nama Anggota</span>
+
+            <textarea
+              name="nama_anggota_workshop"
+              placeholder="Tulis nama anggota/peserta, satu nama per baris..."
+              rows={4}
+              maxLength={2000}
+            />
+
+            {errors.nama_anggota_workshop && (
+              <small className="lead-field-error">
+                {errors.nama_anggota_workshop}
               </small>
             )}
           </label>
@@ -269,7 +370,7 @@ function WorkshopForm() {
           <button
             className="lead-form-submit"
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isLoadingWorkshops}
           >
             {isSubmitting
               ? "MENGIRIM..."

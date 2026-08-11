@@ -7,6 +7,7 @@ import projectImage from '../../assets/images/workshop-experience-student.png';
 import { ProfileAvatar } from '../../features/profile-image-crop/ProfileAvatar.jsx';
 import { WorkshopImageCropper } from '../../features/profile-image-crop/WorkshopImageCropper.jsx';
 import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
+import { showConfirmAlert, showPromptAlert, showSuccessAlert } from '../../utils/alerts.js';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 
 const menuItems = [
@@ -219,8 +220,12 @@ function RichTextEditor({ value, onChange, error }) {
     onChange(editorRef.current?.innerHTML || '');
   }
 
-  function addLink() {
-    const url = window.prompt('Masukkan URL link:');
+  async function addLink() {
+    const url = await showPromptAlert({
+      title: 'Masukkan URL Link',
+      inputPlaceholder: 'https://contoh.com',
+      confirmButtonText: 'Tambahkan',
+    });
     if (!url?.trim()) return;
     runCommand('createLink', url.trim());
   }
@@ -464,10 +469,17 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     clearFieldError('description');
   }
 
-  function addTool() {
-    const name = window.prompt('Masukkan nama alat atau komponen:');
+  async function addTool() {
+    const name = await showPromptAlert({
+      title: 'Tambah Komponen',
+      text: 'Masukkan nama alat atau komponen.',
+      requiredMessage: 'Nama komponen wajib diisi.',
+    });
     if (!name?.trim()) return;
-    const specification = window.prompt('Masukkan keterangan atau spesifikasi:') || '';
+    const specification = await showPromptAlert({
+      title: 'Spesifikasi Komponen',
+      text: 'Masukkan keterangan atau spesifikasi.',
+    }) || '';
     setFormData((current) => ({
       ...current,
       tools: [...current.tools, { name: name.trim(), specification: specification.trim() }],
@@ -475,12 +487,21 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     clearFieldError('tools');
   }
 
-  function editTool(index) {
+  async function editTool(index) {
     const selected = formData.tools[index];
     if (!selected) return;
-    const name = window.prompt('Edit nama alat atau komponen:', selected.name);
+    const name = await showPromptAlert({
+      title: 'Edit Komponen',
+      text: 'Edit nama alat atau komponen.',
+      inputValue: selected.name,
+      requiredMessage: 'Nama komponen wajib diisi.',
+    });
     if (!name?.trim()) return;
-    const specification = window.prompt('Edit keterangan atau spesifikasi:', selected.specification || '') || '';
+    const specification = await showPromptAlert({
+      title: 'Edit Spesifikasi',
+      text: 'Edit keterangan atau spesifikasi.',
+      inputValue: selected.specification || '',
+    }) || '';
     setFormData((current) => ({
       ...current,
       tools: current.tools.map((tool, toolIndex) =>
@@ -489,18 +510,30 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     }));
   }
 
-  function deleteTool(index) {
-    if (!window.confirm('Hapus alat atau komponen ini?')) return;
+  async function deleteTool(index) {
+    const confirmed = await showConfirmAlert({
+      title: 'Hapus Komponen?',
+      text: 'Alat atau komponen ini akan dihapus dari form.',
+      confirmButtonText: 'Hapus',
+    });
+    if (!confirmed) return;
     setFormData((current) => ({
       ...current,
       tools: current.tools.filter((_, toolIndex) => toolIndex !== index),
     }));
   }
 
-  function addNode() {
-    const name = window.prompt('Masukkan nama node ArduFlow:');
+  async function addNode() {
+    const name = await showPromptAlert({
+      title: 'Tambah Node ArduFlow',
+      text: 'Masukkan nama node ArduFlow.',
+      requiredMessage: 'Nama node wajib diisi.',
+    });
     if (!name?.trim()) return;
-    const description = window.prompt('Masukkan fungsi atau keterangan node:') || '';
+    const description = await showPromptAlert({
+      title: 'Keterangan Node',
+      text: 'Masukkan fungsi atau keterangan node.',
+    }) || '';
     setFormData((current) => ({
       ...current,
       nodes: [...current.nodes, { name: name.trim(), description: description.trim() }],
@@ -508,12 +541,21 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     clearFieldError('nodes');
   }
 
-  function editNode(index) {
+  async function editNode(index) {
     const selected = formData.nodes[index];
     if (!selected) return;
-    const name = window.prompt('Edit nama node ArduFlow:', selected.name);
+    const name = await showPromptAlert({
+      title: 'Edit Node ArduFlow',
+      text: 'Edit nama node ArduFlow.',
+      inputValue: selected.name,
+      requiredMessage: 'Nama node wajib diisi.',
+    });
     if (!name?.trim()) return;
-    const description = window.prompt('Edit fungsi atau keterangan node:', selected.description || '') || '';
+    const description = await showPromptAlert({
+      title: 'Edit Keterangan Node',
+      text: 'Edit fungsi atau keterangan node.',
+      inputValue: selected.description || '',
+    }) || '';
     setFormData((current) => ({
       ...current,
       nodes: current.nodes.map((node, nodeIndex) =>
@@ -522,16 +564,25 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     }));
   }
 
-  function deleteNode(index) {
-    if (!window.confirm('Hapus node ini?')) return;
+  async function deleteNode(index) {
+    const confirmed = await showConfirmAlert({
+      title: 'Hapus Node?',
+      text: 'Node ini akan dihapus dari form proyek.',
+      confirmButtonText: 'Hapus',
+    });
+    if (!confirmed) return;
     setFormData((current) => ({
       ...current,
       nodes: current.nodes.filter((_, nodeIndex) => nodeIndex !== index),
     }));
   }
 
-  function addStep() {
-    const description = window.prompt('Masukkan deskripsi langkah pengerjaan:');
+  async function addStep() {
+    const description = await showPromptAlert({
+      title: 'Tambah Langkah',
+      text: 'Masukkan deskripsi langkah pengerjaan.',
+      requiredMessage: 'Deskripsi langkah wajib diisi.',
+    });
     if (!description?.trim()) return;
     setFormData((current) => ({
       ...current,
@@ -540,10 +591,15 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     clearFieldError('steps');
   }
 
-  function editStep(index) {
+  async function editStep(index) {
     const selected = formData.steps[index];
     if (!selected) return;
-    const description = window.prompt('Edit deskripsi langkah pengerjaan:', selected.description);
+    const description = await showPromptAlert({
+      title: 'Edit Langkah',
+      text: 'Edit deskripsi langkah pengerjaan.',
+      inputValue: selected.description,
+      requiredMessage: 'Deskripsi langkah wajib diisi.',
+    });
     if (!description?.trim()) return;
     setFormData((current) => ({
       ...current,
@@ -553,8 +609,13 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     }));
   }
 
-  function deleteStep(index) {
-    if (!window.confirm('Hapus langkah ini?')) return;
+  async function deleteStep(index) {
+    const confirmed = await showConfirmAlert({
+      title: 'Hapus Langkah?',
+      text: 'Langkah pengerjaan ini akan dihapus dari form.',
+      confirmButtonText: 'Hapus',
+    });
+    if (!confirmed) return;
     setFormData((current) => ({
       ...current,
       steps: current.steps
@@ -734,7 +795,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
 
       setJsonResult(result);
       onSuccess?.(result.data || result);
-      alert(result.message || (isEdit ? 'Proyek berhasil diperbarui.' : 'Proyek berhasil disimpan.'));
+      await showSuccessAlert('Berhasil', result.message || (isEdit ? 'Proyek berhasil diperbarui.' : 'Proyek berhasil disimpan.'));
     } catch (error) {
       console.error('Gagal mengirim proyek ke API:', error);
       setFormError(

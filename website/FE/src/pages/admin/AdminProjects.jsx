@@ -12,6 +12,7 @@ import clockIcon from '../../assets/icons/icon-clock-1.svg';
 import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
 import galleryIcon from '../../assets/icons/icon-image-placeholder-1.svg';
 import zapIcon from '../../assets/icons/icon-zap-1.svg';
+import { showArduflowAlert, showConfirmAlert, showPromptAlert } from '../../utils/alerts.js';
 
 const PROJECT_API_URL = apiEndpoint(
   import.meta.env.VITE_PROJECT_API_URL,
@@ -36,7 +37,11 @@ function AdminProjectsTopbar({ searchValue, onSearchChange }) {
           className="admin-dashboard-notif"
           type="button"
           aria-label="Notifikasi"
-          onClick={() => window.alert('Belum ada notifikasi proyek baru.')}
+          onClick={() => showArduflowAlert({
+            icon: 'info',
+            title: 'Notifikasi',
+            text: 'Belum ada notifikasi proyek baru.',
+          })}
         >
           <img src={bellIcon} alt="" />
         </button>
@@ -554,8 +559,13 @@ export function AdminProjects() {
     );
   };
 
-  const handleRequestRevision = (project) => {
-    const note = window.prompt('Catatan revisi untuk pemilik proyek:', 'Mohon lengkapi detail proyek dan file pendukung.');
+  const handleRequestRevision = async (project) => {
+    const note = await showPromptAlert({
+      title: 'Minta Revisi',
+      text: 'Catatan revisi untuk pemilik proyek.',
+      inputValue: 'Mohon lengkapi detail proyek dan file pendukung.',
+      confirmButtonText: 'Kirim Revisi',
+    });
 
     if (note === null) return;
 
@@ -583,8 +593,12 @@ export function AdminProjects() {
     );
   };
 
-  const handleArchiveProject = (project) => {
-    const confirmed = window.confirm(`Arsipkan proyek "${project.title || 'Tanpa Judul'}"?`);
+  const handleArchiveProject = async (project) => {
+    const confirmed = await showConfirmAlert({
+      title: 'Arsipkan Proyek?',
+      text: `Proyek "${project.title || 'Tanpa Judul'}" akan dipindahkan ke arsip.`,
+      confirmButtonText: 'Arsipkan',
+    });
 
     if (!confirmed) return;
 
@@ -604,9 +618,11 @@ export function AdminProjects() {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Yakin ingin menghapus proyek "${project.title || 'Tanpa Judul'}"? Data yang dihapus tidak dapat dikembalikan.`
-    );
+    const confirmed = await showConfirmAlert({
+      title: 'Hapus Proyek?',
+      text: `Yakin ingin menghapus proyek "${project.title || 'Tanpa Judul'}"? Data yang dihapus tidak dapat dikembalikan.`,
+      confirmButtonText: 'Hapus',
+    });
 
     if (!confirmed) return;
 

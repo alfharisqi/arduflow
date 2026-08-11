@@ -5,6 +5,7 @@ import usersIcon from '../../assets/icons/icon-users-1.svg';
 import userIcon from '../../assets/icons/icon-user-2.svg';
 import mailIcon from '../../assets/icons/icon-mail-1.svg';
 import settingsIcon from '../../assets/icons/icon-settings-1.svg';
+import { showConfirmAlert } from '../../utils/alerts.js';
 
 const summaryIcons = {
   total: usersIcon,
@@ -239,9 +240,11 @@ export function AdminUsers() {
   async function toggleAccountStatus(user) {
     const nextStatus = !user.isActive;
     const actionLabel = nextStatus ? 'mengaktifkan' : 'menonaktifkan';
-    const confirmed = window.confirm(
-      `Yakin ingin ${actionLabel} akun "${user.name}"?${nextStatus ? '' : ' Sesi login aktif user akan diputus.'}`
-    );
+    const confirmed = await showConfirmAlert({
+      title: nextStatus ? 'Aktifkan Akun?' : 'Nonaktifkan Akun?',
+      text: `Yakin ingin ${actionLabel} akun "${user.name}"?${nextStatus ? '' : ' Sesi login aktif user akan diputus.'}`,
+      confirmButtonText: nextStatus ? 'Aktifkan' : 'Nonaktifkan',
+    });
     if (!confirmed) return;
 
     setProcessingUserId(user.id);
@@ -257,9 +260,11 @@ export function AdminUsers() {
   }
 
   async function deleteUserAccount(user) {
-    const confirmed = window.confirm(
-      `Yakin ingin menghapus akun "${user.name}"? Akun ini akan terhapus dari daftar user dan sesi login akan diputus.`
-    );
+    const confirmed = await showConfirmAlert({
+      title: 'Hapus Akun?',
+      text: `Yakin ingin menghapus akun "${user.name}"? Akun ini akan terhapus dari daftar user dan sesi login akan diputus.`,
+      confirmButtonText: 'Hapus',
+    });
     if (!confirmed) return;
 
     setProcessingUserId(user.id);
