@@ -108,6 +108,10 @@ final class UserAuthController
             $this->logs->record('login_failed', false, null, $identifier);
             return Response::json(['message' => 'Email/nama atau kata sandi salah.'], 401);
         }
+        if (!(bool) ($user['is_active'] ?? true)) {
+            $this->logs->record('login_failed', false, (int) $user['id'], (string) $user['email']);
+            return Response::json(['message' => 'Akun user sedang dinonaktifkan. Hubungi admin untuk bantuan.'], 403);
+        }
 
         if ($check->needsRehash) {
             $user = $this->users->updatePasswordHash((int) $user['id'], $this->passwords->hash($password));

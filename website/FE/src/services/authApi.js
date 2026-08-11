@@ -188,6 +188,36 @@ export function getAdminUsers(
   });
 }
 
+export function updateAdminUserStatus(
+  userId,
+  isActive,
+  token = window.localStorage.getItem(
+    "arduflow_admin_token"
+  )
+) {
+  return request(`/api/admin/users/${encodeURIComponent(userId)}/status`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token || ""}`,
+    },
+    body: JSON.stringify({ isActive }),
+  });
+}
+
+export function deleteAdminUser(
+  userId,
+  token = window.localStorage.getItem(
+    "arduflow_admin_token"
+  )
+) {
+  return request(`/api/admin/users/${encodeURIComponent(userId)}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token || ""}`,
+    },
+  });
+}
+
 /*
 |--------------------------------------------------------------------------
 | Email verification

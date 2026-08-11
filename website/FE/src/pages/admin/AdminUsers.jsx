@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
-import { getAdminUsers } from '../../services/authApi.js';
+import { deleteAdminUser, getAdminUsers, updateAdminUserStatus } from '../../services/authApi.js';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
 import userIcon from '../../assets/icons/icon-user-2.svg';
 import mailIcon from '../../assets/icons/icon-mail-1.svg';
@@ -123,6 +123,7 @@ export function AdminUsers() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [isDetailOpen, setDetailOpen] = useState(false);
+  const [processingUserId, setProcessingUserId] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -193,6 +194,14 @@ export function AdminUsers() {
     setFilters((current) => ({ ...current }));
   }
 
+  function removeUserFromSelection(userId) {
+    setSelectedIds((current) => current.filter((item) => item !== userId));
+    if (selectedUserId === userId) {
+      setSelectedUserId(null);
+      setDetailOpen(false);
+    }
+  }
+
   function changePage(page) {
     setFilters((current) => ({ ...current, page }));
   }
@@ -225,6 +234,45 @@ export function AdminUsers() {
   function exportSelectedUsers() {
     const selectedUsers = users.filter((user) => selectedIds.includes(user.id));
     exportUsersCsv(selectedUsers.length ? selectedUsers : users, 'arduflow-selected-users.csv');
+  }
+
+  async function toggleAccountStatus(user) {
+    const nextStatus = !user.isActive;
+    const actionLabel = nextStatus ? 'mengaktifkan' : 'menonaktifkan';
+    const confirmed = window.confirm(
+      `Yakin ingin ${actionLabel} akun "${user.name}"?${nextStatus ? '' : ' Sesi login aktif user akan diputus.'}`
+    );
+    if (!confirmed) return;
+
+    setProcessingUserId(user.id);
+    setError('');
+    try {
+      await updateAdminUserStatus(user.id, nextStatus);
+      refreshUsers();
+    } catch (requestError) {
+      setError(requestError.message || `Gagal ${actionLabel} akun user.`);
+    } finally {
+      setProcessingUserId(null);
+    }
+  }
+
+  async function deleteUserAccount(user) {
+    const confirmed = window.confirm(
+      `Yakin ingin menghapus akun "${user.name}"? Akun ini akan terhapus dari daftar user dan sesi login akan diputus.`
+    );
+    if (!confirmed) return;
+
+    setProcessingUserId(user.id);
+    setError('');
+    try {
+      await deleteAdminUser(user.id);
+      removeUserFromSelection(user.id);
+      refreshUsers();
+    } catch (requestError) {
+      setError(requestError.message || 'Gagal menghapus akun user.');
+    } finally {
+      setProcessingUserId(null);
+    }
   }
 
   return (
@@ -373,6 +421,23 @@ export function AdminUsers() {
                       <div className="admin-users-actions">
                         <button type="button" aria-label={`Lihat ${user.name}`} onClick={() => openUserDetail(user)}>Detail</button>
                         <button type="button" aria-label={`Salin ${user.name}`} onClick={() => copyUser(user)}>Copy</button>
+                        <button
+                          type="button"
+                          disabled={processingUserId === user.id}
+                          aria-label={`${user.isActive ? 'Nonaktifkan' : 'Aktifkan'} ${user.name}`}
+                          onClick={() => toggleAccountStatus(user)}
+                        >
+                          {user.isActive ? 'Nonaktifkan' : 'Aktifkan'}
+                        </button>
+                        <button
+                          type="button"
+                          className="admin-users-action-danger"
+                          disabled={processingUserId === user.id}
+                          aria-label={`Hapus ${user.name}`}
+                          onClick={() => deleteUserAccount(user)}
+                        >
+                          Hapus
+                        </button>
                         <a href={`mailto:${user.email}`} aria-label={`Email ${user.name}`}>Email</a>
                         {user.whatsapp !== '-' ? (
                           <a href={`https://wa.me/${String(user.whatsapp).replace(/\D/g, '')}`} target="_blank" rel="noreferrer" aria-label={`WhatsApp ${user.name}`}>WA</a>
@@ -476,6 +541,7 @@ export function AdminUsers() {
               <dt>Pekerjaan / Instansi</dt><dd>{selectedUser.workplace}</dd>
               <dt>Status Email</dt><dd><UserBadge>{selectedUser.emailStatus}</UserBadge></dd>
               <dt>Status Akun</dt><dd><UserBadge>{selectedUser.accountStatus}</UserBadge></dd>
+              <dt>Status Sesi</dt><dd>{selectedUser.sessionStatus || '-'}</dd>
               <dt>Tanggal Daftar</dt><dd>{formatDate(selectedUser.registeredAt, true)}</dd>
               <dt>Login Terakhir</dt><dd>{selectedUser.lastLoginAt ? formatDate(selectedUser.lastLoginAt, true) : '-'}</dd>
             </dl>
@@ -483,7 +549,7 @@ export function AdminUsers() {
               <span><b>Email</b>{selectedUser.email}</span>
               <span><b>WhatsApp</b>{selectedUser.whatsapp}</span>
               <span><b>Terdaftar</b>{formatDate(selectedUser.registeredAt)}</span>
-              <span><b>Sesi</b>{selectedUser.accountStatus}</span>
+              <span><b>Sesi</b>{selectedUser.sessionStatus || '-'}</span>
             </section>
             <h3>Aksi User</h3>
             <div className="admin-users-detail-actions">
@@ -492,6 +558,21 @@ export function AdminUsers() {
                 <a href={`https://wa.me/${String(selectedUser.whatsapp).replace(/\D/g, '')}`} target="_blank" rel="noreferrer">Hubungi WhatsApp</a>
               ) : null}
               <button type="button" onClick={() => copyUser(selectedUser)}>Salin Data</button>
+              <button
+                type="button"
+                disabled={processingUserId === selectedUser.id}
+                onClick={() => toggleAccountStatus(selectedUser)}
+              >
+                {selectedUser.isActive ? 'Nonaktifkan Akun' : 'Aktifkan Akun'}
+              </button>
+              <button
+                type="button"
+                className="admin-users-action-danger"
+                disabled={processingUserId === selectedUser.id}
+                onClick={() => deleteUserAccount(selectedUser)}
+              >
+                Hapus Akun
+              </button>
               <button type="button" onClick={() => {
                 setSelectedIds((current) => (
                   current.includes(selectedUser.id) ? current : [...current, selectedUser.id]

@@ -5,16 +5,16 @@
   background: #ffffff;
 }
 
-.admin-projects-layout--detail-open {
-  grid-template-columns: minmax(0, 1fr) 320px;
-}
-
 .admin-projects-content {
   min-width: 0;
   padding: 22px;
 }
 
 .admin-projects-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   margin-bottom: 18px;
 }
 
@@ -35,6 +35,19 @@
 
 .admin-projects-heading span {
   margin: 0 8px;
+}
+
+.admin-projects-heading button {
+  height: 38px;
+  padding: 0 16px;
+  border: 1px solid #1d4ed8;
+  border-radius: 6px;
+  background: #1d4ed8;
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .admin-projects-stats {
@@ -162,6 +175,20 @@
   font-family: 'Inter', sans-serif;
   font-size: 12px;
   color: #111827;
+}
+
+.admin-projects-filter button,
+.admin-projects-pagination button,
+.admin-projects-action,
+.admin-projects-detail-actions button {
+  cursor: pointer;
+}
+
+.admin-projects-pagination button:disabled,
+.admin-projects-action:disabled,
+.admin-projects-detail-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .admin-projects-filter button {
@@ -508,7 +535,8 @@
   color: #6b7280;
 }
 
-.admin-projects-panel-head a {
+.admin-projects-panel-head a,
+.admin-projects-panel-head span {
   font-family: 'Inter', sans-serif;
   font-size: 11px;
   color: #2563eb;
@@ -604,12 +632,22 @@
   width: 100%;
 }
 
+.admin-projects-detail-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  justify-content: flex-end;
+  padding: 72px 28px 28px;
+  background: rgba(15, 23, 42, 0.42);
+}
+
 .admin-projects-detail {
-  border-top: 0;
-  border-right: 0;
-  border-bottom: 0;
-  border-radius: 0;
-  min-height: calc(100vh - 56px);
+  width: min(440px, calc(100vw - 40px));
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  border-radius: 8px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
 }
 
 .admin-projects-detail-head {
@@ -647,6 +685,7 @@
   width: 86px;
   height: 86px;
   border-radius: 8px;
+  object-fit: cover;
 }
 
 .admin-projects-detail-profile h3 {
@@ -813,6 +852,13 @@
   color: #ea580c;
 }
 
-.admin-dashboard-page--collapsed .admin-projects-layout--detail-open {
-  grid-template-columns: minmax(0, 1fr) 320px;
+@media (max-width: 720px) {
+  .admin-projects-detail-overlay {
+    justify-content: center;
+    padding: 70px 14px 14px;
+  }
+
+  .admin-projects-detail {
+    width: 100%;
+  }
 }

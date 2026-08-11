@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import certificateIcon from '../../assets/icons/icon-downloadsim-1.svg';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import projectImage from '../../assets/images/workshop-experience-student.png';
 import { ProfileAvatar } from '../../features/profile-image-crop/ProfileAvatar.jsx';
-import { apiEndpoint } from '../../services/apiEndpoints.js';
+import { WorkshopImageCropper } from '../../features/profile-image-crop/WorkshopImageCropper.jsx';
+import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 
 const menuItems = [
@@ -22,14 +23,6 @@ const PROJECT_API_URL = apiEndpoint(
   import.meta.env.VITE_PROJECT_API_URL,
   '/api/projects-api.php'
 );
-
-const projects = Array.from({ length: 9 }, (_, index) => ({
-  id: index + 1,
-  title: 'Judul Proyek',
-  category: 'Kategori Proyek',
-  date: 'Hari Bulan Tanggal',
-  price: 'IDR 10.000',
-}));
 
 function getStoredUser() {
   try {
@@ -308,7 +301,7 @@ function EmptyUploadTable({ title, description }) {
   );
 }
 
-export function ProjectUploadForm({ onCancel, mode = 'create', projectId = '', initialProject = null }) {
+export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projectId = '', initialProject = null }) {
   const currentUser = getStoredUser();
   const ownerName = currentUser.name || currentUser.fullName || 'Nama Lengkap';
   const ownerUsername =
@@ -342,6 +335,25 @@ export function ProjectUploadForm({ onCancel, mode = 'create', projectId = '', i
   const [jsonResult, setJsonResult] = useState(null);
   const [formError, setFormError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+  const [coverCrop, setCoverCrop] = useState(null);
+  const [coverPreviewUrl, setCoverPreviewUrl] = useState('');
+
+  useEffect(() => {
+    if (!formData.coverImage) {
+      setCoverPreviewUrl('');
+      return undefined;
+    }
+
+    const nextUrl = URL.createObjectURL(formData.coverImage);
+    setCoverPreviewUrl(nextUrl);
+    return () => URL.revokeObjectURL(nextUrl);
+  }, [formData.coverImage]);
+
+  useEffect(() => () => {
+    if (coverCrop?.source) {
+      URL.revokeObjectURL(coverCrop.source);
+    }
+  }, [coverCrop]);
 
   function clearFieldError(name) {
     setFieldErrors((current) => {
@@ -371,8 +383,80 @@ export function ProjectUploadForm({ onCancel, mode = 'create', projectId = '', i
 
   function handleFileChange(event) {
     const { name, files } = event.target;
-    setFormData((current) => ({ ...current, [name]: files?.[0] || null }));
+    const file = files?.[0] || null;
+    event.target.value = '';
+
+    if (name === 'coverImage') {
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        setFieldErrors((current) => ({
+          ...current,
+          coverImage: 'Gambar cover harus berupa file gambar.',
+        }));
+        return;
+      }
+
+      clearFieldError('coverImage');
+      setFormError('');
+      const source = URL.createObjectURL(file);
+      setCoverCrop((current) => {
+        if (current?.source) {
+          URL.revokeObjectURL(current.source);
+        }
+        return {
+          source,
+          fileName: file.name,
+        };
+      });
+      return;
+    }
+
+    if (name === 'projectFile' && file) {
+      const extension = file.name.split('.').pop()?.toLowerCase() || '';
+
+      if (!['json', 'flow'].includes(extension)) {
+        setFieldErrors((current) => ({
+          ...current,
+          projectFile: 'Format file proyek harus .json atau .flow.',
+        }));
+        return;
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        setFieldErrors((current) => ({
+          ...current,
+          projectFile: 'Ukuran file proyek maksimal 10 MB.',
+        }));
+        return;
+      }
+    }
+
+    setFormData((current) => ({ ...current, [name]: file }));
     clearFieldError(name);
+  }
+
+  function handleApplyCoverCrop({ file }) {
+    if (!file) return;
+
+    setCoverCrop((current) => {
+      if (current?.source) {
+        URL.revokeObjectURL(current.source);
+      }
+      return null;
+    });
+    setFormData((current) => ({ ...current, coverImage: file }));
+    clearFieldError('coverImage');
+    setFormError('');
+  }
+
+  function handleCancelCoverCrop() {
+    setCoverCrop((current) => {
+      if (current?.source) {
+        URL.revokeObjectURL(current.source);
+      }
+      return null;
+    });
   }
 
   function handleDescriptionChange(value) {
@@ -577,10 +661,10 @@ export function ProjectUploadForm({ onCancel, mode = 'create', projectId = '', i
           currency: 'IDR',
           paymentCode: formData.isPaid ? formData.paymentCode : null,
         },
-        projectFile: fileToJson(formData.projectFile),
+        projectFile: fileToJson(formData.projectFile) || initialProject?.projectFile || null,
         coverImage: formData.coverImage
           ? { ...fileToJson(formData.coverImage), altText: formData.altText.trim() }
-          : null,
+          : (initialProject?.coverImage || null),
         visibility: isDraft ? 'draft' : formData.visibility,
         difficulty: formData.difficulty,
         estimatedTime: formData.estimatedTime.trim(),
@@ -605,12 +689,27 @@ export function ProjectUploadForm({ onCancel, mode = 'create', projectId = '', i
     if (!projectJson) return;
     try {
       const isEdit = mode === 'edit' && (projectId || initialProject?.id);
+      const payload = new FormData();
+      payload.append('payload', JSON.stringify(projectJson.data));
+
+      if (isEdit) {
+        payload.append('_method', 'PUT');
+      }
+
+      if (formData.projectFile) {
+        payload.append('project_file', formData.projectFile);
+      }
+
+      if (formData.coverImage) {
+        payload.append('cover_image', formData.coverImage);
+      }
+
       const response = await fetch(isEdit ? `${PROJECT_API_URL}?id=${encodeURIComponent(projectId || initialProject.id)}` : PROJECT_API_URL, {
-        method: isEdit ? 'PUT' : 'POST',
+        method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          Accept: 'application/json',
         },
-        body: JSON.stringify(projectJson.data),
+        body: payload,
       });
       const responseText = await response.text();
 
@@ -634,6 +733,7 @@ export function ProjectUploadForm({ onCancel, mode = 'create', projectId = '', i
       }
 
       setJsonResult(result);
+      onSuccess?.(result.data || result);
       alert(result.message || (isEdit ? 'Proyek berhasil diperbarui.' : 'Proyek berhasil disimpan.'));
     } catch (error) {
       console.error('Gagal mengirim proyek ke API:', error);
@@ -651,6 +751,7 @@ export function ProjectUploadForm({ onCancel, mode = 'create', projectId = '', i
   }
 
   return (
+    <>
     <section className="project-upload-page" aria-labelledby="project-upload-title">
       <h2 id="project-upload-title">{mode === 'edit' ? 'Edit Proyek' : 'Upload Proyek Baru'}</h2>
       {mode === 'edit' ? (
@@ -782,7 +883,12 @@ export function ProjectUploadForm({ onCancel, mode = 'create', projectId = '', i
             <h3>Gambar Cover Proyek *</h3>
             <label className={`project-upload-cover-box${fieldErrors.coverImage ? ' has-error' : ''}`}>
               <input name="coverImage" type="file" accept="image/png,image/jpeg" onChange={handleFileChange} />
-              <ImageIcon /><span>{formData.coverImage?.name || 'Upload gambar cover'}</span><small>PNG, JPG maksimal 2 MB</small><strong>Pilih Gambar</strong>
+              {coverPreviewUrl ? (
+                <img className="project-upload-cover-preview" src={coverPreviewUrl} alt="Preview cover proyek" />
+              ) : (
+                <ImageIcon />
+              )}
+              <span>{formData.coverImage?.name || 'Upload gambar cover'}</span><small>PNG, JPG maksimal 2 MB</small><strong>Pilih Gambar</strong>
             </label>
             {fieldErrors.coverImage ? <em className="project-upload-error">{fieldErrors.coverImage}</em> : null}
             <UploadField label="Alt Text" hint="Pilih gambar yang mewakili proyek Anda">
@@ -826,7 +932,64 @@ export function ProjectUploadForm({ onCancel, mode = 'create', projectId = '', i
         </section>
       ) : null}
     </section>
+    <WorkshopImageCropper
+      source={coverCrop?.source || ''}
+      fileName={coverCrop?.fileName || 'project-cover.png'}
+      onCancel={handleCancelCoverCrop}
+      onApply={handleApplyCoverCrop}
+    />
+    </>
   );
+}
+
+function resolveProjectCoverUrl(project) {
+  const cover = project?.coverImage || {};
+  const rawUrl = (
+    project?.coverUrl ||
+    project?.coverPath ||
+    cover.file_url ||
+    cover.fileUrl ||
+    cover.url ||
+    cover.file_path ||
+    cover.filePath ||
+    ''
+  );
+
+  if (!rawUrl) return '';
+  if (/^(https?:\/\/|data:image\/|blob:)/i.test(rawUrl)) return rawUrl;
+
+  const normalizedPath = String(rawUrl)
+    .replace(/^\/+/, '')
+    .replace(/^storage\/uploads\//i, 'uploads/');
+
+  return `${API_BASE_URL}/${normalizedPath}`;
+}
+
+function formatProjectDate(project) {
+  const raw = project?.updatedAt || project?.updated_at || project?.createdAt || project?.created_at;
+  const date = raw ? new Date(raw) : null;
+
+  if (!date || Number.isNaN(date.getTime())) return '-';
+
+  return new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+}
+
+function formatProjectPrice(project) {
+  const payment = project?.payment || {};
+  const isPaid = Boolean(payment.isPaid || project?.isPaid);
+  const price = Number(payment.price || project?.price || 0);
+
+  if (!isPaid || price <= 0) return 'Gratis';
+
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: payment.currency || 'IDR',
+    maximumFractionDigits: 0,
+  }).format(price);
 }
 
 export function UserProjectGallery() {
@@ -841,6 +1004,83 @@ export function UserProjectGallery() {
   const fullName = user.name || user.fullName || 'Nama Lengkap';
   const greetingName = user.nickname || fullName;
   const profileImage = user.profileImage || user.avatar || '';
+  const currentUserId = user.id || user.userId || null;
+  const [projects, setProjects] = useState([]);
+  const [isProjectsLoading, setProjectsLoading] = useState(true);
+  const [projectsError, setProjectsError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('Terbaru');
+
+  async function loadProjects() {
+    setProjectsLoading(true);
+    setProjectsError('');
+
+    try {
+      const response = await fetch(PROJECT_API_URL, {
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+      const text = await response.text();
+      let result;
+
+      try {
+        result = JSON.parse(text);
+      } catch {
+        throw new Error(`Response API bukan JSON: ${text}`);
+      }
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Gagal mengambil data proyek.');
+      }
+
+      const rows = Array.isArray(result.data) ? result.data : [];
+      const ownedProjects = currentUserId
+        ? rows.filter((project) => String(project.userId || project.payload?.userId || '') === String(currentUserId))
+        : rows;
+
+      setProjects(ownedProjects);
+    } catch (error) {
+      console.error('Gagal mengambil data proyek:', error);
+      setProjectsError(
+        error instanceof TypeError
+          ? `API tidak dapat dihubungi di ${PROJECT_API_URL}. Pastikan server PHP berjalan.`
+          : error.message
+      );
+    } finally {
+      setProjectsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadProjects();
+  }, []);
+
+  const visibleProjects = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    const filtered = query
+      ? projects.filter((project) => {
+          const haystack = [
+            project.title,
+            project.category,
+            project.description,
+            ...(Array.isArray(project.tags) ? project.tags : []),
+          ].join(' ').toLowerCase();
+
+          return haystack.includes(query);
+        })
+      : [...projects];
+
+    return filtered.sort((first, second) => {
+      if (sortBy === 'Nama') {
+        return String(first.title || '').localeCompare(String(second.title || ''), 'id-ID');
+      }
+
+      const firstTime = new Date(first.updatedAt || first.createdAt || 0).getTime() || 0;
+      const secondTime = new Date(second.updatedAt || second.createdAt || 0).getTime() || 0;
+      return secondTime - firstTime;
+    });
+  }, [projects, searchQuery, sortBy]);
 
   function handleLogout() {
     window.localStorage.removeItem('arduflow_user');
@@ -919,6 +1159,12 @@ export function UserProjectGallery() {
             <ProjectUploadForm
               mode={projectFormMode}
               projectId={editProjectId}
+              onSuccess={() => {
+                loadProjects();
+                if (!isAdminProjectEditRoute) {
+                  setUploadFormOpen(false);
+                }
+              }}
               onCancel={() => {
                 if (isAdminProjectEditRoute) {
                   window.location.href = '/admin/projects';
@@ -935,15 +1181,14 @@ export function UserProjectGallery() {
               <div className="user-project-toolbar">
                 <label className="user-project-search">
                   <span className="sr-only">Cari proyek</span>
-                  <input type="search" placeholder="Cari" />
+                  <input type="search" placeholder="Cari" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} />
                   <SearchIcon />
                 </label>
 
                 <div className="user-project-controls">
                   <div className="user-project-sort">
                     <span>Urutkan</span>
-                    <select defaultValue="Relevance" aria-label="Urutkan proyek">
-                      <option>Relevance</option>
+                    <select value={sortBy} aria-label="Urutkan proyek" onChange={(event) => setSortBy(event.target.value)}>
                       <option>Terbaru</option>
                       <option>Nama</option>
                     </select>
@@ -960,25 +1205,35 @@ export function UserProjectGallery() {
               </div>
             </div>
 
-            <div className="user-project-grid">
-              {projects.map((project) => (
-                <article className="user-project-card" key={project.id}>
-                  <img src={projectImage} alt="" />
-                  <div className="user-project-card__body">
-                    <h3>{project.title}</h3>
-                    <p>{project.category}</p>
-                    <time>{project.date}</time>
-                    <strong>{project.price}</strong>
-                  </div>
-                </article>
-              ))}
-            </div>
+            {isProjectsLoading ? (
+              <div className="user-project-empty">Memuat proyek...</div>
+            ) : projectsError ? (
+              <div className="user-project-empty">{projectsError}</div>
+            ) : visibleProjects.length === 0 ? (
+              <div className="user-project-empty">Belum ada proyek yang tersimpan.</div>
+            ) : (
+              <div className="user-project-grid">
+                {visibleProjects.map((project) => {
+                  const coverUrl = resolveProjectCoverUrl(project) || projectImage;
+
+                  return (
+                    <article className="user-project-card" key={project.id}>
+                      <img src={coverUrl} alt={project.coverImage?.altText || project.title || 'Cover proyek'} />
+                      <div className="user-project-card__body">
+                        <h3>{project.title || 'Tanpa judul'}</h3>
+                        <p>{project.category || '-'}</p>
+                        <time>{formatProjectDate(project)}</time>
+                        <strong>{formatProjectPrice(project)}</strong>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
 
             <nav className="user-project-pagination" aria-label="Pagination proyek kamu">
               <button type="button" aria-label="Halaman sebelumnya">&lsaquo;</button>
               <button className="user-project-pagination__active" type="button">1</button>
-              <button type="button">2</button>
-              <button type="button">3</button>
               <button type="button" aria-label="Halaman berikutnya">&rsaquo;</button>
             </nav>
             </section>

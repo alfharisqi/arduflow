@@ -1,73 +1,43 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AdminSidebar } from './AdminSidebar.jsx';
 import { ProjectUploadForm } from '../User/UserProjectGallery.jsx';
 import {
   getInitialAdminSidebarCollapsed,
   persistAdminSidebarCollapsed,
 } from './adminSidebarState.js';
-import { apiEndpoint } from '../../services/apiEndpoints.js';
+import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
 import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
-import fileIcon from '../../assets/icons/icon-file-text-1.svg';
 import galleryIcon from '../../assets/icons/icon-image-placeholder-1.svg';
 import zapIcon from '../../assets/icons/icon-zap-1.svg';
-
-const projectStats = [
-  { label: 'Total Proyek', value: '1.248', note: 'Semua proyek', icon: galleryIcon, tone: 'blue' },
-  { label: 'Proyek Published', value: '832', note: '66.7% dari total', icon: checkIcon, tone: 'green' },
-  { label: 'Menunggu Review', value: '156', note: '12.5% dari total', icon: clockIcon, tone: 'orange' },
-  { label: 'Perlu Revisi / Ditolak', value: '98', note: '7.8% dari total', icon: checkIcon, tone: 'red' },
-  { label: 'Total Viewer', value: '24.352', note: 'Semua proyek', icon: eyeIcon, tone: 'blue' },
-  { label: 'Proyek Paling Populer', value: 'Smart Home Monitoring', note: 'Viewer: 2.845', icon: zapIcon, tone: 'red' },
-];
-
 
 const PROJECT_API_URL = apiEndpoint(
   import.meta.env.VITE_PROJECT_API_URL,
   '/api/projects-api.php'
 );
 
-const reviewProjects = [
-  ['Penyiraman Tanaman Otomatis', 'Siti Aisyah', '20 Mei 2024'],
-  ['Sistem Parkir Otomatis', 'Rina Marlina', '20 Mei 2024'],
-  ['Monitoring Kolam Ikan IoT', 'Irfan Maulana', '19 Mei 2024'],
-  ['Smart Trash Bin', 'Maya Indah', '18 Mei 2024'],
-];
-
-const popularProjects = [
-  ['Smart Home Monitoring', '2.845', '512'],
-  ['Weather Station IoT', '2.156', '398'],
-  ['Energy Meter IoT', '1.890', '276'],
-  ['Penyiraman Tanaman Otomatis', '1.234', '244'],
-  ['Greenhouse Monitoring', '1.102', '198'],
-];
-
-const problemProjects = [
-  ['Thumbnail kosong', 18],
-  ['Deskripsi terlalu pendek (< 150 kata)', 23],
-  ['File tidak lengkap', 15],
-  ['Link rusak', 9],
-  ['Belum ada kategori', 7],
-];
-
-const activityItems = [
-  ['Proyek "Smart Home Monitoring" dipublish', '20 Mei 2024 14:25', 'green'],
-  ['Proyek "Sistem Keamanan Pintu" diminta revisi', '19 Mei 2024 11:10', 'blue'],
-  ['Proyek "Smart Traffic Light" ditolak', '19 Mei 2024 10:05', 'purple'],
-  ['Proyek "Energy Meter IoT" diupdate', '17 Mei 2024 16:30', 'green'],
-];
-
-function AdminProjectsTopbar() {
+function AdminProjectsTopbar({ searchValue, onSearchChange }) {
   return (
     <header className="admin-dashboard-topbar">
       <label className="admin-dashboard-search">
         <span aria-hidden="true" />
-        <input type="search" placeholder="Cari proyek" aria-label="Cari proyek" />
+        <input
+          type="search"
+          placeholder="Cari proyek"
+          aria-label="Cari proyek"
+          value={searchValue}
+          onChange={(event) => onSearchChange(event.target.value)}
+        />
       </label>
       <div className="admin-dashboard-account">
-        <button className="admin-dashboard-notif" type="button" aria-label="Notifikasi">
+        <button
+          className="admin-dashboard-notif"
+          type="button"
+          aria-label="Notifikasi"
+          onClick={() => window.alert('Belum ada notifikasi proyek baru.')}
+        >
           <img src={bellIcon} alt="" />
         </button>
         <span className="admin-dashboard-avatar" aria-hidden="true" />
@@ -134,6 +104,83 @@ function ProjectDateTime({ value }) {
   );
 }
 
+function toProjectNumber(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (value === undefined || value === null || value === '') return 0;
+
+  const parsed = Number(String(value).replace(/\./g, '').replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatProjectNumber(value) {
+  return toProjectNumber(value).toLocaleString('id-ID');
+}
+
+function formatProjectPercent(part, total) {
+  if (!total) return '0% dari total';
+  return `${((part / total) * 100).toLocaleString('id-ID', { maximumFractionDigits: 1 })}% dari total`;
+}
+
+function normalizedStatus(project) {
+  return String(project?.status || project?.visibility || 'draft').trim().toLowerCase();
+}
+
+function isProjectStatus(project, candidates) {
+  const status = normalizedStatus(project);
+  return candidates.some((candidate) => status.includes(candidate));
+}
+
+function getProjectOwnerName(project) {
+  return project?.ownerName || project?.userName || project?.user?.name || 'User';
+}
+
+function getProjectOwnerUsername(project) {
+  return project?.ownerUsername || project?.username || project?.user?.username || '-';
+}
+
+function getProjectTimestamp(project) {
+  const raw = project?.updatedAt || project?.updated_at || project?.createdAt || project?.created_at;
+  const date = raw ? new Date(raw) : null;
+  return date && !Number.isNaN(date.getTime()) ? date.getTime() : 0;
+}
+
+function getProjectFileUrl(project) {
+  const file = project?.projectFile || project?.payload?.projectFile || {};
+  const rawUrl = file.file_url || file.fileUrl || file.url || file.file_path || file.filePath || '';
+
+  if (!rawUrl) return '';
+  if (/^https?:\/\//i.test(rawUrl)) return rawUrl;
+
+  const normalizedPath = String(rawUrl)
+    .replace(/^\/+/, '')
+    .replace(/^storage\/uploads\//i, 'uploads/');
+
+  return `${API_BASE_URL}/${normalizedPath}`;
+}
+
+function resolveProjectCoverUrl(project) {
+  const cover = project?.coverImage || {};
+  const rawUrl = (
+    project?.coverUrl ||
+    project?.coverPath ||
+    cover.file_url ||
+    cover.fileUrl ||
+    cover.url ||
+    cover.file_path ||
+    cover.filePath ||
+    ''
+  );
+
+  if (!rawUrl) return '';
+  if (/^(https?:\/\/|data:image\/|blob:)/i.test(rawUrl)) return rawUrl;
+
+  const normalizedPath = String(rawUrl)
+    .replace(/^\/+/, '')
+    .replace(/^storage\/uploads\//i, 'uploads/');
+
+  return `${API_BASE_URL}/${normalizedPath}`;
+}
+
 export function AdminProjects() {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialAdminSidebarCollapsed);
   const [projects, setProjects] = useState([]);
@@ -141,73 +188,204 @@ export function AdminProjects() {
   const [projectError, setProjectError] = useState('');
   const [selectedProject, setSelectedProject] = useState(null);
   const [editingProject, setEditingProject] = useState(null);
+  const [isUploadFormOpen, setUploadFormOpen] = useState(false);
   const [actionMessage, setActionMessage] = useState('');
   const [actionError, setActionError] = useState('');
   const [busyProjectId, setBusyProjectId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [levelFilter, setLevelFilter] = useState('');
+  const [ownerFilter, setOwnerFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+  const projectStats = useMemo(() => {
+    const totalProjects = projects.length;
+    const publishedProjects = projects.filter((project) => isProjectStatus(project, ['published', 'publish'])).length;
+    const reviewProjectsCount = projects.filter((project) => isProjectStatus(project, ['review', 'pending', 'menunggu'])).length;
+    const revisionProjects = projects.filter((project) => isProjectStatus(project, ['revisi', 'revision', 'ditolak', 'rejected'])).length;
+    const totalViewer = projects.reduce((sum, project) => sum + toProjectNumber(project.viewer ?? project.viewers), 0);
+    const mostPopularProject = projects.reduce((currentPopular, project) => {
+      const currentViewer = toProjectNumber(currentPopular?.viewer ?? currentPopular?.viewers);
+      const projectViewer = toProjectNumber(project.viewer ?? project.viewers);
+      return projectViewer > currentViewer ? project : currentPopular;
+    }, null);
+
+    return [
+      { label: 'Total Proyek', value: formatProjectNumber(totalProjects), note: 'Semua proyek tersimpan', icon: galleryIcon, tone: 'blue' },
+      { label: 'Proyek Published', value: formatProjectNumber(publishedProjects), note: formatProjectPercent(publishedProjects, totalProjects), icon: checkIcon, tone: 'green' },
+      { label: 'Menunggu Review', value: formatProjectNumber(reviewProjectsCount), note: formatProjectPercent(reviewProjectsCount, totalProjects), icon: clockIcon, tone: 'orange' },
+      { label: 'Perlu Revisi / Ditolak', value: formatProjectNumber(revisionProjects), note: formatProjectPercent(revisionProjects, totalProjects), icon: checkIcon, tone: 'red' },
+      { label: 'Total Viewer', value: formatProjectNumber(totalViewer), note: 'Dihitung dari data proyek', icon: eyeIcon, tone: 'blue' },
+      {
+        label: 'Proyek Paling Populer',
+        value: mostPopularProject?.title || '-',
+        note: `Viewer: ${formatProjectNumber(mostPopularProject?.viewer ?? mostPopularProject?.viewers)}`,
+        icon: zapIcon,
+        tone: 'red',
+      },
+    ];
+  }, [projects]);
+  const reviewProjects = useMemo(() => (
+    projects
+      .filter((project) => isProjectStatus(project, ['review', 'pending', 'menunggu']))
+      .sort((left, right) => getProjectTimestamp(right) - getProjectTimestamp(left))
+      .slice(0, 4)
+  ), [projects]);
+  const popularProjects = useMemo(() => (
+    [...projects]
+      .sort((left, right) => (
+        toProjectNumber(right.viewer ?? right.viewers) - toProjectNumber(left.viewer ?? left.viewers)
+      ))
+      .slice(0, 5)
+  ), [projects]);
+  const problemProjects = useMemo(() => {
+    const problems = [
+      {
+        label: 'Thumbnail kosong',
+        count: projects.filter((project) => !resolveProjectCoverUrl(project)).length,
+      },
+      {
+        label: 'Deskripsi terlalu pendek',
+        count: projects.filter((project) => String(project.description || '').trim().length < 150).length,
+      },
+      {
+        label: 'File proyek kosong',
+        count: projects.filter((project) => !project.projectFile && !project.payload?.projectFile).length,
+      },
+      {
+        label: 'Belum ada kategori',
+        count: projects.filter((project) => !String(project.category || '').trim()).length,
+      },
+    ];
+
+    return problems.filter((item) => item.count > 0);
+  }, [projects]);
+  const activityItems = useMemo(() => (
+    [...projects]
+      .sort((left, right) => getProjectTimestamp(right) - getProjectTimestamp(left))
+      .slice(0, 4)
+      .map((project) => ({
+        id: project.id ?? project.title,
+        title: project.title || 'Tanpa Judul',
+        status: project.status || 'draft',
+        time: project.updatedAt || project.updated_at || project.createdAt || project.created_at,
+        tone: isProjectStatus(project, ['published', 'publish'])
+          ? 'green'
+          : isProjectStatus(project, ['revisi', 'revision', 'ditolak', 'rejected'])
+            ? 'purple'
+            : 'blue',
+      }))
+  ), [projects]);
+  const filterOptions = useMemo(() => {
+    const uniqueValues = (getter) => [...new Set(
+      projects
+        .map((project) => String(getter(project) || '').trim())
+        .filter(Boolean)
+    )].sort((a, b) => a.localeCompare(b, 'id-ID'));
+
+    return {
+      statuses: uniqueValues((project) => project.status || project.visibility),
+      categories: uniqueValues((project) => project.category),
+      levels: uniqueValues((project) => project.difficulty),
+      owners: uniqueValues((project) => getProjectOwnerName(project)),
+    };
+  }, [projects]);
+  const filteredProjects = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    const uploadDate = dateFilter.trim().toLowerCase();
+
+    return projects.filter((project) => {
+      const ownerName = getProjectOwnerName(project);
+      const ownerUsername = getProjectOwnerUsername(project);
+      const status = String(project.status || project.visibility || '').trim();
+      const category = String(project.category || '').trim();
+      const level = String(project.difficulty || '').trim();
+      const formattedDate = formatProjectDateTime(project.createdAt || project.created_at).date.toLowerCase();
+      const rawDate = String(project.createdAt || project.created_at || '').toLowerCase();
+      const haystack = [
+        project.title,
+        project.description,
+        ownerName,
+        ownerUsername,
+        category,
+        level,
+        status,
+      ].join(' ').toLowerCase();
+
+      return (
+        (!query || haystack.includes(query)) &&
+        (!statusFilter || status === statusFilter) &&
+        (!categoryFilter || category === categoryFilter) &&
+        (!levelFilter || level === levelFilter) &&
+        (!ownerFilter || ownerName === ownerFilter) &&
+        (!uploadDate || formattedDate.includes(uploadDate) || rawDate.includes(uploadDate))
+      );
+    });
+  }, [projects, searchQuery, statusFilter, categoryFilter, levelFilter, ownerFilter, dateFilter]);
+  const totalPages = Math.max(1, Math.ceil(filteredProjects.length / perPage));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedProjects = useMemo(() => {
+    const start = (currentPage - 1) * perPage;
+    return filteredProjects.slice(start, start + perPage);
+  }, [filteredProjects, currentPage, perPage]);
+
+  async function loadProjects({ keepSelection = false } = {}) {
+    try {
+      setIsLoading(true);
+      setProjectError('');
+
+      const response = await fetch(PROJECT_API_URL, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+
+      const responseText = await response.text();
+
+      let result;
+
+      try {
+        result = JSON.parse(responseText);
+      } catch {
+        throw new Error(`Response API bukan JSON: ${responseText}`);
+      }
+
+      console.log('Admin API URL:', PROJECT_API_URL);
+      console.log('Admin API Status:', response.status);
+      console.log('Admin API Response:', result);
+
+      if (!response.ok) {
+        throw new Error(
+          result.message || `Gagal mengambil data proyek. HTTP ${response.status}`
+        );
+      }
+
+      const projectData = Array.isArray(result.data) ? result.data : [];
+      setProjects(projectData);
+      if (!keepSelection) setSelectedProject(null);
+    } catch (error) {
+      console.error('Gagal mengambil proyek:', error);
+
+      setProjectError(
+        error instanceof TypeError
+          ? `API tidak dapat dihubungi di ${PROJECT_API_URL}. Pastikan Apache aktif dan endpoint GET dapat diakses.`
+          : error.message || 'Gagal mengambil data proyek.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   useEffect(() => {
-    let isMounted = true;
-
-    async function loadProjects() {
-      try {
-        setIsLoading(true);
-        setProjectError('');
-
-        const response = await fetch(PROJECT_API_URL, {
-          method: 'GET',
-          headers: {
-            Accept: 'application/json',
-          },
-        });
-
-        const responseText = await response.text();
-
-        let result;
-
-        try {
-          result = JSON.parse(responseText);
-        } catch {
-          throw new Error(`Response API bukan JSON: ${responseText}`);
-        }
-
-        console.log('Admin API URL:', PROJECT_API_URL);
-        console.log('Admin API Status:', response.status);
-        console.log('Admin API Response:', result);
-
-        if (!response.ok) {
-          throw new Error(
-            result.message || `Gagal mengambil data proyek. HTTP ${response.status}`
-          );
-        }
-
-        if (isMounted) {
-          const projectData = Array.isArray(result.data) ? result.data : [];
-          setProjects(projectData);
-          setSelectedProject(null);
-        }
-      } catch (error) {
-        console.error('Gagal mengambil proyek:', error);
-
-        if (isMounted) {
-          setProjectError(
-            error instanceof TypeError
-              ? `API tidak dapat dihubungi di ${PROJECT_API_URL}. Pastikan Apache aktif dan endpoint GET dapat diakses.`
-              : error.message || 'Gagal mengambil data proyek.'
-          );
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    }
-
     loadProjects();
-
-    return () => {
-      isMounted = false;
-    };
   }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, statusFilter, categoryFilter, levelFilter, ownerFilter, dateFilter, perPage]);
 
   const handleToggleSidebar = () => {
     setSidebarCollapsed((value) => {
@@ -218,13 +396,23 @@ export function AdminProjects() {
   };
 
   const handleSelectProject = (project) => {
-    if (editingProject) return;
+    if (editingProject || isUploadFormOpen) return;
 
     setSelectedProject((currentProject) => {
       const currentKey = currentProject?.id ?? currentProject?.title;
       const nextKey = project?.id ?? project?.title;
       return currentKey === nextKey ? null : project;
     });
+  };
+
+  const resetFilters = () => {
+    setSearchQuery('');
+    setStatusFilter('');
+    setCategoryFilter('');
+    setLevelFilter('');
+    setOwnerFilter('');
+    setDateFilter('');
+    setPage(1);
   };
 
 
@@ -281,7 +469,133 @@ export function AdminProjects() {
     setActionError('');
     setActionMessage('');
     setSelectedProject(null);
+    setUploadFormOpen(false);
     setEditingProject(project);
+  };
+
+  const handleUploadProject = () => {
+    setActionError('');
+    setActionMessage('');
+    setSelectedProject(null);
+    setEditingProject(null);
+    setUploadFormOpen(true);
+  };
+
+  const handleProjectSaved = async (message) => {
+    setEditingProject(null);
+    setUploadFormOpen(false);
+    setActionError('');
+    setActionMessage(message);
+    await loadProjects();
+  };
+
+  const updateProjectFields = async (project, fields, successMessage) => {
+    if (!project?.id) {
+      setActionError('ID proyek tidak tersedia.');
+      return;
+    }
+
+    try {
+      setBusyProjectId(project.id);
+      setActionError('');
+      setActionMessage('');
+
+      const response = await fetch(`${PROJECT_API_URL}?id=${encodeURIComponent(project.id)}`, {
+        method: 'PUT',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...fields,
+          updatedAt: new Date().toISOString(),
+        }),
+      });
+      const result = await parseApiResponse(response);
+      const updatedProject = result.data || { ...project, ...fields };
+
+      setProjects((currentProjects) =>
+        currentProjects.map((item) => (item.id === project.id ? updatedProject : item))
+      );
+      setSelectedProject((currentProject) =>
+        currentProject?.id === project.id ? updatedProject : currentProject
+      );
+      setActionMessage(successMessage || result.message || 'Proyek berhasil diperbarui.');
+    } catch (error) {
+      console.error('Gagal memperbarui proyek:', error);
+      setActionError(error.message || 'Gagal memperbarui proyek.');
+    } finally {
+      setBusyProjectId(null);
+    }
+  };
+
+  const handlePreviewProject = (project) => {
+    const projectFileUrl = getProjectFileUrl(project);
+
+    if (projectFileUrl) {
+      window.open(projectFileUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    window.open(`/project/detail?id=${encodeURIComponent(project.id)}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleTogglePublish = (project) => {
+    const isPublished = isProjectStatus(project, ['published', 'publish']);
+
+    updateProjectFields(
+      project,
+      {
+        status: isPublished ? 'draft' : 'published',
+        visibility: isPublished ? 'draft' : 'public',
+        publishedAt: isPublished ? null : (project.publishedAt || new Date().toISOString()),
+      },
+      isPublished ? 'Proyek berhasil di-unpublish.' : 'Proyek berhasil dipublish.'
+    );
+  };
+
+  const handleRequestRevision = (project) => {
+    const note = window.prompt('Catatan revisi untuk pemilik proyek:', 'Mohon lengkapi detail proyek dan file pendukung.');
+
+    if (note === null) return;
+
+    updateProjectFields(
+      project,
+      {
+        status: 'revision',
+        visibility: 'draft',
+        reviewNote: note.trim(),
+      },
+      'Proyek ditandai perlu revisi.'
+    );
+  };
+
+  const handleToggleFeatured = (project) => {
+    const nextFeatured = !Boolean(project.featured || project.isFeatured || project.payload?.featured);
+
+    updateProjectFields(
+      project,
+      {
+        featured: nextFeatured,
+        isFeatured: nextFeatured,
+      },
+      nextFeatured ? 'Proyek ditandai featured.' : 'Tanda featured proyek dihapus.'
+    );
+  };
+
+  const handleArchiveProject = (project) => {
+    const confirmed = window.confirm(`Arsipkan proyek "${project.title || 'Tanpa Judul'}"?`);
+
+    if (!confirmed) return;
+
+    updateProjectFields(
+      project,
+      {
+        status: 'archived',
+        visibility: 'archived',
+      },
+      'Proyek berhasil diarsipkan.'
+    );
   };
 
   const handleDeleteProject = async (project) => {
@@ -330,16 +644,20 @@ export function AdminProjects() {
       <AdminSidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleSidebar} />
 
       <section className="admin-dashboard-main" aria-label="Proyek admin">
-        <AdminProjectsTopbar />
+        <AdminProjectsTopbar searchValue={searchQuery} onSearchChange={setSearchQuery} />
 
-        <div className={`admin-projects-layout${selectedProject && !editingProject ? ' admin-projects-layout--detail-open' : ''}`}>
+        <div className="admin-projects-layout">
           <section className="admin-projects-content">
-            {editingProject ? (
+            {editingProject || isUploadFormOpen ? (
               <ProjectUploadForm
-                mode="edit"
-                projectId={String(editingProject.id)}
+                mode={editingProject ? 'edit' : 'create'}
+                projectId={editingProject ? String(editingProject.id) : ''}
                 initialProject={editingProject}
-                onCancel={() => setEditingProject(null)}
+                onSuccess={() => handleProjectSaved(editingProject ? 'Proyek berhasil diperbarui.' : 'Proyek admin berhasil diupload.')}
+                onCancel={() => {
+                  setEditingProject(null);
+                  setUploadFormOpen(false);
+                }}
               />
             ) : (
               <>
@@ -348,6 +666,9 @@ export function AdminProjects() {
                 <h1>Proyek</h1>
                 <p>Dashboard <span>/</span> Proyek</p>
               </div>
+              <button type="button" onClick={handleUploadProject}>
+                Upload Proyek
+              </button>
             </div>
 
             {actionMessage ? (
@@ -379,23 +700,51 @@ export function AdminProjects() {
 
             <section className="admin-projects-filter" aria-label="Filter proyek">
               <label className="admin-projects-search">
-                <input type="search" placeholder="Cari judul proyek / nama user..." />
+                <input
+                  type="search"
+                  placeholder="Cari judul proyek / nama user..."
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                />
               </label>
-              {['Status', 'Kategori', 'Level', 'Author / User'].map((label) => (
-                <label key={label}>
-                  <span>{label}</span>
-                  <select defaultValue="">
-                    <option value="">
-                      {label === 'Status' ? 'Semua Status' : label === 'Kategori' ? 'Semua Kategori' : label === 'Level' ? 'Semua Level' : 'Semua User'}
-                    </option>
-                  </select>
-                </label>
-              ))}
+              <label>
+                <span>Status</span>
+                <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                  <option value="">Semua Status</option>
+                  {filterOptions.statuses.map((status) => <option value={status} key={status}>{status}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Kategori</span>
+                <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
+                  <option value="">Semua Kategori</option>
+                  {filterOptions.categories.map((category) => <option value={category} key={category}>{category}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Level</span>
+                <select value={levelFilter} onChange={(event) => setLevelFilter(event.target.value)}>
+                  <option value="">Semua Level</option>
+                  {filterOptions.levels.map((level) => <option value={level} key={level}>{level}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Author / User</span>
+                <select value={ownerFilter} onChange={(event) => setOwnerFilter(event.target.value)}>
+                  <option value="">Semua User</option>
+                  {filterOptions.owners.map((owner) => <option value={owner} key={owner}>{owner}</option>)}
+                </select>
+              </label>
               <label>
                 <span>Tanggal Upload</span>
-                <input type="text" placeholder="Pilih rentang tanggal" />
+                <input
+                  type="text"
+                  placeholder="Contoh: 11 Agu atau 2026-08"
+                  value={dateFilter}
+                  onChange={(event) => setDateFilter(event.target.value)}
+                />
               </label>
-              <button type="button">Reset Filter</button>
+              <button type="button" onClick={resetFilters}>Reset Filter</button>
             </section>
 
             <section className="admin-projects-table-card">
@@ -420,7 +769,8 @@ export function AdminProjects() {
                         type="checkbox"
                         aria-label="Pilih semua proyek"
                         checked={Boolean(selectedProject)}
-                        onChange={() => setSelectedProject(selectedProject ? null : projects[0] || null)}
+                        disabled={paginatedProjects.length === 0}
+                        onChange={() => setSelectedProject(selectedProject ? null : paginatedProjects[0] || null)}
                       />
                     </th>
                     <th>Judul Proyek</th>
@@ -444,26 +794,21 @@ export function AdminProjects() {
                     <tr>
                       <td colSpan="11">{projectError}</td>
                     </tr>
-                  ) : projects.length === 0 ? (
+                  ) : filteredProjects.length === 0 ? (
                     <tr>
-                      <td colSpan="11">Belum ada proyek yang tersimpan.</td>
+                      <td colSpan="11">Tidak ada proyek yang cocok dengan filter.</td>
                     </tr>
                   ) : (
-                    projects.map((project, index) => {
+                    paginatedProjects.map((project, index) => {
                       const ownerName =
-                        project.ownerName ||
-                        project.userName ||
-                        project.user?.name ||
-                        'User';
+                        getProjectOwnerName(project);
 
                       const ownerUsername =
-                        project.ownerUsername ||
-                        project.username ||
-                        project.user?.username ||
-                        '-';
+                        getProjectOwnerUsername(project);
 
                       const level = project.difficulty || '-';
                       const status = project.status || 'draft';
+                      const coverUrl = resolveProjectCoverUrl(project);
 
                       return (
                         <tr
@@ -483,7 +828,11 @@ export function AdminProjects() {
 
                           <td>
                             <div className="admin-projects-title-cell">
-                              <span className={`admin-projects-thumb is-${index % 5}`} />
+                              {coverUrl ? (
+                                <img className="admin-projects-thumb" src={coverUrl} alt={project.title || 'Cover proyek'} />
+                              ) : (
+                                <span className={`admin-projects-thumb is-${index % 5}`} />
+                              )}
                               <span>
                                 <b>{project.title || '-'}</b>
                                 <small>{project.description || '-'}</small>
@@ -561,17 +910,16 @@ export function AdminProjects() {
                 </tbody>
               </table>
               <div className="admin-projects-pagination">
-                <span>Menampilkan {projects.length} proyek</span>
+                <span>Menampilkan {paginatedProjects.length} dari {filteredProjects.length} proyek</span>
                 <div>
-                  <button type="button">&lt;</button>
-                  <button type="button" className="is-active">1</button>
-                  <button type="button">2</button>
-                  <button type="button">3</button>
-                  <button type="button">156</button>
-                  <button type="button">&gt;</button>
+                  <button type="button" disabled={currentPage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>&lt;</button>
+                  <button type="button" className="is-active">{currentPage}</button>
+                  <button type="button" disabled={currentPage >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>&gt;</button>
                 </div>
-                <select defaultValue="10">
+                <select value={String(perPage)} onChange={(event) => setPerPage(Number(event.target.value))}>
                   <option value="10">10 / halaman</option>
+                  <option value="25">25 / halaman</option>
+                  <option value="50">50 / halaman</option>
                 </select>
               </div>
             </section>
@@ -580,29 +928,38 @@ export function AdminProjects() {
               <article className="admin-projects-panel">
                 <div className="admin-projects-panel-head">
                   <h2>Proyek Menunggu Review</h2>
-                  <a href="/admin/projects/review">Lihat semua</a>
+                  <span>{formatProjectNumber(reviewProjects.length)} item</span>
                 </div>
-                {reviewProjects.map((item, index) => (
-                  <p key={item[0]}>
+                {reviewProjects.length ? reviewProjects.map((project, index) => (
+                  <p key={project.id ?? project.title}>
                     <span className={`admin-projects-mini-thumb is-${index}`} />
-                    <b>{item[0]}</b>
-                    <small>{item[1]}</small>
-                    <time>{item[2]}</time>
+                    <b>{project.title || '-'}</b>
+                    <small>{getProjectOwnerName(project)}</small>
+                    <time>{formatProjectDateTime(project.updatedAt || project.createdAt).date}</time>
                   </p>
-                ))}
+                )) : (
+                  <p><b>Tidak ada proyek menunggu review.</b><time>-</time></p>
+                )}
               </article>
 
               <article className="admin-projects-panel">
                 <div className="admin-projects-panel-head">
                   <h2>Proyek Populer <small>(30 Hari Terakhir)</small></h2>
-                  <a href="/admin/projects/popular">Lihat semua</a>
+                  <span>{formatProjectNumber(popularProjects.length)} item</span>
                 </div>
                 <table>
                   <thead><tr><th>#</th><th>Judul</th><th>Viewer</th><th>Like</th></tr></thead>
                   <tbody>
-                    {popularProjects.map((item, index) => (
-                      <tr key={item[0]}><td>{index + 1}</td><td>{item[0]}</td><td>{item[1]}</td><td>{item[2]}</td></tr>
-                    ))}
+                    {popularProjects.length ? popularProjects.map((project, index) => (
+                      <tr key={project.id ?? project.title}>
+                        <td>{index + 1}</td>
+                        <td>{project.title || '-'}</td>
+                        <td>{formatProjectNumber(project.viewer ?? project.viewers)}</td>
+                        <td>{formatProjectNumber(project.likes)}</td>
+                      </tr>
+                    )) : (
+                      <tr><td colSpan="4">Belum ada proyek.</td></tr>
+                    )}
                   </tbody>
                 </table>
               </article>
@@ -610,42 +967,39 @@ export function AdminProjects() {
               <article className="admin-projects-panel admin-projects-problems">
                 <div className="admin-projects-panel-head">
                   <h2>Proyek Bermasalah</h2>
-                  <a href="/admin/projects/problems">Lihat semua</a>
+                  <span>{formatProjectNumber(problemProjects.length)} kategori</span>
                 </div>
-                {problemProjects.map((item) => (
-                  <p key={item[0]}><span>{item[0]}</span><strong>{item[1]}</strong></p>
-                ))}
+                {problemProjects.length ? problemProjects.map((item) => (
+                  <p key={item.label}><span>{item.label}</span><strong>{formatProjectNumber(item.count)}</strong></p>
+                )) : (
+                  <p><span>Tidak ada masalah terdeteksi.</span><strong>0</strong></p>
+                )}
               </article>
 
               <article className="admin-projects-panel admin-projects-activity">
                 <div className="admin-projects-panel-head">
                   <h2>Aktivitas Terbaru</h2>
-                  <a href="/admin/projects/activity">Lihat semua</a>
+                  <span>{formatProjectNumber(activityItems.length)} item</span>
                 </div>
-                {activityItems.map((item) => (
-                  <p key={item[0]}>
-                    <span className={`admin-projects-dot is-${item[2]}`} />
-                    <b>{item[0]}</b>
-                    <time>{item[1]}</time>
+                {activityItems.length ? activityItems.map((item) => (
+                  <p key={item.id}>
+                    <span className={`admin-projects-dot is-${item.tone}`} />
+                    <b>Proyek "{item.title}" diupdate</b>
+                    <time>{formatProjectDateTime(item.time).date}</time>
                   </p>
-                ))}
+                )) : (
+                  <p><span className="admin-projects-dot" /><b>Belum ada aktivitas proyek.</b><time>-</time></p>
+                )}
               </article>
             </section>
 
-            <section className="admin-projects-quick">
-              <h2>Aksi Cepat</h2>
-              <div>
-                {['Buat Proyek Unggulan Baru', 'Export Data Proyek', 'Cek Link Rusak', 'Publish Proyek Terpilih', 'Bersihkan Draft Lama', 'Reorder Featured Project'].map((item) => (
-                  <button type="button" key={item}>{item}</button>
-                ))}
-              </div>
-            </section>
               </>
             )}
           </section>
 
-          {selectedProject && !editingProject && (
-            <aside className="admin-projects-detail" aria-label="Detail proyek">
+          {selectedProject && !editingProject && !isUploadFormOpen && (
+            <div className="admin-projects-detail-overlay" role="presentation" onClick={() => setSelectedProject(null)}>
+            <aside className="admin-projects-detail" aria-label="Detail proyek" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
               <div className="admin-projects-detail-head">
                 <h2>Detail Proyek</h2>
                 <button type="button" aria-label="Tutup detail" onClick={() => setSelectedProject(null)}>x</button>
@@ -653,19 +1007,24 @@ export function AdminProjects() {
 
               <>
                 <div className="admin-projects-detail-profile">
-                  <span className="admin-projects-detail-image" />
+                  {resolveProjectCoverUrl(selectedProject) ? (
+                    <img
+                      className="admin-projects-detail-image"
+                      src={resolveProjectCoverUrl(selectedProject)}
+                      alt={selectedProject.title || 'Cover proyek'}
+                    />
+                  ) : (
+                    <span className="admin-projects-detail-image" />
+                  )}
                   <div>
                     <h3>{selectedProject.title || '-'}</h3>
                     <ProjectBadge>{selectedProject.status || 'draft'}</ProjectBadge>
                     <p>
                       <span className="admin-projects-avatar" />
-                      {selectedProject.ownerName || selectedProject.userName || selectedProject.user?.name || 'User'}
+                      {getProjectOwnerName(selectedProject)}
                       <br />
                       <small>
-                        {selectedProject.ownerUsername ||
-                          selectedProject.username ||
-                          selectedProject.user?.username ||
-                          '-'}
+                        {getProjectOwnerUsername(selectedProject)}
                       </small>
                     </p>
                   </div>
@@ -729,14 +1088,25 @@ export function AdminProjects() {
                 </section>
 
                 <div className="admin-projects-detail-actions">
-                  <button type="button" className="is-blue">Preview Proyek</button>
-                  <button type="button" className="is-green">Publish / Unpublish</button>
-                  <button type="button" className="is-purple">Minta Revisi</button>
-                  <button type="button" className="is-orange">Tandai Featured</button>
-                  <button type="button">Arsipkan</button>
+                  <button type="button" className="is-blue" onClick={() => handlePreviewProject(selectedProject)}>
+                    Preview Proyek
+                  </button>
+                  <button type="button" className="is-green" disabled={busyProjectId === selectedProject.id} onClick={() => handleTogglePublish(selectedProject)}>
+                    {isProjectStatus(selectedProject, ['published', 'publish']) ? 'Unpublish' : 'Publish'}
+                  </button>
+                  <button type="button" className="is-purple" disabled={busyProjectId === selectedProject.id} onClick={() => handleRequestRevision(selectedProject)}>
+                    Minta Revisi
+                  </button>
+                  <button type="button" className="is-orange" disabled={busyProjectId === selectedProject.id} onClick={() => handleToggleFeatured(selectedProject)}>
+                    {selectedProject.featured || selectedProject.isFeatured || selectedProject.payload?.featured ? 'Hapus Featured' : 'Tandai Featured'}
+                  </button>
+                  <button type="button" disabled={busyProjectId === selectedProject.id} onClick={() => handleArchiveProject(selectedProject)}>
+                    Arsipkan
+                  </button>
                 </div>
               </>
             </aside>
+            </div>
           )}
         </div>
       </section>

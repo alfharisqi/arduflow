@@ -116,6 +116,8 @@ final class Application
         $this->router->post('/api/admin/logout', [$adminAuth, 'logout']);
         $this->router->get('/api/admin/dashboard', [$adminDashboard, 'show']);
         $this->router->get('/api/admin/users', [$adminUsers, 'index']);
+        $this->router->put('/api/admin/users/{id}/status', [$adminUsers, 'updateStatus']);
+        $this->router->delete('/api/admin/users/{id}', [$adminUsers, 'delete']);
         $this->router->get('/api/admin/database-sync/status', [$adminSync, 'status']);
         $this->router->post('/api/admin/database-sync/run', [$adminSync, 'run']);
         $this->router->post('/api/admin/database-sync/retry-failed', [$adminSync, 'retryFailed']);

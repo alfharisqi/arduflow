@@ -62,7 +62,7 @@ final class UserRepository
             'SELECT users.* FROM user_sessions ' .
             'INNER JOIN users ON users.id = user_sessions.user_id ' .
             'WHERE user_sessions.token_hash = :token_hash ' .
-            'AND user_sessions.expires_at > :now AND users.deleted_at IS NULL',
+            'AND user_sessions.expires_at > :now AND users.is_active = 1 AND users.deleted_at IS NULL',
             ['token_hash' => $tokenHash, 'now' => Clock::now()],
         );
 
@@ -258,6 +258,32 @@ final class UserRepository
         });
     }
 
+    public function setActiveStatus(int $id, bool $isActive): ?array
+    {
+        return Transaction::immediate($this->pdo, function () use ($id, $isActive): ?array {
+            $now = Clock::now();
+            $statement = $this->pdo->prepare(
+                'UPDATE users SET is_active = :is_active, version = version + 1, updated_at = :updated_at ' .
+                'WHERE id = :id AND deleted_at IS NULL'
+            );
+            $statement->execute([
+                'is_active' => $isActive ? 1 : 0,
+                'updated_at' => $now,
+                'id' => $id,
+            ]);
+            if ($statement->rowCount() === 0) {
+                return null;
+            }
+
+            if (!$isActive) {
+                $this->pdo->prepare('DELETE FROM user_sessions WHERE user_id = :user_id')
+                    ->execute(['user_id' => $id]);
+            }
+            $this->outbox->enqueue($this->pdo, 'users', $id, 'update');
+            return $this->findById($id);
+        });
+    }
+
     public function adminIndex(array $filters = []): array
     {
         $page = max(1, (int) ($filters['page'] ?? 1));
@@ -268,7 +294,7 @@ final class UserRepository
         $total = $this->countAdminUsers($where, $params);
         $statement = $this->pdo->prepare(
             'SELECT users.id, users.name, users.username, users.email, users.whatsapp, users.occupation, ' .
-            'users.institution_name, users.avatar_path, users.email_verified_at, users.verification_sent_at, ' .
+            'users.institution_name, users.avatar_path, users.is_active, users.email_verified_at, users.verification_sent_at, ' .
             'users.created_at, latest_session.last_login_at, active_session.user_id AS active_user_id ' .
             'FROM users ' .
             'LEFT JOIN (SELECT user_id, MAX(COALESCE(last_used_at, created_at)) AS last_login_at FROM user_sessions GROUP BY user_id) latest_session ' .
@@ -442,7 +468,9 @@ final class UserRepository
             'whatsapp' => $row['whatsapp'] ?: '-',
             'workplace' => trim($work . ($work !== '' && $institution !== '' ? ' / ' : '') . $institution) ?: '-',
             'emailStatus' => $row['email_verified_at'] ? 'Terverifikasi' : 'Belum Verifikasi',
-            'accountStatus' => $row['active_user_id'] ? 'Aktif' : 'Tidak Aktif',
+            'accountStatus' => ((int) ($row['is_active'] ?? 1)) === 1 ? 'Aktif' : 'Nonaktif',
+            'sessionStatus' => $row['active_user_id'] ? 'Online' : 'Offline',
+            'isActive' => ((int) ($row['is_active'] ?? 1)) === 1,
             'registeredAt' => $row['created_at'],
             'lastLoginAt' => $row['last_login_at'] ?: null,
             'avatarPath' => $row['avatar_path'] ?? null,

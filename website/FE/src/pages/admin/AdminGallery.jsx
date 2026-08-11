@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
+import { WorkshopImageCropper } from '../../features/profile-image-crop/WorkshopImageCropper.jsx';
 import { AdminSidebar } from './AdminSidebar.jsx';
 import {
   getInitialAdminSidebarCollapsed,
@@ -290,17 +291,28 @@ function AdminGalleryUploadForm({ onCancel, onSaved, mode = 'create', initialGal
   const [message, setMessage] = useState('');
   const [formError, setFormError] = useState('');
   const [jsonResult, setJsonResult] = useState(null);
+  const [coverCrop, setCoverCrop] = useState(null);
 
   useEffect(() => {
     if (!formData.coverImage) {
-      setCoverPreviewUrl('');
+      setCoverPreviewUrl(
+        mode === 'edit'
+          ? resolveGalleryCoverUrl(initialGallery?.coverPath, initialGallery?.coverUrl)
+          : ''
+      );
       return undefined;
     }
 
     const nextUrl = URL.createObjectURL(formData.coverImage);
     setCoverPreviewUrl(nextUrl);
     return () => URL.revokeObjectURL(nextUrl);
-  }, [formData.coverImage]);
+  }, [formData.coverImage, initialGallery?.coverPath, initialGallery?.coverUrl, mode]);
+
+  useEffect(() => () => {
+    if (coverCrop?.source) {
+      URL.revokeObjectURL(coverCrop.source);
+    }
+  }, [coverCrop]);
 
   const updateField = (field, value) => {
     setFormData((current) => ({ ...current, [field]: value }));
@@ -451,10 +463,69 @@ function AdminGalleryUploadForm({ onCancel, onSaved, mode = 'create', initialGal
     await sendGalleryToApi('draft');
   };
 
+  const handleCoverImageChange = (event) => {
+    const file = event.target.files?.[0] || null;
+    event.target.value = '';
+
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setErrors((current) => ({
+        ...current,
+        coverImage: 'Cover kegiatan harus berupa file gambar.',
+      }));
+      return;
+    }
+
+    setErrors((current) => {
+      if (!current.coverImage) return current;
+      const nextErrors = { ...current };
+      delete nextErrors.coverImage;
+      return nextErrors;
+    });
+    setMessage('Atur crop gambar sampul sebelum upload.');
+    setFormError('');
+
+    const source = URL.createObjectURL(file);
+    setCoverCrop((current) => {
+      if (current?.source) {
+        URL.revokeObjectURL(current.source);
+      }
+      return {
+        source,
+        fileName: file.name,
+      };
+    });
+  };
+
+  const handleApplyCoverCrop = ({ file }) => {
+    if (!file) return;
+
+    setCoverCrop((current) => {
+      if (current?.source) {
+        URL.revokeObjectURL(current.source);
+      }
+      return null;
+    });
+    updateField('coverImage', file);
+    setMessage('Gambar sampul berhasil dicrop. Lanjutkan upload galeri.');
+  };
+
+  const handleCancelCoverCrop = () => {
+    setCoverCrop((current) => {
+      if (current?.source) {
+        URL.revokeObjectURL(current.source);
+      }
+      return null;
+    });
+    setMessage('');
+  };
+
   const previewTitle = formData.title.trim() || 'Judul Kegiatan';
   const previewDescription = stripHtml(formData.description) || 'Deskripsi kegiatan akan tampil disini sebagai ringkasan singkat.';
 
   return (
+    <>
     <section className="admin-gallery-upload-page" aria-label="Form upload kegiatan">
       <form className="admin-gallery-upload-shell" onSubmit={handleSubmit} noValidate>
         <div className="admin-gallery-upload-main">
@@ -465,7 +536,7 @@ function AdminGalleryUploadForm({ onCancel, onSaved, mode = 'create', initialGal
             <input
               type="file"
               accept="image/png,image/jpeg,image/jpg"
-              onChange={(event) => updateField('coverImage', event.target.files?.[0] || null)}
+              onChange={handleCoverImageChange}
             />
             <span className="admin-gallery-upload-cover-icon">▧</span>
             <strong>Upload gambar sampul</strong>
@@ -604,6 +675,13 @@ function AdminGalleryUploadForm({ onCancel, onSaved, mode = 'create', initialGal
         </section>
       ) : null}
     </section>
+    <WorkshopImageCropper
+      source={coverCrop?.source || ''}
+      fileName={coverCrop?.fileName || 'gallery-cover.png'}
+      onCancel={handleCancelCoverCrop}
+      onApply={handleApplyCoverCrop}
+    />
+    </>
   );
 }
 
