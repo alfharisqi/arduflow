@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import '../../styles/admin-tutorial-create.css';
-import { apiEndpoint } from '../../services/apiEndpoints.js';
-import { showConfirmAlert, showPromptAlert } from '../../utils/alerts.js';
+import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
+import {
+  showConfirmAlert,
+  showErrorAlert,
+  showPromptAlert,
+  showSuccessAlert,
+} from '../../utils/alerts.js';
 
 const ARTICLE_API_URL = apiEndpoint(
   import.meta.env.VITE_ARTICLE_API_URL || import.meta.env.VITE_TUTORIAL_API_URL,
@@ -17,6 +22,10 @@ const emptyForm = {
   displayOrder: 1,
   shortDescription: '',
   fullDescription: '',
+  cardImage: null,
+  cardImageDataUrl: '',
+  cardImageUrl: '',
+  cardImageName: '',
   difficultyLevel: 'Level Pemula',
   estimatedTime: '',
   pageOrder: 1,
@@ -43,6 +52,22 @@ function normalizeUserLevel(value) {
   if (level === 'admin') return 'Admin';
 
   return 'Semua Pengguna';
+}
+
+function resolveApiAssetUrl(value) {
+  const assetPath = String(value || '').trim();
+
+  if (!assetPath) return '';
+
+  if (/^(data:image\/|https?:\/\/|blob:)/i.test(assetPath)) {
+    return assetPath;
+  }
+
+  if (/^(\/?uploads\/|\/?storage\/|\/?api\/uploads\/)/i.test(assetPath)) {
+    return `${API_BASE_URL}/${assetPath.replace(/^\/+/, '')}`;
+  }
+
+  return '';
 }
 
 export function AdminTutorialEdit() {
@@ -126,6 +151,14 @@ export function AdminTutorialEdit() {
           displayOrder: Number(tutorial.display_order || 1),
           shortDescription: tutorial.short_description || '',
           fullDescription: tutorial.full_description || '',
+          cardImage: null,
+          cardImageDataUrl: '',
+          cardImageUrl: resolveApiAssetUrl(
+            tutorial.card_image_url ||
+            tutorial.card_image_path ||
+            ''
+          ),
+          cardImageName: tutorial.card_image_name || '',
           difficultyLevel: tutorial.difficulty_level || 'Level Pemula',
           estimatedTime: tutorial.estimated_time || '',
           pageOrder: Number(tutorial.page_order || 1),
@@ -161,6 +194,25 @@ export function AdminTutorialEdit() {
       ...previous,
       [name]: value,
     }));
+  };
+
+  const handleCardImageChange = (event) => {
+    const selectedFile = event.target.files?.[0] || null;
+
+    if (!selectedFile) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setFormData((previous) => ({
+        ...previous,
+        cardImage: selectedFile,
+        cardImageDataUrl:
+          typeof reader.result === 'string' ? reader.result : '',
+        cardImageUrl: URL.createObjectURL(selectedFile),
+        cardImageName: selectedFile.name,
+      }));
+    };
+    reader.readAsDataURL(selectedFile);
   };
 
   const selectedSlide =
@@ -314,6 +366,15 @@ export function AdminTutorialEdit() {
           formData.accessRequirement.trim() || null,
       },
 
+      card_image: formData.cardImage
+        ? {
+            file_name: formData.cardImage.name,
+            file_type: formData.cardImage.type,
+            file_size: formData.cardImage.size,
+            data_url: formData.cardImageDataUrl,
+          }
+        : null,
+
       slides: slides.map((slide, index) => ({
         id: slide.id ?? null,
         order: Number(slide.order || index + 1),
@@ -322,6 +383,7 @@ export function AdminTutorialEdit() {
           slide.content_type || slide.contentType || 'text',
         content: slide.content ?? null,
         image_name: slide.image_name ?? null,
+        image_url: slide.image_url ?? null,
         video_url: slide.video_url ?? null,
       })),
     };
@@ -356,6 +418,7 @@ export function AdminTutorialEdit() {
     if (validationMessage) {
       setSaveStatus('error');
       setSaveMessage(validationMessage);
+      await showErrorAlert('Form Belum Lengkap', validationMessage);
       return;
     }
 
@@ -414,11 +477,19 @@ export function AdminTutorialEdit() {
         setSaveMessage(
           result.message || 'Perubahan materi gagal disimpan.'
         );
+        await showErrorAlert(
+          'Gagal Menyimpan',
+          result.message || 'Perubahan materi gagal disimpan.'
+        );
         return;
       }
 
       setSaveStatus('success');
       setSaveMessage(
+        result.message || 'Materi berhasil diperbarui.'
+      );
+      await showSuccessAlert(
+        'Berhasil',
         result.message || 'Materi berhasil diperbarui.'
       );
 
@@ -444,11 +515,26 @@ export function AdminTutorialEdit() {
           payload.access_settings.access_requirement,
         slides: payload.slides,
       }));
+
+      setFormData((previous) => ({
+        ...previous,
+        cardImage: null,
+        cardImageDataUrl: '',
+        cardImageUrl: result.data?.card_image_url
+          ? resolveApiAssetUrl(result.data.card_image_url)
+          : previous.cardImageUrl,
+        cardImageName:
+          result.data?.card_image_name || previous.cardImageName,
+      }));
     } catch (error) {
       console.error('Gagal memperbarui materi:', error);
 
       setSaveStatus('error');
       setSaveMessage(
+        `Tidak dapat menyimpan perubahan: ${error.message}`
+      );
+      await showErrorAlert(
+        'Gagal',
         `Tidak dapat menyimpan perubahan: ${error.message}`
       );
     } finally {
@@ -787,13 +873,35 @@ export function AdminTutorialEdit() {
               </label>
               <div className="admin-settings-upload">
                 <strong>Gambar / Icon (untuk card)</strong>
-                <label>
-                  <span>[]</span>
-                  <p>Thumbnail mengikuti data materi saat ini</p>
-                  <small>Upload gambar baru bisa ditambahkan setelah backend mendukung file update.</small>
+                <label htmlFor="tutorial-edit-card-image">
+                  {formData.cardImageUrl ? (
+                    <img src={formData.cardImageUrl} alt="Preview gambar materi" />
+                  ) : (
+                    <span>[]</span>
+                  )}
+                  <p>{formData.cardImageName || 'Klik untuk upload gambar baru'}</p>
+                  <small>Jika tidak diganti, thumbnail lama tetap digunakan.</small>
                 </label>
+                <input
+                  id="tutorial-edit-card-image"
+                  className="admin-tutorial-file-input"
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp,.svg"
+                  onChange={handleCardImageChange}
+                />
               </div>
-              <button type="button" className="admin-settings-library">Pilih dari Library</button>
+              <button
+                type="button"
+                className="admin-settings-library"
+                onClick={() =>
+                  showErrorAlert(
+                    'Belum Tersedia',
+                    'Library gambar belum tersedia. Gunakan upload gambar dari perangkat.'
+                  )
+                }
+              >
+                Pilih dari Library
+              </button>
             </div>
           </section>
 
@@ -870,7 +978,15 @@ export function AdminTutorialEdit() {
           <section className="admin-settings-user-preview">
             <h2>Preview di Halaman User</h2>
             <article>
-              <div className="admin-settings-preview-image" aria-hidden="true" />
+              {formData.cardImageUrl ? (
+                <img
+                  className="admin-settings-preview-image"
+                  src={formData.cardImageUrl}
+                  alt=""
+                />
+              ) : (
+                <div className="admin-settings-preview-image" aria-hidden="true" />
+              )}
               <div>
                 <small>{formData.difficultyLevel}</small>
                 <strong>{formData.title || 'Judul Materi'}</strong>

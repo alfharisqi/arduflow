@@ -208,6 +208,52 @@
   margin-bottom: 12px;
 }
 
+.admin-gallery-bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+}
+
+.admin-gallery-bulk-actions strong {
+  margin-right: auto;
+  color: #1e3a8a;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.admin-gallery-bulk-actions button {
+  min-height: 34px;
+  border: 1px solid #bfdbfe;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #1d4ed8;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 0 12px;
+}
+
+.admin-gallery-bulk-actions button.is-danger {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #be123c;
+}
+
+.admin-gallery-bulk-actions button.is-plain {
+  border-color: #d1d5db;
+  color: #4b5563;
+}
+
+.admin-gallery-bulk-actions button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .admin-gallery-filter label {
   display: flex;
   flex-direction: column;
@@ -1092,6 +1138,23 @@
   outline: 0;
 }
 
+.admin-gallery-upload-editor-area figure {
+  margin: 12px 0;
+}
+
+.admin-gallery-upload-editor-area img {
+  display: block;
+  width: min(100%, 560px);
+  max-height: 360px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #f1f5f9;
+}
+
+.admin-gallery-upload-editor-area figcaption {
+  display: none;
+}
+
 .admin-gallery-upload-editor-area:empty::before {
   content: attr(data-placeholder);
   color: #8b949e;
@@ -1211,12 +1274,19 @@
 }
 
 .admin-gallery-upload-preview-tag {
-  display: inline-block;
-  width: 58px;
-  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-width: 58px;
+  min-height: 26px;
+  padding: 0 10px;
   border-radius: 6px;
-  background: #d1d5db;
-  color: transparent;
+  background: #eaf2ff;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .admin-gallery-upload-card-body h3 {

@@ -212,6 +212,7 @@ function stripHtml(value) {
 
 function GalleryRichTextEditor({ value, onChange, hasError }) {
   const editorRef = useRef(null);
+  const imageInputRef = useRef(null);
 
   useEffect(() => {
     if (editorRef.current && editorRef.current.innerHTML !== value) {
@@ -245,9 +246,39 @@ function GalleryRichTextEditor({ value, onChange, hasError }) {
     }
   };
 
+  const handleImageChange = (event) => {
+    const file = event.target.files?.[0] || null;
+    event.target.value = '';
+
+    if (!file || !file.type.startsWith('image/')) return;
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const src = String(reader.result || '');
+      const alt = file.name.replace(/[<>"']/g, '');
+
+      if (!src) return;
+
+      runCommand(
+        'insertHTML',
+        `<figure><img src="${src}" alt="${alt}" /></figure><p><br></p>`
+      );
+    };
+
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div className={`admin-gallery-upload-editor${hasError ? ' is-invalid' : ''}`}>
       <div className="admin-gallery-upload-toolbar" aria-label="Toolbar deskripsi kegiatan">
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/jpg,image/webp"
+          hidden
+          onChange={handleImageChange}
+        />
         <select aria-label="Format teks" defaultValue="p" onChange={handleFormat}>
           <option value="p">Normal</option>
           <option value="h2">Heading</option>
@@ -258,6 +289,7 @@ function GalleryRichTextEditor({ value, onChange, hasError }) {
         <button type="button" onClick={() => runCommand('bold')} aria-label="Bold">B</button>
         <button type="button" onClick={() => runCommand('italic')} aria-label="Italic"><em>I</em></button>
         <button type="button" onClick={() => runCommand('underline')} aria-label="Underline"><u>U</u></button>
+        <button type="button" onClick={() => imageInputRef.current?.click()} aria-label="Tambah foto">Foto</button>
         <span />
         <button type="button" onClick={() => runCommand('insertUnorderedList')} aria-label="Bullet list">≡</button>
         <button type="button" onClick={() => runCommand('insertOrderedList')} aria-label="Numbered list">1.</button>
@@ -388,6 +420,7 @@ function AdminGalleryUploadForm({ onCancel, onSaved, mode = 'create', initialGal
 
     if (mode === 'edit' && initialGallery?.id) {
       payload.append('id', String(initialGallery.id));
+      payload.append('_method', 'PUT');
     }
 
     payload.append('tag', formData.tag);
@@ -693,6 +726,7 @@ function AdminGalleryUploadForm({ onCancel, onSaved, mode = 'create', initialGal
 export function AdminGallery() {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialAdminSidebarCollapsed);
   const [selectedGalleryIndex, setSelectedGalleryIndex] = useState(null);
+  const [selectedGalleryIds, setSelectedGalleryIds] = useState(() => new Set());
   const [isUploadFormOpen, setUploadFormOpen] = useState(false);
   const [galleryData, setGalleryData] = useState([]);
   const [isGalleryLoading, setGalleryLoading] = useState(false);
@@ -709,6 +743,7 @@ export function AdminGallery() {
       const data = await getGalleryFromApi();
       setGalleryData(data);
       setSelectedGalleryIndex(null);
+      setSelectedGalleryIds(new Set());
     } catch (error) {
       console.error('Gagal mengambil data galeri:', error);
       setGalleryError(error.message || 'Gagal mengambil data galeri.');
@@ -729,8 +764,134 @@ export function AdminGallery() {
     });
   };
 
-  const handleSelectGallery = (index) => {
-    setSelectedGalleryIndex((currentIndex) => (currentIndex === index ? null : index));
+  const getGallerySelectionKey = (gallery, index) => String(gallery?.id || `row-${index}`);
+
+  const allGallerySelected =
+    galleryData.length > 0 &&
+    galleryData.every((gallery, index) =>
+      selectedGalleryIds.has(getGallerySelectionKey(gallery, index))
+    );
+
+  const handleToggleAllGalleries = (checked) => {
+    setSelectedGalleryIds(
+      checked
+        ? new Set(galleryData.map((gallery, index) => getGallerySelectionKey(gallery, index)))
+        : new Set()
+    );
+  };
+
+  const handleToggleGallerySelection = (gallery, index, checked) => {
+    const key = getGallerySelectionKey(gallery, index);
+
+    setSelectedGalleryIds((current) => {
+      const next = new Set(current);
+
+      if (checked) {
+        next.add(key);
+      } else {
+        next.delete(key);
+      }
+
+      return next;
+    });
+  };
+
+  const selectedGalleries = galleryData.filter((gallery, index) =>
+    selectedGalleryIds.has(getGallerySelectionKey(gallery, index))
+  );
+
+  const clearGallerySelection = () => {
+    setSelectedGalleryIds(new Set());
+  };
+
+  const createGalleryStatusPayload = (gallery, status) => {
+    const payload = new FormData();
+    payload.append('id', String(gallery.id));
+    payload.append('_method', 'PUT');
+    payload.append('tag', gallery.tag || 'Dokumentasi');
+    payload.append('title', gallery.title || 'Draft Galeri');
+    payload.append('description', gallery.description || 'Draft galeri belum memiliki deskripsi.');
+    payload.append('user_name', gallery.userName || 'Admin');
+    payload.append('event_date', gallery.eventDate || new Date().toISOString().slice(0, 10));
+    payload.append('detail_link', gallery.detailLink || '');
+    payload.append('note', gallery.note || '');
+    payload.append('status', status);
+    return payload;
+  };
+
+  const handleBulkStatus = async (status) => {
+    if (selectedGalleries.length === 0) return;
+
+    const statusLabel = status === 'published' ? 'publish' : 'draft';
+    const confirmed = await showConfirmAlert({
+      title: `Ubah Status ${selectedGalleries.length} Galeri?`,
+      text: `Galeri terpilih akan diubah menjadi ${statusLabel}.`,
+      confirmButtonText: 'Lanjutkan',
+    });
+    if (!confirmed) return;
+
+    try {
+      setBusyGalleryId('bulk');
+      setGalleryError('');
+
+      await Promise.all(selectedGalleries.map(async (gallery) => {
+        const response = await fetch(GALLERY_API_URL, {
+          method: 'POST',
+          body: createGalleryStatusPayload(gallery, status),
+        });
+        const responseText = await response.text();
+        const result = responseText ? JSON.parse(responseText) : {};
+
+        if (!response.ok || result.success === false) {
+          throw new Error(result.message || `Gagal mengubah status ${gallery.title}.`);
+        }
+      }));
+
+      await showSuccessAlert('Berhasil', `${selectedGalleries.length} galeri berhasil diubah.`);
+      await loadGalleryData();
+    } catch (error) {
+      console.error('Gagal mengubah status galeri:', error);
+      setGalleryError(error.message || 'Gagal mengubah status galeri terpilih.');
+    } finally {
+      setBusyGalleryId(null);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedGalleries.length === 0) return;
+
+    const confirmed = await showConfirmAlert({
+      title: `Hapus ${selectedGalleries.length} Galeri?`,
+      text: 'Semua galeri yang dichecklist akan dihapus.',
+      confirmButtonText: 'Hapus',
+    });
+    if (!confirmed) return;
+
+    try {
+      setBusyGalleryId('bulk');
+      setGalleryError('');
+
+      await Promise.all(selectedGalleries.map(async (gallery) => {
+        const response = await fetch(`${GALLERY_API_URL}?id=${encodeURIComponent(gallery.id)}`, {
+          method: 'DELETE',
+          headers: { Accept: 'application/json' },
+        });
+        const responseText = await response.text();
+        const result = responseText ? JSON.parse(responseText) : {};
+
+        if (!response.ok || result.success === false) {
+          throw new Error(result.message || `Gagal menghapus ${gallery.title}.`);
+        }
+      }));
+
+      await showSuccessAlert('Berhasil', `${selectedGalleries.length} galeri berhasil dihapus.`);
+      await loadGalleryData();
+    } catch (error) {
+      console.error('Gagal menghapus galeri terpilih:', error);
+      setGalleryError(error.message || 'Gagal menghapus galeri terpilih.');
+    } finally {
+      setBusyGalleryId(null);
+    }
   };
 
   const handleOpenUploadForm = () => {
@@ -913,6 +1074,42 @@ export function AdminGallery() {
               <button type="button" className="admin-gallery-primary" onClick={handleOpenUploadForm}><img src={downloadIcon} alt="" /> Upload Media</button>
             </section>
 
+            {selectedGalleries.length > 0 && (
+              <section className="admin-gallery-bulk-actions" aria-label="Aksi galeri terpilih">
+                <strong>{selectedGalleries.length} galeri dipilih</strong>
+                <button
+                  type="button"
+                  onClick={() => handleBulkStatus('published')}
+                  disabled={busyGalleryId === 'bulk'}
+                >
+                  Publish
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleBulkStatus('draft')}
+                  disabled={busyGalleryId === 'bulk'}
+                >
+                  Jadikan Draft
+                </button>
+                <button
+                  type="button"
+                  className="is-danger"
+                  onClick={handleBulkDelete}
+                  disabled={busyGalleryId === 'bulk'}
+                >
+                  Hapus
+                </button>
+                <button
+                  type="button"
+                  className="is-plain"
+                  onClick={clearGallerySelection}
+                  disabled={busyGalleryId === 'bulk'}
+                >
+                  Batal Pilih
+                </button>
+              </section>
+            )}
+
             <section className="admin-gallery-table-card">
               <table className="admin-gallery-table">
                 <thead>
@@ -921,8 +1118,8 @@ export function AdminGallery() {
                       <input
                         type="checkbox"
                         aria-label="Pilih semua galeri"
-                        checked={false}
-                        onChange={() => {}}
+                        checked={allGallerySelected}
+                        onChange={(event) => handleToggleAllGalleries(event.target.checked)}
                       />
                     </th>
                     <th>Thumbnail</th>
@@ -960,8 +1157,10 @@ export function AdminGallery() {
                           <input
                             type="checkbox"
                             aria-label={`Pilih ${item.title}`}
-                            checked={selectedGalleryIndex === index}
-                            onChange={() => handleSelectGallery(index)}
+                            checked={selectedGalleryIds.has(getGallerySelectionKey(item, index))}
+                            onChange={(event) =>
+                              handleToggleGallerySelection(item, index, event.target.checked)
+                            }
                           />
                         </td>
                         <td>

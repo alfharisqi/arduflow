@@ -1,18 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { apiEndpoint } from '../../services/apiEndpoints.js';
-import { showErrorAlert, showPromptAlert, showSuccessAlert } from '../../utils/alerts.js';
+import {
+  showConfirmAlert,
+  showErrorAlert,
+  showPromptAlert,
+  showSuccessAlert,
+} from '../../utils/alerts.js';
 import '../../styles/admin-tutorial-create.css';
 
 const ARTICLE_API_URL = apiEndpoint(import.meta.env.VITE_ARTICLE_API_URL, '/api/article-api.php');
 
-const initialSlides = [
-  { id: 1, title: 'Pengantar ArduFlow', contentType: 'text_image', estimatedTime: '2-4 jam', status: 'Published' },
-  { id: 2, title: 'Apa itu ArduFlow?', contentType: 'text_image', estimatedTime: '2-4 jam', status: 'Published' },
-  { id: 3, title: 'Kenapa Belajar IoT dengan Visual?', contentType: 'text_image', estimatedTime: '2-4 jam', status: 'Draft' },
-  { id: 4, title: 'Cara Daftar untuk Mendapatkan Akun', contentType: 'text_image', estimatedTime: '2-4 jam', status: 'Draft' },
-  { id: 5, title: 'Cara Mendapatkan Token IDE', contentType: 'text_image', estimatedTime: '2-4 jam', status: 'Draft' },
-  { id: 6, title: 'Belajar Node Dasar', contentType: 'text_image', estimatedTime: '2-4 jam', status: 'Draft' },
-];
+const initialSlides = [];
 
 const initialFormData = {
   title: '',
@@ -51,14 +49,23 @@ const steps = [
   ['3', 'Pengaturan', 'Status & lainnya'],
 ];
 
+const contentTypeOptions = [
+  ['text_image', 'Teks + Gambar'],
+  ['text', 'Teks'],
+  ['image', 'Gambar'],
+  ['video', 'Video'],
+];
+
 const toContentLabel = (contentType) =>
-  contentType === 'text_image' ? 'Teks + Gambar' : contentType;
+  contentTypeOptions.find(([value]) => value === contentType)?.[1] ||
+  String(contentType || '-');
 
 export function AdminTutorialCreate() {
   const [activeStep, setActiveStep] = useState(1);
   const [formData, setFormData] = useState(initialFormData);
   const [slides, setSlides] = useState(initialSlides);
-  const [selectedSlideId, setSelectedSlideId] = useState(initialSlides[0].id);
+  const [selectedSlideId, setSelectedSlideId] = useState(null);
+  const [editingSlideId, setEditingSlideId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState('asc');
   const [showFilter, setShowFilter] = useState(false);
@@ -80,10 +87,14 @@ export function AdminTutorialCreate() {
   const fullDescriptionRef = useRef(null);
   const cardImageSectionRef = useRef(null);
   const cardImageInputRef = useRef(null);
+  const slideImageInputRef = useRef(null);
   const pageOrderRef = useRef(null);
 
   const selectedSlide =
     slides.find((slide) => slide.id === selectedSlideId) || slides[0] || null;
+  const editingSlide =
+    slides.find((slide) => slide.id === editingSlideId) || null;
+  const selectedSlideImage = selectedSlide?.imagePreview || cardImagePreview;
 
   useEffect(() => {
     if (!formData.cardImage) {
@@ -148,12 +159,12 @@ export function AdminTutorialCreate() {
     const publishedCount = slides.filter((slide) => slide.status === 'Published').length;
 
     return [
-      ['Total Materi', '9'],
-      ['Draft', String(Math.max(draftCount, 7))],
-      ['Published', String(Math.max(publishedCount, 2))],
-      ['Total Estimasi Waktu', '17-24 jam'],
+      ['Total Materi', String(slides.length)],
+      ['Draft', String(draftCount)],
+      ['Published', String(publishedCount)],
+      ['Total Estimasi Waktu', formData.estimatedTime || '-'],
     ];
-  }, [slides]);
+  }, [formData.estimatedTime, slides]);
 
   const createSlug = (value) =>
     value
@@ -243,12 +254,27 @@ export function AdminTutorialCreate() {
       id: Date.now(),
       title: `Slide Materi ${slides.length + 1}`,
       contentType: 'text_image',
-      estimatedTime: '2-4 jam',
+      content: '',
+      imageName: '',
+      imageFile: null,
+      imagePreview: '',
+      videoUrl: '',
+      estimatedTime: formData.estimatedTime || '2-4 jam',
       status: 'Draft',
     };
 
     setSlides((previousSlides) => [...previousSlides, newSlide]);
     setSelectedSlideId(newSlide.id);
+    setEditingSlideId(newSlide.id);
+    clearFieldError('slides');
+  };
+
+  const updateSlideField = (slideId, fieldName, value) => {
+    setSlides((previousSlides) =>
+      previousSlides.map((slide) =>
+        slide.id === slideId ? { ...slide, [fieldName]: value } : slide
+      )
+    );
     clearFieldError('slides');
   };
 
@@ -268,12 +294,25 @@ export function AdminTutorialCreate() {
     setSelectedSlideId(duplicatedSlide.id);
   };
 
-  const removeSlide = (slideId) => {
+  const removeSlide = async (slideId) => {
+    const slide = slides.find((item) => item.id === slideId);
+    const confirmed = await showConfirmAlert({
+      title: 'Hapus Materi?',
+      text: `Hapus "${slide?.title || 'slide ini'}" dari daftar materi?`,
+      confirmButtonText: 'Hapus',
+    });
+
+    if (!confirmed) return;
+
     setSlides((previousSlides) => {
       const updatedSlides = previousSlides.filter((slide) => slide.id !== slideId);
 
       if (selectedSlideId === slideId) {
         setSelectedSlideId(updatedSlides[0]?.id || null);
+      }
+
+      if (editingSlideId === slideId) {
+        setEditingSlideId(null);
       }
 
       return updatedSlides;
@@ -306,6 +345,29 @@ export function AdminTutorialCreate() {
           : slide
       )
     );
+  };
+
+  const handleSlideImageChange = (event) => {
+    const selectedFile = event.target.files?.[0] || null;
+
+    if (!selectedFile || !editingSlideId) return;
+
+    const previewUrl = URL.createObjectURL(selectedFile);
+
+    setSlides((previousSlides) =>
+      previousSlides.map((slide) =>
+        slide.id === editingSlideId
+          ? {
+              ...slide,
+              imageFile: selectedFile,
+              imageName: selectedFile.name,
+              imagePreview: previewUrl,
+            }
+          : slide
+      )
+    );
+
+    event.target.value = '';
   };
 
   const validateForm = () => {
@@ -438,6 +500,13 @@ export function AdminTutorialCreate() {
       order: index + 1,
       title: slide.title,
       content_type: slide.contentType,
+      content: slide.content || null,
+      image_name: slide.imageName || null,
+      image_url:
+        slide.imagePreview && !/^blob:/i.test(slide.imagePreview)
+          ? slide.imagePreview
+          : null,
+      video_url: slide.videoUrl || null,
       estimated_time: slide.estimatedTime,
       status: slide.status.toLowerCase(),
     })),
@@ -464,6 +533,7 @@ export function AdminTutorialCreate() {
       setSubmitStatus('error');
       setSubmitMessage('Masih ada kolom wajib yang belum diisi.');
       focusFirstInvalidField(validationErrors);
+      await showErrorAlert('Form Belum Lengkap', 'Masih ada kolom wajib yang belum diisi.');
       return;
     }
 
@@ -499,11 +569,19 @@ export function AdminTutorialCreate() {
       if (!response.ok) {
         setSubmitStatus('error');
         setSubmitMessage(result.message || 'Data materi gagal disimpan.');
+        await showErrorAlert(
+          'Gagal Menyimpan',
+          result.message || 'Data materi gagal disimpan.'
+        );
         return;
       }
 
       setSubmitStatus('success');
       setSubmitMessage(result.message || 'Materi berhasil diproses.');
+      await showSuccessAlert(
+        'Berhasil',
+        result.message || 'Materi berhasil diproses.'
+      );
     } catch (error) {
       setResponseJson({
         success: false,
@@ -513,6 +591,10 @@ export function AdminTutorialCreate() {
       });
       setSubmitStatus('error');
       setSubmitMessage('Tidak dapat terhubung ke API. Pastikan server sudah berjalan.');
+      await showErrorAlert(
+        'API Tidak Terhubung',
+        'Tidak dapat terhubung ke API. Pastikan server sudah berjalan.'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -685,7 +767,9 @@ export function AdminTutorialCreate() {
           </div>
 
           <div className="admin-tutorial-slide-list">
-            {slides.slice(0, 3).map((slide, index) => (
+            {slides.length === 0 ? (
+              <p>Belum ada slide. Klik Tambah Slide untuk mulai mengisi materi.</p>
+            ) : slides.map((slide, index) => (
               <article key={slide.id}>
                 <span>::</span>
                 <strong>{index + 1}</strong>
@@ -762,11 +846,17 @@ export function AdminTutorialCreate() {
             <h2>Preview Urutan Slide (Ringkasan)</h2>
             <div className="admin-tutorial-page-dots">
               <button type="button" disabled>&lt;</button>
-              <button type="button" className="is-active">1</button>
-              <button type="button">2</button>
-              <span>...</span>
-              <button type="button">{Math.max(slides.length - 1, 1)}</button>
-              <button type="button">{Math.max(slides.length, 1)}</button>
+              {slides.length === 0 ? (
+                <button type="button" className="is-active">0</button>
+              ) : slides.slice(0, 5).map((slide, index) => (
+                <button
+                  type="button"
+                  className={index === 0 ? 'is-active' : ''}
+                  key={slide.id}
+                >
+                  {index + 1}
+                </button>
+              ))}
               <button type="button">&gt;</button>
             </div>
             <article>
@@ -832,7 +922,11 @@ export function AdminTutorialCreate() {
               <span>Aksi</span>
             </div>
             <div className="admin-materials-table-body">
-              {filteredSlides.slice(0, 3).map((slide, index) => (
+              {filteredSlides.length === 0 ? (
+                <article className="admin-materials-empty-row">
+                  <span>Belum ada materi. Klik Tambah Materi untuk membuat slide pertama.</span>
+                </article>
+              ) : filteredSlides.map((slide, index) => (
                 <article className={selectedSlideId === slide.id ? 'is-selected' : ''} key={slide.id} onClick={() => setSelectedSlideId(slide.id)}>
                   <button type="button" className="admin-materials-row-handle" aria-label={`Pilih ${slide.title}`}>::</button>
                   <strong>{index + 1}</strong>
@@ -846,7 +940,8 @@ export function AdminTutorialCreate() {
                   <div className="admin-materials-actions">
                     <button type="button" onClick={(event) => {
                       event.stopPropagation();
-                      renameSlide(slide.id);
+                      setSelectedSlideId(slide.id);
+                      setEditingSlideId(slide.id);
                     }}>Edit</button>
                     <button type="button" onClick={(event) => {
                       event.stopPropagation();
@@ -861,6 +956,110 @@ export function AdminTutorialCreate() {
               ))}
             </div>
           </section>
+
+          {editingSlide && (
+            <section className="admin-materials-editor">
+              <div className="admin-materials-editor-head">
+                <div>
+                  <h2>Edit Materi Terpilih</h2>
+                  <p>Isi konten slide yang akan dikirim ke database.</p>
+                </div>
+                <button type="button" onClick={() => setEditingSlideId(null)}>
+                  Selesai
+                </button>
+              </div>
+
+              <div className="admin-materials-editor-grid">
+                <label>
+                  Judul Materi
+                  <input
+                    value={editingSlide.title}
+                    onChange={(event) =>
+                      updateSlideField(editingSlide.id, 'title', event.target.value)
+                    }
+                  />
+                </label>
+
+                <label>
+                  Tipe Konten
+                  <select
+                    value={editingSlide.contentType}
+                    onChange={(event) =>
+                      updateSlideField(editingSlide.id, 'contentType', event.target.value)
+                    }
+                  >
+                    {contentTypeOptions.map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  Estimasi Waktu
+                  <input
+                    value={editingSlide.estimatedTime}
+                    onChange={(event) =>
+                      updateSlideField(editingSlide.id, 'estimatedTime', event.target.value)
+                    }
+                  />
+                </label>
+
+                <label>
+                  Status
+                  <select
+                    value={editingSlide.status}
+                    onChange={(event) =>
+                      updateSlideField(editingSlide.id, 'status', event.target.value)
+                    }
+                  >
+                    <option>Draft</option>
+                    <option>Published</option>
+                  </select>
+                </label>
+              </div>
+
+              <label className="admin-materials-editor-wide">
+                Konten Materi
+                <textarea
+                  rows="7"
+                  value={editingSlide.content || ''}
+                  onChange={(event) =>
+                    updateSlideField(editingSlide.id, 'content', event.target.value)
+                  }
+                  placeholder="Tulis isi materi atau instruksi praktik..."
+                />
+              </label>
+
+              <div className="admin-materials-editor-grid">
+                <label>
+                  URL Video
+                  <input
+                    value={editingSlide.videoUrl || ''}
+                    onChange={(event) =>
+                      updateSlideField(editingSlide.id, 'videoUrl', event.target.value)
+                    }
+                    placeholder="https://..."
+                  />
+                </label>
+
+                <div className="admin-materials-editor-upload">
+                  <strong>Gambar Slide</strong>
+                  <button type="button" onClick={() => slideImageInputRef.current?.click()}>
+                    {editingSlide.imageName || 'Upload Gambar Slide'}
+                  </button>
+                  <input
+                    ref={slideImageInputRef}
+                    className="admin-tutorial-file-input"
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.webp,.svg"
+                    onChange={handleSlideImageChange}
+                  />
+                </div>
+              </div>
+            </section>
+          )}
 
           <p className="admin-materials-tip">i Tips: Drag & drop pada ikon titik untuk mengubah urutan materi.</p>
 
@@ -893,7 +1092,13 @@ export function AdminTutorialCreate() {
           <section className="admin-materials-selected-preview">
             <h2>Preview Materi Terpilih</h2>
             <h3>#{selectedSlide ? slides.findIndex((slide) => slide.id === selectedSlide.id) + 1 : 0} {selectedSlide?.title || 'Belum ada materi'}</h3>
-            <div className="admin-materials-image-placeholder" aria-hidden="true"><span /></div>
+            <div className={`admin-materials-image-placeholder ${selectedSlideImage ? 'has-image' : ''}`} aria-hidden="true">
+              {selectedSlideImage ? (
+                <img src={selectedSlideImage} alt="" />
+              ) : (
+                <span />
+              )}
+            </div>
             <p>
               <span>[] {selectedSlide ? toContentLabel(selectedSlide.contentType) : '-'}</span>
               <span>o {selectedSlide?.estimatedTime || '-'}</span>
@@ -1026,8 +1231,11 @@ export function AdminTutorialCreate() {
               <h2>Prasyarat Belajar (Opsional)</h2>
               <select value={formData.accessSettings.prerequisite} onChange={(event) => handleNestedChange('accessSettings', 'prerequisite', event.target.value)}>
                 <option>Tidak ada prasyarat</option>
-                <option>Pengantar ArduFlow</option>
-                <option>Apa itu ArduFlow?</option>
+                {slides.map((slide, index) => (
+                  <option key={slide.id} value={slide.title || `Slide ${index + 1}`}>
+                    {slide.title || `Slide ${index + 1}`}
+                  </option>
+                ))}
               </select>
               <small>Pilih materi yang harus diselesaikan terlebih dahulu.</small>
             </section>
@@ -1080,9 +1288,9 @@ export function AdminTutorialCreate() {
               )}
               <div>
                 <small>{formData.difficultyLevel}</small>
-                <strong>{formData.title || 'Panduan Pemula'}</strong>
-                <p>{formData.shortDescription || 'Pelajari dasar ArduFlow, Arduino, dan IoT sebelum membuat project pertama.'}</p>
-                <span>o {formData.estimatedTime}</span>
+                <strong>{formData.title || 'Judul materi'}</strong>
+                <p>{formData.shortDescription || 'Deskripsi singkat materi akan tampil di sini.'}</p>
+                <span>o {formData.estimatedTime || '-'}</span>
                 <span>[] {slides.length} slide</span>
                 <span>* Gratis</span>
               </div>
@@ -1098,15 +1306,15 @@ export function AdminTutorialCreate() {
               ['Tampilkan di halaman', formData.pageSettings.showOnPage ? 'Ya' : 'Tidak'],
               ['Featured', formData.pageSettings.featured ? 'Ya' : 'Tidak'],
               ['Akses Materi', formData.pageSettings.accessType],
-              ['Kategori / Jalur', formData.category || 'Panduan Pemula'],
+              ['Kategori / Jalur', formData.category || '-'],
               ['Level Kesulitan', formData.difficultyLevel],
-              ['Urutan Tampil', formData.pageSettings.pageOrder || '1'],
+              ['Urutan Tampil', formData.pageSettings.pageOrder || '-'],
               ['Estimasi Total Durasi', formData.estimatedTime],
               ['Thumbnail / Icon', formData.cardImage ? formData.cardImage.name : 'Belum diunggah'],
               ['Syarat Akses', formData.accessSettings.userLevel],
               ['Prasyarat Belajar', formData.accessSettings.prerequisite],
               ['CTA Button', `${formData.ctaText} -> ${formData.targetLink}`],
-              ['URL Slug', `/materi/${formData.urlSlug || 'panduan-pemula'}`],
+              ['URL Slug', formData.urlSlug ? `/materi/${formData.urlSlug}` : '-'],
               ['Jadwal Publikasi', formData.publishSchedule || 'Segera'],
             ].map((item) => (
               <p key={item[0]}>

@@ -109,7 +109,8 @@ function fileToPayload(?array $file, ?string $coverPath, ?string $coverUrl): ?ar
 
 function getRequestId(): int
 {
-    $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+    $rawId = $_GET['id'] ?? $_POST['id'] ?? 0;
+    $id = (int) $rawId;
 
     if ($id <= 0) {
         respond(400, [
@@ -282,6 +283,14 @@ function uploadedCover(array $uploadDirectory): array
 
 try {
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+
+    if ($method === 'POST' && isset($_POST['_method'])) {
+        $methodOverride = strtoupper((string) $_POST['_method']);
+
+        if (in_array($methodOverride, ['PUT', 'DELETE'], true)) {
+            $method = $methodOverride;
+        }
+    }
 
     if (!in_array($method, ['GET', 'POST', 'PUT', 'DELETE'], true)) {
         header('Allow: GET, POST, PUT, DELETE, OPTIONS');

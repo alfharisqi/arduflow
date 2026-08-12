@@ -2,6 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
 import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
+import {
+  showConfirmAlert,
+  showErrorAlert,
+  showSuccessAlert,
+} from '../../utils/alerts.js';
 
 import bookIcon from '../../assets/icons/icon-book-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
@@ -9,7 +14,6 @@ import clockIcon from '../../assets/icons/icon-clock-1.svg';
 import fileIcon from '../../assets/icons/icon-file-text-1.svg';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
 import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
-import reportIcon from '../../assets/icons/icons-reportchart-1.svg';
 import zapIcon from '../../assets/icons/icon-zap-1.svg';
 
 /* =========================================================
@@ -438,6 +442,245 @@ export function AdminTutorial() {
     window.location.href = `/admin/tutorial/edit?id=${encodeURIComponent(
       tutorial.id
     )}`;
+  };
+
+  const createTutorialUpdatePayload = (tutorial, overrides = {}) => ({
+    title: tutorial.title || 'Tanpa Judul',
+    slug:
+      tutorial.slug ||
+      createSlug(tutorial.title || `tutorial-${tutorial.id}`),
+    category: tutorial.category && tutorial.category !== '-'
+      ? tutorial.category
+      : 'panduan-pemula',
+    display_order: Number(tutorial.display_order || tutorial.displayOrder || 1),
+    descriptions: {
+      short_description:
+        tutorial.short_description ||
+        tutorial.description ||
+        'Deskripsi singkat belum tersedia.',
+      full_description:
+        tutorial.full_description ||
+        tutorial.fullDescription ||
+        tutorial.description ||
+        'Deskripsi lengkap belum tersedia.',
+    },
+    learning_information: {
+      difficulty_level:
+        tutorial.difficulty_level ||
+        tutorial.level ||
+        'Level Pemula',
+      estimated_time:
+        tutorial.estimated_time ||
+        tutorial.estimatedTime ||
+        '-',
+    },
+    page_settings: {
+      page_order: Number(tutorial.page_order || tutorial.pageOrder || 1),
+      status: normalizeStatus(overrides.status || tutorial.status)
+        .toLowerCase()
+        .replace(/\s+/g, '_'),
+    },
+    access_settings: {
+      user_level:
+        tutorial.user_level ||
+        tutorial.userLevel ||
+        'semua_pengguna',
+      access_requirement:
+        tutorial.access_requirement ||
+        tutorial.accessRequirement ||
+        null,
+    },
+    slides: Array.isArray(tutorial.slides) && tutorial.slides.length > 0
+      ? tutorial.slides.map((slide, index) => ({
+          id: slide.id ?? null,
+          order: Number(slide.order || slide.slide_order || index + 1),
+          title: slide.title || `Slide ${index + 1}`,
+          content_type: slide.content_type || slide.contentType || 'text',
+          content: slide.content || null,
+          image_name: slide.image_name || slide.imageName || null,
+          image_url: slide.image_url || slide.imageUrl || null,
+          video_url: slide.video_url || slide.videoUrl || null,
+        }))
+      : [
+          {
+            id: null,
+            order: 1,
+            title: tutorial.title || 'Materi Utama',
+            content_type: 'text',
+            content:
+              tutorial.full_description ||
+              tutorial.fullDescription ||
+              tutorial.description ||
+              'Konten materi belum tersedia.',
+            image_name: null,
+            image_url: null,
+            video_url: null,
+          },
+        ],
+  });
+
+  const updateTutorialStatus = async (tutorial, nextStatus) => {
+    if (!tutorial?.id) return;
+
+    try {
+      const response = await fetch(
+        `${ARTICLE_API_URL}?id=${encodeURIComponent(tutorial.id)}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify(
+            createTutorialUpdatePayload(tutorial, { status: nextStatus })
+          ),
+        }
+      );
+
+      const responseText = await response.text();
+      const result = responseText ? JSON.parse(responseText) : {};
+
+      if (!response.ok || result.success === false) {
+        throw new Error(result.message || 'Status tutorial gagal diperbarui.');
+      }
+
+      await showSuccessAlert('Berhasil', result.message || 'Status tutorial diperbarui.');
+      await fetchTutorials();
+      setSelectedTutorial(null);
+    } catch (error) {
+      console.error('Gagal memperbarui status tutorial:', error);
+      await showErrorAlert(
+        'Gagal',
+        error.message || 'Status tutorial gagal diperbarui.'
+      );
+    }
+  };
+
+  const handleDeleteTutorial = async (tutorial) => {
+    if (!tutorial?.id) return;
+
+    const confirmed = await showConfirmAlert({
+      title: 'Hapus Tutorial?',
+      text: `Tutorial "${tutorial.title}" akan dihapus dari database.`,
+      confirmButtonText: 'Hapus',
+    });
+
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(
+        `${ARTICLE_API_URL}?id=${encodeURIComponent(tutorial.id)}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Accept: 'application/json',
+          },
+        }
+      );
+
+      const responseText = await response.text();
+      const result = responseText ? JSON.parse(responseText) : {};
+
+      if (!response.ok || result.success === false) {
+        throw new Error(result.message || 'Tutorial gagal dihapus.');
+      }
+
+      await showSuccessAlert('Berhasil', result.message || 'Tutorial berhasil dihapus.');
+      await fetchTutorials();
+      setSelectedTutorial(null);
+    } catch (error) {
+      console.error('Gagal menghapus tutorial:', error);
+      await showErrorAlert('Gagal', error.message || 'Tutorial gagal dihapus.');
+    }
+  };
+
+  const handleTogglePublishTutorial = async (tutorial) => {
+    const nextStatus = tutorial.status === 'Published' ? 'Draft' : 'Published';
+    const confirmed = await showConfirmAlert({
+      title: nextStatus === 'Published' ? 'Publish Tutorial?' : 'Jadikan Draft?',
+      text: `Ubah status "${tutorial.title}" menjadi ${nextStatus}?`,
+      confirmButtonText: nextStatus === 'Published' ? 'Publish' : 'Jadikan Draft',
+    });
+
+    if (confirmed) {
+      await updateTutorialStatus(tutorial, nextStatus);
+    }
+  };
+
+  const handleArchiveTutorial = async (tutorial) => {
+    const confirmed = await showConfirmAlert({
+      title: 'Arsipkan Tutorial?',
+      text: `Arsipkan "${tutorial.title}"?`,
+      confirmButtonText: 'Arsipkan',
+    });
+
+    if (confirmed) {
+      await updateTutorialStatus(tutorial, 'Archived');
+    }
+  };
+
+  const handleExportTutorials = async () => {
+    const header = [
+      'ID',
+      'Judul',
+      'Slug',
+      'Kategori',
+      'Level',
+      'Status',
+      'Author',
+      'Viewer',
+      'Selesai',
+      'Dibuat',
+      'Diupdate',
+    ];
+    const rows = tutorials.map((item) => [
+      item.id,
+      item.title,
+      item.slug,
+      item.category,
+      item.level,
+      item.status,
+      item.author,
+      item.viewer,
+      item.completed,
+      item.createdAt,
+      item.updatedAt,
+    ]);
+    const csv = [header, ...rows]
+      .map((row) =>
+        row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')
+      )
+      .join('\n');
+    const url = URL.createObjectURL(
+      new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    );
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `tutorial-arduflow-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    await showSuccessAlert('Export Berhasil', 'Data tutorial berhasil diexport ke CSV.');
+  };
+
+  const handleCheckBrokenLinks = async () => {
+    const brokenCount = tutorials.filter((item) => !item.slug).length;
+    await showSuccessAlert(
+      'Cek Link Selesai',
+      brokenCount
+        ? `${brokenCount} tutorial belum memiliki slug.`
+        : 'Tidak ditemukan link materi yang kosong.'
+    );
+  };
+
+  const handleReorderTutorials = async () => {
+    setTutorials((current) =>
+      [...current].sort(
+        (first, second) =>
+          Number(first.display_order || first.page_order || first.id || 0) -
+          Number(second.display_order || second.page_order || second.id || 0)
+      )
+    );
+    await showSuccessAlert('Berhasil', 'Urutan tampilan tutorial diperbarui di tabel.');
   };
 
   /* =======================================================
@@ -1710,30 +1953,25 @@ export function AdminTutorial() {
                               </TutorialAction>
 
                               <TutorialAction
-                                label={`Statistik ${item.title}`}
+                                label={`${item.status === 'Published' ? 'Jadikan draft' : 'Publish'} ${item.title}`}
                                 onClick={() =>
-                                  setSelectedTutorial(
+                                  handleTogglePublishTutorial(
                                     item
                                   )
                                 }
                               >
-                                <img
-                                  src={
-                                    reportIcon
-                                  }
-                                  alt=""
-                                />
+                                {item.status === 'Published' ? 'Draft' : 'Publish'}
                               </TutorialAction>
 
                               <TutorialAction
-                                label={`Menu ${item.title}`}
+                                label={`Hapus ${item.title}`}
                                 onClick={() =>
-                                  setSelectedTutorial(
+                                  handleDeleteTutorial(
                                     item
                                   )
                                 }
                               >
-                                ...
+                                Hapus
                               </TutorialAction>
                             </div>
                           </td>
@@ -2051,15 +2289,24 @@ export function AdminTutorial() {
                   Muat Ulang Data SQLite
                 </button>
 
-                <button type="button">
+                <button
+                  type="button"
+                  onClick={handleExportTutorials}
+                >
                   Export Data Tutorial
                 </button>
 
-                <button type="button">
+                <button
+                  type="button"
+                  onClick={handleCheckBrokenLinks}
+                >
                   Cek Link Rusak
                 </button>
 
-                <button type="button">
+                <button
+                  type="button"
+                  onClick={handleReorderTutorials}
+                >
                   Reorder Materi Belajar
                 </button>
               </div>
@@ -2271,13 +2518,25 @@ export function AdminTutorial() {
                     Edit Tutorial
                   </button>
 
-                  <button type="button">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.location.href = selectedTutorial.slug
+                        ? `/tutorial?search=${encodeURIComponent(selectedTutorial.slug)}`
+                        : '/tutorial';
+                    }}
+                  >
                     Preview
                   </button>
 
                   <button
                     type="button"
                     className="is-green"
+                    onClick={() =>
+                      handleTogglePublishTutorial(
+                        selectedTutorial
+                      )
+                    }
                   >
                     Publish / Unpublish
                   </button>
@@ -2285,6 +2544,12 @@ export function AdminTutorial() {
                   <button
                     type="button"
                     className="is-purple"
+                    onClick={() =>
+                      showSuccessAlert(
+                        'Statistik Tutorial',
+                        `${selectedTutorial.viewer} viewer, ${selectedTutorial.completed} user selesai.`
+                      )
+                    }
                   >
                     Lihat Statistik
                   </button>
@@ -2292,8 +2557,24 @@ export function AdminTutorial() {
                   <button
                     type="button"
                     className="is-orange"
+                    onClick={() =>
+                      handleArchiveTutorial(
+                        selectedTutorial
+                      )
+                    }
                   >
                     Arsipkan Tutorial
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleDeleteTutorial(
+                        selectedTutorial
+                      )
+                    }
+                  >
+                    Hapus Tutorial
                   </button>
                 </div>
               </aside>

@@ -21,6 +21,8 @@ import { Project } from './pages/Project.jsx';
 import { ProjectAll } from './pages/ProjectAll.jsx';
 import { ProjectDetail } from './pages/ProjectDetail.jsx';
 import { Documentation } from './pages/Documentation.jsx';
+import { Gallery } from './pages/Gallery.jsx';
+import { GalleryDetail } from './pages/GalleryDetail.jsx';
 
 import { Partner } from './pages/Partner.jsx';
 import { Contact } from './pages/Contact.jsx';
@@ -108,6 +110,8 @@ const routes = {
   '/project/all': ProjectAll,
   '/project/detail': ProjectDetail,
   '/project/dokumentasi': Documentation,
+  '/galeri': Gallery,
+  '/galeri/detail': GalleryDetail,
 
   '/partner': Partner,
   '/kontak': Contact,
