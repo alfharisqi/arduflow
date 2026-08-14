@@ -1271,6 +1271,7 @@
   border-top: 5px solid #00a2ff;
   border-radius: 0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.1);
+  text-decoration: none;
 }
 
 .projects-section .project-image {
@@ -1307,6 +1308,12 @@
   height: 46px;
 }
 
+.projects-section .project-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .projects-section .project-card h3 {
   position: absolute;
   left: 16px;
@@ -1320,6 +1327,18 @@
   font-weight: 600;
   line-height: 20px;
   text-align: center;
+}
+
+.projects-section .project-card--state {
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.projects-section .project-card--state h3 {
+  position: static;
+  width: auto;
+  height: auto;
 }
 
 .projects-all-button {
@@ -1398,11 +1417,51 @@
   height: 239px;
 }
 
+.gallery-image-card--state {
+  padding: 24px;
+  color: #5f6673;
+  font-family: Inter, Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+}
+
 .gallery-image-card {
   display: grid;
   place-items: center;
   background: #f5f5f5;
   border: 1px solid #9095a0;
+  overflow: hidden;
+  text-decoration: none;
+}
+
+.gallery-image-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gallery-image-card span {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  display: inline-flex;
+  max-width: calc(100% - 32px);
+  min-height: 24px;
+  align-items: center;
+  padding: 4px 10px;
+  overflow: hidden;
+  color: #fff;
+  background: rgba(3, 11, 30, 0.78);
+  border: 1px solid rgba(0, 162, 255, 0.34);
+  border-radius: 999px;
+  font-family: Inter, Arial, Helvetica, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .gallery-testimonial-card {

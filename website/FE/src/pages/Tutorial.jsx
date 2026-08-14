@@ -126,6 +126,11 @@ const fallbackImages = [
 
 const visualClasses = ['arduino', 'iot', 'akun', 'token', 'ide', 'project'];
 const categoryIcons = ['book', 'settings', 'code', 'cpu', 'layers', 'help'];
+const sortOptions = [
+  { value: 'page-order', label: 'Page Order' },
+  { value: 'title', label: 'Judul A-Z' },
+  { value: 'latest', label: 'Terbaru' },
+];
 
 function categoryLabel(value) {
   return String(value || 'Umum')
@@ -153,8 +158,52 @@ function sortTutorials(items) {
   });
 }
 
-function tutorialImage(index) {
-  return fallbackImages[index % fallbackImages.length];
+function sortVisibleTutorials(items, sortMode) {
+  return [...items].sort((a, b) => {
+    if (sortMode === 'title') {
+      return String(a.title).localeCompare(String(b.title));
+    }
+
+    if (sortMode === 'latest') {
+      const dateA = Date.parse(a.updatedAt || a.createdAt || '') || 0;
+      const dateB = Date.parse(b.updatedAt || b.createdAt || '') || 0;
+      return dateB - dateA;
+    }
+
+    const orderA = Number(a.pageOrder || a.displayOrder || 0);
+    const orderB = Number(b.pageOrder || b.displayOrder || 0);
+
+    if (orderA !== orderB) {
+      return orderA - orderB;
+    }
+
+    return String(a.title).localeCompare(String(b.title));
+  });
+}
+
+function tutorialImage(tutorial, index) {
+  return tutorial?.cardImageUrl || fallbackImages[index % fallbackImages.length];
+}
+
+function tutorialTarget(tutorial) {
+  const tutorialId = tutorial?.id || '';
+  const tutorialSlug = tutorial?.slug || '';
+
+  const params = new URLSearchParams();
+
+  if (tutorialId) {
+    params.set('id', String(tutorialId));
+  }
+
+  if (tutorialSlug) {
+    params.set('slug', String(tutorialSlug));
+  }
+
+  const query = params.toString();
+
+  return query
+    ? `/tutorial/detail?${query}`
+    : '/tutorial/detail';
 }
 
 export function Tutorial() {
@@ -164,6 +213,8 @@ export function Tutorial() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const [activeLevel, setActiveLevel] = useState('all');
+  const [sortMode, setSortMode] = useState('page-order');
+  const [viewMode, setViewMode] = useState('list');
 
   useEffect(() => {
     let isMounted = true;
@@ -218,7 +269,7 @@ export function Tutorial() {
     () =>
       tutorials.slice(0, 6).map((tutorial, index) => ({
         ...tutorial,
-        image: tutorialImage(index),
+        image: tutorialImage(tutorial, index),
         meta: tutorialMeta(tutorial),
         visual: visualClasses[index % visualClasses.length],
       })),
@@ -244,7 +295,7 @@ export function Tutorial() {
     const keyword = searchTerm.trim().toLowerCase();
     const selectedLevel = activeLevel === 'Semua Level' ? 'all' : activeLevel;
 
-    return tutorials.filter((tutorial) => {
+    const filtered = tutorials.filter((tutorial) => {
       const matchesCategory = activeCategory === 'all' || tutorial.category === activeCategory;
       const matchesLevel = selectedLevel === 'all' || tutorial.difficulty === selectedLevel;
       const matchesSearch =
@@ -255,7 +306,9 @@ export function Tutorial() {
 
       return matchesCategory && matchesLevel && matchesSearch;
     });
-  }, [activeCategory, activeLevel, searchTerm, tutorials]);
+
+    return sortVisibleTutorials(filtered, sortMode);
+  }, [activeCategory, activeLevel, searchTerm, sortMode, tutorials]);
 
   return (
     <>
@@ -381,7 +434,7 @@ export function Tutorial() {
                 <div className="starter-material-content">
                   <h3>{material.title}</h3>
                   <p>{material.meta}</p>
-                  <a href={`#materi-${material.id}`}>Pelajari</a>
+                  <a href={tutorialTarget(material)}>Pelajari</a>
                 </div>
               </article>
             ))}
@@ -426,11 +479,32 @@ export function Tutorial() {
           <h2 id="all-tutorial-title">Semua Materi Tutorial</h2>
 
           <div className="all-tutorial-controls" aria-label="Kontrol tampilan materi">
-            <button type="button">Urutkan: Page Order</button>
-            <button type="button" aria-label="Tampilan grid">
+            <label className="all-tutorial-sort">
+              <span>Urutkan</span>
+              <select value={sortMode} onChange={(event) => setSortMode(event.target.value)}>
+                {sortOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className={viewMode === 'grid' ? 'is-active' : ''}
+              aria-label="Tampilan grid"
+              aria-pressed={viewMode === 'grid'}
+              onClick={() => setViewMode('grid')}
+            >
               Grid
             </button>
-            <button type="button" aria-label="Tampilan list">
+            <button
+              type="button"
+              className={viewMode === 'list' ? 'is-active' : ''}
+              aria-label="Tampilan list"
+              aria-pressed={viewMode === 'list'}
+              onClick={() => setViewMode('list')}
+            >
               List
             </button>
           </div>
@@ -467,7 +541,7 @@ export function Tutorial() {
             </fieldset>
           </aside>
 
-          <div className="all-tutorial-list">
+          <div className={`all-tutorial-list is-${viewMode}`}>
             {!isLoading && !error && visibleTutorials.length === 0 && (
               <p className="tutorial-data-state">Materi tidak ditemukan.</p>
             )}
@@ -475,14 +549,14 @@ export function Tutorial() {
             {visibleTutorials.map((tutorial, index) => (
               <article className="all-tutorial-row" id={`materi-${tutorial.id}`} key={tutorial.id}>
                 <div className={`all-tutorial-thumb ${visualClasses[index % visualClasses.length]}`}>
-                  <img src={tutorialImage(index)} alt="" />
+                  <img src={tutorialImage(tutorial, index)} alt="" />
                 </div>
                 <div className="all-tutorial-row-copy">
                   <p>{categoryLabel(tutorial.category)}</p>
                   <h3>{tutorial.title}</h3>
                   <span>{tutorialMeta(tutorial)}</span>
                 </div>
-                <a href={`#materi-${tutorial.id}`}>Pelajari</a>
+                <a href={tutorialTarget(tutorial)}>Pelajari</a>
               </article>
             ))}
           </div>

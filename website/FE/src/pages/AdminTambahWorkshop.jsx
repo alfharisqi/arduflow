@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { TinyMCEEditor } from '../components/TinyMCEEditor.jsx';
 
 const levels = ['Pemula', 'Menengah', 'Lanjutan'];
 const categories = ['Arduino', 'IoT', 'Visual Programming', 'Sekolah'];
@@ -63,7 +64,6 @@ function UploadBox({ title, note, buttonLabel, compact = false }) {
 }
 
 export function AdminTambahWorkshop() {
-  const editorRef = useRef(null);
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
   const [summary, setSummary] = useState('');
@@ -81,71 +81,6 @@ export function AdminTambahWorkshop() {
     if (!slug || slug === generatedSlug) {
       setSlug(slugify(nextTitle));
     }
-  }
-
-  function restoreEditorSelection(start, end) {
-    requestAnimationFrame(() => {
-      if (!editorRef.current) return;
-      editorRef.current.focus();
-      editorRef.current.setSelectionRange(start, end);
-    });
-  }
-
-  function replaceEditorSelection(nextText, selectionStart, selectionEnd) {
-    const input = editorRef.current;
-    const start = input?.selectionStart ?? editorContent.length;
-    const end = input?.selectionEnd ?? editorContent.length;
-    const nextValue = `${editorContent.slice(0, start)}${nextText}${editorContent.slice(end)}`;
-
-    setEditorContent(nextValue);
-    restoreEditorSelection(start + selectionStart, start + selectionEnd);
-  }
-
-  function wrapEditorSelection(prefix, suffix, fallback) {
-    const input = editorRef.current;
-    const start = input?.selectionStart ?? editorContent.length;
-    const end = input?.selectionEnd ?? editorContent.length;
-    const selectedText = editorContent.slice(start, end) || fallback;
-    const nextText = `${prefix}${selectedText}${suffix}`;
-
-    replaceEditorSelection(
-      nextText,
-      prefix.length,
-      prefix.length + selectedText.length,
-    );
-  }
-
-  function transformSelectedLines(transformLine) {
-    const input = editorRef.current;
-    const selectionStart = input?.selectionStart ?? editorContent.length;
-    const selectionEnd = input?.selectionEnd ?? editorContent.length;
-    const lineStart = editorContent.lastIndexOf('\n', Math.max(0, selectionStart - 1)) + 1;
-    const nextBreak = editorContent.indexOf('\n', selectionEnd);
-    const lineEnd = nextBreak === -1 ? editorContent.length : nextBreak;
-    const block = editorContent.slice(lineStart, lineEnd) || '';
-    const nextBlock = block.split('\n').map(transformLine).join('\n');
-    const nextValue = `${editorContent.slice(0, lineStart)}${nextBlock}${editorContent.slice(lineEnd)}`;
-
-    setEditorContent(nextValue);
-    restoreEditorSelection(lineStart, lineStart + nextBlock.length);
-  }
-
-  function stripLinePrefix(line) {
-    return line.replace(/^(\s*)(#{1,6}\s+|>\s+|[-*]\s+|\d+\.\s+)/, '$1');
-  }
-
-  function applyEditorFormat(format) {
-    if (format === 'Heading') {
-      transformSelectedLines((line) => `${line.match(/^\s*/)?.[0] ?? ''}## ${stripLinePrefix(line).trimStart()}`);
-      return;
-    }
-
-    if (format === 'Quote') {
-      transformSelectedLines((line) => `${line.match(/^\s*/)?.[0] ?? ''}> ${stripLinePrefix(line).trimStart()}`);
-      return;
-    }
-
-    transformSelectedLines((line) => stripLinePrefix(line));
   }
 
   function openDatePicker(event) {
@@ -304,69 +239,13 @@ export function AdminTambahWorkshop() {
           <section className="admin-form-section">
             <SectionTitle number="5" title="Konten Lengkap" />
             <Field label="Tentang Workshop" required>
-                <div className="admin-editor">
-                  <div className="admin-editor-toolbar" aria-label="Toolbar editor">
-                  <select
-                    defaultValue="Normal"
-                    aria-label="Format teks"
-                    onChange={(event) => {
-                      applyEditorFormat(event.target.value);
-                      event.currentTarget.value = 'Normal';
-                    }}
-                  >
-                    <option>Normal</option>
-                    <option>Heading</option>
-                    <option>Quote</option>
-                  </select>
-                  <button type="button" aria-label="Bold" onClick={() => wrapEditorSelection('**', '**', 'teks tebal')}>
-                    B
-                  </button>
-                  <button type="button" aria-label="Italic" onClick={() => wrapEditorSelection('*', '*', 'teks miring')}>
-                    I
-                  </button>
-                  <button type="button" aria-label="Underline" onClick={() => wrapEditorSelection('<u>', '</u>', 'teks garis bawah')}>
-                    U
-                  </button>
-                  <i />
-                  <button
-                    type="button"
-                    aria-label="Daftar bullet"
-                    onClick={() => transformSelectedLines((line) => `${line.match(/^\s*/)?.[0] ?? ''}- ${stripLinePrefix(line).trimStart() || 'Item daftar'}`)}
-                  >
-                    =
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Daftar nomor"
-                    onClick={() => {
-                      let number = 0;
-                      transformSelectedLines((line) => {
-                        number += 1;
-                        return `${line.match(/^\s*/)?.[0] ?? ''}${number}. ${stripLinePrefix(line).trimStart() || 'Item daftar'}`;
-                      });
-                    }}
-                  >
-                    #
-                  </button>
-                  <i />
-                  <button type="button" aria-label="Tautan" onClick={() => wrapEditorSelection('[', '](https://)', 'teks tautan')}>
-                    @
-                  </button>
-                  <button type="button" aria-label="Gambar" onClick={() => replaceEditorSelection('![Alt gambar](url-gambar)', 2, 12)}>
-                    []
-                  </button>
-                  <button type="button" aria-label="Kode" onClick={() => wrapEditorSelection('`', '`', 'kode')}>
-                    &lt;&gt;
-                  </button>
-                </div>
-                <textarea
-                  ref={editorRef}
+                <TinyMCEEditor
                   value={editorContent}
-                  onChange={(event) => setEditorContent(event.target.value)}
-                  placeholder="Jelaskan detail tentang workshop, tujuan, materi yang akan dipelajari, dan hal lainnya..."
+                  onChange={setEditorContent}
+                  height={420}
+                  ariaLabel="Tentang workshop"
                 />
-              </div>
-            </Field>
+</Field>
           </section>
         </div>
 

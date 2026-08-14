@@ -3867,3 +3867,285 @@
   }
 }
 
+
+
+/* =========================================================
+   FIX 2026-08-14 - ADMIN TUTORIAL EDIT / STEP 2
+   Menguatkan layout daftar materi agar tidak tertimpa style lama.
+   ========================================================= */
+.admin-tutorial-create-page.admin-tutorial-edit-page {
+  width: 100%;
+  max-width: none;
+}
+
+.admin-tutorial-edit-page .admin-tutorial-edit-wide {
+  width: 100%;
+  min-width: 0;
+}
+
+.admin-tutorial-edit-page .admin-materials-main,
+.admin-tutorial-edit-page .admin-materials-side {
+  min-width: 0;
+}
+
+.admin-tutorial-edit-page .admin-materials-toolbar button,
+.admin-tutorial-edit-page .admin-materials-actions button,
+.admin-tutorial-edit-page .admin-materials-row-handle,
+.admin-tutorial-edit-page .admin-materials-status {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.admin-tutorial-edit-page .admin-materials-table-head > span,
+.admin-tutorial-edit-page .admin-materials-table-body article > * {
+  min-width: 0;
+}
+
+.admin-tutorial-edit-page .admin-materials-table-body article > span {
+  line-height: 1.4;
+}
+
+.admin-tutorial-edit-page .admin-materials-preview-order article {
+  cursor: pointer;
+}
+
+@media (max-width: 1050px) {
+  .admin-tutorial-edit-page .admin-materials-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  .admin-tutorial-edit-page .admin-materials-side {
+    position: static !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-tutorial-edit-page {
+    padding: 18px 12px 32px !important;
+  }
+
+  .admin-tutorial-edit-page .admin-materials-toolbar {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .admin-tutorial-edit-page .admin-materials-toolbar > label,
+  .admin-tutorial-edit-page .admin-materials-toolbar > select {
+    grid-column: 1 / -1;
+  }
+
+  .admin-tutorial-edit-page .admin-materials-stats,
+  .admin-tutorial-edit-page .admin-materials-side {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* =========================================================
+   ADMIN TUTORIAL CREATE / EDIT CLEANUP
+   Layout guard for the create and edit pages.
+   ========================================================= */
+.admin-tutorial-create-page.admin-tutorial-create-polished,
+.admin-tutorial-create-page.admin-tutorial-edit-page {
+  width: 100%;
+  min-height: 100vh;
+  padding: 28px clamp(16px, 2.5vw, 34px) 42px;
+  overflow-x: hidden;
+  background: #f5f7fb;
+}
+
+.admin-tutorial-create-shell,
+.admin-tutorial-edit-page > .admin-tutorial-create-header,
+.admin-tutorial-edit-page > .admin-tutorial-create-steps,
+.admin-tutorial-edit-page > .admin-tutorial-create-grid,
+.admin-tutorial-edit-page > .admin-tutorial-submit-message,
+.admin-tutorial-edit-page > .admin-tutorial-create-actions {
+  width: min(1320px, 100%);
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.admin-tutorial-edit-page .admin-tutorial-create-header,
+.admin-tutorial-create-polished .admin-tutorial-create-hero,
+.admin-tutorial-create-polished .admin-tutorial-create-step-card {
+  border: 1px solid rgba(208, 213, 221, 0.9);
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.admin-tutorial-edit-page .admin-tutorial-create-header {
+  margin-bottom: 16px;
+  padding: 22px 24px;
+}
+
+.admin-tutorial-edit-page .admin-tutorial-create-header h1,
+.admin-tutorial-create-polished .admin-tutorial-create-hero h1 {
+  margin: 0;
+  color: #101828;
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1.15;
+}
+
+.admin-tutorial-edit-page .admin-tutorial-create-header p,
+.admin-tutorial-create-polished .admin-tutorial-create-hero p {
+  max-width: 720px;
+  margin: 8px 0 0;
+  color: #667085;
+  line-height: 1.55;
+}
+
+.admin-tutorial-edit-page .admin-tutorial-create-grid {
+  display: block;
+  min-width: 0;
+}
+
+.admin-tutorial-edit-page .admin-tutorial-create-card,
+.admin-tutorial-create-polished .admin-tutorial-create-card,
+.admin-tutorial-create-polished .admin-materials-main,
+.admin-tutorial-create-polished .admin-materials-side > section,
+.admin-tutorial-edit-page .admin-materials-main,
+.admin-tutorial-edit-page .admin-materials-side > section,
+.admin-tutorial-create-polished .admin-settings-card,
+.admin-tutorial-edit-page .admin-settings-card,
+.admin-tutorial-create-polished .admin-settings-user-preview,
+.admin-tutorial-edit-page .admin-settings-user-preview,
+.admin-tutorial-create-polished .admin-settings-info,
+.admin-tutorial-edit-page .admin-settings-info {
+  border: 1px solid rgba(208, 213, 221, 0.88);
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.055);
+}
+
+.admin-tutorial-create-polished form,
+.admin-tutorial-edit-page .admin-tutorial-edit-wide {
+  min-width: 0;
+}
+
+.admin-tutorial-create-polished .admin-tutorial-create-two,
+.admin-tutorial-edit-page .admin-tutorial-create-two,
+.admin-tutorial-create-polished .admin-settings-grid,
+.admin-tutorial-edit-page .admin-settings-grid {
+  align-items: start;
+}
+
+.admin-tutorial-create-polished input,
+.admin-tutorial-create-polished select,
+.admin-tutorial-create-polished textarea,
+.admin-tutorial-edit-page input,
+.admin-tutorial-edit-page select,
+.admin-tutorial-edit-page textarea {
+  max-width: 100%;
+}
+
+.admin-tutorial-create-polished .tox-tinymce,
+.admin-tutorial-edit-page .tox-tinymce,
+.admin-tutorial-create-polished .admin-tutorial-tiptap,
+.admin-tutorial-edit-page .admin-tutorial-tiptap {
+  width: 100%;
+  min-width: 0;
+}
+
+.admin-tutorial-create-polished .admin-materials-toolbar,
+.admin-tutorial-edit-page .admin-materials-toolbar {
+  display: grid !important;
+  grid-template-columns: auto auto minmax(220px, 1fr) minmax(180px, auto);
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-tutorial-create-polished .admin-materials-toolbar > label,
+.admin-tutorial-edit-page .admin-materials-toolbar > label {
+  min-width: 0;
+}
+
+.admin-tutorial-create-polished .admin-materials-table-card,
+.admin-tutorial-edit-page .admin-materials-table-card {
+  overflow-x: auto;
+}
+
+.admin-tutorial-create-polished .admin-materials-table-head,
+.admin-tutorial-create-polished .admin-materials-table-body article,
+.admin-tutorial-edit-page .admin-materials-table-head,
+.admin-tutorial-edit-page .admin-materials-table-body article {
+  grid-template-columns: 44px 54px minmax(220px, 1fr) 130px 130px 126px 170px !important;
+}
+
+.admin-tutorial-create-polished .admin-materials-actions,
+.admin-tutorial-edit-page .admin-materials-actions {
+  justify-content: flex-end;
+}
+
+.admin-tutorial-create-polished .admin-materials-actions button,
+.admin-tutorial-edit-page .admin-materials-actions button {
+  white-space: nowrap;
+}
+
+.admin-tutorial-create-polished .admin-settings-side,
+.admin-tutorial-edit-page .admin-settings-side,
+.admin-tutorial-create-polished .admin-materials-side,
+.admin-tutorial-edit-page .admin-materials-side {
+  align-self: start;
+}
+
+.admin-tutorial-create-polished .admin-tutorial-create-actions,
+.admin-tutorial-edit-page .admin-tutorial-create-actions {
+  position: sticky;
+  bottom: 14px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 12px;
+  border: 1px solid rgba(208, 213, 221, 0.92);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(10px);
+}
+
+.admin-tutorial-create-polished .admin-tutorial-create-actions button,
+.admin-tutorial-edit-page .admin-tutorial-create-actions button,
+.admin-tutorial-create-polished .admin-tutorial-create-actions a,
+.admin-tutorial-edit-page .admin-tutorial-create-actions a {
+  min-height: 40px;
+  border-radius: 9px;
+}
+
+@media (max-width: 980px) {
+  .admin-tutorial-create-polished .admin-materials-toolbar,
+  .admin-tutorial-edit-page .admin-materials-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-tutorial-create-polished .admin-materials-toolbar > label,
+  .admin-tutorial-create-polished .admin-materials-toolbar > select,
+  .admin-tutorial-edit-page .admin-materials-toolbar > label,
+  .admin-tutorial-edit-page .admin-materials-toolbar > select {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-tutorial-create-page.admin-tutorial-create-polished,
+  .admin-tutorial-create-page.admin-tutorial-edit-page {
+    padding: 16px 12px 28px !important;
+  }
+
+  .admin-tutorial-create-polished .admin-tutorial-create-actions,
+  .admin-tutorial-edit-page .admin-tutorial-create-actions {
+    position: static;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-tutorial-create-polished .admin-tutorial-create-actions button,
+  .admin-tutorial-edit-page .admin-tutorial-create-actions button,
+  .admin-tutorial-create-polished .admin-tutorial-create-actions a,
+  .admin-tutorial-edit-page .admin-tutorial-create-actions a {
+    width: 100%;
+  }
+}

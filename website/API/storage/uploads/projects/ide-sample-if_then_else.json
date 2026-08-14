@@ -1,0 +1,121 @@
+{
+  "name": "IF_THEN_ELSE",
+  "board": "nano",
+  "nodes": [
+    {
+      "id": "bulb-1781585653000",
+      "type": "bulb",
+      "position": {
+        "x": 688.4409384784087,
+        "y": 34.188511822332345
+      },
+      "data": {
+        "value": 1,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 148
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "ifElse-1781586025049",
+      "type": "ifElse",
+      "position": {
+        "x": 439.180279277073,
+        "y": 27.36237270906375
+      },
+      "data": {
+        "value": 1,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 201
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "constant-1781586068116",
+      "type": "constant",
+      "position": {
+        "x": 129.83626477802926,
+        "y": 11.319615294952413
+      },
+      "data": {
+        "value": false,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 106
+      },
+      "selected": true,
+      "dragging": false
+    },
+    {
+      "id": "boolean-1781586092082",
+      "type": "boolean",
+      "position": {
+        "x": 133.25215733285185,
+        "y": 141.79791429747135
+      },
+      "data": {
+        "value": 0,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 176,
+        "height": 119
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "boolean-1781586102105",
+      "type": "boolean",
+      "position": {
+        "x": 138.25215733285188,
+        "y": 293.92291429747127
+      },
+      "data": {
+        "value": 1,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 180,
+        "height": 119
+      },
+      "selected": false,
+      "dragging": false
+    }
+  ],
+  "edges": [
+    {
+      "source": "ifElse-1781586025049",
+      "target": "bulb-1781585653000",
+      "id": "xy-edge__ifElse-1781586025049-bulb-1781585653000"
+    },
+    {
+      "source": "constant-1781586068116",
+      "target": "ifElse-1781586025049",
+      "targetHandle": "condition",
+      "id": "xy-edge__constant-1781586068116-ifElse-1781586025049condition"
+    },
+    {
+      "source": "boolean-1781586092082",
+      "target": "ifElse-1781586025049",
+      "targetHandle": "trueVal",
+      "id": "xy-edge__boolean-1781586092082-ifElse-1781586025049trueVal"
+    },
+    {
+      "source": "boolean-1781586102105",
+      "target": "ifElse-1781586025049",
+      "targetHandle": "falseVal",
+      "id": "xy-edge__boolean-1781586102105-ifElse-1781586025049falseVal"
+    }
+  ]
+}

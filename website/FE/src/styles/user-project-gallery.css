@@ -1112,3 +1112,162 @@
   background: transparent;
   color: #000000;
 }
+
+/* Project add/edit form cleanup */
+.project-upload-page {
+  width: min(1180px, 100%);
+  min-height: 0;
+  padding: 0;
+}
+
+.project-upload-page h2 {
+  margin-left: 0;
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.project-upload-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  gap: 22px;
+  width: 100%;
+}
+
+.project-upload-main,
+.project-upload-side,
+.project-upload-card,
+.project-upload-payment,
+.project-upload-code-row,
+.project-upload-payment-info,
+.project-upload-editor {
+  width: 100%;
+}
+
+.project-upload-main {
+  min-height: 0;
+  padding: 24px;
+}
+
+.project-upload-side {
+  align-self: start;
+}
+
+.project-upload-field input,
+.project-upload-field select,
+.project-upload-price-input input,
+.project-upload-tag-form input {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid #dbdbdb;
+}
+
+.project-upload-editor {
+  height: auto;
+  min-height: 360px;
+  border-radius: 8px;
+}
+
+.project-upload-editor .tox-tinymce {
+  border: 0;
+}
+
+.project-upload-table {
+  overflow-x: auto;
+}
+
+.project-upload-table__head {
+  min-height: 36px;
+  height: auto;
+  padding: 8px 11px;
+}
+
+.project-upload-table__head--actions {
+  grid-template-columns: minmax(140px, 1fr) minmax(160px, 1.2fr) 128px;
+}
+
+.project-upload-empty {
+  min-height: 112px;
+  height: auto;
+  padding: 18px;
+}
+
+.project-upload-price,
+.project-upload-section-head {
+  gap: 14px;
+}
+
+.project-upload-code-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+}
+
+.project-upload-code-row input {
+  width: 100%;
+}
+
+.project-upload-file-box,
+.project-upload-cover-box {
+  min-height: 132px;
+  height: auto;
+  padding: 16px;
+}
+
+.project-upload-cover-box {
+  width: 100%;
+  border-radius: 8px;
+}
+
+.project-upload-cover-preview {
+  height: 112px;
+  border: 0;
+  border-radius: 6px;
+}
+
+.project-upload-actions {
+  position: sticky;
+  top: 18px;
+}
+
+.project-upload-actions button {
+  width: 100%;
+}
+
+@media (max-width: 1080px) {
+  .project-upload-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .project-upload-side {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+
+  .project-upload-actions {
+    position: static;
+  }
+}
+
+@media (max-width: 720px) {
+  .project-upload-main {
+    padding: 18px;
+  }
+
+  .project-upload-side,
+  .project-upload-code-row {
+    grid-template-columns: 1fr;
+  }
+
+  .project-upload-section-head,
+  .project-upload-price {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .project-upload-section-head button {
+    width: max-content;
+  }
+
+  .project-upload-table__head--actions {
+    grid-template-columns: minmax(120px, 1fr) minmax(140px, 1fr) 118px;
+  }
+}

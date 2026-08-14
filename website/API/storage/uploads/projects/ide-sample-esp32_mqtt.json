@@ -1,0 +1,408 @@
+{
+  "name": "ESP32_MQTT",
+  "board": "esp32",
+  "nodes": [
+    {
+      "id": "bulb-1778401238621",
+      "type": "bulb",
+      "position": {
+        "x": 310.6809454496468,
+        "y": -701.8615089999829
+      },
+      "data": {
+        "value": false,
+        "pin": "0",
+        "minimized": false
+      },
+      "measured": {
+        "width": 160,
+        "height": 148
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "constant-1778401240349",
+      "type": "constant",
+      "position": {
+        "x": -464.80678346365244,
+        "y": -353.66510596596277
+      },
+      "data": {
+        "value": false,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 106
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "digitalWrite-1778421002699",
+      "type": "digitalWrite",
+      "position": {
+        "x": 494.9949115872612,
+        "y": -210.44586676819242
+      },
+      "data": {
+        "value": false,
+        "pin": "32",
+        "lastStateKey": "32-false-false",
+        "inverted": false,
+        "disabled": false
+      },
+      "measured": {
+        "width": 167,
+        "height": 164
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "digitalWrite-1778425497881",
+      "type": "digitalWrite",
+      "position": {
+        "x": 504.67194540946036,
+        "y": -831.1244011205281
+      },
+      "data": {
+        "value": false,
+        "pin": "27",
+        "lastStateKey": "27-false-false",
+        "disabled": false,
+        "inverted": false
+      },
+      "measured": {
+        "width": 167,
+        "height": 164
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "digitalWrite-1778454211059",
+      "type": "digitalWrite",
+      "position": {
+        "x": 495.9201216987913,
+        "y": -414.512621675458
+      },
+      "data": {
+        "value": false,
+        "pin": "33",
+        "lastStateKey": "33-false-false",
+        "inverted": false,
+        "disabled": false
+      },
+      "measured": {
+        "width": 167,
+        "height": 164
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "digitalWrite-1778458242440",
+      "type": "digitalWrite",
+      "position": {
+        "x": 499.81924151587623,
+        "y": -612.8575109742688
+      },
+      "data": {
+        "value": false,
+        "pin": "26",
+        "lastStateKey": "26-false-false",
+        "disabled": false,
+        "inverted": false
+      },
+      "measured": {
+        "width": 167,
+        "height": 164
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "digitalWrite-1779079090794",
+      "type": "digitalWrite",
+      "position": {
+        "x": 494.7569398691519,
+        "y": -22.584410628673243
+      },
+      "data": {
+        "value": false,
+        "pin": "23",
+        "lastStateKey": "23-false-undefined",
+        "inverted": false
+      },
+      "measured": {
+        "width": 167,
+        "height": 164
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "constant-1779153817437",
+      "type": "constant",
+      "position": {
+        "x": -463.3804978747681,
+        "y": -512.9509256917759
+      },
+      "data": {
+        "value": false,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 106
+      },
+      "selected": true,
+      "dragging": false
+    },
+    {
+      "id": "bulb-1779153977095",
+      "type": "bulb",
+      "position": {
+        "x": 293.81709455337796,
+        "y": -213.57913651407713
+      },
+      "data": {
+        "value": false,
+        "pin": "0",
+        "minimized": false,
+        "disabled": false
+      },
+      "measured": {
+        "width": 160,
+        "height": 148
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "constant-1779155656019",
+      "type": "constant",
+      "position": {
+        "x": -464.2035980370858,
+        "y": -202.66344388313078
+      },
+      "data": {
+        "value": false,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 106
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "bulb-1779155663183",
+      "type": "bulb",
+      "position": {
+        "x": 295.5034674166552,
+        "y": -415.5933047741697
+      },
+      "data": {
+        "value": false,
+        "pin": "0",
+        "minimized": false
+      },
+      "measured": {
+        "width": 160,
+        "height": 148
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "logicOrMulti-1779158220188",
+      "type": "logicOrMulti",
+      "position": {
+        "x": 15.109184893003231,
+        "y": -441.90761626966355
+      },
+      "data": {
+        "value": false,
+        "inputCount": 3,
+        "pin": "0",
+        "minimized": false
+      },
+      "measured": {
+        "width": 160,
+        "height": 243
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "pulse-1779159712089",
+      "type": "pulse",
+      "position": {
+        "x": -203.041143708643,
+        "y": -330.74314727461393
+      },
+      "data": {
+        "value": false,
+        "duration": 300,
+        "pin": "0",
+        "lastTrigger": false,
+        "endTime": 1780895793012,
+        "minimized": true
+      },
+      "measured": {
+        "width": 151,
+        "height": 53
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "bulb-1779160281515",
+      "type": "bulb",
+      "position": {
+        "x": 288.8931662294319,
+        "y": -19.844383864002197
+      },
+      "data": {
+        "value": false,
+        "pin": "0",
+        "minimized": false,
+        "disabled": false
+      },
+      "measured": {
+        "width": 160,
+        "height": 148
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "pulse-1779166463110",
+      "type": "pulse",
+      "position": {
+        "x": -203.61871232124025,
+        "y": -422.6025410114668
+      },
+      "data": {
+        "value": false,
+        "duration": 300,
+        "pin": "0",
+        "lastTrigger": false,
+        "endTime": 1780895836092,
+        "minimized": true
+      },
+      "measured": {
+        "width": 151,
+        "height": 53
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "pulse-1779167046589",
+      "type": "pulse",
+      "position": {
+        "x": -205.94131376493232,
+        "y": -249.2087840132604
+      },
+      "data": {
+        "value": false,
+        "duration": 300,
+        "pin": "0",
+        "lastTrigger": false,
+        "endTime": 1780895795696,
+        "minimized": true
+      },
+      "measured": {
+        "width": 151,
+        "height": 53
+      },
+      "selected": false,
+      "dragging": false
+    }
+  ],
+  "edges": [
+    {
+      "source": "constant-1778401240349",
+      "target": "digitalWrite-1778454211059",
+      "id": "xy-edge__constant-1778401240349-digitalWrite-1778454211059"
+    },
+    {
+      "source": "constant-1779153817437",
+      "target": "digitalWrite-1778425497881",
+      "id": "xy-edge__constant-1779153817437-digitalWrite-1778425497881"
+    },
+    {
+      "source": "constant-1779153817437",
+      "target": "digitalWrite-1778458242440",
+      "id": "xy-edge__constant-1779153817437-digitalWrite-1778458242440"
+    },
+    {
+      "source": "constant-1779155656019",
+      "target": "digitalWrite-1778421002699",
+      "id": "xy-edge__constant-1779155656019-digitalWrite-1778421002699"
+    },
+    {
+      "source": "pulse-1779159712089",
+      "target": "logicOrMulti-1779158220188",
+      "targetHandle": "in2",
+      "id": "xy-edge__pulse-1779159712089-logicOrMulti-1779158220188in2"
+    },
+    {
+      "source": "logicOrMulti-1779158220188",
+      "target": "bulb-1779160281515",
+      "id": "xy-edge__logicOrMulti-1779158220188-bulb-1779160281515"
+    },
+    {
+      "source": "constant-1779153817437",
+      "target": "pulse-1779166463110",
+      "id": "xy-edge__constant-1779153817437-pulse-1779166463110"
+    },
+    {
+      "source": "pulse-1779166463110",
+      "target": "logicOrMulti-1779158220188",
+      "targetHandle": "in1",
+      "id": "xy-edge__pulse-1779166463110-logicOrMulti-1779158220188in1"
+    },
+    {
+      "source": "constant-1778401240349",
+      "target": "pulse-1779159712089",
+      "id": "xy-edge__constant-1778401240349-pulse-1779159712089"
+    },
+    {
+      "source": "constant-1779153817437",
+      "target": "bulb-1778401238621",
+      "id": "xy-edge__constant-1779153817437-bulb-1778401238621"
+    },
+    {
+      "source": "constant-1779155656019",
+      "target": "bulb-1779153977095",
+      "id": "xy-edge__constant-1779155656019-bulb-1779153977095"
+    },
+    {
+      "source": "constant-1778401240349",
+      "target": "bulb-1779155663183",
+      "id": "xy-edge__constant-1778401240349-bulb-1779155663183"
+    },
+    {
+      "source": "constant-1779155656019",
+      "target": "pulse-1779167046589",
+      "id": "xy-edge__constant-1779155656019-pulse-1779167046589"
+    },
+    {
+      "source": "pulse-1779167046589",
+      "target": "logicOrMulti-1779158220188",
+      "targetHandle": "in3",
+      "id": "xy-edge__pulse-1779167046589-logicOrMulti-1779158220188in3"
+    },
+    {
+      "source": "logicOrMulti-1779158220188",
+      "target": "digitalWrite-1779079090794",
+      "id": "xy-edge__logicOrMulti-1779158220188-digitalWrite-1779079090794"
+    }
+  ]
+}

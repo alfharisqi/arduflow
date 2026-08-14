@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
 import { WorkshopImageCropper } from '../../features/profile-image-crop/WorkshopImageCropper.jsx';
+import { TinyMCEEditor } from '../../components/TinyMCEEditor.jsx';
 import { AdminSidebar } from './AdminSidebar.jsx';
 import {
   getInitialAdminSidebarCollapsed,
@@ -219,147 +220,13 @@ function escapeHtmlAttribute(value) {
 }
 
 function GalleryRichTextEditor({ value, onChange, hasError }) {
-  const editorRef = useRef(null);
-  const imageInputRef = useRef(null);
-
-  useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== value) {
-      editorRef.current.innerHTML = value || '';
-    }
-  }, [value]);
-
-  const syncEditor = () => {
-    onChange(editorRef.current?.innerHTML || '');
-  };
-
-  const runCommand = (command, commandValue = null) => {
-    editorRef.current?.focus();
-    document.execCommand(command, false, commandValue);
-    syncEditor();
-  };
-
-  const handleFormat = (event) => {
-    runCommand('formatBlock', event.target.value);
-    event.target.value = 'p';
-  };
-
-  const handleLink = async () => {
-    const url = await showPromptAlert({
-      title: 'Masukkan URL Link',
-      inputPlaceholder: 'https://contoh.com',
-      confirmButtonText: 'Tambahkan',
-    });
-    if (url) {
-      runCommand('createLink', url);
-    }
-  };
-
-  const handleImageChange = (event) => {
-    const file = event.target.files?.[0] || null;
-    event.target.value = '';
-
-    if (!file || !file.type.startsWith('image/')) return;
-
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      const src = String(reader.result || '');
-      const alt = file.name.replace(/[<>"']/g, '');
-
-      if (!src) return;
-
-      runCommand(
-        'insertHTML',
-        `<figure><img src="${src}" alt="${alt}" /></figure><p><br></p>`
-      );
-    };
-
-    reader.readAsDataURL(file);
-  };
-
-  const handleImageFromLink = async () => {
-    const imageUrl = await showPromptAlert({
-      title: 'Tambah Foto dari Link',
-      text: 'Masukkan URL gambar yang ingin disisipkan ke deskripsi.',
-      inputPlaceholder: 'https://contoh.com/foto.jpg',
-      confirmButtonText: 'Tambahkan',
-    });
-    const normalizedUrl = String(imageUrl || '').trim();
-
-    if (!normalizedUrl) return;
-
-    let parsedUrl;
-
-    try {
-      parsedUrl = new URL(normalizedUrl);
-    } catch {
-      await showSuccessAlert({
-        icon: 'error',
-        title: 'URL Tidak Valid',
-        text: 'Masukkan URL gambar yang lengkap, misalnya https://contoh.com/foto.jpg.',
-      });
-      return;
-    }
-
-    const isValidProtocol = ['http:', 'https:'].includes(parsedUrl.protocol);
-    const isImageUrl = /\.(apng|avif|gif|jpe?g|png|svg|webp)(\?.*)?$/i.test(parsedUrl.href);
-
-    if (!isValidProtocol || !isImageUrl) {
-      await showSuccessAlert({
-        icon: 'error',
-        title: 'Link Gambar Tidak Didukung',
-        text: 'Gunakan link gambar langsung dengan format JPG, PNG, WEBP, GIF, SVG, AVIF, atau APNG.',
-      });
-      return;
-    }
-
-    const safeUrl = escapeHtmlAttribute(parsedUrl.href);
-
-    runCommand(
-      'insertHTML',
-      `<figure><img src="${safeUrl}" alt="Foto dari link" /></figure><p><br></p>`
-    );
-  };
-
   return (
     <div className={`admin-gallery-upload-editor${hasError ? ' is-invalid' : ''}`}>
-      <div className="admin-gallery-upload-toolbar" aria-label="Toolbar deskripsi kegiatan">
-        <input
-          ref={imageInputRef}
-          type="file"
-          accept="image/png,image/jpeg,image/jpg,image/webp"
-          hidden
-          onChange={handleImageChange}
-        />
-        <select aria-label="Format teks" defaultValue="p" onChange={handleFormat}>
-          <option value="p">Normal</option>
-          <option value="h2">Heading</option>
-          <option value="h3">Subheading</option>
-          <option value="blockquote">Quote</option>
-        </select>
-        <span />
-        <button type="button" onClick={() => runCommand('bold')} aria-label="Bold">B</button>
-        <button type="button" onClick={() => runCommand('italic')} aria-label="Italic"><em>I</em></button>
-        <button type="button" onClick={() => runCommand('underline')} aria-label="Underline"><u>U</u></button>
-        <button type="button" onClick={() => imageInputRef.current?.click()} aria-label="Tambah foto">Foto</button>
-        <button type="button" onClick={handleImageFromLink} aria-label="Tambah foto dari link">Foto Link</button>
-        <span />
-        <button type="button" onClick={() => runCommand('insertUnorderedList')} aria-label="Bullet list">≡</button>
-        <button type="button" onClick={() => runCommand('insertOrderedList')} aria-label="Numbered list">1.</button>
-        <span />
-        <button type="button" onClick={handleLink} aria-label="Tambah link">🔗</button>
-        <button type="button" onClick={() => runCommand('removeFormat')} aria-label="Hapus format">⌫</button>
-      </div>
-      <div
-        ref={editorRef}
-        className="admin-gallery-upload-editor-area"
-        contentEditable
-        role="textbox"
-        aria-multiline="true"
-        data-placeholder="Tulis deskripsi kegiatan..."
-        onInput={syncEditor}
-        onBlur={syncEditor}
-        suppressContentEditableWarning
+      <TinyMCEEditor
+        value={value}
+        onChange={onChange}
+        height={360}
+        ariaLabel="Deskripsi kegiatan"
       />
     </div>
   );

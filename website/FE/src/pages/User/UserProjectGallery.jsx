@@ -6,6 +6,7 @@ import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import projectImage from '../../assets/images/workshop-experience-student.png';
 import { ProfileAvatar } from '../../features/profile-image-crop/ProfileAvatar.jsx';
 import { WorkshopImageCropper } from '../../features/profile-image-crop/WorkshopImageCropper.jsx';
+import { TinyMCEEditor } from '../../components/TinyMCEEditor.jsx';
 import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
 import { showConfirmAlert, showPromptAlert, showSuccessAlert } from '../../utils/alerts.js';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
@@ -206,67 +207,57 @@ function stripHtml(value) {
   return wrapper.textContent || wrapper.innerText || '';
 }
 
+function projectPayload(project) {
+  return project?.payload && typeof project.payload === 'object' ? project.payload : {};
+}
+
+function projectField(project, fieldName, fallback = '') {
+  const payload = projectPayload(project);
+  return project?.[fieldName] ?? payload?.[fieldName] ?? fallback;
+}
+
+function normalizeProjectList(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function getProjectFileName(file) {
+  return file?.name || file?.file_name || file?.fileName || '';
+}
+
+function getInitialProjectForm(project) {
+  const payload = projectPayload(project);
+  const payment = project?.payment || payload.payment || {};
+  const tags = normalizeProjectList(project?.tags || payload.tags);
+
+  return {
+    title: projectField(project, 'title'),
+    category: projectField(project, 'category'),
+    description: projectField(project, 'description'),
+    tools: normalizeProjectList(project?.tools || payload.tools),
+    nodes: normalizeProjectList(project?.nodes || payload.nodes),
+    steps: normalizeProjectList(project?.steps || payload.steps),
+    isPaid: Boolean(payment.isPaid || project?.isPaid || payload.isPaid),
+    price: payment.price || project?.price || payload.price || '',
+    paymentCode: payment.paymentCode || project?.paymentCode || payload.paymentCode || '',
+    projectFile: null,
+    coverImage: null,
+    altText: project?.coverImage?.altText || payload.coverImage?.altText || project?.altText || payload.altText || '',
+    visibility: projectField(project, 'visibility', 'public'),
+    difficulty: projectField(project, 'difficulty'),
+    estimatedTime: projectField(project, 'estimatedTime'),
+    programmingLanguage: projectField(project, 'programmingLanguage'),
+    tags: tags.length ? tags : ['IoT', 'Arduino', 'Sensor', 'SmartHome'],
+  };
+}
+
 function RichTextEditor({ value, onChange, error }) {
-  const editorRef = useRef(null);
-
-  useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== value) {
-      editorRef.current.innerHTML = value || '';
-    }
-  }, [value]);
-
-  function runCommand(command, commandValue = null) {
-    editorRef.current?.focus();
-    document.execCommand(command, false, commandValue);
-    onChange(editorRef.current?.innerHTML || '');
-  }
-
-  async function addLink() {
-    const url = await showPromptAlert({
-      title: 'Masukkan URL Link',
-      inputPlaceholder: 'https://contoh.com',
-      confirmButtonText: 'Tambahkan',
-    });
-    if (!url?.trim()) return;
-    runCommand('createLink', url.trim());
-  }
-
   return (
     <div className={`project-upload-editor${error ? ' has-error' : ''}`}>
-      <div className="project-upload-editor__toolbar" aria-label="Toolbar editor deskripsi">
-        <button type="button" onClick={() => runCommand('undo')} title="Undo">↶</button>
-        <button type="button" onClick={() => runCommand('redo')} title="Redo">↷</button>
-        <select
-          aria-label="Format teks"
-          defaultValue="P"
-          onChange={(event) => runCommand('formatBlock', event.target.value)}
-        >
-          <option value="P">Normal text</option>
-          <option value="H2">Heading 2</option>
-          <option value="H3">Heading 3</option>
-          <option value="BLOCKQUOTE">Quote</option>
-        </select>
-        <button type="button" onClick={() => runCommand('justifyLeft')} title="Rata kiri">≡</button>
-        <button type="button" className="project-upload-editor__color" onClick={() => runCommand('foreColor', '#24282d')} title="Warna teks" />
-        <button type="button" onClick={() => runCommand('bold')} title="Bold"><b>B</b></button>
-        <button type="button" onClick={() => runCommand('italic')} title="Italic"><i>I</i></button>
-        <button type="button" onClick={() => runCommand('underline')} title="Underline"><u>U</u></button>
-        <button type="button" onClick={() => runCommand('strikeThrough')} title="Strike">S</button>
-        <button type="button" onClick={() => runCommand('formatBlock', 'PRE')} title="Code">&lt;&gt;</button>
-        <button type="button" onClick={() => runCommand('removeFormat')} title="Clear format">⌫</button>
-        <button type="button" onClick={() => runCommand('insertUnorderedList')} title="Bullet list">•≡</button>
-        <button type="button" onClick={() => runCommand('insertOrderedList')} title="Numbered list">1≡</button>
-        <button type="button" onClick={addLink} title="Tambah link">🔗</button>
-      </div>
-      <div
-        ref={editorRef}
-        className="project-upload-editor__content"
-        contentEditable
-        role="textbox"
-        aria-label="Deskripsi proyek"
-        aria-invalid={Boolean(error)}
-        data-placeholder="Jelaskan proyek anda secara detail..."
-        onInput={(event) => onChange(event.currentTarget.innerHTML)}
+      <TinyMCEEditor
+        value={value}
+        onChange={onChange}
+        height={360}
+        ariaLabel="Deskripsi proyek"
       />
     </div>
   );
@@ -316,44 +307,34 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     currentUser.email ||
     '-';
 
-  const [formData, setFormData] = useState({
-    title: initialProject?.title || '',
-    category: initialProject?.category || '',
-    description: initialProject?.description || '',
-    tools: Array.isArray(initialProject?.tools) ? initialProject.tools : [],
-    nodes: Array.isArray(initialProject?.nodes) ? initialProject.nodes : [],
-    steps: Array.isArray(initialProject?.steps) ? initialProject.steps : [],
-    isPaid: Boolean(initialProject?.payment?.isPaid || initialProject?.isPaid),
-    price: initialProject?.payment?.price || initialProject?.price || '',
-    paymentCode: initialProject?.payment?.paymentCode || initialProject?.paymentCode || '',
-    projectFile: null,
-    coverImage: null,
-    altText: initialProject?.coverImage?.altText || initialProject?.altText || '',
-    visibility: initialProject?.visibility || 'public',
-    difficulty: initialProject?.difficulty || '',
-    estimatedTime: initialProject?.estimatedTime || '',
-    programmingLanguage: initialProject?.programmingLanguage || '',
-    tags: Array.isArray(initialProject?.tags) && initialProject.tags.length
-      ? initialProject.tags
-      : ['IoT', 'Arduino', 'Sensor', 'SmartHome'],
-  });
+  const [formData, setFormData] = useState(() => getInitialProjectForm(initialProject));
   const [newTag, setNewTag] = useState('');
   const [jsonResult, setJsonResult] = useState(null);
   const [formError, setFormError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [coverCrop, setCoverCrop] = useState(null);
   const [coverPreviewUrl, setCoverPreviewUrl] = useState('');
+  const existingProjectFileName = getProjectFileName(initialProject?.projectFile);
+  const existingCoverImageName = getProjectFileName(initialProject?.coverImage);
+
+  useEffect(() => {
+    setFormData(getInitialProjectForm(initialProject));
+    setFieldErrors({});
+    setFormError('');
+    setJsonResult(null);
+    setNewTag('');
+  }, [initialProject, mode, projectId]);
 
   useEffect(() => {
     if (!formData.coverImage) {
-      setCoverPreviewUrl('');
+      setCoverPreviewUrl(resolveProjectCoverUrl(initialProject));
       return undefined;
     }
 
     const nextUrl = URL.createObjectURL(formData.coverImage);
     setCoverPreviewUrl(nextUrl);
     return () => URL.revokeObjectURL(nextUrl);
-  }, [formData.coverImage]);
+  }, [formData.coverImage, initialProject]);
 
   useEffect(() => () => {
     if (coverCrop?.source) {
@@ -834,14 +815,6 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
 
           <div className="project-upload-field">
             <span>Deskripsi Proyek *</span>
-            <div className="project-upload-editor project-upload-editor--legacy-hidden">
-              <div className="project-upload-editor__toolbar" aria-hidden="true">
-                <span>↶</span><span>↷</span><span>Normal text⌄</span><span>≡</span>
-                <span className="project-upload-editor__color" /><b>B</b><i>I</i><u>U</u>
-                <span>S</span><span>&lt;&gt;</span><span>▱</span><span>•≡</span><span>1≡</span><span>🔗</span>
-              </div>
-              <textarea name="description" value={formData.description} onChange={handleInputChange} placeholder="Jelaskan proyek anda secara detail..." />
-            </div>
             <RichTextEditor value={formData.description} onChange={handleDescriptionChange} error={fieldErrors.description} />
             {fieldErrors.description ? <em className="project-upload-error">{fieldErrors.description}</em> : <small>Jelaskan fungsi, tujuan, dan cara kerja proyek anda</small>}
           </div>
@@ -933,7 +906,8 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
             <label className={`project-upload-file-box${fieldErrors.projectFile ? ' has-error' : ''}`}>
               <input name="projectFile" type="file" accept=".json,.flow" onChange={handleFileChange} />
               <PlusIcon /><strong>Klik untuk upload file proyek</strong>
-              <span>{formData.projectFile?.name || 'Drag & drop file di sini'}</span><small>Format : json, flow | Maksimal 10 MB</small>
+              <span>{formData.projectFile?.name || existingProjectFileName || 'Drag & drop file di sini'}</span>
+              <small>{existingProjectFileName && !formData.projectFile ? 'File lama tetap digunakan jika tidak diganti' : 'Format : json, flow | Maksimal 10 MB'}</small>
             </label>
             {fieldErrors.projectFile ? <em className="project-upload-error">{fieldErrors.projectFile}</em> : null}
             <p>Pastikan file yang diupload sudah berfungsi dengan baik</p>
@@ -950,7 +924,9 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
               ) : (
                 <ImageIcon />
               )}
-              <span>{formData.coverImage?.name || 'Upload gambar cover'}</span><small>PNG, JPG maksimal 2 MB</small><strong>Pilih Gambar</strong>
+              <span>{formData.coverImage?.name || existingCoverImageName || 'Upload gambar cover'}</span>
+              <small>{existingCoverImageName && !formData.coverImage ? 'Cover lama tetap digunakan jika tidak diganti' : 'PNG, JPG maksimal 2 MB'}</small>
+              <strong>Pilih Gambar</strong>
             </label>
             {fieldErrors.coverImage ? <em className="project-upload-error">{fieldErrors.coverImage}</em> : null}
             <UploadField label="Alt Text" hint="Pilih gambar yang mewakili proyek Anda">

@@ -1,4 +1,7 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Hero } from '../components/Hero.jsx';
+import { fetchGallerySubmissions, isPublishedGallery } from '../services/galleryApi.js';
+import { fetchProjectSubmissions, isPublicProject } from '../services/projectApi.js';
 import connectComponentGif from '../assets/gif/gif-connect2component-idearduflow.gif';
 import inputValueComponentGif from '../assets/gif/gif-inputvaluecomponent-idearduflow.gif';
 import putComponentGif from '../assets/gif/gif-putcomponent-idearduflow.gif';
@@ -247,32 +250,35 @@ const tutorialItems = [
   },
 ];
 
-const projectItems = [
-  {
-    title: 'Nama Produk',
-    tag: 'TAG',
-  },
-  {
-    title: 'Nama Produk',
-    tag: 'TAG',
-  },
-  {
-    title: 'Nama Produk',
-    tag: 'TAG',
-  },
-  {
-    title: 'Nama Produk',
-    tag: 'TAG',
-  },
-  {
-    title: 'Nama Produk',
-    tag: 'TAG',
-  },
-];
+function sortByNewest(items) {
+  return [...items].sort((a, b) => {
+    const dateA = Date.parse(a.updatedAt || a.createdAt || a.eventDate || '') || 0;
+    const dateB = Date.parse(b.updatedAt || b.createdAt || b.eventDate || '') || 0;
+    return dateB - dateA;
+  });
+}
 
-const galleryItems = Array.from({ length: 5 }, (_, index) => ({
-  title: `Galeri ${index + 1}`,
-}));
+function formatCredibilityNumber(value) {
+  const number = Number(value) || 0;
+
+  if (number >= 1000) {
+    return `${(number / 1000).toFixed(number >= 10000 ? 0 : 1)}K`;
+  }
+
+  return String(number);
+}
+
+function getProjectTag(project) {
+  return project.category || project.tags?.[0] || project.difficulty || 'Proyek';
+}
+
+function getProjectLink(project) {
+  return project?.id ? `/project/detail?id=${encodeURIComponent(project.id)}` : '/project';
+}
+
+function getGalleryLink(item) {
+  return item?.id ? `/galeri/detail?id=${encodeURIComponent(item.id)}` : '/galeri';
+}
 
 const partnerItems = [
   {
@@ -815,6 +821,80 @@ function VisualStepPreview({ type }) {
 }
 
 export function Home() {
+  const [homeProjects, setHomeProjects] = useState([]);
+  const [homeGallery, setHomeGallery] = useState([]);
+  const [isHomeContentLoading, setIsHomeContentLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    Promise.allSettled([fetchProjectSubmissions(), fetchGallerySubmissions()])
+      .then((results) => {
+        if (!isMounted) {
+          return;
+        }
+
+        const [projectResult, galleryResult] = results;
+
+        if (projectResult.status === 'fulfilled') {
+          setHomeProjects(sortByNewest(projectResult.value.filter(isPublicProject)).slice(0, 5));
+        } else {
+          setHomeProjects([]);
+        }
+
+        if (galleryResult.status === 'fulfilled') {
+          setHomeGallery(sortByNewest(galleryResult.value.filter(isPublishedGallery)).slice(0, 5));
+        } else {
+          setHomeGallery([]);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsHomeContentLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const featuredProjects = useMemo(
+    () =>
+      homeProjects.map((project) => ({
+        id: project.id,
+        title: project.title,
+        tag: getProjectTag(project),
+        imageUrl: project.coverImageUrl,
+        href: getProjectLink(project),
+      })),
+    [homeProjects],
+  );
+
+  const featuredGallery = useMemo(
+    () =>
+      homeGallery.map((item) => ({
+        id: item.id,
+        title: item.title,
+        tag: item.tag,
+        description: item.description,
+        imageUrl: item.imageUrl,
+        href: getGalleryLink(item),
+      })),
+    [homeGallery],
+  );
+
+  const credibilitySummary = useMemo(() => {
+    const totalViews = homeProjects.reduce((sum, project) => sum + (Number(project.viewer) || 0), 0);
+    const totalLikes = homeProjects.reduce((sum, project) => sum + (Number(project.likes) || 0), 0);
+
+    return [
+      { label: 'Proyek Publik', value: homeProjects.length },
+      { label: 'Dokumentasi', value: homeGallery.length },
+      { label: 'Interaksi', value: formatCredibilityNumber(totalViews + totalLikes) },
+    ];
+  }, [homeGallery.length, homeProjects]);
+
   return (
     <>
       <Hero />
@@ -976,14 +1056,28 @@ export function Home() {
         <div className="projects-inner">
           <h2>Contoh Proyek</h2>
           <div className="projects-grid">
-            {projectItems.map((project, index) => (
-              <article className="project-card" key={`${project.title}-${index}`}>
+            {isHomeContentLoading && (
+              <article className="project-card project-card--state">
+                <h3>Memuat proyek...</h3>
+              </article>
+            )}
+            {!isHomeContentLoading && featuredProjects.length === 0 && (
+              <article className="project-card project-card--state">
+                <h3>Belum ada proyek publish.</h3>
+              </article>
+            )}
+            {featuredProjects.map((project, index) => (
+              <a className="project-card" href={project.href} key={`${project.title}-${project.id || index}`}>
                 <div className="project-image">
-                  <AssetIcon type="image" className="project-placeholder-icon" />
+                  {project.imageUrl ? (
+                    <img src={project.imageUrl} alt={project.title} />
+                  ) : (
+                    <AssetIcon type="image" className="project-placeholder-icon" />
+                  )}
                   <span>{project.tag}</span>
                 </div>
                 <h3>{project.title}</h3>
-              </article>
+              </a>
             ))}
           </div>
           <a className="projects-all-button" href="/project">Lihat Semua Proyek</a>
@@ -993,16 +1087,33 @@ export function Home() {
         <div className="gallery-inner">
           <h2>Kredibilitas / Galeri</h2>
           <div className="gallery-grid">
-            {galleryItems.map((item) => (
-              <article className="gallery-image-card" key={item.title}>
-                <AssetIcon type="image" className="gallery-placeholder-icon" />
+            {isHomeContentLoading && (
+              <article className="gallery-image-card gallery-image-card--state">
+                Memuat galeri...
               </article>
+            )}
+            {!isHomeContentLoading && featuredGallery.length === 0 && (
+              <article className="gallery-image-card gallery-image-card--state">
+                Belum ada galeri publish.
+              </article>
+            )}
+            {featuredGallery.map((item, index) => (
+              <a className="gallery-image-card" href={item.href} key={`${item.title}-${item.id || index}`}>
+                {item.imageUrl ? (
+                  <img src={item.imageUrl} alt={item.title} />
+                ) : (
+                  <AssetIcon type="image" className="gallery-placeholder-icon" />
+                )}
+                <span>{item.tag}</span>
+              </a>
             ))}
             <article className="gallery-testimonial-card">
               <AssetIcon type="message" className="gallery-message-icon" />
               <div>
-                <h3>Testimoni Guru & Siswa</h3>
-                <p>"Belajar IoT jadi jauh lebih cepat sejak menggunakan Arduflow..."</p>
+                <h3>Kredibilitas Arduflow</h3>
+                <p>
+                  {credibilitySummary.map((item) => `${item.value} ${item.label}`).join(' - ')}
+                </p>
               </div>
             </article>
           </div>

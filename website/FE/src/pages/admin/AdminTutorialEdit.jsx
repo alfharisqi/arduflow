@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import '../../styles/admin-tutorial-create.css';
+import { TinyMCEEditor } from '../../components/TinyMCEEditor.jsx';
 import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
 import {
   showConfirmAlert,
@@ -9,7 +10,7 @@ import {
 } from '../../utils/alerts.js';
 
 const ARTICLE_API_URL = apiEndpoint(
-  import.meta.env.VITE_ARTICLE_API_URL || import.meta.env.VITE_TUTORIAL_API_URL,
+  import.meta.env.VITE_ARTICLE_API_URL,
   '/api/article-api.php'
 );
 const DEBUG_TUTORIAL_EDIT =
@@ -1024,7 +1025,7 @@ export function AdminTutorialEdit() {
 
   if (isLoading) {
     return (
-      <main className="admin-tutorial-create-page">
+      <main className="admin-tutorial-create-page admin-tutorial-edit-page admin-tutorial-edit-loading-page">
         <section className="admin-tutorial-create-card">
           <h1>Edit Materi</h1>
           <p>Mengambil data materi dari SQLite...</p>
@@ -1035,7 +1036,7 @@ export function AdminTutorialEdit() {
 
   if (loadError) {
     return (
-      <main className="admin-tutorial-create-page">
+      <main className="admin-tutorial-create-page admin-tutorial-edit-page admin-tutorial-edit-loading-page">
         <section className="admin-tutorial-create-card">
           <h1>Edit Materi</h1>
           <div
@@ -1057,7 +1058,7 @@ export function AdminTutorialEdit() {
   }
 
   return (
-    <main className="admin-tutorial-create-page">
+    <main className="admin-tutorial-create-page admin-tutorial-edit-page">
       <section className="admin-tutorial-create-header">
         <h1>Edit Materi</h1>
         <p>
@@ -1165,12 +1166,16 @@ export function AdminTutorialEdit() {
               Deskripsi Lengkap
               <span className="admin-tutorial-required">*</span>
             </span>
-            <textarea
-              className="admin-tutorial-create-editor"
-              rows="8"
-              name="fullDescription"
+            <TinyMCEEditor
               value={formData.fullDescription}
-              onChange={handleChange}
+              onChange={(value) =>
+                setFormData((previous) => ({
+                  ...previous,
+                  fullDescription: value,
+                }))
+              }
+              height={420}
+              ariaLabel="Deskripsi lengkap materi"
             />
           </label>
 

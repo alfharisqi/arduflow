@@ -12,15 +12,16 @@ import fileIcon from '../../assets/icons/icon-file-text-1.svg';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
 import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
 import zapIcon from '../../assets/icons/icon-zap-1.svg';
+import { apiEndpoint } from '../../services/apiEndpoints.js';
 
-const TUTORIAL_API_URL = (
-  import.meta.env.VITE_TUTORIAL_API_URL ||
-  'http://192.168.130.12:8000/api/'
-).replace(/\/+$/, '');
+const ARTICLE_API_URL = apiEndpoint(
+  import.meta.env.VITE_ARTICLE_API_URL,
+  '/api/article-api.php'
+);
 
 const TUTORIAL_API_ORIGIN = (() => {
   try {
-    return new URL(TUTORIAL_API_URL).origin;
+    return new URL(ARTICLE_API_URL).origin;
   } catch {
     return '';
   }
@@ -365,7 +366,7 @@ export function AdminTutorial() {
 
     try {
       const response = await fetch(
-        `${TUTORIAL_API_URL}/article-api.php?id=${encodeURIComponent(
+        `${ARTICLE_API_URL}?id=${encodeURIComponent(
           tutorial.id
         )}`,
         {
@@ -418,7 +419,7 @@ export function AdminTutorial() {
     setLoadError('');
 
     try {
-      const response = await fetch(`${TUTORIAL_API_URL}/article-api.php`, {
+      const response = await fetch(ARTICLE_API_URL, {
         method: 'GET',
         headers: {
           Accept: 'application/json',
@@ -465,7 +466,7 @@ export function AdminTutorial() {
 
       console.group('DEBUG ADMIN TUTORIAL SQLITE');
       console.log('Method:', 'GET');
-      console.log('Endpoint:', `${TUTORIAL_API_URL}/article-api.php`);
+      console.log('Endpoint:', ARTICLE_API_URL);
       console.log('Response:', result);
       console.log('Data tabel:', normalizedRows);
       console.groupEnd();
@@ -838,7 +839,7 @@ export function AdminTutorial() {
                         <small>{loadError}</small>
                         <br />
                         <small>
-                          Endpoint: {TUTORIAL_API_URL}/article-api.php
+                          Endpoint: {ARTICLE_API_URL}
                         </small>
                       </td>
                     </tr>

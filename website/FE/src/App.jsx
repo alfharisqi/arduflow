@@ -13,6 +13,7 @@ import { DetailWorkshop } from './pages/DetailWorkshop.jsx';
 import { AdminTambahWorkshop } from './pages/admin/AdminTambahWorkshop.jsx';
 
 import { Tutorial } from './pages/Tutorial.jsx';
+import { TutorialDetail } from './pages/TutorialDetail.jsx';
 import { BeginnerEbook } from './pages/BeginnerEbook.jsx';
 import { IdeEbook } from './pages/IdeEbook.jsx';
 import { HardwareEbook } from './pages/HardwareEbook.jsx';
@@ -103,6 +104,7 @@ const routes = {
   '/admin/workshop/tambah': AdminTambahWorkshop,
 
   '/tutorial': Tutorial,
+  '/tutorial/detail': TutorialDetail,
   '/tutorial/panduan-pemula': BeginnerEbook,
   '/tutorial/penggunaan-ide': IdeEbook,
   '/tutorial/dasar-hardware-iot': HardwareEbook,
