@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { apiEndpoint } from '../../services/apiEndpoints.js';
-import {
-  showConfirmAlert,
-  showErrorAlert,
-  showPromptAlert,
-  showSuccessAlert,
-} from '../../utils/alerts.js';
+import { EditorContent, useEditor, useEditorState } from '@tiptap/react';
+import Link from '@tiptap/extension-link';
+import Underline from '@tiptap/extension-underline';
+import StarterKit from '@tiptap/starter-kit';
 import '../../styles/admin-tutorial-create.css';
 
-const ARTICLE_API_URL = apiEndpoint(import.meta.env.VITE_ARTICLE_API_URL, '/api/article-api.php');
+
+const TUTORIAL_API_URL = (
+  import.meta.env.VITE_TUTORIAL_API_URL ||
+  'http://192.168.130.11:8000/api/'
+).replace(/\/+$/, '');
 
 const initialSlides = [];
 
@@ -57,8 +58,7 @@ const contentTypeOptions = [
 ];
 
 const toContentLabel = (contentType) =>
-  contentTypeOptions.find(([value]) => value === contentType)?.[1] ||
-  String(contentType || '-');
+  contentTypeOptions.find(([value]) => value === contentType)?.[1] || contentType;
 
 export function AdminTutorialCreate() {
   const [activeStep, setActiveStep] = useState(1);
@@ -77,7 +77,6 @@ export function AdminTutorialCreate() {
   const [responseJson, setResponseJson] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cardImagePreview, setCardImagePreview] = useState('');
-  const [cardImageDataUrl, setCardImageDataUrl] = useState('');
 
   const titleRef = useRef(null);
   const slugRef = useRef(null);
@@ -88,31 +87,157 @@ export function AdminTutorialCreate() {
   const cardImageSectionRef = useRef(null);
   const cardImageInputRef = useRef(null);
   const slideImageInputRef = useRef(null);
+  const slideVideoInputRef = useRef(null);
   const pageOrderRef = useRef(null);
+
+  const fullDescriptionEditor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        heading: {
+          levels: [2, 3],
+        },
+      }),
+      Link.configure({
+        openOnClick: false,
+      }),
+      Underline,
+    ],
+    content: formData.fullDescription || '',
+    editorProps: {
+      attributes: {
+        class: 'admin-tutorial-tiptap-content',
+        'aria-label': 'Deskripsi lengkap materi',
+      },
+    },
+    onUpdate: ({ editor }) => {
+      const html = editor.isEmpty ? '' : editor.getHTML();
+
+      setFormData((previousData) => ({
+        ...previousData,
+        fullDescription: html,
+      }));
+
+      setErrors((previousErrors) => {
+        if (!previousErrors.fullDescription) {
+          return previousErrors;
+        }
+
+        const updatedErrors = { ...previousErrors };
+        delete updatedErrors.fullDescription;
+        return updatedErrors;
+      });
+
+      setSubmitMessage('');
+      setSubmitStatus('idle');
+    },
+  });
+
+  const fullDescriptionEditorState = useEditorState({
+    editor: fullDescriptionEditor,
+    selector: ({ editor }) => {
+      if (!editor) {
+        return {
+          isBold: false,
+          isItalic: false,
+          isUnderline: false,
+          isBulletList: false,
+          isOrderedList: false,
+          isBlockquote: false,
+          isCodeBlock: false,
+          isHeading2: false,
+          isHeading3: false,
+          canUndo: false,
+          canRedo: false,
+        };
+      }
+
+      return {
+        isBold: editor.isActive('bold'),
+        isItalic: editor.isActive('italic'),
+        isUnderline: editor.isActive('underline'),
+        isBulletList: editor.isActive('bulletList'),
+        isOrderedList: editor.isActive('orderedList'),
+        isBlockquote: editor.isActive('blockquote'),
+        isCodeBlock: editor.isActive('codeBlock'),
+        isHeading2: editor.isActive('heading', { level: 2 }),
+        isHeading3: editor.isActive('heading', { level: 3 }),
+        canUndo: editor.can().chain().focus().undo().run(),
+        canRedo: editor.can().chain().focus().redo().run(),
+      };
+    },
+  });
+
+  const setDescriptionFormat = (value) => {
+    if (!fullDescriptionEditor) return;
+
+    if (value === 'heading-2') {
+      fullDescriptionEditor.chain().focus().toggleHeading({ level: 2 }).run();
+      return;
+    }
+
+    if (value === 'heading-3') {
+      fullDescriptionEditor.chain().focus().toggleHeading({ level: 3 }).run();
+      return;
+    }
+
+    fullDescriptionEditor.chain().focus().setParagraph().run();
+  };
+
+  const setDescriptionLink = () => {
+    if (!fullDescriptionEditor) return;
+
+    const previousUrl =
+      fullDescriptionEditor.getAttributes('link').href || '';
+
+    const url = window.prompt(
+      'Masukkan URL link:',
+      previousUrl
+    );
+
+    if (url === null) return;
+
+    const normalizedUrl = url.trim();
+
+    if (!normalizedUrl) {
+      fullDescriptionEditor
+        .chain()
+        .focus()
+        .extendMarkRange('link')
+        .unsetLink()
+        .run();
+      return;
+    }
+
+    const href = /^(https?:\/\/|mailto:|tel:)/i.test(normalizedUrl)
+      ? normalizedUrl
+      : `https://${normalizedUrl}`;
+
+    fullDescriptionEditor
+      .chain()
+      .focus()
+      .extendMarkRange('link')
+      .setLink({ href })
+      .run();
+  };
 
   const selectedSlide =
     slides.find((slide) => slide.id === selectedSlideId) || slides[0] || null;
   const editingSlide =
     slides.find((slide) => slide.id === editingSlideId) || null;
   const selectedSlideImage = selectedSlide?.imagePreview || cardImagePreview;
+  const selectedSlideVideo =
+    selectedSlide?.videoSourceType === 'file'
+      ? selectedSlide?.videoPreview || ''
+      : selectedSlide?.videoUrl || '';
 
   useEffect(() => {
     if (!formData.cardImage) {
       setCardImagePreview('');
-      setCardImageDataUrl('');
       return undefined;
     }
 
     const nextPreview = URL.createObjectURL(formData.cardImage);
     setCardImagePreview(nextPreview);
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      setCardImageDataUrl(
-        typeof reader.result === 'string' ? reader.result : ''
-      );
-    };
-    reader.readAsDataURL(formData.cardImage);
 
     return () => URL.revokeObjectURL(nextPreview);
   }, [formData.cardImage]);
@@ -158,13 +283,13 @@ export function AdminTutorialCreate() {
     const draftCount = slides.filter((slide) => slide.status === 'Draft').length;
     const publishedCount = slides.filter((slide) => slide.status === 'Published').length;
 
-    return [
+     return [
       ['Total Materi', String(slides.length)],
       ['Draft', String(draftCount)],
       ['Published', String(publishedCount)],
       ['Total Estimasi Waktu', formData.estimatedTime || '-'],
     ];
-  }, [formData.estimatedTime, slides]);
+  }, [slides]);
 
   const createSlug = (value) =>
     value
@@ -254,27 +379,21 @@ export function AdminTutorialCreate() {
       id: Date.now(),
       title: `Slide Materi ${slides.length + 1}`,
       contentType: 'text_image',
-      content: '',
+      estimatedTime: '2-4 jam',
+      status: 'Draft',
+      bodyText: '',
+      imagePreview: '',
       imageName: '',
       imageFile: null,
-      imagePreview: '',
+      videoSourceType: 'url',
       videoUrl: '',
-      estimatedTime: formData.estimatedTime || '2-4 jam',
-      status: 'Draft',
+      videoFile: null,
+      videoName: '',
+      videoPreview: '',
     };
 
     setSlides((previousSlides) => [...previousSlides, newSlide]);
     setSelectedSlideId(newSlide.id);
-    setEditingSlideId(newSlide.id);
-    clearFieldError('slides');
-  };
-
-  const updateSlideField = (slideId, fieldName, value) => {
-    setSlides((previousSlides) =>
-      previousSlides.map((slide) =>
-        slide.id === slideId ? { ...slide, [fieldName]: value } : slide
-      )
-    );
     clearFieldError('slides');
   };
 
@@ -294,16 +413,7 @@ export function AdminTutorialCreate() {
     setSelectedSlideId(duplicatedSlide.id);
   };
 
-  const removeSlide = async (slideId) => {
-    const slide = slides.find((item) => item.id === slideId);
-    const confirmed = await showConfirmAlert({
-      title: 'Hapus Materi?',
-      text: `Hapus "${slide?.title || 'slide ini'}" dari daftar materi?`,
-      confirmButtonText: 'Hapus',
-    });
-
-    if (!confirmed) return;
-
+  const removeSlide = (slideId) => {
     setSlides((previousSlides) => {
       const updatedSlides = previousSlides.filter((slide) => slide.id !== slideId);
 
@@ -311,29 +421,92 @@ export function AdminTutorialCreate() {
         setSelectedSlideId(updatedSlides[0]?.id || null);
       }
 
-      if (editingSlideId === slideId) {
-        setEditingSlideId(null);
-      }
-
       return updatedSlides;
     });
   };
 
-  const renameSlide = async (slideId) => {
+  const openSlideEditor = (slideId) => {
     const slide = slides.find((item) => item.id === slideId);
     if (!slide) return;
 
-    const nextTitle = await showPromptAlert({
-      title: 'Ubah Judul Materi',
-      inputValue: slide.title,
-      requiredMessage: 'Judul materi wajib diisi.',
-    });
-    if (!nextTitle?.trim()) return;
+    setSelectedSlideId(slideId);
+    setEditingSlideId(slideId);
+  };
 
+  const updateSlideField = (slideId, fieldName, value) => {
     setSlides((previousSlides) =>
       previousSlides.map((item) =>
-        item.id === slideId ? { ...item, title: nextTitle.trim() } : item
+        item.id === slideId
+          ? {
+              ...item,
+              [fieldName]: value,
+            }
+          : item
       )
+    );
+  };
+
+  const handleSlideImageChange = (event) => {
+    const selectedFile = event.target.files?.[0] || null;
+
+    if (!selectedFile || !editingSlideId) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      updateSlideField(
+        editingSlideId,
+        'imagePreview',
+        typeof reader.result === 'string' ? reader.result : ''
+      );
+      updateSlideField(editingSlideId, 'imageName', selectedFile.name);
+      updateSlideField(editingSlideId, 'imageFile', selectedFile);
+    };
+    reader.readAsDataURL(selectedFile);
+  };
+
+  const handleSlideVideoChange = (event) => {
+    const selectedFile = event.target.files?.[0] || null;
+
+    if (!selectedFile || !editingSlideId) return;
+
+    const allowedTypes = ['video/mp4', 'video/webm', 'video/ogg'];
+
+    if (!allowedTypes.includes(selectedFile.type)) {
+      window.alert('Format video harus MP4, WEBM, atau OGG.');
+      event.target.value = '';
+      return;
+    }
+
+    const maxVideoSize = 50 * 1024 * 1024;
+
+    if (selectedFile.size > maxVideoSize) {
+      window.alert('Ukuran video maksimal 50 MB.');
+      event.target.value = '';
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(selectedFile);
+
+    setSlides((previousSlides) =>
+      previousSlides.map((slide) => {
+        if (slide.id !== editingSlideId) return slide;
+
+        if (
+          slide.videoPreview &&
+          String(slide.videoPreview).startsWith('blob:')
+        ) {
+          URL.revokeObjectURL(slide.videoPreview);
+        }
+
+        return {
+          ...slide,
+          videoSourceType: 'file',
+          videoFile: selectedFile,
+          videoName: selectedFile.name,
+          videoPreview: previewUrl,
+          videoUrl: '',
+        };
+      })
     );
   };
 
@@ -345,29 +518,6 @@ export function AdminTutorialCreate() {
           : slide
       )
     );
-  };
-
-  const handleSlideImageChange = (event) => {
-    const selectedFile = event.target.files?.[0] || null;
-
-    if (!selectedFile || !editingSlideId) return;
-
-    const previewUrl = URL.createObjectURL(selectedFile);
-
-    setSlides((previousSlides) =>
-      previousSlides.map((slide) =>
-        slide.id === editingSlideId
-          ? {
-              ...slide,
-              imageFile: selectedFile,
-              imageName: selectedFile.name,
-              imagePreview: previewUrl,
-            }
-          : slide
-      )
-    );
-
-    event.target.value = '';
   };
 
   const validateForm = () => {
@@ -384,7 +534,14 @@ export function AdminTutorialCreate() {
     } else if (formData.shortDescription.length > 150) {
       validationErrors.shortDescription = 'Deskripsi singkat maksimal 150 karakter.';
     }
-    if (!formData.fullDescription.trim()) {
+    const fullDescriptionText =
+      fullDescriptionEditor?.getText().trim() ||
+      formData.fullDescription
+        .replace(/<[^>]*>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .trim();
+
+    if (!fullDescriptionText) {
       validationErrors.fullDescription = 'Kolom ini belum diisi.';
     }
     if (!formData.cardImage) {
@@ -447,6 +604,11 @@ export function AdminTutorialCreate() {
         return;
       }
 
+      if (firstInvalidField === 'fullDescription') {
+        fullDescriptionEditor?.chain().focus().run();
+        return;
+      }
+
       targetElement?.focus?.();
     }, 250);
   };
@@ -465,7 +627,6 @@ export function AdminTutorialCreate() {
           file_name: formData.cardImage.name,
           file_type: formData.cardImage.type,
           file_size: formData.cardImage.size,
-          data_url: cardImageDataUrl,
         }
       : null,
     learning_information: {
@@ -495,26 +656,53 @@ export function AdminTutorialCreate() {
       url_slug: formData.urlSlug,
       publish_schedule: formData.publishSchedule || null,
     },
-    slides: slides.map((slide, index) => ({
-      id: slide.id,
-      order: index + 1,
-      title: slide.title,
-      content_type: slide.contentType,
-      content: slide.content || null,
-      image_name: slide.imageName || null,
-      image_url:
-        slide.imagePreview && !/^blob:/i.test(slide.imagePreview)
-          ? slide.imagePreview
-          : null,
-      video_url: slide.videoUrl || null,
-      estimated_time: slide.estimatedTime,
-      status: slide.status.toLowerCase(),
-    })),
+    slides: slides.map((slide, index) => {
+      const usesText = ['text', 'text_image'].includes(slide.contentType);
+      const usesImage = ['image', 'text_image'].includes(slide.contentType);
+      const usesVideo = slide.contentType === 'video';
+
+      return {
+        id: slide.id,
+        order: index + 1,
+        title: slide.title,
+        content_type: slide.contentType,
+        estimated_time: slide.estimatedTime,
+        body_text: usesText ? slide.bodyText || '' : '',
+        image:
+          usesImage && (slide.imagePreview || slide.imageFile)
+            ? {
+                file_name:
+                  slide.imageName || `slide-${index + 1}.png`,
+                file_type: slide.imageFile?.type || null,
+                file_size: slide.imageFile?.size || null,
+                upload_field: slide.imageFile
+                  ? `slide_image_${index}`
+                  : null,
+              }
+            : null,
+        video_url:
+          usesVideo && slide.videoSourceType === 'url'
+            ? slide.videoUrl?.trim() || null
+            : null,
+        video:
+          usesVideo &&
+          slide.videoSourceType === 'file' &&
+          slide.videoFile
+            ? {
+                file_name: slide.videoFile.name,
+                file_type: slide.videoFile.type,
+                file_size: slide.videoFile.size,
+                upload_field: `slide_video_${index}`,
+              }
+            : null,
+        status: slide.status.toLowerCase(),
+      };
+    }),
     metadata: {
       source: 'admin_tutorial_create_form',
       frontend_route: window.location.pathname,
       request_method: 'POST',
-      endpoint: ARTICLE_API_URL,
+      endpoint: `${TUTORIAL_API_URL}/article-api.php`,
       generated_at: new Date().toISOString(),
     },
   });
@@ -533,13 +721,17 @@ export function AdminTutorialCreate() {
       setSubmitStatus('error');
       setSubmitMessage('Masih ada kolom wajib yang belum diisi.');
       focusFirstInvalidField(validationErrors);
-      await showErrorAlert('Form Belum Lengkap', 'Masih ada kolom wajib yang belum diisi.');
       return;
     }
 
     setIsSubmitting(true);
     setSubmitStatus('idle');
     setSubmitMessage('');
+
+    const requestController = new AbortController();
+    const requestTimeout = window.setTimeout(() => {
+      requestController.abort();
+    }, 60000);
 
     try {
       const requestFormData = new FormData();
@@ -552,12 +744,38 @@ export function AdminTutorialCreate() {
         requestFormData.append('card_image', formData.cardImage);
       }
 
-      const response = await fetch(ARTICLE_API_URL, {
+      slides.forEach((slide, index) => {
+        if (
+          ['image', 'text_image'].includes(slide.contentType) &&
+          slide.imageFile
+        ) {
+          requestFormData.append(
+            `slide_image_${index}`,
+            slide.imageFile,
+            slide.imageFile.name
+          );
+        }
+
+        if (
+          slide.contentType === 'video' &&
+          slide.videoSourceType === 'file' &&
+          slide.videoFile
+        ) {
+          requestFormData.append(
+            `slide_video_${index}`,
+            slide.videoFile,
+            slide.videoFile.name
+          );
+        }
+      });
+
+      const response = await fetch(`${TUTORIAL_API_URL}/article-api.php`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
         },
         body: requestFormData,
+        signal: requestController.signal,
       });
 
       const responseText = await response.text();
@@ -569,33 +787,29 @@ export function AdminTutorialCreate() {
       if (!response.ok) {
         setSubmitStatus('error');
         setSubmitMessage(result.message || 'Data materi gagal disimpan.');
-        await showErrorAlert(
-          'Gagal Menyimpan',
-          result.message || 'Data materi gagal disimpan.'
-        );
         return;
       }
 
       setSubmitStatus('success');
       setSubmitMessage(result.message || 'Materi berhasil diproses.');
-      await showSuccessAlert(
-        'Berhasil',
-        result.message || 'Materi berhasil diproses.'
-      );
     } catch (error) {
+      const isTimeout = error.name === 'AbortError';
       setResponseJson({
         success: false,
         status_code: 0,
-        message: 'Tidak dapat terhubung ke API.',
+        message: isTimeout
+          ? 'Request terlalu lama. Coba periksa koneksi API atau ukuran gambar.'
+          : 'Tidak dapat terhubung ke API.',
         error: { type: error.name, detail: error.message },
       });
       setSubmitStatus('error');
-      setSubmitMessage('Tidak dapat terhubung ke API. Pastikan server sudah berjalan.');
-      await showErrorAlert(
-        'API Tidak Terhubung',
-        'Tidak dapat terhubung ke API. Pastikan server sudah berjalan.'
+      setSubmitMessage(
+        isTimeout
+          ? 'Request terlalu lama. Data belum tersimpan, coba kompres gambar atau cek server API.'
+          : 'Tidak dapat terhubung ke API. Pastikan server sudah berjalan.'
       );
     } finally {
+      window.clearTimeout(requestTimeout);
       setIsSubmitting(false);
     }
   };
@@ -603,10 +817,10 @@ export function AdminTutorialCreate() {
   const copyJson = async (data) => {
     try {
       await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
-      await showSuccessAlert('Berhasil', 'JSON berhasil disalin.');
+      window.alert('JSON berhasil disalin.');
     } catch (error) {
       console.error('Gagal menyalin JSON:', error);
-      await showErrorAlert('Gagal', 'JSON gagal disalin.');
+      window.alert('JSON gagal disalin.');
     }
   };
 
@@ -635,9 +849,13 @@ export function AdminTutorialCreate() {
 
   const renderInformationStep = () => (
     <>
-      <div className="admin-tutorial-create-grid">
+      <div className="admin-tutorial-create-info-layout">
         <section className="admin-tutorial-create-card admin-tutorial-create-form-card">
-          <h2>Informasi Utama Materi</h2>
+          <div className="admin-tutorial-create-section-heading">
+            <span>Langkah 1</span>
+            <h2>Informasi Utama Materi</h2>
+            <p>Lengkapi informasi dasar yang akan tampil pada halaman tutorial.</p>
+          </div>
 
           <div className="admin-tutorial-create-two">
             <label>
@@ -691,27 +909,265 @@ export function AdminTutorialCreate() {
             {errors.shortDescription && <small className="admin-tutorial-error">{errors.shortDescription}</small>}
           </label>
 
-          <label>
+          <div
+            ref={fullDescriptionRef}
+            className="admin-tutorial-tiptap-field"
+          >
             <span className="admin-tutorial-label">
-              Deskripsi Lengkap<span className="admin-tutorial-required">*</span>
+              Deskripsi Lengkap
+              <span className="admin-tutorial-required">*</span>
             </span>
-            <div className="admin-tutorial-editor-toolbar">
-              <select defaultValue="Normal" aria-label="Format teks">
-                <option>Normal</option>
-                <option>Heading</option>
-              </select>
-              <button type="button">B</button>
-              <button type="button">I</button>
-              <button type="button">U</button>
-              <button type="button">=</button>
-              <button type="button">#</button>
-              <button type="button">/</button>
-              <button type="button">[]</button>
-              <button type="button">&lt;&gt;</button>
+
+            <div
+              className={`admin-tutorial-tiptap ${
+                errors.fullDescription ? 'is-error' : ''
+              }`}
+            >
+              <div
+                className="admin-tutorial-tiptap-toolbar"
+                role="toolbar"
+                aria-label="Toolbar deskripsi lengkap"
+              >
+                <select
+                  aria-label="Format paragraf"
+                  value={
+                    fullDescriptionEditorState?.isHeading2
+                      ? 'heading-2'
+                      : fullDescriptionEditorState?.isHeading3
+                        ? 'heading-3'
+                        : 'paragraph'
+                  }
+                  onChange={(event) =>
+                    setDescriptionFormat(event.target.value)
+                  }
+                  disabled={!fullDescriptionEditor}
+                >
+                  <option value="paragraph">Normal</option>
+                  <option value="heading-2">Heading 2</option>
+                  <option value="heading-3">Heading 3</option>
+                </select>
+
+                <span className="admin-tutorial-tiptap-divider" />
+
+                <button
+                  type="button"
+                  className={
+                    fullDescriptionEditorState?.isBold
+                      ? 'is-active'
+                      : ''
+                  }
+                  onClick={() =>
+                    fullDescriptionEditor
+                      ?.chain()
+                      .focus()
+                      .toggleBold()
+                      .run()
+                  }
+                  aria-label="Bold"
+                  title="Bold"
+                >
+                  <b>B</b>
+                </button>
+
+                <button
+                  type="button"
+                  className={
+                    fullDescriptionEditorState?.isItalic
+                      ? 'is-active'
+                      : ''
+                  }
+                  onClick={() =>
+                    fullDescriptionEditor
+                      ?.chain()
+                      .focus()
+                      .toggleItalic()
+                      .run()
+                  }
+                  aria-label="Italic"
+                  title="Italic"
+                >
+                  <i>I</i>
+                </button>
+
+                <button
+                  type="button"
+                  className={
+                    fullDescriptionEditorState?.isUnderline
+                      ? 'is-active'
+                      : ''
+                  }
+                  onClick={() =>
+                    fullDescriptionEditor
+                      ?.chain()
+                      .focus()
+                      .toggleUnderline()
+                      .run()
+                  }
+                  aria-label="Underline"
+                  title="Underline"
+                >
+                  <u>U</u>
+                </button>
+
+                <span className="admin-tutorial-tiptap-divider" />
+
+                <button
+                  type="button"
+                  className={
+                    fullDescriptionEditorState?.isBulletList
+                      ? 'is-active'
+                      : ''
+                  }
+                  onClick={() =>
+                    fullDescriptionEditor
+                      ?.chain()
+                      .focus()
+                      .toggleBulletList()
+                      .run()
+                  }
+                  aria-label="Bullet list"
+                  title="Bullet list"
+                >
+                  • List
+                </button>
+
+                <button
+                  type="button"
+                  className={
+                    fullDescriptionEditorState?.isOrderedList
+                      ? 'is-active'
+                      : ''
+                  }
+                  onClick={() =>
+                    fullDescriptionEditor
+                      ?.chain()
+                      .focus()
+                      .toggleOrderedList()
+                      .run()
+                  }
+                  aria-label="Numbered list"
+                  title="Numbered list"
+                >
+                  1. List
+                </button>
+
+                <button
+                  type="button"
+                  className={
+                    fullDescriptionEditorState?.isBlockquote
+                      ? 'is-active'
+                      : ''
+                  }
+                  onClick={() =>
+                    fullDescriptionEditor
+                      ?.chain()
+                      .focus()
+                      .toggleBlockquote()
+                      .run()
+                  }
+                  aria-label="Quote"
+                  title="Quote"
+                >
+                  “ ”
+                </button>
+
+                <button
+                  type="button"
+                  className={
+                    fullDescriptionEditorState?.isCodeBlock
+                      ? 'is-active'
+                      : ''
+                  }
+                  onClick={() =>
+                    fullDescriptionEditor
+                      ?.chain()
+                      .focus()
+                      .toggleCodeBlock()
+                      .run()
+                  }
+                  aria-label="Code block"
+                  title="Code block"
+                >
+                  &lt;/&gt;
+                </button>
+
+                <button
+                  type="button"
+                  className={
+                    fullDescriptionEditor?.isActive('link')
+                      ? 'is-active'
+                      : ''
+                  }
+                  onClick={setDescriptionLink}
+                  aria-label="Link"
+                  title="Tambahkan link"
+                >
+                  Link
+                </button>
+
+                <span className="admin-tutorial-tiptap-divider" />
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    fullDescriptionEditor
+                      ?.chain()
+                      .focus()
+                      .undo()
+                      .run()
+                  }
+                  disabled={
+                    !fullDescriptionEditorState?.canUndo
+                  }
+                  aria-label="Undo"
+                  title="Undo"
+                >
+                  ↶
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    fullDescriptionEditor
+                      ?.chain()
+                      .focus()
+                      .redo()
+                      .run()
+                  }
+                  disabled={
+                    !fullDescriptionEditorState?.canRedo
+                  }
+                  aria-label="Redo"
+                  title="Redo"
+                >
+                  ↷
+                </button>
+              </div>
+
+              <EditorContent
+                editor={fullDescriptionEditor}
+                className="admin-tutorial-tiptap-editor"
+              />
             </div>
-            <textarea ref={fullDescriptionRef} className={`admin-tutorial-create-editor ${errors.fullDescription ? 'is-error' : ''}`} name="fullDescription" value={formData.fullDescription} onChange={handleChange} rows="5" placeholder="Deskripsi lengkap materi..." aria-invalid={Boolean(errors.fullDescription)} />
-            {errors.fullDescription && <small className="admin-tutorial-error">{errors.fullDescription}</small>}
-          </label>
+
+            <div className="admin-tutorial-tiptap-footer">
+              <small>
+                Gunakan toolbar untuk mengatur heading, list,
+                quote, link, dan format teks.
+              </small>
+
+              <small>
+                {fullDescriptionEditor?.getText().length || 0}
+                {' '}karakter teks
+              </small>
+            </div>
+
+            {errors.fullDescription && (
+              <small className="admin-tutorial-error">
+                {errors.fullDescription}
+              </small>
+            )}
+          </div>
 
           <div ref={cardImageSectionRef} className="admin-tutorial-image-field">
             <span className="admin-tutorial-label">
@@ -722,7 +1178,7 @@ export function AdminTutorialCreate() {
               {cardImagePreview ? (
                 <img src={cardImagePreview} alt="Preview gambar materi" />
               ) : (
-                <span aria-hidden="true">[]</span>
+                <span className="admin-tutorial-upload-icon" aria-hidden="true" />
               )}
               {formData.cardImage ? (
                 <>
@@ -754,42 +1210,6 @@ export function AdminTutorialCreate() {
               <input type="text" name="estimatedTime" value={formData.estimatedTime} onChange={handleChange} />
               <small>Contoh: 2-4 jam, 1 minggu, dan lainnya</small>
             </label>
-          </div>
-        </section>
-
-        <section className={`admin-tutorial-create-card admin-tutorial-slides-card ${errors.slides ? 'is-section-error' : ''}`}>
-          <div className="admin-tutorial-card-head">
-            <div>
-              <h2>Daftar Materi / Slide</h2>
-              <p>Buat, urutkan, dan kelola slide materi. Materi akan ditampilkan berurutan kepada pengguna.</p>
-            </div>
-            <button type="button" onClick={handleAddSlide}>Tambah Slide</button>
-          </div>
-
-          <div className="admin-tutorial-slide-list">
-            {slides.length === 0 ? (
-              <p>Belum ada slide. Klik Tambah Slide untuk mulai mengisi materi.</p>
-            ) : slides.map((slide, index) => (
-              <article key={slide.id}>
-                <span>::</span>
-                <strong>{index + 1}</strong>
-                <b>{slide.title}</b>
-                <small>{toContentLabel(slide.contentType)}</small>
-                <div aria-hidden="true">[] o x</div>
-              </article>
-            ))}
-          </div>
-
-          {errors.slides && <small className="admin-tutorial-error">{errors.slides}</small>}
-          <p className="admin-tutorial-tip">i Tips: Drag & drop untuk mengubah urutan materi.</p>
-
-          <div className="admin-tutorial-slide-stats">
-            {infoSlideStatistics.map((item) => (
-              <article key={item[0]}>
-                <span>{item[0]}</span>
-                <strong>{item[1]}</strong>
-              </article>
-            ))}
           </div>
         </section>
 
@@ -843,20 +1263,21 @@ export function AdminTutorialCreate() {
           </section>
 
           <section className="admin-tutorial-create-card admin-tutorial-order-preview">
-            <h2>Preview Urutan Slide (Ringkasan)</h2>
+            <h2>Ringkasan Materi</h2>
+            <div className="admin-tutorial-create-summary-list">
+              <p><span>Total Slide</span><strong>{slides.length}</strong></p>
+              <p><span>Status</span><strong>{formData.pageSettings.status}</strong></p>
+              <p><span>Level</span><strong>{formData.difficultyLevel}</strong></p>
+              <p><span>Estimasi</span><strong>{formData.estimatedTime || '-'}</strong></p>
+            </div>
+            <h3>Preview Urutan Slide</h3>
             <div className="admin-tutorial-page-dots">
               <button type="button" disabled>&lt;</button>
-              {slides.length === 0 ? (
-                <button type="button" className="is-active">0</button>
-              ) : slides.slice(0, 5).map((slide, index) => (
-                <button
-                  type="button"
-                  className={index === 0 ? 'is-active' : ''}
-                  key={slide.id}
-                >
-                  {index + 1}
-                </button>
-              ))}
+              <button type="button" className="is-active">{slides.length > 0 ? 1 : 0}</button>
+              {slides.length > 1 && <button type="button">2</button>}
+              {slides.length > 3 && <span>...</span>}
+              {slides.length > 2 && <button type="button">{slides.length - 1}</button>}
+              {slides.length > 1 && <button type="button">{slides.length}</button>}
               <button type="button">&gt;</button>
             </div>
             <article>
@@ -879,6 +1300,20 @@ export function AdminTutorialCreate() {
 
   const renderMaterialsStep = () => (
     <>
+      <section className="admin-tutorial-create-step-heading">
+        <div>
+          <span>Langkah 2</span>
+          <h2>Daftar Materi / Slide</h2>
+          <p>
+            Tambahkan slide, atur urutan, lalu pilih tipe konten untuk setiap materi.
+          </p>
+        </div>
+        <div className="admin-tutorial-create-step-count">
+          <strong>{slides.length}</strong>
+          <span>Total Slide</span>
+        </div>
+      </section>
+
       <div className="admin-materials-layout">
         <section className="admin-materials-main">
           <div className="admin-materials-toolbar">
@@ -914,6 +1349,7 @@ export function AdminTutorialCreate() {
 
           <section className="admin-materials-table-card">
             <div className="admin-materials-table-head">
+              <span aria-hidden="true" />
               <span>NO</span>
               <span>Judul Materi</span>
               <span>Tipe Konten</span>
@@ -922,38 +1358,42 @@ export function AdminTutorialCreate() {
               <span>Aksi</span>
             </div>
             <div className="admin-materials-table-body">
-              {filteredSlides.length === 0 ? (
-                <article className="admin-materials-empty-row">
-                  <span>Belum ada materi. Klik Tambah Materi untuk membuat slide pertama.</span>
-                </article>
-              ) : filteredSlides.map((slide, index) => (
-                <article className={selectedSlideId === slide.id ? 'is-selected' : ''} key={slide.id} onClick={() => setSelectedSlideId(slide.id)}>
-                  <button type="button" className="admin-materials-row-handle" aria-label={`Pilih ${slide.title}`}>::</button>
-                  <strong>{index + 1}</strong>
-                  <span>{slide.title}</span>
-                  <span>[] {toContentLabel(slide.contentType)}</span>
-                  <span>o {slide.estimatedTime}</span>
-                  <button type="button" className={`admin-materials-status ${slide.status === 'Published' ? 'is-published' : 'is-draft'}`} onClick={(event) => {
-                    event.stopPropagation();
-                    toggleSlideStatus(slide.id);
-                  }}>{slide.status}</button>
-                  <div className="admin-materials-actions">
-                    <button type="button" onClick={(event) => {
+              {filteredSlides.length > 0 ? (
+                filteredSlides.map((slide, index) => (
+                  <article className={selectedSlideId === slide.id ? 'is-selected' : ''} key={slide.id} onClick={() => setSelectedSlideId(slide.id)}>
+                    <button type="button" className="admin-materials-row-handle" aria-label={`Pilih ${slide.title}`}>::</button>
+                    <strong>{slides.findIndex((item) => item.id === slide.id) + 1}</strong>
+                    <span>{slide.title}</span>
+                    <span className="admin-materials-content-type">
+                      <i aria-hidden="true" />
+                      {toContentLabel(slide.contentType)}
+                    </span>
+                    <span className="admin-materials-time">{slide.estimatedTime}</span>
+                    <button type="button" className={`admin-materials-status ${slide.status === 'Published' ? 'is-published' : 'is-draft'}`} onClick={(event) => {
                       event.stopPropagation();
-                      setSelectedSlideId(slide.id);
-                      setEditingSlideId(slide.id);
-                    }}>Edit</button>
-                    <button type="button" onClick={(event) => {
-                      event.stopPropagation();
-                      duplicateSlide(slide.id);
-                    }}>Copy</button>
-                    <button type="button" onClick={(event) => {
-                      event.stopPropagation();
-                      removeSlide(slide.id);
-                    }}>Hapus</button>
-                  </div>
-                </article>
-              ))}
+                      toggleSlideStatus(slide.id);
+                    }}>{slide.status}</button>
+                    <div className="admin-materials-actions">
+                      <button type="button" onClick={(event) => {
+                        event.stopPropagation();
+                        openSlideEditor(slide.id);
+                      }}>Edit</button>
+                      <button type="button" onClick={(event) => {
+                        event.stopPropagation();
+                        duplicateSlide(slide.id);
+                      }}>Copy</button>
+                      <button type="button" onClick={(event) => {
+                        event.stopPropagation();
+                        removeSlide(slide.id);
+                      }}>Hapus</button>
+                    </div>
+                  </article>
+                ))
+              ) : (
+                <div className="admin-materials-empty">
+                  Belum ada materi. Klik Tambah Materi untuk membuat slide pertama.
+                </div>
+              )}
             </div>
           </section>
 
@@ -961,12 +1401,17 @@ export function AdminTutorialCreate() {
             <section className="admin-materials-editor">
               <div className="admin-materials-editor-head">
                 <div>
-                  <h2>Edit Materi Terpilih</h2>
-                  <p>Isi konten slide yang akan dikirim ke database.</p>
+                  <h2>Edit Materi Slide</h2>
+                  <p>
+                    Input otomatis berubah mengikuti tipe konten yang dipilih.
+                  </p>
                 </div>
-                <button type="button" onClick={() => setEditingSlideId(null)}>
-                  Selesai
-                </button>
+                <button type="button" onClick={() => setEditingSlideId(null)}>Selesai</button>
+              </div>
+
+              <div className="admin-tutorial-create-content-summary">
+                <span>Tipe input aktif</span>
+                <strong>{toContentLabel(editingSlide.contentType)}</strong>
               </div>
 
               <div className="admin-materials-editor-grid">
@@ -974,81 +1419,59 @@ export function AdminTutorialCreate() {
                   Judul Materi
                   <input
                     value={editingSlide.title}
-                    onChange={(event) =>
-                      updateSlideField(editingSlide.id, 'title', event.target.value)
-                    }
+                    onChange={(event) => updateSlideField(editingSlide.id, 'title', event.target.value)}
                   />
                 </label>
-
                 <label>
                   Tipe Konten
                   <select
                     value={editingSlide.contentType}
-                    onChange={(event) =>
-                      updateSlideField(editingSlide.id, 'contentType', event.target.value)
-                    }
+                    onChange={(event) => updateSlideField(editingSlide.id, 'contentType', event.target.value)}
                   >
                     {contentTypeOptions.map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
+                      <option key={value} value={value}>{label}</option>
                     ))}
                   </select>
                 </label>
-
                 <label>
                   Estimasi Waktu
                   <input
                     value={editingSlide.estimatedTime}
-                    onChange={(event) =>
-                      updateSlideField(editingSlide.id, 'estimatedTime', event.target.value)
-                    }
+                    onChange={(event) => updateSlideField(editingSlide.id, 'estimatedTime', event.target.value)}
                   />
-                </label>
-
-                <label>
-                  Status
-                  <select
-                    value={editingSlide.status}
-                    onChange={(event) =>
-                      updateSlideField(editingSlide.id, 'status', event.target.value)
-                    }
-                  >
-                    <option>Draft</option>
-                    <option>Published</option>
-                  </select>
                 </label>
               </div>
 
-              <label className="admin-materials-editor-wide">
-                Konten Materi
-                <textarea
-                  rows="7"
-                  value={editingSlide.content || ''}
-                  onChange={(event) =>
-                    updateSlideField(editingSlide.id, 'content', event.target.value)
-                  }
-                  placeholder="Tulis isi materi atau instruksi praktik..."
-                />
-              </label>
-
-              <div className="admin-materials-editor-grid">
-                <label>
-                  URL Video
-                  <input
-                    value={editingSlide.videoUrl || ''}
+              {['text', 'text_image'].includes(editingSlide.contentType) && (
+                <label className="admin-materials-editor-text">
+                  Teks Materi
+                  <textarea
+                    value={editingSlide.bodyText}
                     onChange={(event) =>
-                      updateSlideField(editingSlide.id, 'videoUrl', event.target.value)
+                      updateSlideField(
+                        editingSlide.id,
+                        'bodyText',
+                        event.target.value
+                      )
                     }
-                    placeholder="https://..."
+                    placeholder="Tulis isi materi yang akan ditampilkan pada slide ini..."
                   />
                 </label>
+              )}
 
+              {['image', 'text_image'].includes(editingSlide.contentType) && (
                 <div className="admin-materials-editor-upload">
-                  <strong>Gambar Slide</strong>
-                  <button type="button" onClick={() => slideImageInputRef.current?.click()}>
-                    {editingSlide.imageName || 'Upload Gambar Slide'}
+                  <strong>Gambar Materi</strong>
+                  <button
+                    type="button"
+                    onClick={() => slideImageInputRef.current?.click()}
+                  >
+                    Pilih Gambar
                   </button>
+                  <span>
+                    {editingSlide.imageName ||
+                      'Belum ada gambar khusus untuk slide ini'}
+                  </span>
                   <input
                     ref={slideImageInputRef}
                     className="admin-tutorial-file-input"
@@ -1057,7 +1480,71 @@ export function AdminTutorialCreate() {
                     onChange={handleSlideImageChange}
                   />
                 </div>
-              </div>
+              )}
+
+              {editingSlide.contentType === 'video' && (
+                <>
+                  <div className="admin-materials-editor-grid">
+                    <label>
+                      Sumber Video
+                      <select
+                        value={editingSlide.videoSourceType || 'url'}
+                        onChange={(event) => {
+                          const sourceType = event.target.value;
+
+                          updateSlideField(
+                            editingSlide.id,
+                            'videoSourceType',
+                            sourceType
+                          );
+                        }}
+                      >
+                        <option value="url">Link Video</option>
+                        <option value="file">Upload File Video</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  {(editingSlide.videoSourceType || 'url') === 'url' ? (
+                    <label className="admin-materials-editor-text">
+                      Link Video
+                      <input
+                        type="url"
+                        value={editingSlide.videoUrl || ''}
+                        onChange={(event) =>
+                          updateSlideField(
+                            editingSlide.id,
+                            'videoUrl',
+                            event.target.value
+                          )
+                        }
+                        placeholder="https://youtube.com/... atau https://domain.com/video.mp4"
+                      />
+                    </label>
+                  ) : (
+                    <div className="admin-materials-editor-upload">
+                      <strong>File Video</strong>
+                      <button
+                        type="button"
+                        onClick={() => slideVideoInputRef.current?.click()}
+                      >
+                        Pilih Video
+                      </button>
+                      <span>
+                        {editingSlide.videoName ||
+                          'Belum ada file video dipilih'}
+                      </span>
+                      <input
+                        ref={slideVideoInputRef}
+                        className="admin-tutorial-file-input"
+                        type="file"
+                        accept="video/mp4,video/webm,video/ogg"
+                        onChange={handleSlideVideoChange}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
             </section>
           )}
 
@@ -1092,16 +1579,54 @@ export function AdminTutorialCreate() {
           <section className="admin-materials-selected-preview">
             <h2>Preview Materi Terpilih</h2>
             <h3>#{selectedSlide ? slides.findIndex((slide) => slide.id === selectedSlide.id) + 1 : 0} {selectedSlide?.title || 'Belum ada materi'}</h3>
-            <div className={`admin-materials-image-placeholder ${selectedSlideImage ? 'has-image' : ''}`} aria-hidden="true">
-              {selectedSlideImage ? (
-                <img src={selectedSlideImage} alt="" />
-              ) : (
-                <span />
+            {selectedSlide?.contentType === 'video' ? (
+              <div className="admin-materials-image-placeholder has-image">
+                {selectedSlideVideo ? (
+                  selectedSlide?.videoSourceType === 'file' ||
+                  /\.(mp4|webm|ogg)(\?.*)?$/i.test(selectedSlideVideo) ? (
+                    <video
+                      src={selectedSlideVideo}
+                      controls
+                      style={{ width: '100%', height: '100%' }}
+                    />
+                  ) : (
+                    <div className="admin-materials-preview-text">
+                      Link video: {selectedSlideVideo}
+                    </div>
+                  )
+                ) : (
+                  <span />
+                )}
+              </div>
+            ) : ['image', 'text_image'].includes(
+              selectedSlide?.contentType
+            ) ? (
+              <div
+                className={`admin-materials-image-placeholder ${
+                  selectedSlideImage ? 'has-image' : ''
+                }`}
+                aria-hidden="true"
+              >
+                {selectedSlideImage ? (
+                  <img src={selectedSlideImage} alt="" />
+                ) : (
+                  <span />
+                )}
+              </div>
+            ) : null}
+
+            {selectedSlide?.bodyText &&
+              ['text', 'text_image'].includes(selectedSlide?.contentType) && (
+                <div className="admin-materials-preview-text">
+                  {selectedSlide.bodyText}
+                </div>
               )}
-            </div>
             <p>
-              <span>[] {selectedSlide ? toContentLabel(selectedSlide.contentType) : '-'}</span>
-              <span>o {selectedSlide?.estimatedTime || '-'}</span>
+              <span className="admin-materials-content-type">
+                <i aria-hidden="true" />
+                {selectedSlide ? toContentLabel(selectedSlide.contentType) : '-'}
+              </span>
+              <span className="admin-materials-time">{selectedSlide?.estimatedTime || '-'}</span>
             </p>
           </section>
         </aside>
@@ -1116,226 +1641,694 @@ export function AdminTutorialCreate() {
 
   const renderSettingsStep = () => (
     <>
-      <div className="admin-settings-layout">
-        <section className="admin-settings-main">
-          <section className="admin-settings-card admin-settings-visibility">
-            <h2>Status & Visibilitas</h2>
-            <div className="admin-settings-grid three">
-              <label>
-                Status Publikasi
-                <select value={formData.pageSettings.status} onChange={(event) => handleNestedChange('pageSettings', 'status', event.target.value)}>
+      <section className="admin-tutorial-create-step-heading">
+        <div>
+          <span>Langkah 3</span>
+          <h2>Pengaturan Materi</h2>
+          <p>
+            Atur status publikasi, visibilitas, akses, tampilan card, dan CTA.
+          </p>
+        </div>
+
+        <div className="admin-tutorial-create-step-count">
+          <strong>
+            {formData.pageSettings.status === 'Published' ? 'ON' : '—'}
+          </strong>
+          <span>Status Publish</span>
+        </div>
+      </section>
+
+      <div className="admin-create-settings-layout">
+        <section className="admin-create-settings-main">
+          <section className="admin-create-settings-card">
+            <div className="admin-create-settings-card-head">
+              <div>
+                <h2>Status & Visibilitas</h2>
+                <p>
+                  Tentukan status materi dan bagaimana materi tampil untuk pengguna.
+                </p>
+              </div>
+            </div>
+
+            <div className="admin-create-settings-status-grid">
+              <label className="admin-create-settings-field admin-create-settings-field--status">
+                <span>Status Publikasi</span>
+
+                <select
+                  value={formData.pageSettings.status}
+                  onChange={(event) =>
+                    handleNestedChange(
+                      'pageSettings',
+                      'status',
+                      event.target.value
+                    )
+                  }
+                >
                   <option>Draft</option>
                   <option>Published</option>
                   <option>Pending Review</option>
                 </select>
-                <small>Draft, Published, atau Pending Review</small>
+
+                <small>
+                  Draft, Published, atau Pending Review.
+                </small>
               </label>
-              <div className="admin-settings-toggle-item">
-                <strong>Aktif / Nonaktif</strong>
-                <button type="button" className={formData.pageSettings.active ? 'is-on' : ''} onClick={() => handleNestedChange('pageSettings', 'active', !formData.pageSettings.active)}><span /></button>
-                <small>Nonaktifkan akan menyembunyikan materi.</small>
-              </div>
-              <div className="admin-settings-toggle-item">
-                <strong>Tampilkan di halaman</strong>
-                <p>Pilih Jalur Belajarmu</p>
-                <button type="button" className={formData.pageSettings.showOnPage ? 'is-on' : ''} onClick={() => handleNestedChange('pageSettings', 'showOnPage', !formData.pageSettings.showOnPage)}><span /></button>
-                <small>Akan tampil pada halaman pilih jalur belajarmu.</small>
-              </div>
-              <div className="admin-settings-toggle-item">
-                <strong>Featured (Unggulan)</strong>
-                <button type="button" className={formData.pageSettings.featured ? 'is-on' : ''} onClick={() => handleNestedChange('pageSettings', 'featured', !formData.pageSettings.featured)}><span /></button>
-                <p>{formData.pageSettings.featured ? 'Ya' : 'Tidak'}</p>
-                <small>Materi akan ditandai sebagai unggulan.</small>
-              </div>
-              <div className="admin-settings-toggle-item">
-                <strong>Izinkan Komentar / Diskusi</strong>
-                <button type="button" className={formData.pageSettings.comments ? 'is-on' : ''} onClick={() => handleNestedChange('pageSettings', 'comments', !formData.pageSettings.comments)}><span /></button>
-                <p>{formData.pageSettings.comments ? 'Izinkan' : 'Tutup'}</p>
-                <small>Pengguna dapat berkomentar atau berdiskusi.</small>
-              </div>
-              <div className="admin-settings-radio-item">
-                <strong>Akses Materi</strong>
-                <label><input type="radio" checked={formData.pageSettings.accessType === 'Gratis'} onChange={() => handleNestedChange('pageSettings', 'accessType', 'Gratis')} /> Gratis (bisa diakses semua orang)</label>
-                <label><input type="radio" checked={formData.pageSettings.accessType === 'Perlu login / Akun'} onChange={() => handleNestedChange('pageSettings', 'accessType', 'Perlu login / Akun')} /> Perlu login / Akun</label>
-                <small>Pilih siapa yang dapat mengakses materi ini.</small>
-              </div>
+
+              <article className="admin-create-settings-option">
+                <div>
+                  <strong>Aktif / Nonaktif</strong>
+                  <small>
+                    Nonaktifkan untuk menyembunyikan materi.
+                  </small>
+                </div>
+
+                <button
+                  type="button"
+                  className={`admin-create-settings-switch ${
+                    formData.pageSettings.active ? 'is-on' : ''
+                  }`}
+                  onClick={() =>
+                    handleNestedChange(
+                      'pageSettings',
+                      'active',
+                      !formData.pageSettings.active
+                    )
+                  }
+                  aria-pressed={formData.pageSettings.active}
+                >
+                  <span />
+                </button>
+              </article>
+
+              <article className="admin-create-settings-option">
+                <div>
+                  <strong>Tampilkan di Halaman</strong>
+                  <small>
+                    Tampilkan pada halaman pilih jalur belajar.
+                  </small>
+                </div>
+
+                <button
+                  type="button"
+                  className={`admin-create-settings-switch ${
+                    formData.pageSettings.showOnPage ? 'is-on' : ''
+                  }`}
+                  onClick={() =>
+                    handleNestedChange(
+                      'pageSettings',
+                      'showOnPage',
+                      !formData.pageSettings.showOnPage
+                    )
+                  }
+                  aria-pressed={formData.pageSettings.showOnPage}
+                >
+                  <span />
+                </button>
+              </article>
+
+              <article className="admin-create-settings-option">
+                <div>
+                  <strong>Featured / Unggulan</strong>
+                  <small>
+                    Tandai materi sebagai materi unggulan.
+                  </small>
+                </div>
+
+                <button
+                  type="button"
+                  className={`admin-create-settings-switch ${
+                    formData.pageSettings.featured ? 'is-on' : ''
+                  }`}
+                  onClick={() =>
+                    handleNestedChange(
+                      'pageSettings',
+                      'featured',
+                      !formData.pageSettings.featured
+                    )
+                  }
+                  aria-pressed={formData.pageSettings.featured}
+                >
+                  <span />
+                </button>
+              </article>
+
+              <article className="admin-create-settings-option">
+                <div>
+                  <strong>Komentar / Diskusi</strong>
+                  <small>
+                    Izinkan pengguna berdiskusi pada materi.
+                  </small>
+                </div>
+
+                <button
+                  type="button"
+                  className={`admin-create-settings-switch ${
+                    formData.pageSettings.comments ? 'is-on' : ''
+                  }`}
+                  onClick={() =>
+                    handleNestedChange(
+                      'pageSettings',
+                      'comments',
+                      !formData.pageSettings.comments
+                    )
+                  }
+                  aria-pressed={formData.pageSettings.comments}
+                >
+                  <span />
+                </button>
+              </article>
+
+              <article className="admin-create-settings-access">
+                <div className="admin-create-settings-access-head">
+                  <strong>Akses Materi</strong>
+                  <small>
+                    Pilih siapa yang dapat membuka materi.
+                  </small>
+                </div>
+
+                <div className="admin-create-settings-access-options">
+                  <label>
+                    <input
+                      type="radio"
+                      checked={
+                        formData.pageSettings.accessType === 'Gratis'
+                      }
+                      onChange={() =>
+                        handleNestedChange(
+                          'pageSettings',
+                          'accessType',
+                          'Gratis'
+                        )
+                      }
+                    />
+                    <span>
+                      <b>Gratis</b>
+                      <small>Bisa diakses semua orang.</small>
+                    </span>
+                  </label>
+
+                  <label>
+                    <input
+                      type="radio"
+                      checked={
+                        formData.pageSettings.accessType ===
+                        'Perlu login / Akun'
+                      }
+                      onChange={() =>
+                        handleNestedChange(
+                          'pageSettings',
+                          'accessType',
+                          'Perlu login / Akun'
+                        )
+                      }
+                    />
+                    <span>
+                      <b>Perlu Login / Akun</b>
+                      <small>Pengguna harus masuk terlebih dahulu.</small>
+                    </span>
+                  </label>
+                </div>
+              </article>
             </div>
           </section>
 
-          <section className="admin-settings-card">
-            <h2>Pengelompokan & Tampilan</h2>
-            <div className="admin-settings-grid four">
-              <label>
-                Kategori / Jalur
-                <select name="category" value={formData.category} onChange={handleChange}>
-                  <option value="">Panduan Epic</option>
-                  <option value="panduan-pemula">Panduan Pemula</option>
-                  <option value="penggunaan-ide">Penggunaan IDE</option>
+          <section className="admin-create-settings-card">
+            <div className="admin-create-settings-card-head">
+              <div>
+                <h2>Pengelompokan & Tampilan</h2>
+                <p>
+                  Atur kategori, level, dan urutan materi di halaman user.
+                </p>
+              </div>
+            </div>
+
+            <div className="admin-create-settings-fields-grid">
+              <label className="admin-create-settings-field">
+                <span>Kategori / Jalur</span>
+
+                <select
+                  name="category"
+                  value={formData.category}
+                  onChange={handleChange}
+                >
+                  <option value="">Pilih kategori</option>
+                  <option value="panduan-pemula">
+                    Panduan Pemula
+                  </option>
+                  <option value="penggunaan-ide">
+                    Penggunaan IDE
+                  </option>
+                  <option value="dasar-hardware-iot">
+                    Dasar Hardware dan IoT
+                  </option>
                 </select>
+
                 <small>Pilih jalur atau kategori materi.</small>
               </label>
-              <label>
-                Level Kesulitan
-                <select name="difficultyLevel" value={formData.difficultyLevel} onChange={handleChange}>
+
+              <label className="admin-create-settings-field">
+                <span>Level Kesulitan</span>
+
+                <select
+                  name="difficultyLevel"
+                  value={formData.difficultyLevel}
+                  onChange={handleChange}
+                >
                   <option>Level Pemula</option>
-                  <option>Level Legend</option>
                   <option>Level Dasar</option>
+                  <option>Level Lanjutan</option>
                 </select>
+
                 <small>Tingkat kesulitan materi.</small>
               </label>
-              <label>
-                Urutan Tampil di Halaman
-                <input ref={pageOrderRef} className={errors.pageOrder ? 'is-error' : ''} value={formData.pageSettings.pageOrder} onChange={(event) => handleNestedChange('pageSettings', 'pageOrder', event.target.value)} placeholder="1" />
+
+              <label className="admin-create-settings-field">
+                <span>
+                  Urutan Tampil di Halaman
+                  <i className="admin-tutorial-required">*</i>
+                </span>
+
+                <input
+                  ref={pageOrderRef}
+                  className={errors.pageOrder ? 'is-error' : ''}
+                  type="number"
+                  min="1"
+                  value={formData.pageSettings.pageOrder}
+                  onChange={(event) =>
+                    handleNestedChange(
+                      'pageSettings',
+                      'pageOrder',
+                      event.target.value
+                    )
+                  }
+                  placeholder="1"
+                />
+
                 <small>Semakin kecil, semakin di atas.</small>
+
+                {errors.pageOrder && (
+                  <small className="admin-tutorial-error">
+                    {errors.pageOrder}
+                  </small>
+                )}
               </label>
-              <label>
-                Featured Order (opsional)
-                <input value={formData.pageSettings.featuredOrder} onChange={(event) => handleNestedChange('pageSettings', 'featuredOrder', event.target.value)} />
-                <small>Urutan tampil di bagian featured.</small>
+
+              <label className="admin-create-settings-field">
+                <span>Featured Order</span>
+
+                <input
+                  type="number"
+                  min="1"
+                  value={formData.pageSettings.featuredOrder}
+                  onChange={(event) =>
+                    handleNestedChange(
+                      'pageSettings',
+                      'featuredOrder',
+                      event.target.value
+                    )
+                  }
+                />
+
+                <small>Urutan pada bagian featured.</small>
               </label>
             </div>
           </section>
 
-          <section className="admin-settings-card">
-            <h2>Estimasi & Durasi</h2>
-            <div className="admin-settings-grid three">
-              <label>
-                Estimasi Total Durasi
-                <input name="estimatedTime" value={formData.estimatedTime} onChange={handleChange} />
-              </label>
-              <div className="admin-settings-upload">
-                <strong>Gambar / Icon (untuk card) *</strong>
-                <label htmlFor="tutorial-card-image-settings">
-                  {cardImagePreview ? (
-                    <img src={cardImagePreview} alt="Preview gambar materi" />
-                  ) : (
-                    <span>[]</span>
-                  )}
-                  <p>Drag & drop atau klik untuk upload</p>
-                  <small>Format: JPG, PNG, SVG. Maksimal 3MB</small>
-                </label>
-                <input id="tutorial-card-image-settings" className="admin-tutorial-file-input" type="file" accept=".jpg,.jpeg,.png,.svg" onChange={handleImageChange} />
+          <section className="admin-create-settings-card">
+            <div className="admin-create-settings-card-head">
+              <div>
+                <h2>Durasi & Thumbnail</h2>
+                <p>
+                  Lengkapi estimasi waktu dan gambar card materi.
+                </p>
               </div>
-              <button type="button" className="admin-settings-library">Pilih dari Library</button>
+            </div>
+
+            <div className="admin-create-settings-media-grid">
+              <label className="admin-create-settings-field">
+                <span>Estimasi Total Durasi</span>
+
+                <input
+                  name="estimatedTime"
+                  value={formData.estimatedTime}
+                  onChange={handleChange}
+                  placeholder="Contoh: 2-4 jam"
+                />
+
+                <small>
+                  Gunakan format yang mudah dipahami pengguna.
+                </small>
+              </label>
+
+              <div className="admin-create-settings-thumbnail">
+                <div className="admin-create-settings-thumbnail-label">
+                  <strong>Gambar / Icon Card</strong>
+                  <small>JPG, PNG, SVG. Maksimal 3MB.</small>
+                </div>
+
+                <input
+                  id="tutorial-card-image-settings"
+                  className="admin-tutorial-file-input"
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.svg"
+                  onChange={handleImageChange}
+                />
+
+                <label
+                  className="admin-create-settings-thumbnail-box"
+                  htmlFor="tutorial-card-image-settings"
+                >
+                  {cardImagePreview ? (
+                    <img
+                      src={cardImagePreview}
+                      alt="Preview thumbnail materi"
+                    />
+                  ) : (
+                    <div className="admin-create-settings-thumbnail-empty">
+                      <span>+</span>
+                      <strong>Pilih Thumbnail</strong>
+                    </div>
+                  )}
+                </label>
+
+                <div className="admin-create-settings-thumbnail-meta">
+                  <span>
+                    {formData.cardImage
+                      ? formData.cardImage.name
+                      : 'Belum ada gambar dipilih'}
+                  </span>
+
+                  <label htmlFor="tutorial-card-image-settings">
+                    {formData.cardImage ? 'Ganti Gambar' : 'Upload Gambar'}
+                  </label>
+                </div>
+              </div>
             </div>
           </section>
 
-          <div className="admin-settings-split">
-            <section className="admin-settings-card">
-              <h2>Syarat Akses (Opsional)</h2>
-              <label className="admin-settings-radio-line"><input type="radio" checked={formData.accessSettings.userLevel === 'Semua Pengguna'} onChange={() => handleNestedChange('accessSettings', 'userLevel', 'Semua Pengguna')} /> Semua Pengguna</label>
-              <label className="admin-settings-radio-line"><input type="radio" checked={formData.accessSettings.userLevel !== 'Semua Pengguna'} onChange={() => handleNestedChange('accessSettings', 'userLevel', 'Level Tertentu')} /> Hanya pengguna dengan level tertentu</label>
-              <small>Batasi akses materi berdasarkan level pengguna.</small>
+          <div className="admin-create-settings-pair">
+            <section className="admin-create-settings-card">
+              <div className="admin-create-settings-card-head">
+                <div>
+                  <h2>Syarat Akses</h2>
+                  <p>Batasi materi jika diperlukan.</p>
+                </div>
+              </div>
+
+              <div className="admin-create-settings-choice-list">
+                <label>
+                  <input
+                    type="radio"
+                    checked={
+                      formData.accessSettings.userLevel ===
+                      'Semua Pengguna'
+                    }
+                    onChange={() =>
+                      handleNestedChange(
+                        'accessSettings',
+                        'userLevel',
+                        'Semua Pengguna'
+                      )
+                    }
+                  />
+                  <span>
+                    <b>Semua Pengguna</b>
+                    <small>Materi dapat dibuka oleh semua user.</small>
+                  </span>
+                </label>
+
+                <label>
+                  <input
+                    type="radio"
+                    checked={
+                      formData.accessSettings.userLevel !==
+                      'Semua Pengguna'
+                    }
+                    onChange={() =>
+                      handleNestedChange(
+                        'accessSettings',
+                        'userLevel',
+                        'Level Tertentu'
+                      )
+                    }
+                  />
+                  <span>
+                    <b>Level Tertentu</b>
+                    <small>Batasi berdasarkan level pengguna.</small>
+                  </span>
+                </label>
+              </div>
             </section>
-            <section className="admin-settings-card">
-              <h2>Prasyarat Belajar (Opsional)</h2>
-              <select value={formData.accessSettings.prerequisite} onChange={(event) => handleNestedChange('accessSettings', 'prerequisite', event.target.value)}>
-                <option>Tidak ada prasyarat</option>
-                {slides.map((slide, index) => (
-                  <option key={slide.id} value={slide.title || `Slide ${index + 1}`}>
-                    {slide.title || `Slide ${index + 1}`}
-                  </option>
-                ))}
-              </select>
-              <small>Pilih materi yang harus diselesaikan terlebih dahulu.</small>
+
+            <section className="admin-create-settings-card">
+              <div className="admin-create-settings-card-head">
+                <div>
+                  <h2>Prasyarat Belajar</h2>
+                  <p>Materi yang harus selesai sebelumnya.</p>
+                </div>
+              </div>
+
+              <label className="admin-create-settings-field">
+                <span>Pilih Prasyarat</span>
+
+                <select
+                  value={formData.accessSettings.prerequisite}
+                  onChange={(event) =>
+                    handleNestedChange(
+                      'accessSettings',
+                      'prerequisite',
+                      event.target.value
+                    )
+                  }
+                >
+                  <option>Tidak ada prasyarat</option>
+                  <option>Pengantar ArduFlow</option>
+                  <option>Apa itu ArduFlow?</option>
+                </select>
+
+                <small>
+                  Pilih materi yang harus diselesaikan terlebih dahulu.
+                </small>
+              </label>
             </section>
           </div>
 
-          <section className="admin-settings-card admin-settings-bottom">
-            <div>
-              <label>
-                Tombol CTA (Call to Action)
-                <input name="ctaText" value={formData.ctaText} onChange={handleChange} />
-                <small>Teks pada tombol di card materi.</small>
-              </label>
-              <label>
-                URL Slug (Opsional)
-                <span>https://arduflow.com/materi/</span>
-                <input name="urlSlug" value={formData.urlSlug} onChange={handleChange} />
-                <small>Gunakan huruf kecil, angka, dan tanda hubung(-).</small>
-              </label>
+          <section className="admin-create-settings-card">
+            <div className="admin-create-settings-card-head">
+              <div>
+                <h2>CTA & Publikasi</h2>
+                <p>
+                  Atur tombol pada card serta jadwal publikasi materi.
+                </p>
+              </div>
             </div>
-            <div>
-              <label>
-                Link Tujuan
-                <select name="targetLink" value={formData.targetLink} onChange={handleChange}>
+
+            <div className="admin-create-settings-fields-grid">
+              <label className="admin-create-settings-field">
+                <span>Teks Tombol CTA</span>
+
+                <input
+                  name="ctaText"
+                  value={formData.ctaText}
+                  onChange={handleChange}
+                  placeholder="Mulai Belajar"
+                />
+
+                <small>Teks tombol pada card materi.</small>
+              </label>
+
+              <label className="admin-create-settings-field">
+                <span>Link Tujuan</span>
+
+                <select
+                  name="targetLink"
+                  value={formData.targetLink}
+                  onChange={handleChange}
+                >
                   <option>Materi Pertama</option>
                   <option>Daftar Materi</option>
                 </select>
-                <small>Arahkan ke materi tertentu.</small>
+
+                <small>Arahkan tombol ke tujuan yang dipilih.</small>
               </label>
-              <label>
-                Jadwal Publikasi (Opsional)
-                <input type="date" name="publishSchedule" value={formData.publishSchedule} onChange={handleChange} />
-                <small>Kosongkan jika ingin dipublikasikan segera.</small>
+
+              <label className="admin-create-settings-field">
+                <span>URL Slug</span>
+
+                <div className="admin-create-settings-url-input">
+                  <span>/materi/</span>
+                  <input
+                    name="urlSlug"
+                    value={formData.urlSlug}
+                    onChange={handleChange}
+                    placeholder="panduan-pemula"
+                  />
+                </div>
+
+                <small>
+                  Gunakan huruf kecil, angka, dan tanda hubung.
+                </small>
+              </label>
+
+              <label className="admin-create-settings-field">
+                <span>Jadwal Publikasi</span>
+
+                <input
+                  type="date"
+                  name="publishSchedule"
+                  value={formData.publishSchedule}
+                  onChange={handleChange}
+                />
+
+                <small>
+                  Kosongkan jika ingin dipublikasikan segera.
+                </small>
               </label>
             </div>
           </section>
         </section>
 
-        <aside className="admin-settings-side">
-          <section className="admin-settings-user-preview">
-            <h2>Preview di Halaman User</h2>
-            <article>
-              {cardImagePreview ? (
-                <img
-                  className="admin-settings-preview-image"
-                  src={cardImagePreview}
-                  alt=""
-                />
-              ) : (
-                <div className="admin-settings-preview-image" aria-hidden="true" />
-              )}
+        <aside className="admin-create-settings-side">
+          <section className="admin-create-settings-preview-card">
+            <div className="admin-create-settings-preview-head">
               <div>
-                <small>{formData.difficultyLevel}</small>
-                <strong>{formData.title || 'Judul materi'}</strong>
-                <p>{formData.shortDescription || 'Deskripsi singkat materi akan tampil di sini.'}</p>
-                <span>o {formData.estimatedTime || '-'}</span>
-                <span>[] {slides.length} slide</span>
-                <span>* Gratis</span>
+                <span>Live Preview</span>
+                <h2>Preview di Halaman User</h2>
               </div>
-              <button type="button">{formData.ctaText}</button>
+            </div>
+
+            <article className="admin-create-settings-preview-content">
+              <div className="admin-create-settings-preview-media">
+                {cardImagePreview ? (
+                  <img
+                    src={cardImagePreview}
+                    alt="Preview card materi"
+                  />
+                ) : (
+                  <div className="admin-create-settings-preview-empty">
+                    <span>Thumbnail</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="admin-create-settings-preview-body">
+                <div className="admin-create-settings-preview-tags">
+                  <span>{formData.difficultyLevel}</span>
+                  <span>
+                    {formData.pageSettings.accessType || 'Gratis'}
+                  </span>
+                </div>
+
+                <h3>{formData.title || 'Judul Materi'}</h3>
+
+                <p>
+                  {formData.shortDescription ||
+                    'Deskripsi singkat materi akan tampil di sini.'}
+                </p>
+
+                <div className="admin-create-settings-preview-meta">
+                  <span>{formData.estimatedTime || '-'}</span>
+                  <span>{slides.length} slide</span>
+                </div>
+
+                <button type="button">
+                  {formData.ctaText || 'Mulai Belajar'}
+                </button>
+              </div>
             </article>
           </section>
 
-          <section className="admin-settings-info">
-            <h2>Informasi</h2>
-            {[
-              ['Status Publikasi', formData.pageSettings.status],
-              ['Aktif / Nonaktif', formData.pageSettings.active ? 'Aktif' : 'Nonaktif'],
-              ['Tampilkan di halaman', formData.pageSettings.showOnPage ? 'Ya' : 'Tidak'],
-              ['Featured', formData.pageSettings.featured ? 'Ya' : 'Tidak'],
-              ['Akses Materi', formData.pageSettings.accessType],
-              ['Kategori / Jalur', formData.category || '-'],
-              ['Level Kesulitan', formData.difficultyLevel],
-              ['Urutan Tampil', formData.pageSettings.pageOrder || '-'],
-              ['Estimasi Total Durasi', formData.estimatedTime],
-              ['Thumbnail / Icon', formData.cardImage ? formData.cardImage.name : 'Belum diunggah'],
-              ['Syarat Akses', formData.accessSettings.userLevel],
-              ['Prasyarat Belajar', formData.accessSettings.prerequisite],
-              ['CTA Button', `${formData.ctaText} -> ${formData.targetLink}`],
-              ['URL Slug', formData.urlSlug ? `/materi/${formData.urlSlug}` : '-'],
-              ['Jadwal Publikasi', formData.publishSchedule || 'Segera'],
-            ].map((item) => (
-              <p key={item[0]}>
-                <span>{item[0]}</span>
-                <strong>{item[1]}</strong>
-              </p>
-            ))}
+          <section className="admin-create-settings-summary-card">
+            <div className="admin-create-settings-card-head">
+              <div>
+                <h2>Ringkasan Pengaturan</h2>
+                <p>Data yang akan disimpan.</p>
+              </div>
+            </div>
+
+            <dl>
+              {[
+                ['Status', formData.pageSettings.status],
+                [
+                  'Aktif',
+                  formData.pageSettings.active ? 'Ya' : 'Tidak',
+                ],
+                [
+                  'Tampil di halaman',
+                  formData.pageSettings.showOnPage ? 'Ya' : 'Tidak',
+                ],
+                [
+                  'Featured',
+                  formData.pageSettings.featured ? 'Ya' : 'Tidak',
+                ],
+                ['Akses', formData.pageSettings.accessType],
+                ['Kategori', formData.category || '-'],
+                ['Level', formData.difficultyLevel],
+                [
+                  'Urutan',
+                  formData.pageSettings.pageOrder || '-',
+                ],
+                ['Durasi', formData.estimatedTime || '-'],
+                [
+                  'Prasyarat',
+                  formData.accessSettings.prerequisite || '-',
+                ],
+                ['CTA', formData.ctaText || '-'],
+                [
+                  'Jadwal',
+                  formData.publishSchedule || 'Segera',
+                ],
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
           </section>
         </aside>
       </div>
 
       {submitMessage && (
-        <div className={`admin-tutorial-submit-message ${submitStatus === 'error' ? 'is-error' : 'is-success'}`} role="alert" aria-live="assertive">
-          <strong>{submitStatus === 'error' ? 'Form belum berhasil diproses' : 'Form berhasil diproses'}</strong>
+        <div
+          className={`admin-create-settings-message ${
+            submitStatus === 'error' ? 'is-error' : 'is-success'
+          }`}
+          role="alert"
+          aria-live="assertive"
+        >
+          <strong>
+            {submitStatus === 'error'
+              ? 'Form belum berhasil diproses'
+              : 'Form berhasil diproses'}
+          </strong>
           <p>{submitMessage}</p>
         </div>
       )}
 
-      <div className="admin-settings-actions">
-        <button type="button" onClick={(event) => handleSubmit(event, 'draft')} disabled={isSubmitting}>Simpan Draft</button>
-        <button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Menyimpan...' : 'Publikasikan <> '}</button>
+      <div className="admin-create-settings-actions">
+        <button
+          type="button"
+          className="is-back"
+          onClick={() => goToStep(2)}
+        >
+          Kembali ke Daftar Materi
+        </button>
+
+        <div>
+          <button
+            type="button"
+            className="is-draft"
+            onClick={(event) => handleSubmit(event, 'draft')}
+            disabled={isSubmitting}
+          >
+            Simpan Draft
+          </button>
+
+          <button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Menyimpan...' : 'Publikasikan Materi'}
+          </button>
+        </div>
       </div>
 
       {(requestJson || responseJson) && (
@@ -1344,18 +2337,31 @@ export function AdminTutorialCreate() {
             <h2>Debug Form Tambah Materi</h2>
             <p>Request dan response API.</p>
           </div>
+
           {requestJson && (
             <article className="admin-tutorial-debug-card">
               <div className="admin-tutorial-debug-header">
                 <div>
                   <h3>Request JSON</h3>
-                  <span>POST {ARTICLE_API_URL}</span>
+                  <span>
+                    POST {TUTORIAL_API_URL}/article-api.php
+                  </span>
                 </div>
-                <button type="button" onClick={() => copyJson(requestJson)}>Salin JSON</button>
+
+                <button
+                  type="button"
+                  onClick={() => copyJson(requestJson)}
+                >
+                  Salin JSON
+                </button>
               </div>
-              <pre>{JSON.stringify(requestJson, null, 2)}</pre>
+
+              <pre>
+                {JSON.stringify(requestJson, null, 2)}
+              </pre>
             </article>
           )}
+
           {responseJson && (
             <article className="admin-tutorial-debug-card">
               <div className="admin-tutorial-debug-header">
@@ -1363,9 +2369,18 @@ export function AdminTutorialCreate() {
                   <h3>Response JSON</h3>
                   <span>HTTP {responseJson.status_code}</span>
                 </div>
-                <button type="button" onClick={() => copyJson(responseJson)}>Salin JSON</button>
+
+                <button
+                  type="button"
+                  onClick={() => copyJson(responseJson)}
+                >
+                  Salin JSON
+                </button>
               </div>
-              <pre>{JSON.stringify(responseJson, null, 2)}</pre>
+
+              <pre>
+                {JSON.stringify(responseJson, null, 2)}
+              </pre>
             </article>
           )}
         </section>
@@ -1374,25 +2389,40 @@ export function AdminTutorialCreate() {
   );
 
   return (
-    <main className="admin-tutorial-create-page">
-      <section className="admin-tutorial-create-header">
-        <h1>Tambah Materi</h1>
-        <p>
-          {activeStep === 2
-            ? 'Buat, urutkan, dan kelola sub materi (slide) untuk materi utama "Panduan Pemula".'
-            : activeStep === 3
-              ? 'Atur bagaimana materi ditampilkan dan dipublikasikan di platform.'
-              : 'Buat materi baru untuk ditampilkan pada halaman Pilih Jalur Belajarmu.'}
-        </p>
-      </section>
+    <main className="admin-tutorial-create-page admin-tutorial-create-polished">
+      <div className="admin-tutorial-create-shell">
+        <section className="admin-tutorial-create-hero">
+          <div>
+            <div className="admin-tutorial-create-eyebrow">
+              <span>Materi Baru</span>
+              <span className="is-draft">{formData.pageSettings.status}</span>
+            </div>
 
-      {renderSteps()}
+            <h1>Tambah Materi</h1>
+            <p>
+              {activeStep === 2
+                ? 'Buat, urutkan, dan kelola slide materi dengan tipe konten yang sesuai.'
+                : activeStep === 3
+                  ? 'Atur bagaimana materi ditampilkan dan dipublikasikan di platform.'
+                  : 'Lengkapi informasi utama materi sebelum menyusun slide pembelajaran.'}
+            </p>
+          </div>
 
-      <form onSubmit={(event) => handleSubmit(event, 'publish')} noValidate>
-        {activeStep === 1 && renderInformationStep()}
-        {activeStep === 2 && renderMaterialsStep()}
-        {activeStep === 3 && renderSettingsStep()}
-      </form>
+          <a className="admin-tutorial-create-back" href="/admin/tutorial">
+            Kembali ke Tutorial
+          </a>
+        </section>
+
+        <section className="admin-tutorial-create-step-card">
+          {renderSteps()}
+        </section>
+
+        <form onSubmit={(event) => handleSubmit(event, 'publish')} noValidate>
+          {activeStep === 1 && renderInformationStep()}
+          {activeStep === 2 && renderMaterialsStep()}
+          {activeStep === 3 && renderSettingsStep()}
+        </form>
+      </div>
     </main>
   );
 }
