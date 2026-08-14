@@ -210,6 +210,14 @@ function stripHtml(value) {
   return element.textContent?.trim() || '';
 }
 
+function escapeHtmlAttribute(value) {
+  return String(value || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('"', '&quot;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
+}
+
 function GalleryRichTextEditor({ value, onChange, hasError }) {
   const editorRef = useRef(null);
   const imageInputRef = useRef(null);
@@ -269,6 +277,50 @@ function GalleryRichTextEditor({ value, onChange, hasError }) {
     reader.readAsDataURL(file);
   };
 
+  const handleImageFromLink = async () => {
+    const imageUrl = await showPromptAlert({
+      title: 'Tambah Foto dari Link',
+      text: 'Masukkan URL gambar yang ingin disisipkan ke deskripsi.',
+      inputPlaceholder: 'https://contoh.com/foto.jpg',
+      confirmButtonText: 'Tambahkan',
+    });
+    const normalizedUrl = String(imageUrl || '').trim();
+
+    if (!normalizedUrl) return;
+
+    let parsedUrl;
+
+    try {
+      parsedUrl = new URL(normalizedUrl);
+    } catch {
+      await showSuccessAlert({
+        icon: 'error',
+        title: 'URL Tidak Valid',
+        text: 'Masukkan URL gambar yang lengkap, misalnya https://contoh.com/foto.jpg.',
+      });
+      return;
+    }
+
+    const isValidProtocol = ['http:', 'https:'].includes(parsedUrl.protocol);
+    const isImageUrl = /\.(apng|avif|gif|jpe?g|png|svg|webp)(\?.*)?$/i.test(parsedUrl.href);
+
+    if (!isValidProtocol || !isImageUrl) {
+      await showSuccessAlert({
+        icon: 'error',
+        title: 'Link Gambar Tidak Didukung',
+        text: 'Gunakan link gambar langsung dengan format JPG, PNG, WEBP, GIF, SVG, AVIF, atau APNG.',
+      });
+      return;
+    }
+
+    const safeUrl = escapeHtmlAttribute(parsedUrl.href);
+
+    runCommand(
+      'insertHTML',
+      `<figure><img src="${safeUrl}" alt="Foto dari link" /></figure><p><br></p>`
+    );
+  };
+
   return (
     <div className={`admin-gallery-upload-editor${hasError ? ' is-invalid' : ''}`}>
       <div className="admin-gallery-upload-toolbar" aria-label="Toolbar deskripsi kegiatan">
@@ -290,6 +342,7 @@ function GalleryRichTextEditor({ value, onChange, hasError }) {
         <button type="button" onClick={() => runCommand('italic')} aria-label="Italic"><em>I</em></button>
         <button type="button" onClick={() => runCommand('underline')} aria-label="Underline"><u>U</u></button>
         <button type="button" onClick={() => imageInputRef.current?.click()} aria-label="Tambah foto">Foto</button>
+        <button type="button" onClick={handleImageFromLink} aria-label="Tambah foto dari link">Foto Link</button>
         <span />
         <button type="button" onClick={() => runCommand('insertUnorderedList')} aria-label="Bullet list">≡</button>
         <button type="button" onClick={() => runCommand('insertOrderedList')} aria-label="Numbered list">1.</button>

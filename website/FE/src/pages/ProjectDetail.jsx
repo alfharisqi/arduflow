@@ -202,29 +202,6 @@ export function ProjectDetail() {
               </div>
             </div>
 
-            <div className="project-detail__stats" aria-label="Statistik proyek">
-              <div>
-                <img src={clockIcon} alt="" aria-hidden="true" />
-                <span>
-                  <strong>Estimasi</strong>
-                  {project.estimatedTime || "-"}
-                </span>
-              </div>
-              <div>
-                <img src={workflowIcon} alt="" aria-hidden="true" />
-                <span>
-                  <strong>Viewer</strong>
-                  {formatNumber(project.viewer)}
-                </span>
-              </div>
-              <div>
-                <img src={zapIcon} alt="" aria-hidden="true" />
-                <span>
-                  <strong>Pembuat</strong>
-                  {project.ownerName || "User"}
-                </span>
-              </div>
-            </div>
 
             <div className="project-detail__actions">
               <a className="project-detail__button project-detail__button--primary" href="/ide">

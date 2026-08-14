@@ -1,0 +1,407 @@
+{
+  "name": "Nano_with_delay02",
+  "board": "nano",
+  "nodes": [
+    {
+      "id": "digitalWrite-1778283859427",
+      "type": "digitalWrite",
+      "position": {
+        "x": 491.81183192917007,
+        "y": -174.99968854719754
+      },
+      "data": {
+        "value": false,
+        "pin": "5",
+        "lastWritten": true,
+        "lastStateKey": "5-true-false",
+        "inverted": true,
+        "disabled": false
+      },
+      "measured": {
+        "width": 167,
+        "height": 164
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "digitalWrite-1778286294566",
+      "type": "digitalWrite",
+      "position": {
+        "x": 767.5483953183696,
+        "y": -169.97475400138995
+      },
+      "data": {
+        "value": false,
+        "pin": "4",
+        "lastStateKey": "4-true-false",
+        "disabled": false,
+        "inverted": true
+      },
+      "measured": {
+        "width": 167,
+        "height": 164
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "digitalWrite-1778286404298",
+      "type": "digitalWrite",
+      "position": {
+        "x": 1055.9652094750568,
+        "y": -171.5157702078187
+      },
+      "data": {
+        "value": false,
+        "pin": "3",
+        "lastStateKey": "3-true-false",
+        "disabled": false,
+        "inverted": true
+      },
+      "measured": {
+        "width": 167,
+        "height": 164
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "digitalWrite-1778286430156",
+      "type": "digitalWrite",
+      "position": {
+        "x": 1338.1606968197439,
+        "y": -170.10737691531
+      },
+      "data": {
+        "value": true,
+        "pin": "2",
+        "lastStateKey": "2-false-false",
+        "disabled": false,
+        "inverted": true
+      },
+      "measured": {
+        "width": 167,
+        "height": 164
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "delay-1778287716806",
+      "type": "delay",
+      "position": {
+        "x": 487.1050606362447,
+        "y": -352.1676596827908
+      },
+      "data": {
+        "value": false,
+        "pin": "0",
+        "pendingValue": false,
+        "delayMs": 500
+      },
+      "measured": {
+        "width": 210,
+        "height": 154
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "delay-1778287782191",
+      "type": "delay",
+      "position": {
+        "x": 762.6751258612716,
+        "y": -352.4361956547955
+      },
+      "data": {
+        "value": false,
+        "pin": "0",
+        "pendingValue": false,
+        "delayMs": 500
+      },
+      "measured": {
+        "width": 210,
+        "height": 154
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "delay-1778287824971",
+      "type": "delay",
+      "position": {
+        "x": 1049.9011855015265,
+        "y": -354.5320581970778
+      },
+      "data": {
+        "value": false,
+        "pin": "0",
+        "pendingValue": false,
+        "delayMs": 500
+      },
+      "measured": {
+        "width": 210,
+        "height": 154
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "delay-1778287857512",
+      "type": "delay",
+      "position": {
+        "x": 1329.7609140817426,
+        "y": -356.2973859537223
+      },
+      "data": {
+        "value": true,
+        "pin": "0",
+        "pendingValue": false,
+        "targetTime": 1781606913690,
+        "delayMs": 500
+      },
+      "measured": {
+        "width": 210,
+        "height": 154
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "bulb-1780962726995",
+      "type": "bulb",
+      "position": {
+        "x": 1331.7796452613009,
+        "y": -535.894047665934
+      },
+      "data": {
+        "value": true,
+        "pin": "0",
+        "minimized": false
+      },
+      "measured": {
+        "width": 160,
+        "height": 148
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "bulb-1780962793798",
+      "type": "bulb",
+      "position": {
+        "x": 1049.8829437166708,
+        "y": -531.5945842711893
+      },
+      "data": {
+        "value": false,
+        "pin": "0",
+        "minimized": false
+      },
+      "measured": {
+        "width": 160,
+        "height": 148
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "bulb-1780962813176",
+      "type": "bulb",
+      "position": {
+        "x": 766.3679327934653,
+        "y": -526.4165517972253
+      },
+      "data": {
+        "value": false,
+        "pin": "0",
+        "minimized": false
+      },
+      "measured": {
+        "width": 160,
+        "height": 148
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "bulb-1780962864041",
+      "type": "bulb",
+      "position": {
+        "x": 486.537390673597,
+        "y": -528.2908192651421
+      },
+      "data": {
+        "value": false,
+        "pin": "0",
+        "minimized": false
+      },
+      "measured": {
+        "width": 160,
+        "height": 148
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "logicNot-1780962909371",
+      "type": "logicNot",
+      "position": {
+        "x": 243.9045982096943,
+        "y": -340.4838236472526
+      },
+      "data": {
+        "value": false,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 129
+      },
+      "selected": true,
+      "dragging": false
+    },
+    {
+      "id": "squareWave-1781605934766",
+      "type": "squareWave",
+      "position": {
+        "x": 235.71861561413033,
+        "y": -176.9540002421858
+      },
+      "data": {
+        "value": 1,
+        "pin": "0",
+        "frequency": 0.18
+      },
+      "measured": {
+        "width": 189,
+        "height": 176
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "pulse-1781606664498",
+      "type": "pulse",
+      "position": {
+        "x": 1211.527253422433,
+        "y": 9.386001530739215
+      },
+      "data": {
+        "value": false,
+        "duration": 300,
+        "pin": "0",
+        "lastTrigger": true,
+        "endTime": 1781606911068,
+        "minimized": true
+      },
+      "measured": {
+        "width": 151,
+        "height": 53
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "digitalWrite-1781606677295",
+      "type": "digitalWrite",
+      "position": {
+        "x": 245.16599812131744,
+        "y": -535.1132209654079
+      },
+      "data": {
+        "value": false,
+        "pin": "13",
+        "lastWritten": true,
+        "lastStateKey": "13-false-false",
+        "inverted": false,
+        "disabled": false
+      },
+      "measured": {
+        "width": 167,
+        "height": 164
+      },
+      "selected": false,
+      "dragging": false
+    }
+  ],
+  "edges": [
+    {
+      "source": "delay-1778287716806",
+      "target": "digitalWrite-1778283859427",
+      "id": "xy-edge__delay-1778287716806-digitalWrite-1778283859427"
+    },
+    {
+      "source": "delay-1778287716806",
+      "target": "delay-1778287782191",
+      "id": "xy-edge__delay-1778287716806-delay-1778287782191"
+    },
+    {
+      "source": "delay-1778287782191",
+      "target": "digitalWrite-1778286294566",
+      "id": "xy-edge__delay-1778287782191-digitalWrite-1778286294566"
+    },
+    {
+      "source": "delay-1778287782191",
+      "target": "delay-1778287824971",
+      "id": "xy-edge__delay-1778287782191-delay-1778287824971"
+    },
+    {
+      "source": "delay-1778287824971",
+      "target": "digitalWrite-1778286404298",
+      "id": "xy-edge__delay-1778287824971-digitalWrite-1778286404298"
+    },
+    {
+      "source": "delay-1778287824971",
+      "target": "delay-1778287857512",
+      "id": "xy-edge__delay-1778287824971-delay-1778287857512"
+    },
+    {
+      "source": "delay-1778287857512",
+      "target": "digitalWrite-1778286430156",
+      "id": "xy-edge__delay-1778287857512-digitalWrite-1778286430156"
+    },
+    {
+      "source": "delay-1778287857512",
+      "target": "bulb-1780962726995",
+      "id": "xy-edge__delay-1778287857512-bulb-1780962726995"
+    },
+    {
+      "source": "delay-1778287824971",
+      "target": "bulb-1780962793798",
+      "id": "xy-edge__delay-1778287824971-bulb-1780962793798"
+    },
+    {
+      "source": "delay-1778287782191",
+      "target": "bulb-1780962813176",
+      "id": "xy-edge__delay-1778287782191-bulb-1780962813176"
+    },
+    {
+      "source": "delay-1778287716806",
+      "target": "bulb-1780962864041",
+      "id": "xy-edge__delay-1778287716806-bulb-1780962864041"
+    },
+    {
+      "source": "logicNot-1780962909371",
+      "target": "delay-1778287716806",
+      "id": "xy-edge__logicNot-1780962909371-delay-1778287716806"
+    },
+    {
+      "source": "squareWave-1781605934766",
+      "target": "logicNot-1780962909371",
+      "targetHandle": "in1",
+      "id": "xy-edge__squareWave-1781605934766-logicNot-1780962909371in1"
+    },
+    {
+      "source": "delay-1778287857512",
+      "target": "pulse-1781606664498",
+      "id": "xy-edge__delay-1778287857512-pulse-1781606664498"
+    },
+    {
+      "source": "pulse-1781606664498",
+      "target": "digitalWrite-1781606677295",
+      "id": "xy-edge__pulse-1781606664498-digitalWrite-1781606677295"
+    }
+  ]
+}

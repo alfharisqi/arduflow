@@ -143,6 +143,80 @@ function getProjectOwnerUsername(project) {
   return project?.ownerUsername || project?.username || project?.user?.username || '-';
 }
 
+function getProjectKey(project) {
+  return project?.id ?? project?.title ?? '';
+}
+
+function getProjectArray(project, key) {
+  const value = project?.[key] ?? project?.payload?.[key];
+  return Array.isArray(value) ? value : [];
+}
+
+function getProjectPayment(project) {
+  return project?.payment ?? project?.payload?.payment ?? {};
+}
+
+function getProjectItemLabel(item, fallback = '-') {
+  if (typeof item === 'string') return item;
+  if (!item || typeof item !== 'object') return fallback;
+
+  return (
+    item.name ||
+    item.title ||
+    item.label ||
+    item.node ||
+    item.component ||
+    item.tool ||
+    item.description ||
+    fallback
+  );
+}
+
+function getProjectStepLabel(step, index) {
+  if (typeof step === 'string') return step;
+  if (!step || typeof step !== 'object') return `Langkah ${index + 1}`;
+
+  return step.title || step.description || step.name || `Langkah ${step.order || index + 1}`;
+}
+
+function formatProjectPrice(project) {
+  const payment = getProjectPayment(project);
+  const rawPrice = payment.price ?? payment.amount ?? project?.price ?? 0;
+  const price = toProjectNumber(rawPrice);
+  const isPaid = Boolean(
+    payment.isPaid ||
+      payment.paid ||
+      payment.enabled ||
+      project?.isPaid ||
+      price > 0
+  );
+
+  if (!isPaid) return 'Gratis';
+  if (!price) return 'Berbayar';
+
+  return `IDR ${price.toLocaleString('id-ID')}`;
+}
+
+function ProjectTableSummary({ items, labelGetter = getProjectItemLabel, empty = '-' }) {
+  if (!items.length) {
+    return <span className="admin-projects-summary is-empty">{empty}</span>;
+  }
+
+  const labels = items.map(labelGetter).filter(Boolean);
+  const firstLabel = labels[0] || empty;
+  const extraCount = Math.max(items.length - 1, 0);
+
+  return (
+    <span className="admin-projects-summary">
+      <b>{items.length} data</b>
+      <small title={labels.join(', ')}>
+        {firstLabel}
+        {extraCount ? ` +${extraCount}` : ''}
+      </small>
+    </span>
+  );
+}
+
 function getProjectTimestamp(project) {
   const raw = project?.updatedAt || project?.updated_at || project?.createdAt || project?.created_at;
   const date = raw ? new Date(raw) : null;
@@ -192,6 +266,7 @@ export function AdminProjects() {
   const [isLoading, setIsLoading] = useState(true);
   const [projectError, setProjectError] = useState('');
   const [selectedProject, setSelectedProject] = useState(null);
+  const [checkedProjectKeys, setCheckedProjectKeys] = useState([]);
   const [editingProject, setEditingProject] = useState(null);
   const [isUploadFormOpen, setUploadFormOpen] = useState(false);
   const [actionMessage, setActionMessage] = useState('');
@@ -317,6 +392,9 @@ export function AdminProjects() {
         category,
         level,
         status,
+        ...getProjectArray(project, 'tools').map((item) => getProjectItemLabel(item, '')),
+        ...getProjectArray(project, 'nodes').map((item) => getProjectItemLabel(item, '')),
+        ...getProjectArray(project, 'steps').map((item, index) => getProjectStepLabel(item, index)),
       ].join(' ').toLowerCase();
 
       return (
@@ -335,6 +413,18 @@ export function AdminProjects() {
     const start = (currentPage - 1) * perPage;
     return filteredProjects.slice(start, start + perPage);
   }, [filteredProjects, currentPage, perPage]);
+  const paginatedProjectKeys = useMemo(
+    () => paginatedProjects.map(getProjectKey).filter(Boolean),
+    [paginatedProjects]
+  );
+  const isCurrentPageChecked = paginatedProjectKeys.length > 0 &&
+    paginatedProjectKeys.every((key) => checkedProjectKeys.includes(key));
+  const selectedProjects = useMemo(
+    () => projects.filter((project) => checkedProjectKeys.includes(getProjectKey(project))),
+    [projects, checkedProjectKeys]
+  );
+  const selectedProjectCount = selectedProjects.length;
+  const isBulkActionBusy = busyProjectId === 'bulk';
 
   async function loadProjects({ keepSelection = false } = {}) {
     try {
@@ -418,6 +508,33 @@ export function AdminProjects() {
     setOwnerFilter('');
     setDateFilter('');
     setPage(1);
+  };
+
+  const handleToggleProjectCheck = (project) => {
+    const projectKey = getProjectKey(project);
+    if (!projectKey) return;
+
+    setCheckedProjectKeys((currentKeys) =>
+      currentKeys.includes(projectKey)
+        ? currentKeys.filter((key) => key !== projectKey)
+        : [...currentKeys, projectKey]
+    );
+  };
+
+  const handleToggleCurrentPageChecks = () => {
+    if (!paginatedProjectKeys.length) return;
+
+    setCheckedProjectKeys((currentKeys) => {
+      const currentKeySet = new Set(currentKeys);
+      const shouldUncheckPage = paginatedProjectKeys.every((key) => currentKeySet.has(key));
+
+      if (shouldUncheckPage) {
+        return currentKeys.filter((key) => !paginatedProjectKeys.includes(key));
+      }
+
+      paginatedProjectKeys.forEach((key) => currentKeySet.add(key));
+      return [...currentKeySet];
+    });
   };
 
 
@@ -525,10 +642,148 @@ export function AdminProjects() {
       setSelectedProject((currentProject) =>
         currentProject?.id === project.id ? updatedProject : currentProject
       );
+      setCheckedProjectKeys((currentKeys) =>
+        currentKeys.map((key) =>
+          key === getProjectKey(project) ? getProjectKey(updatedProject) : key
+        ).filter(Boolean)
+      );
       setActionMessage(successMessage || result.message || 'Proyek berhasil diperbarui.');
     } catch (error) {
       console.error('Gagal memperbarui proyek:', error);
       setActionError(error.message || 'Gagal memperbarui proyek.');
+    } finally {
+      setBusyProjectId(null);
+    }
+  };
+
+  const bulkUpdateProjects = async (fieldsGetter, successMessage) => {
+    if (!selectedProjects.length) {
+      setActionError('Pilih minimal satu proyek terlebih dahulu.');
+      return;
+    }
+
+    try {
+      setBusyProjectId('bulk');
+      setActionError('');
+      setActionMessage('');
+
+      const updatedProjects = [];
+
+      for (const project of selectedProjects) {
+        const fields = typeof fieldsGetter === 'function' ? fieldsGetter(project) : fieldsGetter;
+        const response = await fetch(`${PROJECT_API_URL}?id=${encodeURIComponent(project.id)}`, {
+          method: 'PUT',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ...fields,
+            updatedAt: new Date().toISOString(),
+          }),
+        });
+        const result = await parseApiResponse(response);
+        updatedProjects.push(result.data || { ...project, ...fields });
+      }
+
+      setProjects((currentProjects) =>
+        currentProjects.map((project) => (
+          updatedProjects.find((item) => item.id === project.id) || project
+        ))
+      );
+      setSelectedProject((currentProject) =>
+        currentProject
+          ? updatedProjects.find((item) => item.id === currentProject.id) || currentProject
+          : currentProject
+      );
+      setCheckedProjectKeys([]);
+      setActionMessage(`${successMessage} (${updatedProjects.length} proyek).`);
+    } catch (error) {
+      console.error('Gagal menjalankan aksi massal proyek:', error);
+      setActionError(error.message || 'Gagal menjalankan aksi massal proyek.');
+    } finally {
+      setBusyProjectId(null);
+    }
+  };
+
+  const handleBulkPublish = () => {
+    bulkUpdateProjects(
+      (project) => ({
+        status: 'published',
+        visibility: 'public',
+        publishedAt: project.publishedAt || new Date().toISOString(),
+      }),
+      'Proyek terpilih berhasil dipublish'
+    );
+  };
+
+  const handleBulkDraft = () => {
+    bulkUpdateProjects(
+      {
+        status: 'draft',
+        visibility: 'draft',
+      },
+      'Proyek terpilih berhasil dijadikan draft'
+    );
+  };
+
+  const handleBulkArchive = async () => {
+    const confirmed = await showConfirmAlert({
+      title: 'Arsipkan Proyek Terpilih?',
+      text: `${selectedProjectCount} proyek akan dipindahkan ke arsip.`,
+      confirmButtonText: 'Arsipkan',
+    });
+
+    if (!confirmed) return;
+
+    bulkUpdateProjects(
+      {
+        status: 'archived',
+        visibility: 'archived',
+      },
+      'Proyek terpilih berhasil diarsipkan'
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedProjects.length) {
+      setActionError('Pilih minimal satu proyek terlebih dahulu.');
+      return;
+    }
+
+    const confirmed = await showConfirmAlert({
+      title: 'Hapus Proyek Terpilih?',
+      text: `${selectedProjectCount} proyek akan dihapus permanen dan tidak dapat dikembalikan.`,
+      confirmButtonText: 'Hapus',
+    });
+
+    if (!confirmed) return;
+
+    try {
+      setBusyProjectId('bulk');
+      setActionError('');
+      setActionMessage('');
+
+      for (const project of selectedProjects) {
+        const response = await fetch(`${PROJECT_API_URL}?id=${encodeURIComponent(project.id)}`, {
+          method: 'DELETE',
+          headers: { Accept: 'application/json' },
+        });
+        await parseApiResponse(response);
+      }
+
+      const deletedKeys = selectedProjects.map(getProjectKey);
+      setProjects((currentProjects) =>
+        currentProjects.filter((project) => !deletedKeys.includes(getProjectKey(project)))
+      );
+      setSelectedProject((currentProject) =>
+        currentProject && deletedKeys.includes(getProjectKey(currentProject)) ? null : currentProject
+      );
+      setCheckedProjectKeys([]);
+      setActionMessage(`Proyek terpilih berhasil dihapus (${selectedProjectCount} proyek).`);
+    } catch (error) {
+      console.error('Gagal menghapus proyek terpilih:', error);
+      setActionError(error.message || 'Gagal menghapus proyek terpilih.');
     } finally {
       setBusyProjectId(null);
     }
@@ -645,6 +900,9 @@ export function AdminProjects() {
       setSelectedProject((currentProject) =>
         currentProject?.id === project.id ? null : currentProject
       );
+      setCheckedProjectKeys((currentKeys) =>
+        currentKeys.filter((key) => key !== getProjectKey(project))
+      );
 
       setActionMessage(result.message || 'Proyek berhasil dihapus.');
     } catch (error) {
@@ -697,6 +955,29 @@ export function AdminProjects() {
               <p role="alert" style={{ margin: '0 0 16px', color: '#dc2626' }}>
                 {actionError}
               </p>
+            ) : null}
+
+            {selectedProjectCount ? (
+              <section className="admin-projects-bulk-actions" aria-label="Aksi proyek terpilih">
+                <span>{selectedProjectCount} proyek dipilih</span>
+                <div>
+                  <button type="button" onClick={handleBulkPublish} disabled={isBulkActionBusy}>
+                    Publish Terpilih
+                  </button>
+                  <button type="button" onClick={handleBulkDraft} disabled={isBulkActionBusy}>
+                    Jadikan Draft
+                  </button>
+                  <button type="button" onClick={handleBulkArchive} disabled={isBulkActionBusy}>
+                    Arsipkan
+                  </button>
+                  <button type="button" className="is-danger" onClick={handleBulkDelete} disabled={isBulkActionBusy}>
+                    Hapus
+                  </button>
+                  <button type="button" onClick={() => setCheckedProjectKeys([])} disabled={isBulkActionBusy}>
+                    Batal Pilih
+                  </button>
+                </div>
+              </section>
             ) : null}
 
             <section className="admin-projects-stats" aria-label="Ringkasan proyek">
@@ -771,6 +1052,10 @@ export function AdminProjects() {
                   <col className="admin-projects-col-owner" />
                   <col className="admin-projects-col-category" />
                   <col className="admin-projects-col-level" />
+                  <col className="admin-projects-col-summary" />
+                  <col className="admin-projects-col-summary" />
+                  <col className="admin-projects-col-summary" />
+                  <col className="admin-projects-col-price" />
                   <col className="admin-projects-col-status" />
                   <col className="admin-projects-col-viewer" />
                   <col className="admin-projects-col-like" />
@@ -784,15 +1069,20 @@ export function AdminProjects() {
                       <input
                         type="checkbox"
                         aria-label="Pilih semua proyek"
-                        checked={Boolean(selectedProject)}
+                        checked={isCurrentPageChecked}
                         disabled={paginatedProjects.length === 0}
-                        onChange={() => setSelectedProject(selectedProject ? null : paginatedProjects[0] || null)}
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={handleToggleCurrentPageChecks}
                       />
                     </th>
                     <th>Judul Proyek</th>
                     <th>Pemilik / User</th>
                     <th>Kategori</th>
                     <th>Level</th>
+                    <th>Alat / Komponen</th>
+                    <th>Node</th>
+                    <th>Langkah</th>
+                    <th>Harga</th>
                     <th>Status</th>
                     <th>Viewer</th>
                     <th>Like / Save</th>
@@ -804,15 +1094,15 @@ export function AdminProjects() {
                 <tbody>
                   {isLoading ? (
                     <tr>
-                      <td colSpan="11">Memuat data proyek...</td>
+                      <td colSpan="15">Memuat data proyek...</td>
                     </tr>
                   ) : projectError ? (
                     <tr>
-                      <td colSpan="11">{projectError}</td>
+                      <td colSpan="15">{projectError}</td>
                     </tr>
                   ) : filteredProjects.length === 0 ? (
                     <tr>
-                      <td colSpan="11">Tidak ada proyek yang cocok dengan filter.</td>
+                      <td colSpan="15">Tidak ada proyek yang cocok dengan filter.</td>
                     </tr>
                   ) : (
                     paginatedProjects.map((project, index) => {
@@ -825,6 +1115,9 @@ export function AdminProjects() {
                       const level = project.difficulty || '-';
                       const status = project.status || 'draft';
                       const coverUrl = resolveProjectCoverUrl(project);
+                      const tools = getProjectArray(project, 'tools');
+                      const nodes = getProjectArray(project, 'nodes');
+                      const steps = getProjectArray(project, 'steps');
 
                       return (
                         <tr
@@ -836,8 +1129,8 @@ export function AdminProjects() {
                             <input
                               type="checkbox"
                               aria-label={`Pilih ${project.title || 'proyek'}`}
-                              checked={(selectedProject?.id ?? selectedProject?.title) === (project.id ?? project.title)}
-                              onChange={() => handleSelectProject(project)}
+                              checked={checkedProjectKeys.includes(getProjectKey(project))}
+                              onChange={() => handleToggleProjectCheck(project)}
                               onClick={(event) => event.stopPropagation()}
                             />
                           </td>
@@ -872,6 +1165,27 @@ export function AdminProjects() {
 
                           <td>
                             <ProjectBadge>{level}</ProjectBadge>
+                          </td>
+
+                          <td>
+                            <ProjectTableSummary items={tools} />
+                          </td>
+
+                          <td>
+                            <ProjectTableSummary items={nodes} />
+                          </td>
+
+                          <td>
+                            <ProjectTableSummary
+                              items={steps}
+                              labelGetter={getProjectStepLabel}
+                            />
+                          </td>
+
+                          <td>
+                            <span className="admin-projects-price">
+                              {formatProjectPrice(project)}
+                            </span>
                           </td>
 
                           <td>
@@ -1069,21 +1383,52 @@ export function AdminProjects() {
 
                   <dt>Deskripsi Singkat</dt>
                   <dd>{selectedProject.description || '-'}</dd>
+
+                  <dt>Harga</dt>
+                  <dd>{formatProjectPrice(selectedProject)}</dd>
                 </dl>
 
                 <section className="admin-projects-components">
-                  <h3>Komponen Utama</h3>
+                  <h3>Alat dan Komponen</h3>
                   <div>
-                    {Array.isArray(selectedProject.tools) && selectedProject.tools.length > 0 ? (
-                      selectedProject.tools.map((tool, index) => (
+                    {getProjectArray(selectedProject, 'tools').length > 0 ? (
+                      getProjectArray(selectedProject, 'tools').map((tool, index) => (
                         <span key={`${tool.name || 'tool'}-${index}`}>
-                          {tool.name || '-'}
+                          {getProjectItemLabel(tool)}
                         </span>
                       ))
                     ) : (
                       <span>Belum ada komponen</span>
                     )}
                   </div>
+                </section>
+
+                <section className="admin-projects-components">
+                  <h3>Node yang Digunakan</h3>
+                  <div>
+                    {getProjectArray(selectedProject, 'nodes').length > 0 ? (
+                      getProjectArray(selectedProject, 'nodes').map((node, index) => (
+                        <span key={`${getProjectItemLabel(node, 'node')}-${index}`}>
+                          {getProjectItemLabel(node)}
+                        </span>
+                      ))
+                    ) : (
+                      <span>Belum ada node</span>
+                    )}
+                  </div>
+                </section>
+
+                <section className="admin-projects-history">
+                  <h3>Langkah-langkah</h3>
+                  {getProjectArray(selectedProject, 'steps').length > 0 ? (
+                    getProjectArray(selectedProject, 'steps').map((step, index) => (
+                      <p key={`${getProjectStepLabel(step, index)}-${index}`}>
+                        <b>{index + 1}. {getProjectStepLabel(step, index)}</b>
+                      </p>
+                    ))
+                  ) : (
+                    <p>Belum ada langkah pengerjaan.</p>
+                  )}
                 </section>
 
                 <section className="admin-projects-detail-stats">

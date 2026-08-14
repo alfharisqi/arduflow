@@ -1,0 +1,251 @@
+{
+  "name": "ESP32_DI",
+  "board": "esp32",
+  "nodes": [
+    {
+      "id": "bulb-1778401238621",
+      "type": "bulb",
+      "position": {
+        "x": 270.141303813796,
+        "y": -254.9528380846175
+      },
+      "data": {
+        "value": true,
+        "pin": "0",
+        "minimized": false
+      },
+      "measured": {
+        "width": 160,
+        "height": 148
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "constant-1778401240349",
+      "type": "constant",
+      "position": {
+        "x": -12.822087590728692,
+        "y": -155.50577617055552
+      },
+      "data": {
+        "value": false,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 106
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "digitalWrite-1778421002699",
+      "type": "digitalWrite",
+      "position": {
+        "x": 678.9102038489294,
+        "y": -150.16982068626237
+      },
+      "data": {
+        "value": false,
+        "pin": "32",
+        "lastStateKey": "32-true-false",
+        "inverted": true,
+        "disabled": false
+      },
+      "measured": {
+        "width": 167,
+        "height": 164
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "digitalWrite-1778425497881",
+      "type": "digitalWrite",
+      "position": {
+        "x": 873.168199541794,
+        "y": -336.40726204205316
+      },
+      "data": {
+        "value": false,
+        "pin": "27",
+        "lastStateKey": "27-true-false",
+        "disabled": false,
+        "inverted": true
+      },
+      "measured": {
+        "width": 167,
+        "height": 164
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "digitalWrite-1778454211059",
+      "type": "digitalWrite",
+      "position": {
+        "x": 876.9214488246973,
+        "y": -154.92632255182184
+      },
+      "data": {
+        "value": false,
+        "pin": "33",
+        "lastStateKey": "33-true-false",
+        "inverted": true,
+        "disabled": false
+      },
+      "measured": {
+        "width": 167,
+        "height": 164
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "digitalWrite-1778458242440",
+      "type": "digitalWrite",
+      "position": {
+        "x": 666.4428461245403,
+        "y": -338.630675147512
+      },
+      "data": {
+        "value": false,
+        "pin": "26",
+        "lastStateKey": "26-true-false",
+        "disabled": false,
+        "inverted": true
+      },
+      "measured": {
+        "width": 167,
+        "height": 164
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "bulb-1778481936783",
+      "type": "bulb",
+      "position": {
+        "x": 275.26050318382624,
+        "y": 87.0369349441828
+      },
+      "data": {
+        "value": false,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 148
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "digitalRead-1778481991407",
+      "type": "digitalRead",
+      "position": {
+        "x": -17.661937095117352,
+        "y": 0.08176106017709861
+      },
+      "data": {
+        "value": false,
+        "pin": "13",
+        "pullup": true,
+        "lastPullup": true
+      },
+      "measured": {
+        "width": 160,
+        "height": 151
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "logicAnd-1778483012367",
+      "type": "logicAnd",
+      "position": {
+        "x": 271.8718894434144,
+        "y": -91.88435191669538
+      },
+      "data": {
+        "value": false,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 165
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "logicNot-1778489410129",
+      "type": "logicNot",
+      "position": {
+        "x": 261.2673786325738,
+        "y": -393.3368039254413
+      },
+      "data": {
+        "value": true,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 129
+      },
+      "selected": false,
+      "dragging": false
+    }
+  ],
+  "edges": [
+    {
+      "source": "digitalRead-1778481991407",
+      "target": "bulb-1778481936783",
+      "id": "xy-edge__digitalRead-1778481991407-bulb-1778481936783"
+    },
+    {
+      "source": "constant-1778401240349",
+      "target": "logicAnd-1778483012367",
+      "targetHandle": "in1",
+      "id": "xy-edge__constant-1778401240349-logicAnd-1778483012367in1"
+    },
+    {
+      "source": "logicAnd-1778483012367",
+      "target": "digitalWrite-1778425497881",
+      "id": "xy-edge__logicAnd-1778483012367-digitalWrite-1778425497881"
+    },
+    {
+      "source": "logicAnd-1778483012367",
+      "target": "digitalWrite-1778458242440",
+      "id": "xy-edge__logicAnd-1778483012367-digitalWrite-1778458242440"
+    },
+    {
+      "source": "logicAnd-1778483012367",
+      "target": "digitalWrite-1778421002699",
+      "id": "xy-edge__logicAnd-1778483012367-digitalWrite-1778421002699"
+    },
+    {
+      "source": "logicAnd-1778483012367",
+      "target": "digitalWrite-1778454211059",
+      "id": "xy-edge__logicAnd-1778483012367-digitalWrite-1778454211059"
+    },
+    {
+      "source": "digitalRead-1778481991407",
+      "target": "logicAnd-1778483012367",
+      "targetHandle": "in2",
+      "id": "xy-edge__digitalRead-1778481991407-logicAnd-1778483012367in2"
+    },
+    {
+      "source": "logicAnd-1778483012367",
+      "target": "logicNot-1778489410129",
+      "targetHandle": "in1",
+      "id": "xy-edge__logicAnd-1778483012367-logicNot-1778489410129in1"
+    },
+    {
+      "source": "logicNot-1778489410129",
+      "target": "bulb-1778401238621",
+      "id": "xy-edge__logicNot-1778489410129-bulb-1778401238621"
+    }
+  ]
+}
