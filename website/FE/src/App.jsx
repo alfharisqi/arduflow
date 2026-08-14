@@ -38,6 +38,7 @@ import { DashboardUser } from './pages/User/DashboardUser.jsx';
 import { UserLearningProgress } from './pages/User/UserLearningProgress.jsx';
 import { UserProjectGallery } from './pages/User/UserProjectGallery.jsx';
 import { UserWorkshopSchedule } from './pages/User/UserWorkshopSchedule.jsx';
+import { UserTransactions } from './pages/User/UserTransactions.jsx';
 import { UserCertificates } from './pages/User/UserCertificates.jsx';
 
 /* =========================
@@ -76,6 +77,7 @@ const AdminVerification = lazyNamed(() => import('./pages/admin/AdminVerificatio
 const AdminProgram = lazyNamed(() => import('./pages/admin/AdminProgram.jsx'), 'AdminProgram');
 const AdminLeads = lazyNamed(() => import('./pages/admin/AdminLeads.jsx'), 'AdminLeads');
 const AdminCertificates = lazyNamed(() => import('./pages/admin/AdminCertificates.jsx'), 'AdminCertificates');
+const AdminTransactions = lazyNamed(() => import('./pages/admin/AdminTransactions.jsx'), 'AdminTransactions');
 const AdminTutorial = lazyNamed(() => import('./pages/admin/AdminTutorial.jsx'), 'AdminTutorial');
 const AdminTutorialCreate = lazyNamed(() => import('./pages/admin/AdminTutorialCreate.jsx'), 'AdminTutorialCreate');
 const AdminTutorialEdit = lazyNamed(() => import('./pages/admin/AdminTutorialEdit.jsx'), 'AdminTutorialEdit');
@@ -149,6 +151,7 @@ const routes = {
   '/progress-belajar': UserLearningProgress,
   '/proyek-saya': UserProjectGallery,
   '/workshop-program': UserWorkshopSchedule,
+  '/transaksi': UserTransactions,
   '/sertifikat': UserCertificates,
 
   /* =========================
@@ -164,6 +167,7 @@ const routes = {
   '/admin/program': AdminProgram,
   '/admin/leads': AdminLeads,
   '/admin/certificates': AdminCertificates,
+  '/admin/transactions': AdminTransactions,
 
   '/admin/tutorial': AdminTutorial,
   '/admin/tutorial/tambah': AdminTutorialCreate,
@@ -206,6 +210,7 @@ const standaloneRoutes = new Set([
   '/progress-belajar',
   '/proyek-saya',
   '/workshop-program',
+  '/transaksi',
   '/sertifikat',
 
   /* ADMIN */
@@ -218,6 +223,7 @@ const standaloneRoutes = new Set([
   '/admin/program',
   '/admin/leads',
   '/admin/certificates',
+  '/admin/transactions',
 
   '/admin/tutorial',
   '/admin/tutorial/tambah',
@@ -241,6 +247,7 @@ const userProtectedRoutes = new Set([
   '/progress-belajar',
   '/proyek-saya',
   '/workshop-program',
+  '/transaksi',
   '/sertifikat',
 ]);
 

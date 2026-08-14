@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import certificateIcon from '../../assets/icons/icon-downloadsim-1.svg';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import courseImage from '../../assets/images/workshop-experience-student.png';
 import { ProfileAvatar } from '../../features/profile-image-crop/ProfileAvatar.jsx';
+import { fetchTutorialArticles, isPublishedTutorial } from '../../services/articleApi.js';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 
 const menuItems = [
@@ -12,18 +13,11 @@ const menuItems = [
   { label: 'Progres Belajar', icon: 'graduation', href: '/progress-belajar', active: true },
   { label: 'Proyek Saya', icon: 'folder', href: '/proyek-saya' },
   { label: 'Workshop / Program', icon: 'calendar', href: '/workshop-program' },
+  { label: 'Transaksi', icon: 'certificate', href: '/transaksi' },
   { label: 'Sertifikat', icon: 'certificate', href: '/sertifikat' },
   { label: 'IDE', icon: 'cpu', href: '/ide' },
   { label: 'Settings', icon: 'settings', href: '/settings' },
 ];
-
-const courses = Array.from({ length: 9 }, (_, index) => ({
-  id: index + 1,
-  title: 'Judul Materi',
-  category: 'Kategori Materi',
-  meta: 'Total Waktu, Total Halaman',
-  progress: index % 3 === 1 ? 36 : 37,
-}));
 
 function getStoredUser() {
   try {
@@ -32,6 +26,22 @@ function getStoredUser() {
   } catch {
     return {};
   }
+}
+
+function getCourseProgress(course) {
+  const progress = Number(course.progress ?? course.completedProgress ?? course.completion ?? 0);
+  return Number.isFinite(progress) ? Math.max(0, Math.min(100, progress)) : 0;
+}
+
+function getCourseMeta(course) {
+  const slideCount = Number(course.totalSlides || course.slides?.length || 0);
+  const duration = course.estimatedTime || 'Durasi belum diatur';
+  const pages = slideCount > 0 ? `${slideCount} halaman` : 'Halaman belum diatur';
+  return `${duration}, ${pages}`;
+}
+
+function getCourseOrder(course) {
+  return Number(course.pageOrder ?? course.displayOrder ?? course.id ?? 0) || 0;
 }
 
 function getInitials(name) {
@@ -119,10 +129,67 @@ function FilterIcon() {
 
 export function UserLearningProgress() {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialSidebarCollapsed);
+  const [courses, setCourses] = useState([]);
+  const [isLoadingCourses, setIsLoadingCourses] = useState(true);
+  const [coursesError, setCoursesError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortMode, setSortMode] = useState('Relevance');
   const user = getStoredUser();
   const fullName = user.name || user.fullName || 'Nama Lengkap';
   const greetingName = user.nickname || fullName;
   const profileImage = user.profileImage || user.avatar || '';
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadCourses() {
+      setIsLoadingCourses(true);
+      setCoursesError('');
+      try {
+        const records = await fetchTutorialArticles();
+        const publishedRecords = records.filter(isPublishedTutorial);
+        const visibleRecords = publishedRecords.length > 0 ? publishedRecords : records;
+        if (isMounted) {
+          setCourses([...visibleRecords].sort((left, right) => getCourseOrder(left) - getCourseOrder(right)));
+        }
+      } catch (error) {
+        if (isMounted) {
+          setCoursesError(error.message || 'Gagal memuat progres belajar.');
+          setCourses([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingCourses(false);
+        }
+      }
+    }
+
+    loadCourses();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const displayedCourses = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    const filteredCourses = courses.filter((course) => {
+      if (!query) return true;
+      return [course.title, course.category, course.shortDescription, course.difficulty]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query));
+    });
+
+    return [...filteredCourses].sort((left, right) => {
+      if (sortMode === 'Terbaru') {
+        return new Date(right.updatedAt || right.createdAt || 0) - new Date(left.updatedAt || left.createdAt || 0);
+      }
+      if (sortMode === 'Progress') {
+        return getCourseProgress(right) - getCourseProgress(left);
+      }
+      return getCourseOrder(left) - getCourseOrder(right);
+    });
+  }, [courses, searchTerm, sortMode]);
 
   function handleLogout() {
     window.localStorage.removeItem('arduflow_user');
@@ -201,14 +268,14 @@ export function UserLearningProgress() {
               <div className="user-progress-toolbar">
                 <label className="user-progress-search">
                   <span className="sr-only">Cari materi</span>
-                  <input type="search" placeholder="Cari" />
+                  <input type="search" placeholder="Cari" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} />
                   <SearchIcon />
                 </label>
 
                 <div className="user-progress-controls">
                   <div className="user-progress-sort">
                     <span>Urutkan</span>
-                    <select defaultValue="Relevance" aria-label="Urutkan materi">
+                    <select value={sortMode} aria-label="Urutkan materi" onChange={(event) => setSortMode(event.target.value)}>
                       <option>Relevance</option>
                       <option>Terbaru</option>
                       <option>Progress</option>
@@ -223,17 +290,28 @@ export function UserLearningProgress() {
             </div>
 
             <div className="user-progress-grid">
-              {courses.map((course) => (
-                <article className="user-course-card" key={course.id}>
-                  <img src={courseImage} alt="" />
-                  <h3>{course.title}</h3>
-                  <p>{course.category}</p>
-                  <div className="user-course-card__progress" aria-hidden="true">
-                    <span style={{ width: `${course.progress}%` }} />
-                  </div>
-                  <small>{course.meta}</small>
-                </article>
-              ))}
+              {isLoadingCourses ? (
+                <p>Memuat data materi...</p>
+              ) : coursesError ? (
+                <p>{coursesError}</p>
+              ) : displayedCourses.length === 0 ? (
+                <p>Belum ada materi yang tersedia.</p>
+              ) : (
+                displayedCourses.map((course) => {
+                  const progress = getCourseProgress(course);
+                  return (
+                    <article className="user-course-card" key={course.id || course.slug}>
+                      <img src={courseImage} alt="" />
+                      <h3>{course.title || 'Materi tanpa judul'}</h3>
+                      <p>{course.category || 'Tanpa kategori'}</p>
+                      <div className="user-course-card__progress" aria-hidden="true">
+                        <span style={{ width: `${progress}%` }} />
+                      </div>
+                      <small>{getCourseMeta(course)}</small>
+                    </article>
+                  );
+                })
+              )}
             </div>
 
             <nav className="user-progress-pagination" aria-label="Pagination progres belajar">

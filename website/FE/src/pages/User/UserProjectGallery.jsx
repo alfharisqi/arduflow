@@ -15,6 +15,7 @@ const menuItems = [
   { label: 'Progres Belajar', icon: 'graduation', href: '/progress-belajar' },
   { label: 'Proyek Saya', icon: 'folder', href: '/proyek-saya', active: true },
   { label: 'Workshop / Program', icon: 'calendar', href: '/workshop-program' },
+  { label: 'Transaksi', icon: 'certificate', href: '/transaksi' },
   { label: 'IDE', icon: 'cpu', href: '/ide' },
   { label: 'Sertifikat', icon: 'certificate', href: '/sertifikat' },
   { label: 'Settings', icon: 'settings', href: '/settings' },

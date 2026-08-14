@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
@@ -12,6 +12,11 @@ import {
   getUserSession,
   updateUserProfile,
 } from '../../services/authApi.js';
+
+import {
+  fetchWorkshops,
+  isPublicWorkshop,
+} from '../../services/workshopApi.js';
 
 import {
   showErrorAlert,
@@ -50,6 +55,11 @@ const menuItems = [
     label: 'Workshop / Program',
     icon: 'calendar',
     href: '/workshop-program',
+  },
+  {
+    label: 'Transaksi',
+    icon: 'certificate',
+    href: '/transaksi',
   },
   {
     label: 'Sertifikat',
@@ -117,39 +127,6 @@ const fieldGroups = [
     },
   ],
 ];
-
-/*
-|--------------------------------------------------------------------------
-| Calendar dummy
-|--------------------------------------------------------------------------
-*/
-
-const calendarDays = [
-  ['', '', '1', '2', '3', '4', '5'],
-  ['6', '7', '8', '9', '10', '11', '12'],
-  ['13', '14', '15', '16', '17', '18', '19'],
-  ['20', '21', '22', '23', '24', '25', '26'],
-  ['27', '28', '29', '30', '', '', ''],
-];
-
-const eventDays = new Set([
-  '6',
-  '23',
-  '24',
-  '25',
-  '26',
-  '29',
-  '30',
-]);
-
-const upcomingPrograms = Array.from(
-  { length: 4 },
-  (_, index) => ({
-    id: index + 1,
-    title: 'Nama Workshop/Program',
-    meta: 'Tanggal Bulan Jam Pukul WIB',
-  })
-);
 
 /*
 |--------------------------------------------------------------------------
@@ -268,6 +245,83 @@ function buildProfileValues(user = {}) {
       user.avatar ||
       '',
   };
+}
+
+function parseWorkshopDate(value) {
+  if (!value) {
+    return null;
+  }
+
+  const raw = String(value).trim();
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(raw)
+    ? new Date(`${raw}T00:00:00`)
+    : new Date(raw);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date;
+}
+
+function formatWorkshopDate(value) {
+  const date = parseWorkshopDate(value);
+
+  if (!date) {
+    return 'Tanggal belum diatur';
+  }
+
+  return new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+}
+
+function formatCalendarMonth(value) {
+  return new Intl.DateTimeFormat('id-ID', {
+    month: 'long',
+    year: 'numeric',
+  }).format(value);
+}
+
+function buildCalendarDays(monthDate) {
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const startOffset = firstDay.getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells = [];
+
+  for (let index = 0; index < startOffset; index += 1) {
+    cells.push({
+      key: `empty-start-${index}`,
+      day: '',
+      dateKey: '',
+    });
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(
+      day
+    ).padStart(2, '0')}`;
+
+    cells.push({
+      key: dateKey,
+      day: String(day),
+      dateKey,
+    });
+  }
+
+  while (cells.length % 7 !== 0) {
+    cells.push({
+      key: `empty-end-${cells.length}`,
+      day: '',
+      dateKey: '',
+    });
+  }
+
+  return cells;
 }
 
 /*
@@ -411,6 +465,26 @@ export function DashboardUser() {
     setCropSource,
   ] = useState('');
 
+  const [
+    workshops,
+    setWorkshops,
+  ] = useState([]);
+
+  const [
+    isLoadingWorkshops,
+    setIsLoadingWorkshops,
+  ] = useState(true);
+
+  const [
+    workshopError,
+    setWorkshopError,
+  ] = useState('');
+
+  const [
+    calendarMonth,
+    setCalendarMonth,
+  ] = useState(() => new Date());
+
   const fileInputRef = useRef(null);
 
   /*
@@ -433,6 +507,70 @@ export function DashboardUser() {
     profileValues.email ||
     storedUser.email ||
     'mail@mail.com';
+
+  const visibleWorkshops = useMemo(() => {
+    const publicRows = workshops.filter(isPublicWorkshop);
+    const rows = publicRows.length > 0 ? publicRows : workshops;
+
+    return rows
+      .map((workshop) => ({
+        ...workshop,
+        parsedDate: parseWorkshopDate(workshop.startsAt),
+      }))
+      .sort((first, second) => {
+        const firstTime = first.parsedDate?.getTime() ?? Number.MAX_SAFE_INTEGER;
+        const secondTime = second.parsedDate?.getTime() ?? Number.MAX_SAFE_INTEGER;
+
+        return firstTime - secondTime;
+      });
+  }, [workshops]);
+
+  const calendarCells = useMemo(
+    () => buildCalendarDays(calendarMonth),
+    [calendarMonth]
+  );
+
+  const eventDateKeys = useMemo(() => {
+    return new Set(
+      visibleWorkshops
+        .map((workshop) => workshop.parsedDate)
+        .filter(Boolean)
+        .map((date) => {
+          return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+            2,
+            '0'
+          )}-${String(date.getDate()).padStart(2, '0')}`;
+        })
+    );
+  }, [visibleWorkshops]);
+
+  const upcomingPrograms = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const futureRows = visibleWorkshops.filter((workshop) => {
+      if (!workshop.parsedDate) {
+        return true;
+      }
+
+      return workshop.parsedDate.getTime() >= today.getTime();
+    });
+
+    const rows = futureRows.length > 0 ? futureRows : visibleWorkshops;
+
+    return rows.slice(0, 4).map((workshop) => ({
+      id: workshop.id,
+      title: workshop.title,
+      href: workshop.id ? `/detail-workshop/${workshop.id}` : '/daftar-workshop',
+      meta: [
+        formatWorkshopDate(workshop.startsAt),
+        workshop.timeText,
+        workshop.method,
+      ]
+        .filter(Boolean)
+        .join(' • '),
+    }));
+  }, [visibleWorkshops]);
 
   /*
   |--------------------------------------------------------------------------
@@ -553,6 +691,46 @@ export function DashboardUser() {
     }
 
     loadUserProfile();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadWorkshops() {
+      try {
+        setIsLoadingWorkshops(true);
+        setWorkshopError('');
+
+        const rows = await fetchWorkshops();
+
+        if (!active) {
+          return;
+        }
+
+        setWorkshops(rows);
+      } catch (error) {
+        console.error('Gagal memuat workshop dashboard user:', error);
+
+        if (active) {
+          setWorkshops([]);
+          setWorkshopError(
+            error instanceof Error
+              ? error.message
+              : 'Data workshop tidak dapat dimuat.'
+          );
+        }
+      } finally {
+        if (active) {
+          setIsLoadingWorkshops(false);
+        }
+      }
+    }
+
+    loadWorkshops();
 
     return () => {
       active = false;
@@ -1271,18 +1449,38 @@ export function DashboardUser() {
                   <button
                     type="button"
                     aria-label="Bulan sebelumnya"
+                    onClick={() =>
+                      setCalendarMonth(
+                        (current) =>
+                          new Date(
+                            current.getFullYear(),
+                            current.getMonth() - 1,
+                            1
+                          )
+                      )
+                    }
                   >
                     &lsaquo;
                   </button>
 
                   <span>
-                    April 2025
+                    {formatCalendarMonth(calendarMonth)}
                   </span>
 
                   <button
                     className="dashboard-calendar__next"
                     type="button"
                     aria-label="Bulan berikutnya"
+                    onClick={() =>
+                      setCalendarMonth(
+                        (current) =>
+                          new Date(
+                            current.getFullYear(),
+                            current.getMonth() + 1,
+                            1
+                          )
+                      )
+                    }
                   >
                     &rsaquo;
                   </button>
@@ -1311,31 +1509,27 @@ export function DashboardUser() {
                     )
                   )}
 
-                  {calendarDays
-                    .flat()
-                    .map(
-                      (
-                        day,
-                        index
-                      ) => (
+                  {calendarCells.map(
+                    (cell) => (
 
-                        <span
-                          className={
-                            eventDays.has(
-                              day
-                            )
-                              ? 'dashboard-calendar__day dashboard-calendar__day--event'
-                              : 'dashboard-calendar__day'
-                          }
-                          key={
-                            `${day}-${index}`
-                          }
-                        >
-                          {day}
-                        </span>
+                      <span
+                        className={
+                          cell.dateKey &&
+                          eventDateKeys.has(
+                            cell.dateKey
+                          )
+                            ? 'dashboard-calendar__day dashboard-calendar__day--event'
+                            : 'dashboard-calendar__day'
+                        }
+                        key={
+                          cell.key
+                        }
+                      >
+                        {cell.day}
+                      </span>
 
-                      )
-                    )}
+                    )
+                  )}
 
                 </div>
 
@@ -1349,35 +1543,51 @@ export function DashboardUser() {
 
                 <div className="dashboard-upcoming__list">
 
-                  {upcomingPrograms.map(
-                    (program) => (
+                  {isLoadingWorkshops ? (
+                    <p className="dashboard-upcoming__empty">
+                      Memuat data workshop...
+                    </p>
+                  ) : workshopError ? (
+                    <p className="dashboard-upcoming__empty">
+                      {workshopError}
+                    </p>
+                  ) : upcomingPrograms.length === 0 ? (
+                    <p className="dashboard-upcoming__empty">
+                      Belum ada workshop / program dari database.
+                    </p>
+                  ) : (
+                    upcomingPrograms.map(
+                      (program) => (
 
-                      <a
-                        className="dashboard-upcoming__card"
-                        href="#"
-                        key={
-                          program.id
-                        }
-                      >
+                        <a
+                          className="dashboard-upcoming__card"
+                          href={
+                            program.href
+                          }
+                          key={
+                            program.id
+                          }
+                        >
 
-                        <span>
+                          <span>
 
-                          <strong>
-                            {program.title}
-                          </strong>
+                            <strong>
+                              {program.title}
+                            </strong>
 
-                          <small>
-                            {program.meta}
-                          </small>
+                            <small>
+                              {program.meta}
+                            </small>
 
-                        </span>
+                          </span>
 
-                        <b aria-hidden="true">
-                          &rsaquo;
-                        </b>
+                          <b aria-hidden="true">
+                            &rsaquo;
+                          </b>
 
-                      </a>
+                        </a>
 
+                      )
                     )
                   )}
 

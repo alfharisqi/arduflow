@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import certificateIcon from '../../assets/icons/icon-downloadsim-1.svg';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import { ProfileAvatar } from '../../features/profile-image-crop/ProfileAvatar.jsx';
+import { fetchWorkshops, isPublicWorkshop } from '../../services/workshopApi.js';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 
 const menuItems = [
@@ -11,21 +12,10 @@ const menuItems = [
   { label: 'Progres Belajar', icon: 'graduation', href: '/progress-belajar' },
   { label: 'Proyek Saya', icon: 'folder', href: '/proyek-saya' },
   { label: 'Workshop / Program', icon: 'calendar', href: '/workshop-program', active: true },
+  { label: 'Transaksi', icon: 'certificate', href: '/transaksi' },
   { label: 'Sertifikat', icon: 'certificate', href: '/sertifikat' },
   { label: 'IDE', icon: 'cpu', href: '/ide' },
   { label: 'Settings', icon: 'settings', href: '/settings' },
-];
-
-const schedules = [
-  { id: 1, method: 'Online', status: 'Akan Datang', notified: false },
-  { id: 2, method: 'Offline', status: 'Akan Datang', notified: true },
-  { id: 3, method: 'Online', status: 'Sedang Berlangsung', notified: false },
-  { id: 4, method: 'Online', status: 'Sedang Berlangsung', notified: false },
-  { id: 5, method: 'Online', status: 'Sedang Berlangsung', notified: false },
-  { id: 6, method: 'Online', status: 'Sedang Berlangsung', notified: false },
-  { id: 7, method: 'Offline', status: 'Selesai', notified: false },
-  { id: 8, method: 'Offline', status: 'Selesai', notified: false },
-  { id: 9, method: 'Offline', status: 'Selesai', notified: false },
 ];
 
 function getStoredUser() {
@@ -35,6 +25,52 @@ function getStoredUser() {
   } catch {
     return {};
   }
+}
+
+function parseWorkshopDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatWorkshopDateTime(workshop) {
+  const date = parseWorkshopDate(workshop.startsAt);
+  const dateText = date
+    ? new Intl.DateTimeFormat('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }).format(date)
+    : 'Tanggal belum diatur';
+  return [dateText, workshop.timeText].filter(Boolean).join(' ');
+}
+
+function getWorkshopStatus(workshop) {
+  const rawStatus = String(workshop.status || '').toLowerCase();
+  if (rawStatus.includes('selesai') || rawStatus.includes('completed')) return 'Selesai';
+
+  const startsAt = parseWorkshopDate(workshop.startsAt);
+  const endsAt = parseWorkshopDate(workshop.endsAt);
+  const now = new Date();
+
+  if (startsAt && startsAt > now) return 'Akan Datang';
+  if (startsAt && (!endsAt || endsAt >= now)) return 'Sedang Berlangsung';
+  if (endsAt && endsAt < now) return 'Selesai';
+  if (rawStatus.includes('berlangsung') || rawStatus.includes('ongoing')) return 'Sedang Berlangsung';
+  return 'Akan Datang';
+}
+
+function getWorkshopStatusClass(status) {
+  if (status === 'Selesai') return 'done';
+  if (status === 'Akan Datang') return 'upcoming';
+  return 'live';
+}
+
+function getWorkshopMethodClass(method) {
+  const value = String(method || '').toLowerCase();
+  if (value.includes('offline')) return 'offline';
+  if (value.includes('online')) return 'online';
+  return 'online';
 }
 
 function getInitials(name) {
@@ -122,10 +158,65 @@ function FilterIcon() {
 
 export function UserWorkshopSchedule() {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialSidebarCollapsed);
+  const [workshops, setWorkshops] = useState([]);
+  const [isLoadingWorkshops, setIsLoadingWorkshops] = useState(true);
+  const [workshopError, setWorkshopError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortMode, setSortMode] = useState('Relevance');
   const user = getStoredUser();
   const fullName = user.name || user.fullName || 'Nama Lengkap';
   const greetingName = user.nickname || fullName;
   const profileImage = user.profileImage || user.avatar || '';
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadWorkshops() {
+      setIsLoadingWorkshops(true);
+      setWorkshopError('');
+      try {
+        const records = await fetchWorkshops();
+        if (isMounted) {
+          setWorkshops(records.filter(isPublicWorkshop));
+        }
+      } catch (error) {
+        if (isMounted) {
+          setWorkshopError(error.message || 'Gagal memuat jadwal workshop.');
+          setWorkshops([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingWorkshops(false);
+        }
+      }
+    }
+
+    loadWorkshops();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const schedules = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    const filteredWorkshops = workshops.filter((workshop) => {
+      if (!query) return true;
+      return [workshop.title, workshop.category, workshop.method, workshop.location, workshop.meetingUrl]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query));
+    });
+
+    return [...filteredWorkshops].sort((left, right) => {
+      if (sortMode === 'Terbaru') {
+        return (parseWorkshopDate(right.startsAt)?.getTime() || 0) - (parseWorkshopDate(left.startsAt)?.getTime() || 0);
+      }
+      if (sortMode === 'Status') {
+        return getWorkshopStatus(left).localeCompare(getWorkshopStatus(right));
+      }
+      return (parseWorkshopDate(left.startsAt)?.getTime() || 0) - (parseWorkshopDate(right.startsAt)?.getTime() || 0);
+    });
+  }, [workshops, searchTerm, sortMode]);
 
   function handleLogout() {
     window.localStorage.removeItem('arduflow_user');
@@ -204,14 +295,14 @@ export function UserWorkshopSchedule() {
               <div className="user-workshop-toolbar">
                 <label className="user-workshop-search">
                   <span className="sr-only">Cari workshop</span>
-                  <input type="search" placeholder="Cari" />
+                  <input type="search" placeholder="Cari" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} />
                   <SearchIcon />
                 </label>
 
                 <div className="user-workshop-controls">
                   <div className="user-workshop-sort">
                     <span>Urutkan</span>
-                    <select defaultValue="Relevance" aria-label="Urutkan workshop">
+                    <select value={sortMode} aria-label="Urutkan workshop" onChange={(event) => setSortMode(event.target.value)}>
                       <option>Relevance</option>
                       <option>Terbaru</option>
                       <option>Status</option>
@@ -234,30 +325,63 @@ export function UserWorkshopSchedule() {
                 <span>Status</span>
                 <span>Notif</span>
               </div>
-              {schedules.map((schedule) => (
-                <div className="user-workshop-table__row" role="row" key={schedule.id}>
-                  <span>Nama Workshop</span>
-                  <span>
-                    <b className={`user-workshop-pill user-workshop-pill--${schedule.method.toLowerCase()}`}>
-                      {schedule.method}
-                    </b>
-                  </span>
-                  <span>Alamat/Link Zoom</span>
-                  <time>DD/MM/YYYY HH:MM</time>
-                  <span>
-                    <b className={`user-workshop-pill user-workshop-pill--${schedule.status === 'Selesai' ? 'done' : schedule.status === 'Akan Datang' ? 'upcoming' : 'live'}`}>
-                      {schedule.status}
-                    </b>
-                  </span>
-                  <button
-                    className={`user-workshop-notif${schedule.notified ? ' user-workshop-notif--active' : ''}`}
-                    type="button"
-                    aria-label="Notifikasi workshop"
-                  >
-                    <img src={bellIcon} alt="" aria-hidden="true" />
-                  </button>
+              {isLoadingWorkshops ? (
+                <div className="user-workshop-table__row" role="row">
+                  <span>Memuat jadwal workshop...</span>
+                  <span>-</span>
+                  <span>-</span>
+                  <span>-</span>
+                  <span>-</span>
+                  <span>-</span>
                 </div>
-              ))}
+              ) : workshopError ? (
+                <div className="user-workshop-table__row" role="row">
+                  <span>{workshopError}</span>
+                  <span>-</span>
+                  <span>-</span>
+                  <span>-</span>
+                  <span>-</span>
+                  <span>-</span>
+                </div>
+              ) : schedules.length === 0 ? (
+                <div className="user-workshop-table__row" role="row">
+                  <span>Belum ada workshop atau program yang tersedia.</span>
+                  <span>-</span>
+                  <span>-</span>
+                  <span>-</span>
+                  <span>-</span>
+                  <span>-</span>
+                </div>
+              ) : (
+                schedules.map((schedule) => {
+                  const status = getWorkshopStatus(schedule);
+                  const method = schedule.method || 'Online';
+                  return (
+                    <div className="user-workshop-table__row" role="row" key={schedule.id}>
+                      <span>{schedule.title || 'Workshop tanpa judul'}</span>
+                      <span>
+                        <b className={`user-workshop-pill user-workshop-pill--${getWorkshopMethodClass(method)}`}>
+                          {method}
+                        </b>
+                      </span>
+                      <span>{schedule.meetingUrl || schedule.location || '-'}</span>
+                      <time>{formatWorkshopDateTime(schedule)}</time>
+                      <span>
+                        <b className={`user-workshop-pill user-workshop-pill--${getWorkshopStatusClass(status)}`}>
+                          {status}
+                        </b>
+                      </span>
+                      <button
+                        className={`user-workshop-notif${status === 'Akan Datang' ? ' user-workshop-notif--active' : ''}`}
+                        type="button"
+                        aria-label="Notifikasi workshop"
+                      >
+                        <img src={bellIcon} alt="" aria-hidden="true" />
+                      </button>
+                    </div>
+                  );
+                })
+              )}
             </div>
 
             <nav className="user-workshop-pagination" aria-label="Pagination jadwal workshop">

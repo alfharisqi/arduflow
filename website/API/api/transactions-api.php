@@ -1,0 +1,922 @@
+<?php
+
+declare(strict_types=1);
+
+header('Content-Type: application/json; charset=utf-8');
+
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+$allowedOrigins = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:5174',
+    'http://127.0.0.1:5174',
+    'http://localhost:5175',
+    'http://127.0.0.1:5175',
+];
+
+if (in_array($origin, $allowedOrigins, true)) {
+    header("Access-Control-Allow-Origin: {$origin}");
+    header('Vary: Origin');
+}
+
+header('Access-Control-Allow-Credentials: true');
+header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+
+$method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
+
+if ($method === 'POST' && isset($_POST['_method'])) {
+    $methodOverride = strtoupper((string) $_POST['_method']);
+    if (in_array($methodOverride, ['PUT', 'PATCH', 'DELETE'], true)) {
+        $method = $methodOverride;
+    }
+}
+
+if (!in_array($method, ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], true)) {
+    header('Allow: GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    respond(405, [
+        'success' => false,
+        'message' => 'Method tidak diizinkan.',
+    ]);
+}
+
+function respond(int $status, array $payload): never
+{
+    http_response_code($status);
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+    exit;
+}
+
+function readJsonBody(): array
+{
+    $rawJson = file_get_contents('php://input');
+    if ($rawJson === false || trim($rawJson) === '') {
+        throw new InvalidArgumentException('Body JSON tidak boleh kosong.');
+    }
+
+    $data = json_decode($rawJson, true, 512, JSON_THROW_ON_ERROR);
+    if (!is_array($data)) {
+        throw new InvalidArgumentException('Struktur JSON harus berupa object.');
+    }
+
+    return isset($data['data']) && is_array($data['data']) ? $data['data'] : $data;
+}
+
+function resolveDatabasePath(string $projectRoot, array $databaseConfig): array
+{
+    $sqliteConfig = $databaseConfig['sqlite'] ?? null;
+    if (!is_array($sqliteConfig)) {
+        throw new RuntimeException('Konfigurasi SQLite tidak ditemukan.');
+    }
+
+    $databasePath = trim((string) ($sqliteConfig['path'] ?? ''));
+    $busyTimeout = (int) ($sqliteConfig['busy_timeout_ms'] ?? 15000);
+    if ($databasePath === '') {
+        throw new RuntimeException('Path database SQLite belum dikonfigurasi.');
+    }
+
+    $isWindowsAbsolutePath = preg_match('/^[A-Za-z]:[\\\\\/]/', $databasePath) === 1;
+    $isUnixAbsolutePath = str_starts_with($databasePath, '/');
+    if (!$isWindowsAbsolutePath && !$isUnixAbsolutePath) {
+        $databasePath = $projectRoot . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $databasePath);
+    }
+
+    return [$databasePath, $busyTimeout];
+}
+
+function jakartaNow(): string
+{
+    return (new DateTimeImmutable('now', new DateTimeZone('Asia/Jakarta')))->format(DateTimeInterface::ATOM);
+}
+
+function ensureTransactionTables(PDO $pdo): void
+{
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NULL,
+            user_name TEXT,
+            email TEXT,
+            item_type TEXT NOT NULL DEFAULT "workshop",
+            item_id INTEGER NULL,
+            item_title TEXT NOT NULL,
+            amount REAL NOT NULL DEFAULT 0,
+            currency TEXT NOT NULL DEFAULT "IDR",
+            payment_method TEXT,
+            payment_channel TEXT,
+            payment_code TEXT,
+            recipient_name TEXT,
+            qris_file_name TEXT,
+            qris_file_type TEXT,
+            qris_file_size INTEGER,
+            qris_file_path TEXT,
+            qris_file_url TEXT,
+            invoice_number TEXT NOT NULL UNIQUE,
+            reference_number TEXT,
+            status TEXT NOT NULL DEFAULT "pending",
+            paid_at TEXT,
+            due_at TEXT,
+            notes TEXT,
+            proof_file_name TEXT,
+            proof_file_type TEXT,
+            proof_file_size INTEGER,
+            proof_file_path TEXT,
+            proof_file_url TEXT,
+            proof_uploaded_at TEXT,
+            reviewed_at TEXT,
+            reviewed_by TEXT,
+            rejection_reason TEXT,
+            payload_json TEXT NOT NULL DEFAULT "{}",
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )'
+    );
+    addColumnIfMissing($pdo, 'transactions', 'proof_file_name', 'TEXT');
+    addColumnIfMissing($pdo, 'transactions', 'payment_code', 'TEXT');
+    addColumnIfMissing($pdo, 'transactions', 'recipient_name', 'TEXT');
+    addColumnIfMissing($pdo, 'transactions', 'qris_file_name', 'TEXT');
+    addColumnIfMissing($pdo, 'transactions', 'qris_file_type', 'TEXT');
+    addColumnIfMissing($pdo, 'transactions', 'qris_file_size', 'INTEGER');
+    addColumnIfMissing($pdo, 'transactions', 'qris_file_path', 'TEXT');
+    addColumnIfMissing($pdo, 'transactions', 'qris_file_url', 'TEXT');
+    addColumnIfMissing($pdo, 'transactions', 'proof_file_type', 'TEXT');
+    addColumnIfMissing($pdo, 'transactions', 'proof_file_size', 'INTEGER');
+    addColumnIfMissing($pdo, 'transactions', 'proof_file_path', 'TEXT');
+    addColumnIfMissing($pdo, 'transactions', 'proof_file_url', 'TEXT');
+    addColumnIfMissing($pdo, 'transactions', 'proof_uploaded_at', 'TEXT');
+    addColumnIfMissing($pdo, 'transactions', 'reviewed_at', 'TEXT');
+    addColumnIfMissing($pdo, 'transactions', 'reviewed_by', 'TEXT');
+    addColumnIfMissing($pdo, 'transactions', 'rejection_reason', 'TEXT');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_transactions_email ON transactions(email)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at)');
+
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS user_entitlements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            transaction_id INTEGER NOT NULL,
+            user_id INTEGER NULL,
+            email TEXT,
+            product_type TEXT NOT NULL,
+            product_id INTEGER NULL,
+            product_title TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT "active",
+            granted_at TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )'
+    );
+    $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_user_entitlements_transaction ON user_entitlements(transaction_id)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_user_entitlements_user_id ON user_entitlements(user_id)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_user_entitlements_email ON user_entitlements(email)');
+}
+
+function addColumnIfMissing(PDO $pdo, string $table, string $column, string $definition): void
+{
+    $columns = $pdo->query('PRAGMA table_info(' . $table . ')')->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($columns as $existingColumn) {
+        if (($existingColumn['name'] ?? '') === $column) {
+            return;
+        }
+    }
+    $pdo->exec('ALTER TABLE ' . $table . ' ADD COLUMN ' . $column . ' ' . $definition);
+}
+
+function getTransactionId(): ?int
+{
+    if (!isset($_GET['id']) || $_GET['id'] === '') {
+        return null;
+    }
+
+    $id = filter_var($_GET['id'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+    if ($id === false) {
+        throw new InvalidArgumentException('ID transaksi tidak valid.');
+    }
+
+    return (int) $id;
+}
+
+function generateInvoiceNumber(): string
+{
+    try {
+        $suffix = strtoupper(bin2hex(random_bytes(3)));
+    } catch (Throwable $exception) {
+        $suffix = strtoupper(substr(str_replace('.', '', uniqid('', true)), -6));
+    }
+
+    return 'AFW-INV-' . date('Ymd') . '-' . $suffix;
+}
+
+function normalizeStatus(string $status): string
+{
+    $value = strtolower(trim($status));
+    $allowed = ['pending', 'proof_uploaded', 'paid', 'rejected', 'failed', 'cancelled', 'refunded', 'expired'];
+    return in_array($value, $allowed, true) ? $value : 'pending';
+}
+
+function rowToTransaction(array $row): array
+{
+    $payload = json_decode((string) ($row['payload_json'] ?? '{}'), true);
+    if (!is_array($payload)) {
+        $payload = [];
+    }
+
+    return [
+        'id' => (int) $row['id'],
+        'userId' => isset($row['user_id']) && $row['user_id'] !== null ? (int) $row['user_id'] : null,
+        'userName' => $row['user_name'] ?? '',
+        'email' => $row['email'] ?? '',
+        'itemType' => $row['item_type'] ?? 'workshop',
+        'itemId' => isset($row['item_id']) && $row['item_id'] !== null ? (int) $row['item_id'] : null,
+        'itemTitle' => $row['item_title'] ?? '',
+        'amount' => (float) ($row['amount'] ?? 0),
+        'currency' => $row['currency'] ?? 'IDR',
+        'paymentMethod' => $row['payment_method'] ?? '',
+        'paymentChannel' => $row['payment_channel'] ?? '',
+        'paymentCode' => $row['payment_code'] ?? '',
+        'recipientName' => $row['recipient_name'] ?? '',
+        'qrisFile' => [
+            'name' => $row['qris_file_name'] ?? null,
+            'type' => $row['qris_file_type'] ?? null,
+            'size' => isset($row['qris_file_size']) ? (int) $row['qris_file_size'] : null,
+            'path' => $row['qris_file_path'] ?? null,
+            'url' => $row['qris_file_url'] ?? null,
+        ],
+        'invoiceNumber' => $row['invoice_number'] ?? '',
+        'referenceNumber' => $row['reference_number'] ?? '',
+        'status' => $row['status'] ?? 'pending',
+        'paidAt' => $row['paid_at'] ?? null,
+        'dueAt' => $row['due_at'] ?? null,
+        'notes' => $row['notes'] ?? '',
+        'proofFile' => [
+            'name' => $row['proof_file_name'] ?? null,
+            'type' => $row['proof_file_type'] ?? null,
+            'size' => isset($row['proof_file_size']) ? (int) $row['proof_file_size'] : null,
+            'path' => $row['proof_file_path'] ?? null,
+            'url' => $row['proof_file_url'] ?? null,
+        ],
+        'proofUploadedAt' => $row['proof_uploaded_at'] ?? null,
+        'reviewedAt' => $row['reviewed_at'] ?? null,
+        'reviewedBy' => $row['reviewed_by'] ?? '',
+        'rejectionReason' => $row['rejection_reason'] ?? '',
+        'payload' => $payload,
+        'createdAt' => $row['created_at'] ?? '',
+        'updatedAt' => $row['updated_at'] ?? '',
+    ];
+}
+
+function readTransactionBody(): array
+{
+    $contentType = strtolower((string) ($_SERVER['CONTENT_TYPE'] ?? ''));
+    if (str_contains($contentType, 'multipart/form-data')) {
+        $payload = trim((string) ($_POST['payload'] ?? $_POST['data'] ?? ''));
+        if ($payload === '') {
+            return $_POST;
+        }
+        $data = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
+        if (!is_array($data)) {
+            throw new InvalidArgumentException('Struktur payload transaksi harus berupa object.');
+        }
+        return isset($data['data']) && is_array($data['data']) ? $data['data'] : $data;
+    }
+
+    return readJsonBody();
+}
+
+function storeQrisFile(int $transactionId, string $projectRoot): ?array
+{
+    $file = $_FILES['qris'] ?? $_FILES['qrisFile'] ?? null;
+    if (!is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        throw new InvalidArgumentException('Upload foto QRIS gagal.');
+    }
+
+    $size = (int) ($file['size'] ?? 0);
+    if ($size <= 0 || $size > 5 * 1024 * 1024) {
+        throw new InvalidArgumentException('Ukuran foto QRIS maksimal 5 MB.');
+    }
+
+    $tmpName = (string) ($file['tmp_name'] ?? '');
+    $mimeType = function_exists('mime_content_type') ? (string) mime_content_type($tmpName) : (string) ($file['type'] ?? '');
+    $extensions = [
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/webp' => 'webp',
+    ];
+    if (!isset($extensions[$mimeType])) {
+        throw new InvalidArgumentException('Foto QRIS harus berupa JPG, PNG, atau WEBP.');
+    }
+
+    $storedName = 'qris-' . $transactionId . '-' . bin2hex(random_bytes(6)) . '.' . $extensions[$mimeType];
+    $uploadDirectory = $projectRoot . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'payment-methods';
+    if (!is_dir($uploadDirectory) && !mkdir($uploadDirectory, 0775, true) && !is_dir($uploadDirectory)) {
+        throw new RuntimeException('Folder upload QRIS gagal dibuat.');
+    }
+
+    $destination = $uploadDirectory . DIRECTORY_SEPARATOR . $storedName;
+    if (!move_uploaded_file($tmpName, $destination)) {
+        throw new RuntimeException('Foto QRIS gagal disimpan.');
+    }
+
+    return [
+        'name' => basename((string) ($file['name'] ?? $storedName)),
+        'type' => $mimeType,
+        'size' => $size,
+        'path' => 'uploads/payment-methods/' . $storedName,
+        'url' => '/uploads/payment-methods/' . rawurlencode($storedName),
+    ];
+}
+
+function storePaymentProof(int $transactionId, string $projectRoot): array
+{
+    $file = $_FILES['proof'] ?? $_FILES['paymentProof'] ?? null;
+    if (!is_array($file)) {
+        throw new InvalidArgumentException('File bukti pembayaran wajib diupload.');
+    }
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        throw new InvalidArgumentException('Upload bukti pembayaran gagal.');
+    }
+
+    $size = (int) ($file['size'] ?? 0);
+    if ($size <= 0 || $size > 5 * 1024 * 1024) {
+        throw new InvalidArgumentException('Ukuran bukti pembayaran maksimal 5 MB.');
+    }
+
+    $tmpName = (string) ($file['tmp_name'] ?? '');
+    $mimeType = function_exists('mime_content_type') ? (string) mime_content_type($tmpName) : (string) ($file['type'] ?? '');
+    $allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    if (!in_array($mimeType, $allowedTypes, true)) {
+        throw new InvalidArgumentException('Bukti pembayaran harus berupa JPG, PNG, WEBP, atau PDF.');
+    }
+
+    $extension = match ($mimeType) {
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/webp' => 'webp',
+        'application/pdf' => 'pdf',
+        default => 'bin',
+    };
+    $storedName = 'trx-' . $transactionId . '-' . bin2hex(random_bytes(6)) . '.' . $extension;
+    $uploadDirectory = $projectRoot . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'payment-proofs';
+    if (!is_dir($uploadDirectory) && !mkdir($uploadDirectory, 0775, true) && !is_dir($uploadDirectory)) {
+        throw new RuntimeException('Folder upload bukti pembayaran gagal dibuat.');
+    }
+
+    $destination = $uploadDirectory . DIRECTORY_SEPARATOR . $storedName;
+    if (!move_uploaded_file($tmpName, $destination)) {
+        throw new RuntimeException('Bukti pembayaran gagal disimpan.');
+    }
+
+    $relativeUrl = '/uploads/payment-proofs/' . rawurlencode($storedName);
+    return [
+        'name' => basename((string) ($file['name'] ?? $storedName)),
+        'type' => $mimeType,
+        'size' => $size,
+        'path' => 'uploads/payment-proofs/' . $storedName,
+        'url' => $relativeUrl,
+    ];
+}
+
+function grantProductAccess(PDO $pdo, array $transaction, string $now): void
+{
+    $statement = $pdo->prepare(
+        'INSERT INTO user_entitlements (
+            transaction_id, user_id, email, product_type, product_id, product_title,
+            status, granted_at, created_at, updated_at
+        ) VALUES (
+            :transaction_id, :user_id, :email, :product_type, :product_id, :product_title,
+            "active", :granted_at, :created_at, :updated_at
+        )
+        ON CONFLICT(transaction_id) DO UPDATE SET
+            status = "active",
+            granted_at = excluded.granted_at,
+            updated_at = excluded.updated_at'
+    );
+    $statement->execute([
+        ':transaction_id' => (int) $transaction['id'],
+        ':user_id' => $transaction['user_id'] ?? null,
+        ':email' => $transaction['email'] ?? '',
+        ':product_type' => $transaction['item_type'] ?? 'workshop',
+        ':product_id' => $transaction['item_id'] ?? null,
+        ':product_title' => $transaction['item_title'] ?? '',
+        ':granted_at' => $now,
+        ':created_at' => $now,
+        ':updated_at' => $now,
+    ]);
+}
+
+function findTransaction(PDO $pdo, int $id): ?array
+{
+    $statement = $pdo->prepare('SELECT * FROM transactions WHERE id = :id LIMIT 1');
+    $statement->execute([':id' => $id]);
+    $row = $statement->fetch(PDO::FETCH_ASSOC);
+    return is_array($row) ? $row : null;
+}
+
+function transactionFromBody(array $data, ?array $existing = null): array
+{
+    $userId = $data['userId'] ?? $data['user_id'] ?? $existing['user_id'] ?? null;
+    $itemId = $data['itemId'] ?? $data['item_id'] ?? $existing['item_id'] ?? null;
+    $amount = $data['amount'] ?? $existing['amount'] ?? 0;
+    $payload = $data['payload'] ?? [];
+
+    if (!is_array($payload)) {
+        $payload = [];
+    }
+
+    return [
+        'user_id' => $userId === null || $userId === '' ? null : (int) $userId,
+        'user_name' => trim((string) ($data['userName'] ?? $data['user_name'] ?? $existing['user_name'] ?? '')),
+        'email' => trim((string) ($data['email'] ?? $existing['email'] ?? '')),
+        'item_type' => trim((string) ($data['itemType'] ?? $data['item_type'] ?? $existing['item_type'] ?? 'workshop')) ?: 'workshop',
+        'item_id' => $itemId === null || $itemId === '' ? null : (int) $itemId,
+        'item_title' => trim((string) ($data['itemTitle'] ?? $data['item_title'] ?? $existing['item_title'] ?? '')),
+        'amount' => is_numeric($amount) ? (float) $amount : 0.0,
+        'currency' => strtoupper(trim((string) ($data['currency'] ?? $existing['currency'] ?? 'IDR'))) ?: 'IDR',
+        'payment_method' => trim((string) ($data['paymentMethod'] ?? $data['payment_method'] ?? $existing['payment_method'] ?? '')),
+        'payment_channel' => trim((string) ($data['paymentChannel'] ?? $data['payment_channel'] ?? $existing['payment_channel'] ?? '')),
+        'payment_code' => trim((string) ($data['paymentCode'] ?? $data['payment_code'] ?? $existing['payment_code'] ?? '')),
+        'recipient_name' => trim((string) ($data['recipientName'] ?? $data['recipient_name'] ?? $existing['recipient_name'] ?? '')),
+        'invoice_number' => trim((string) ($data['invoiceNumber'] ?? $data['invoice_number'] ?? $existing['invoice_number'] ?? generateInvoiceNumber())),
+        'reference_number' => trim((string) ($data['referenceNumber'] ?? $data['reference_number'] ?? $existing['reference_number'] ?? '')),
+        'status' => normalizeStatus((string) ($data['status'] ?? $existing['status'] ?? 'pending')),
+        'paid_at' => trim((string) ($data['paidAt'] ?? $data['paid_at'] ?? $existing['paid_at'] ?? '')) ?: null,
+        'due_at' => trim((string) ($data['dueAt'] ?? $data['due_at'] ?? $existing['due_at'] ?? '')) ?: null,
+        'notes' => trim((string) ($data['notes'] ?? $existing['notes'] ?? '')),
+        'payload' => $payload,
+    ];
+}
+
+function validateTransaction(array $transaction): array
+{
+    $errors = [];
+    if ($transaction['item_title'] === '') {
+        $errors['itemTitle'] = 'Nama item transaksi wajib diisi.';
+    }
+    if ($transaction['amount'] < 0) {
+        $errors['amount'] = 'Nominal transaksi tidak boleh negatif.';
+    }
+    if ($transaction['invoice_number'] === '') {
+        $errors['invoiceNumber'] = 'Nomor invoice wajib diisi.';
+    }
+    return $errors;
+}
+
+try {
+    $projectRoot = dirname(__DIR__);
+    $configPath = $projectRoot . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'database.php';
+    if (!is_file($configPath)) {
+        throw new RuntimeException('File konfigurasi database tidak ditemukan.');
+    }
+
+    $databaseConfig = require $configPath;
+    [$databasePath, $busyTimeout] = resolveDatabasePath($projectRoot, $databaseConfig);
+    $databaseDirectory = dirname($databasePath);
+    if (!is_dir($databaseDirectory) && !mkdir($databaseDirectory, 0775, true) && !is_dir($databaseDirectory)) {
+        throw new RuntimeException('Folder database gagal dibuat.');
+    }
+
+    $pdo = new PDO('sqlite:' . $databasePath);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+    $pdo->exec('PRAGMA busy_timeout = ' . max(1000, $busyTimeout));
+    $pdo->exec('PRAGMA foreign_keys = ON');
+    ensureTransactionTables($pdo);
+
+    $transactionId = getTransactionId();
+    $action = strtolower(trim((string) ($_GET['action'] ?? '')));
+
+    if ($method === 'POST' && $action === 'upload-proof') {
+        if ($transactionId === null) {
+            throw new InvalidArgumentException('Parameter id wajib diisi untuk upload bukti pembayaran.');
+        }
+
+        $existingRow = findTransaction($pdo, $transactionId);
+        if ($existingRow === null) {
+            respond(404, [
+                'success' => false,
+                'message' => 'Transaksi tidak ditemukan.',
+            ]);
+        }
+
+        $referenceNumber = trim((string) ($_POST['referenceNumber'] ?? $_POST['reference_number'] ?? $existingRow['reference_number'] ?? ''));
+        $proof = storePaymentProof($transactionId, $projectRoot);
+        $now = jakartaNow();
+
+        $statement = $pdo->prepare(
+            'UPDATE transactions SET
+                reference_number = :reference_number,
+                proof_file_name = :proof_file_name,
+                proof_file_type = :proof_file_type,
+                proof_file_size = :proof_file_size,
+                proof_file_path = :proof_file_path,
+                proof_file_url = :proof_file_url,
+                proof_uploaded_at = :proof_uploaded_at,
+                status = "proof_uploaded",
+                reviewed_at = NULL,
+                reviewed_by = NULL,
+                rejection_reason = NULL,
+                updated_at = :updated_at
+             WHERE id = :id'
+        );
+        $statement->execute([
+            ':reference_number' => $referenceNumber,
+            ':proof_file_name' => $proof['name'],
+            ':proof_file_type' => $proof['type'],
+            ':proof_file_size' => $proof['size'],
+            ':proof_file_path' => $proof['path'],
+            ':proof_file_url' => $proof['url'],
+            ':proof_uploaded_at' => $now,
+            ':updated_at' => $now,
+            ':id' => $transactionId,
+        ]);
+
+        respond(200, [
+            'success' => true,
+            'message' => 'Bukti pembayaran berhasil diupload. Menunggu review admin.',
+            'data' => [
+                'transaction' => rowToTransaction(findTransaction($pdo, $transactionId) ?? []),
+            ],
+        ]);
+    }
+
+    if ($method === 'POST' && ($action === 'approve' || $action === 'reject')) {
+        if ($transactionId === null) {
+            throw new InvalidArgumentException('Parameter id wajib diisi untuk review transaksi.');
+        }
+
+        $existingRow = findTransaction($pdo, $transactionId);
+        if ($existingRow === null) {
+            respond(404, [
+                'success' => false,
+                'message' => 'Transaksi tidak ditemukan.',
+            ]);
+        }
+
+        $incoming = [];
+        $rawInput = file_get_contents('php://input');
+        if ($rawInput !== false && trim($rawInput) !== '') {
+            $decoded = json_decode($rawInput, true);
+            $incoming = is_array($decoded) ? ($decoded['data'] ?? $decoded) : [];
+        }
+
+        $now = jakartaNow();
+        if ($action === 'approve') {
+            $statement = $pdo->prepare(
+                'UPDATE transactions SET
+                    status = "paid",
+                    paid_at = COALESCE(paid_at, :paid_at),
+                    reviewed_at = :reviewed_at,
+                    reviewed_by = :reviewed_by,
+                    rejection_reason = NULL,
+                    updated_at = :updated_at
+                 WHERE id = :id'
+            );
+            $statement->execute([
+                ':paid_at' => $now,
+                ':reviewed_at' => $now,
+                ':reviewed_by' => trim((string) ($incoming['reviewedBy'] ?? 'Admin')),
+                ':updated_at' => $now,
+                ':id' => $transactionId,
+            ]);
+            grantProductAccess($pdo, findTransaction($pdo, $transactionId) ?? $existingRow, $now);
+
+            respond(200, [
+                'success' => true,
+                'message' => 'Transaksi disetujui dan produk sudah diberikan ke user.',
+                'data' => [
+                    'transaction' => rowToTransaction(findTransaction($pdo, $transactionId) ?? []),
+                ],
+            ]);
+        }
+
+        $reason = trim((string) ($incoming['reason'] ?? $incoming['rejectionReason'] ?? 'Bukti pembayaran belum valid.'));
+        $statement = $pdo->prepare(
+            'UPDATE transactions SET
+                status = "rejected",
+                reviewed_at = :reviewed_at,
+                reviewed_by = :reviewed_by,
+                rejection_reason = :rejection_reason,
+                updated_at = :updated_at
+             WHERE id = :id'
+        );
+        $statement->execute([
+            ':reviewed_at' => $now,
+            ':reviewed_by' => trim((string) ($incoming['reviewedBy'] ?? 'Admin')),
+            ':rejection_reason' => $reason,
+            ':updated_at' => $now,
+            ':id' => $transactionId,
+        ]);
+
+        respond(200, [
+            'success' => true,
+            'message' => 'Transaksi ditolak. User dapat upload ulang bukti pembayaran.',
+            'data' => [
+                'transaction' => rowToTransaction(findTransaction($pdo, $transactionId) ?? []),
+            ],
+        ]);
+    }
+
+    if ($method === 'GET') {
+        if ($transactionId !== null) {
+            $row = findTransaction($pdo, $transactionId);
+            if ($row === null) {
+                respond(404, [
+                    'success' => false,
+                    'message' => 'Transaksi tidak ditemukan.',
+                ]);
+            }
+
+            respond(200, [
+                'success' => true,
+                'data' => [
+                    'transaction' => rowToTransaction($row),
+                ],
+            ]);
+        }
+
+        $where = [];
+        $params = [];
+        $hasUserId = isset($_GET['userId']) && $_GET['userId'] !== '';
+        $hasEmail = isset($_GET['email']) && trim((string) $_GET['email']) !== '';
+
+        if ($hasUserId && $hasEmail) {
+            $where[] = '(user_id = :user_id OR LOWER(email) = LOWER(:email))';
+            $params[':user_id'] = (int) $_GET['userId'];
+            $params[':email'] = trim((string) $_GET['email']);
+        } elseif ($hasUserId) {
+            $where[] = 'user_id = :user_id';
+            $params[':user_id'] = (int) $_GET['userId'];
+        } elseif ($hasEmail) {
+            $where[] = 'LOWER(email) = LOWER(:email)';
+            $params[':email'] = trim((string) $_GET['email']);
+        }
+        if (isset($_GET['status']) && trim((string) $_GET['status']) !== '') {
+            $where[] = 'status = :status';
+            $params[':status'] = normalizeStatus((string) $_GET['status']);
+        }
+
+        $sql = 'SELECT * FROM transactions';
+        if ($where !== []) {
+            $sql .= ' WHERE ' . implode(' AND ', $where);
+        }
+        $sql .= ' ORDER BY created_at DESC, id DESC';
+
+        $statement = $pdo->prepare($sql);
+        $statement->execute($params);
+        $transactions = array_map('rowToTransaction', $statement->fetchAll());
+
+        respond(200, [
+            'success' => true,
+            'message' => 'Data transaksi berhasil diambil.',
+            'data' => [
+                'transactions' => $transactions,
+                'total' => count($transactions),
+            ],
+        ]);
+    }
+
+    if ($method === 'POST') {
+        $incoming = readTransactionBody();
+        $transaction = transactionFromBody($incoming);
+        $errors = validateTransaction($transaction);
+        if ($errors !== []) {
+            respond(422, [
+                'success' => false,
+                'message' => 'Validasi transaksi gagal.',
+                'errors' => $errors,
+            ]);
+        }
+
+        $now = jakartaNow();
+        $statement = $pdo->prepare(
+            'INSERT INTO transactions (
+                user_id, user_name, email, item_type, item_id, item_title, amount, currency,
+                payment_method, payment_channel, payment_code, recipient_name, invoice_number, reference_number, status,
+                paid_at, due_at, notes, payload_json, created_at, updated_at
+            ) VALUES (
+                :user_id, :user_name, :email, :item_type, :item_id, :item_title, :amount, :currency,
+                :payment_method, :payment_channel, :payment_code, :recipient_name, :invoice_number, :reference_number, :status,
+                :paid_at, :due_at, :notes, :payload_json, :created_at, :updated_at
+            )'
+        );
+
+        $statement->execute([
+            ':user_id' => $transaction['user_id'],
+            ':user_name' => $transaction['user_name'],
+            ':email' => $transaction['email'],
+            ':item_type' => $transaction['item_type'],
+            ':item_id' => $transaction['item_id'],
+            ':item_title' => $transaction['item_title'],
+            ':amount' => $transaction['amount'],
+            ':currency' => $transaction['currency'],
+            ':payment_method' => $transaction['payment_method'],
+            ':payment_channel' => $transaction['payment_channel'],
+            ':payment_code' => $transaction['payment_code'],
+            ':recipient_name' => $transaction['recipient_name'],
+            ':invoice_number' => $transaction['invoice_number'],
+            ':reference_number' => $transaction['reference_number'],
+            ':status' => $transaction['status'],
+            ':paid_at' => $transaction['paid_at'],
+            ':due_at' => $transaction['due_at'],
+            ':notes' => $transaction['notes'],
+            ':payload_json' => json_encode($transaction['payload'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+            ':created_at' => $now,
+            ':updated_at' => $now,
+        ]);
+
+        $createdId = (int) $pdo->lastInsertId();
+        $qrisFile = storeQrisFile($createdId, $projectRoot);
+        if ($qrisFile !== null) {
+            $statement = $pdo->prepare(
+                'UPDATE transactions SET
+                    qris_file_name = :qris_file_name,
+                    qris_file_type = :qris_file_type,
+                    qris_file_size = :qris_file_size,
+                    qris_file_path = :qris_file_path,
+                    qris_file_url = :qris_file_url,
+                    updated_at = :updated_at
+                 WHERE id = :id'
+            );
+            $statement->execute([
+                ':qris_file_name' => $qrisFile['name'],
+                ':qris_file_type' => $qrisFile['type'],
+                ':qris_file_size' => $qrisFile['size'],
+                ':qris_file_path' => $qrisFile['path'],
+                ':qris_file_url' => $qrisFile['url'],
+                ':updated_at' => jakartaNow(),
+                ':id' => $createdId,
+            ]);
+        }
+
+        respond(201, [
+            'success' => true,
+            'message' => 'Transaksi berhasil dibuat.',
+            'data' => [
+                'transaction' => rowToTransaction(findTransaction($pdo, $createdId) ?? []),
+            ],
+        ]);
+    }
+
+    if ($method === 'PUT' || $method === 'PATCH') {
+        if ($transactionId === null) {
+            throw new InvalidArgumentException('Parameter id wajib diisi untuk memperbarui transaksi.');
+        }
+
+        $existingRow = findTransaction($pdo, $transactionId);
+        if ($existingRow === null) {
+            respond(404, [
+                'success' => false,
+                'message' => 'Transaksi yang akan diperbarui tidak ditemukan.',
+            ]);
+        }
+
+        $incoming = readTransactionBody();
+        $transaction = transactionFromBody($incoming, $existingRow);
+        $errors = validateTransaction($transaction);
+        if ($errors !== []) {
+            respond(422, [
+                'success' => false,
+                'message' => 'Validasi transaksi gagal.',
+                'errors' => $errors,
+            ]);
+        }
+
+        $statement = $pdo->prepare(
+            'UPDATE transactions SET
+                user_id = :user_id,
+                user_name = :user_name,
+                email = :email,
+                item_type = :item_type,
+                item_id = :item_id,
+                item_title = :item_title,
+                amount = :amount,
+                currency = :currency,
+                payment_method = :payment_method,
+                payment_channel = :payment_channel,
+                payment_code = :payment_code,
+                recipient_name = :recipient_name,
+                invoice_number = :invoice_number,
+                reference_number = :reference_number,
+                status = :status,
+                paid_at = :paid_at,
+                due_at = :due_at,
+                notes = :notes,
+                payload_json = :payload_json,
+                updated_at = :updated_at
+             WHERE id = :id'
+        );
+
+        $statement->execute([
+            ':user_id' => $transaction['user_id'],
+            ':user_name' => $transaction['user_name'],
+            ':email' => $transaction['email'],
+            ':item_type' => $transaction['item_type'],
+            ':item_id' => $transaction['item_id'],
+            ':item_title' => $transaction['item_title'],
+            ':amount' => $transaction['amount'],
+            ':currency' => $transaction['currency'],
+            ':payment_method' => $transaction['payment_method'],
+            ':payment_channel' => $transaction['payment_channel'],
+            ':payment_code' => $transaction['payment_code'],
+            ':recipient_name' => $transaction['recipient_name'],
+            ':invoice_number' => $transaction['invoice_number'],
+            ':reference_number' => $transaction['reference_number'],
+            ':status' => $transaction['status'],
+            ':paid_at' => $transaction['paid_at'],
+            ':due_at' => $transaction['due_at'],
+            ':notes' => $transaction['notes'],
+            ':payload_json' => json_encode($transaction['payload'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+            ':updated_at' => jakartaNow(),
+            ':id' => $transactionId,
+        ]);
+
+        $qrisFile = storeQrisFile($transactionId, $projectRoot);
+        if ($qrisFile !== null) {
+            $statement = $pdo->prepare(
+                'UPDATE transactions SET
+                    qris_file_name = :qris_file_name,
+                    qris_file_type = :qris_file_type,
+                    qris_file_size = :qris_file_size,
+                    qris_file_path = :qris_file_path,
+                    qris_file_url = :qris_file_url,
+                    updated_at = :updated_at
+                 WHERE id = :id'
+            );
+            $statement->execute([
+                ':qris_file_name' => $qrisFile['name'],
+                ':qris_file_type' => $qrisFile['type'],
+                ':qris_file_size' => $qrisFile['size'],
+                ':qris_file_path' => $qrisFile['path'],
+                ':qris_file_url' => $qrisFile['url'],
+                ':updated_at' => jakartaNow(),
+                ':id' => $transactionId,
+            ]);
+        }
+
+        respond(200, [
+            'success' => true,
+            'message' => 'Transaksi berhasil diperbarui.',
+            'data' => [
+                'transaction' => rowToTransaction(findTransaction($pdo, $transactionId) ?? []),
+            ],
+        ]);
+    }
+
+    if ($method === 'DELETE') {
+        if ($transactionId === null) {
+            throw new InvalidArgumentException('Parameter id wajib diisi untuk menghapus transaksi.');
+        }
+
+        $existingRow = findTransaction($pdo, $transactionId);
+        if ($existingRow === null) {
+            respond(404, [
+                'success' => false,
+                'message' => 'Transaksi yang akan dihapus tidak ditemukan.',
+            ]);
+        }
+
+        $statement = $pdo->prepare('DELETE FROM transactions WHERE id = :id');
+        $statement->execute([':id' => $transactionId]);
+
+        respond(200, [
+            'success' => true,
+            'message' => 'Transaksi berhasil dihapus.',
+            'data' => [
+                'id' => $transactionId,
+                'invoiceNumber' => $existingRow['invoice_number'] ?? '',
+            ],
+        ]);
+    }
+} catch (JsonException $error) {
+    respond(400, [
+        'success' => false,
+        'message' => 'JSON tidak valid.',
+        'error' => $error->getMessage(),
+    ]);
+} catch (InvalidArgumentException $error) {
+    respond(400, [
+        'success' => false,
+        'message' => $error->getMessage(),
+    ]);
+} catch (PDOException $error) {
+    respond(500, [
+        'success' => false,
+        'message' => 'Gagal mengakses SQLite.',
+        'error' => $error->getMessage(),
+    ]);
+} catch (Throwable $error) {
+    respond(500, [
+        'success' => false,
+        'message' => 'Terjadi kesalahan pada server.',
+        'error' => $error->getMessage(),
+    ]);
+}

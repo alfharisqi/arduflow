@@ -23,6 +23,7 @@ const adminItems = [
       { label: 'Workshop / Program', href: '/admin/program', icon: clockIcon },
       { label: 'Lead / Kontak', href: '/admin/leads', icon: usersIcon },
       { label: 'Sertifikat', href: '/admin/certificates', icon: bookIcon },
+      { label: 'Transaksi', href: '/admin/transactions', icon: databaseIcon },
     ],
   },
   {
