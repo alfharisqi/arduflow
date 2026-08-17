@@ -1,8 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { EditorContent, useEditor, useEditorState } from '@tiptap/react';
-import Link from '@tiptap/extension-link';
-import Underline from '@tiptap/extension-underline';
-import StarterKit from '@tiptap/starter-kit';
 import '../../styles/admin-tutorial-create.css';
 import { TinyMCEEditor } from '../../components/TinyMCEEditor.jsx';
 import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
@@ -51,8 +47,8 @@ const initialFormData = {
 };
 
 const steps = [
-  ['1', 'Informasi Materi', 'Detail utama materi'],
-  ['2', 'Daftar Materi / Slide', 'Buat dan urutkan materi'],
+  ['1', 'Add Cover', 'Cover dan identitas tutorial'],
+  ['2', 'Add Halaman Materi', 'Buat dan urutkan materi'],
   ['3', 'Pengaturan', 'Status & lainnya'],
 ];
 
@@ -65,6 +61,16 @@ const contentTypeOptions = [
 
 const toContentLabel = (contentType) =>
   contentTypeOptions.find(([value]) => value === contentType)?.[1] || contentType;
+
+const htmlToPlainText = (html = '') =>
+  String(html)
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
 
 export function AdminTutorialCreate() {
   const [activeStep, setActiveStep] = useState(1);
@@ -92,139 +98,8 @@ export function AdminTutorialCreate() {
   const fullDescriptionRef = useRef(null);
   const cardImageSectionRef = useRef(null);
   const cardImageInputRef = useRef(null);
-  const slideImageInputRef = useRef(null);
   const slideVideoInputRef = useRef(null);
   const pageOrderRef = useRef(null);
-
-  const fullDescriptionEditor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: {
-          levels: [2, 3],
-        },
-      }),
-      Link.configure({
-        openOnClick: false,
-      }),
-      Underline,
-    ],
-    content: formData.fullDescription || '',
-    editorProps: {
-      attributes: {
-        class: 'admin-tutorial-tiptap-content',
-        'aria-label': 'Deskripsi lengkap materi',
-      },
-    },
-    onUpdate: ({ editor }) => {
-      const html = editor.isEmpty ? '' : editor.getHTML();
-
-      setFormData((previousData) => ({
-        ...previousData,
-        fullDescription: html,
-      }));
-
-      setErrors((previousErrors) => {
-        if (!previousErrors.fullDescription) {
-          return previousErrors;
-        }
-
-        const updatedErrors = { ...previousErrors };
-        delete updatedErrors.fullDescription;
-        return updatedErrors;
-      });
-
-      setSubmitMessage('');
-      setSubmitStatus('idle');
-    },
-  });
-
-  const fullDescriptionEditorState = useEditorState({
-    editor: fullDescriptionEditor,
-    selector: ({ editor }) => {
-      if (!editor) {
-        return {
-          isBold: false,
-          isItalic: false,
-          isUnderline: false,
-          isBulletList: false,
-          isOrderedList: false,
-          isBlockquote: false,
-          isCodeBlock: false,
-          isHeading2: false,
-          isHeading3: false,
-          canUndo: false,
-          canRedo: false,
-        };
-      }
-
-      return {
-        isBold: editor.isActive('bold'),
-        isItalic: editor.isActive('italic'),
-        isUnderline: editor.isActive('underline'),
-        isBulletList: editor.isActive('bulletList'),
-        isOrderedList: editor.isActive('orderedList'),
-        isBlockquote: editor.isActive('blockquote'),
-        isCodeBlock: editor.isActive('codeBlock'),
-        isHeading2: editor.isActive('heading', { level: 2 }),
-        isHeading3: editor.isActive('heading', { level: 3 }),
-        canUndo: editor.can().chain().focus().undo().run(),
-        canRedo: editor.can().chain().focus().redo().run(),
-      };
-    },
-  });
-
-  const setDescriptionFormat = (value) => {
-    if (!fullDescriptionEditor) return;
-
-    if (value === 'heading-2') {
-      fullDescriptionEditor.chain().focus().toggleHeading({ level: 2 }).run();
-      return;
-    }
-
-    if (value === 'heading-3') {
-      fullDescriptionEditor.chain().focus().toggleHeading({ level: 3 }).run();
-      return;
-    }
-
-    fullDescriptionEditor.chain().focus().setParagraph().run();
-  };
-
-  const setDescriptionLink = () => {
-    if (!fullDescriptionEditor) return;
-
-    const previousUrl =
-      fullDescriptionEditor.getAttributes('link').href || '';
-
-    const url = window.prompt(
-      'Masukkan URL link:',
-      previousUrl
-    );
-
-    if (url === null) return;
-
-    const normalizedUrl = url.trim();
-
-    if (!normalizedUrl) {
-      fullDescriptionEditor
-        .chain()
-        .focus()
-        .extendMarkRange('link')
-        .unsetLink()
-        .run();
-      return;
-    }
-
-    const href = /^(https?:\/\/|mailto:|tel:)/i.test(normalizedUrl)
-      ? normalizedUrl
-      : `https://${normalizedUrl}`;
-
-    fullDescriptionEditor
-      .chain()
-      .focus()
-      .extendMarkRange('link')
-      .setLink({ href })
-      .run();
-  };
 
   const selectedSlide =
     slides.find((slide) => slide.id === selectedSlideId) || slides[0] || null;
@@ -452,24 +327,6 @@ export function AdminTutorialCreate() {
     );
   };
 
-  const handleSlideImageChange = (event) => {
-    const selectedFile = event.target.files?.[0] || null;
-
-    if (!selectedFile || !editingSlideId) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      updateSlideField(
-        editingSlideId,
-        'imagePreview',
-        typeof reader.result === 'string' ? reader.result : ''
-      );
-      updateSlideField(editingSlideId, 'imageName', selectedFile.name);
-      updateSlideField(editingSlideId, 'imageFile', selectedFile);
-    };
-    reader.readAsDataURL(selectedFile);
-  };
-
   const handleSlideVideoChange = (event) => {
     const selectedFile = event.target.files?.[0] || null;
 
@@ -540,12 +397,7 @@ export function AdminTutorialCreate() {
     } else if (formData.shortDescription.length > 150) {
       validationErrors.shortDescription = 'Deskripsi singkat maksimal 150 karakter.';
     }
-    const fullDescriptionText =
-      fullDescriptionEditor?.getText().trim() ||
-      formData.fullDescription
-        .replace(/<[^>]*>/g, '')
-        .replace(/&nbsp;/g, ' ')
-        .trim();
+    const fullDescriptionText = htmlToPlainText(formData.fullDescription);
 
     if (!fullDescriptionText) {
       validationErrors.fullDescription = 'Kolom ini belum diisi.';
@@ -611,7 +463,9 @@ export function AdminTutorialCreate() {
       }
 
       if (firstInvalidField === 'fullDescription') {
-        fullDescriptionEditor?.chain().focus().run();
+        fullDescriptionRef.current
+          ?.querySelector('[contenteditable="true"]')
+          ?.focus();
         return;
       }
 
@@ -663,8 +517,7 @@ export function AdminTutorialCreate() {
       publish_schedule: formData.publishSchedule || null,
     },
     slides: slides.map((slide, index) => {
-      const usesText = ['text', 'text_image'].includes(slide.contentType);
-      const usesImage = ['image', 'text_image'].includes(slide.contentType);
+      const usesTextEditor = ['text', 'text_image', 'image'].includes(slide.contentType);
       const usesVideo = slide.contentType === 'video';
 
       return {
@@ -673,19 +526,9 @@ export function AdminTutorialCreate() {
         title: slide.title,
         content_type: slide.contentType,
         estimated_time: slide.estimatedTime,
-        body_text: usesText ? slide.bodyText || '' : '',
-        image:
-          usesImage && (slide.imagePreview || slide.imageFile)
-            ? {
-                file_name:
-                  slide.imageName || `slide-${index + 1}.png`,
-                file_type: slide.imageFile?.type || null,
-                file_size: slide.imageFile?.size || null,
-                upload_field: slide.imageFile
-                  ? `slide_image_${index}`
-                  : null,
-              }
-            : null,
+        body_text: usesTextEditor ? slide.bodyText || '' : '',
+        content: usesTextEditor ? slide.bodyText || '' : '',
+        image: null,
         video_url:
           usesVideo && slide.videoSourceType === 'url'
             ? slide.videoUrl?.trim() || null
@@ -751,17 +594,6 @@ export function AdminTutorialCreate() {
       }
 
       slides.forEach((slide, index) => {
-        if (
-          ['image', 'text_image'].includes(slide.contentType) &&
-          slide.imageFile
-        ) {
-          requestFormData.append(
-            `slide_image_${index}`,
-            slide.imageFile,
-            slide.imageFile.name
-          );
-        }
-
         if (
           slide.contentType === 'video' &&
           slide.videoSourceType === 'file' &&
@@ -915,259 +747,33 @@ export function AdminTutorialCreate() {
             {errors.shortDescription && <small className="admin-tutorial-error">{errors.shortDescription}</small>}
           </label>
 
-          <div
-            ref={fullDescriptionRef}
-            className="admin-tutorial-tiptap-field"
-          >
+          <div ref={fullDescriptionRef} className="admin-tutorial-rich-field">
             <span className="admin-tutorial-label">
               Deskripsi Lengkap
               <span className="admin-tutorial-required">*</span>
             </span>
+            <TinyMCEEditor
+              value={formData.fullDescription}
+              onChange={(value) => {
+                setFormData((previousData) => ({
+                  ...previousData,
+                  fullDescription: value,
+                }));
+                setErrors((previousErrors) => {
+                  if (!previousErrors.fullDescription) {
+                    return previousErrors;
+                  }
 
-            <div
-              className={`admin-tutorial-tiptap ${
-                errors.fullDescription ? 'is-error' : ''
-              }`}
-            >
-              <div
-                className="admin-tutorial-tiptap-toolbar"
-                role="toolbar"
-                aria-label="Toolbar deskripsi lengkap"
-              >
-                <select
-                  aria-label="Format paragraf"
-                  value={
-                    fullDescriptionEditorState?.isHeading2
-                      ? 'heading-2'
-                      : fullDescriptionEditorState?.isHeading3
-                        ? 'heading-3'
-                        : 'paragraph'
-                  }
-                  onChange={(event) =>
-                    setDescriptionFormat(event.target.value)
-                  }
-                  disabled={!fullDescriptionEditor}
-                >
-                  <option value="paragraph">Normal</option>
-                  <option value="heading-2">Heading 2</option>
-                  <option value="heading-3">Heading 3</option>
-                </select>
-
-                <span className="admin-tutorial-tiptap-divider" />
-
-                <button
-                  type="button"
-                  className={
-                    fullDescriptionEditorState?.isBold
-                      ? 'is-active'
-                      : ''
-                  }
-                  onClick={() =>
-                    fullDescriptionEditor
-                      ?.chain()
-                      .focus()
-                      .toggleBold()
-                      .run()
-                  }
-                  aria-label="Bold"
-                  title="Bold"
-                >
-                  <b>B</b>
-                </button>
-
-                <button
-                  type="button"
-                  className={
-                    fullDescriptionEditorState?.isItalic
-                      ? 'is-active'
-                      : ''
-                  }
-                  onClick={() =>
-                    fullDescriptionEditor
-                      ?.chain()
-                      .focus()
-                      .toggleItalic()
-                      .run()
-                  }
-                  aria-label="Italic"
-                  title="Italic"
-                >
-                  <i>I</i>
-                </button>
-
-                <button
-                  type="button"
-                  className={
-                    fullDescriptionEditorState?.isUnderline
-                      ? 'is-active'
-                      : ''
-                  }
-                  onClick={() =>
-                    fullDescriptionEditor
-                      ?.chain()
-                      .focus()
-                      .toggleUnderline()
-                      .run()
-                  }
-                  aria-label="Underline"
-                  title="Underline"
-                >
-                  <u>U</u>
-                </button>
-
-                <span className="admin-tutorial-tiptap-divider" />
-
-                <button
-                  type="button"
-                  className={
-                    fullDescriptionEditorState?.isBulletList
-                      ? 'is-active'
-                      : ''
-                  }
-                  onClick={() =>
-                    fullDescriptionEditor
-                      ?.chain()
-                      .focus()
-                      .toggleBulletList()
-                      .run()
-                  }
-                  aria-label="Bullet list"
-                  title="Bullet list"
-                >
-                  • List
-                </button>
-
-                <button
-                  type="button"
-                  className={
-                    fullDescriptionEditorState?.isOrderedList
-                      ? 'is-active'
-                      : ''
-                  }
-                  onClick={() =>
-                    fullDescriptionEditor
-                      ?.chain()
-                      .focus()
-                      .toggleOrderedList()
-                      .run()
-                  }
-                  aria-label="Numbered list"
-                  title="Numbered list"
-                >
-                  1. List
-                </button>
-
-                <button
-                  type="button"
-                  className={
-                    fullDescriptionEditorState?.isBlockquote
-                      ? 'is-active'
-                      : ''
-                  }
-                  onClick={() =>
-                    fullDescriptionEditor
-                      ?.chain()
-                      .focus()
-                      .toggleBlockquote()
-                      .run()
-                  }
-                  aria-label="Quote"
-                  title="Quote"
-                >
-                  “ ”
-                </button>
-
-                <button
-                  type="button"
-                  className={
-                    fullDescriptionEditorState?.isCodeBlock
-                      ? 'is-active'
-                      : ''
-                  }
-                  onClick={() =>
-                    fullDescriptionEditor
-                      ?.chain()
-                      .focus()
-                      .toggleCodeBlock()
-                      .run()
-                  }
-                  aria-label="Code block"
-                  title="Code block"
-                >
-                  &lt;/&gt;
-                </button>
-
-                <button
-                  type="button"
-                  className={
-                    fullDescriptionEditor?.isActive('link')
-                      ? 'is-active'
-                      : ''
-                  }
-                  onClick={setDescriptionLink}
-                  aria-label="Link"
-                  title="Tambahkan link"
-                >
-                  Link
-                </button>
-
-                <span className="admin-tutorial-tiptap-divider" />
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    fullDescriptionEditor
-                      ?.chain()
-                      .focus()
-                      .undo()
-                      .run()
-                  }
-                  disabled={
-                    !fullDescriptionEditorState?.canUndo
-                  }
-                  aria-label="Undo"
-                  title="Undo"
-                >
-                  ↶
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    fullDescriptionEditor
-                      ?.chain()
-                      .focus()
-                      .redo()
-                      .run()
-                  }
-                  disabled={
-                    !fullDescriptionEditorState?.canRedo
-                  }
-                  aria-label="Redo"
-                  title="Redo"
-                >
-                  ↷
-                </button>
-              </div>
-
-              <EditorContent
-                editor={fullDescriptionEditor}
-                className="admin-tutorial-tiptap-editor"
-              />
-            </div>
-
-            <div className="admin-tutorial-tiptap-footer">
-              <small>
-                Gunakan toolbar untuk mengatur heading, list,
-                quote, link, dan format teks.
-              </small>
-
-              <small>
-                {fullDescriptionEditor?.getText().length || 0}
-                {' '}karakter teks
-              </small>
-            </div>
-
+                  const updatedErrors = { ...previousErrors };
+                  delete updatedErrors.fullDescription;
+                  return updatedErrors;
+                });
+                setSubmitMessage('');
+                setSubmitStatus('idle');
+              }}
+              ariaLabel="Deskripsi lengkap materi"
+              height={360}
+            />
             {errors.fullDescription && (
               <small className="admin-tutorial-error">
                 {errors.fullDescription}
@@ -1309,7 +915,7 @@ export function AdminTutorialCreate() {
       <section className="admin-tutorial-create-step-heading">
         <div>
           <span>Langkah 2</span>
-          <h2>Daftar Materi / Slide</h2>
+          <h2>Add Halaman Materi</h2>
           <p>
             Tambahkan slide, atur urutan, lalu pilih tipe konten untuk setiap materi.
           </p>
@@ -1448,44 +1054,22 @@ export function AdminTutorialCreate() {
                 </label>
               </div>
 
-              {['text', 'text_image'].includes(editingSlide.contentType) && (
+              {['text', 'text_image', 'image'].includes(editingSlide.contentType) && (
                 <label className="admin-materials-editor-text">
-                  Teks Materi
-                  <textarea
+                  Isi Materi
+                  <TinyMCEEditor
                     value={editingSlide.bodyText}
-                    onChange={(event) =>
+                    onChange={(value) =>
                       updateSlideField(
                         editingSlide.id,
                         'bodyText',
-                        event.target.value
+                        value
                       )
                     }
-                    placeholder="Tulis isi materi yang akan ditampilkan pada slide ini..."
+                    ariaLabel={`Teks materi ${editingSlide.title}`}
+                    height={320}
                   />
                 </label>
-              )}
-
-              {['image', 'text_image'].includes(editingSlide.contentType) && (
-                <div className="admin-materials-editor-upload">
-                  <strong>Gambar Materi</strong>
-                  <button
-                    type="button"
-                    onClick={() => slideImageInputRef.current?.click()}
-                  >
-                    Pilih Gambar
-                  </button>
-                  <span>
-                    {editingSlide.imageName ||
-                      'Belum ada gambar khusus untuk slide ini'}
-                  </span>
-                  <input
-                    ref={slideImageInputRef}
-                    className="admin-tutorial-file-input"
-                    type="file"
-                    accept=".jpg,.jpeg,.png,.webp,.svg"
-                    onChange={handleSlideImageChange}
-                  />
-                </div>
               )}
 
               {editingSlide.contentType === 'video' && (
@@ -1528,7 +1112,7 @@ export function AdminTutorialCreate() {
                       />
                     </label>
                   ) : (
-                    <div className="admin-materials-editor-upload">
+                    <div className="admin-materials-editor-video-upload">
                       <strong>File Video</strong>
                       <button
                         type="button"
@@ -2407,10 +1991,10 @@ export function AdminTutorialCreate() {
             <h1>Tambah Materi</h1>
             <p>
               {activeStep === 2
-                ? 'Buat, urutkan, dan kelola slide materi dengan tipe konten yang sesuai.'
+                ? 'Buat, urutkan, dan kelola halaman materi dengan editor TipTap.'
                 : activeStep === 3
                   ? 'Atur bagaimana materi ditampilkan dan dipublikasikan di platform.'
-                  : 'Lengkapi informasi utama materi sebelum menyusun slide pembelajaran.'}
+                  : 'Lengkapi cover dan informasi utama sebelum menyusun halaman pembelajaran.'}
             </p>
           </div>
 
@@ -2759,6 +2343,16 @@ export function AdminTutorialEdit() {
     });
   };
 
+  const updateEditSlideField = (slideId, fieldName, value) => {
+    setSlides((previousSlides) =>
+      previousSlides.map((slide) =>
+        String(slide.id) === String(slideId)
+          ? { ...slide, [fieldName]: value }
+          : slide
+      )
+    );
+  };
+
   const createUpdatePayload = () => {
     return {
       title: formData.title.trim(),
@@ -2807,6 +2401,8 @@ export function AdminTutorialEdit() {
         content_type:
           slide.content_type || slide.contentType || 'text',
         content: slide.content ?? null,
+        estimated_time:
+          slide.estimated_time || slide.estimatedTime || formData.estimatedTime || null,
         image_name: slide.image_name ?? null,
         image_url: slide.image_url ?? null,
         video_url: slide.video_url ?? null,
@@ -2977,8 +2573,8 @@ export function AdminTutorialEdit() {
   const renderSteps = () => (
     <nav className="admin-tutorial-create-steps" aria-label="Tahapan edit materi">
       {[
-        ['1', 'Informasi Materi', 'Detail utama materi'],
-        ['2', 'Daftar Materi / Slide', 'Edit urutan materi'],
+        ['1', 'Add Cover', 'Cover dan identitas tutorial'],
+        ['2', 'Add Halaman Materi', 'Edit urutan materi'],
         ['3', 'Pengaturan', 'Status & akses'],
       ].map((step, index) => {
         const stepNumber = index + 1;
@@ -3147,6 +2743,100 @@ export function AdminTutorialEdit() {
               ))}
             </div>
           </section>
+
+          {selectedSlide && (
+            <section className="admin-materials-editor">
+              <div className="admin-materials-editor-head">
+                <div>
+                  <span>Editing Halaman</span>
+                  <h2>{selectedSlide.title || 'Halaman Materi'}</h2>
+                </div>
+              </div>
+
+              <div className="admin-materials-editor-grid">
+                <label>
+                  Judul Halaman
+                  <input
+                    value={selectedSlide.title || ''}
+                    onChange={(event) =>
+                      updateEditSlideField(
+                        selectedSlide.id,
+                        'title',
+                        event.target.value
+                      )
+                    }
+                  />
+                </label>
+                <label>
+                  Tipe Konten
+                  <select
+                    value={selectedSlide.content_type || selectedSlide.contentType || 'text'}
+                    onChange={(event) =>
+                      updateEditSlideField(
+                        selectedSlide.id,
+                        'content_type',
+                        event.target.value
+                      )
+                    }
+                  >
+                    {contentTypeOptions.map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Status
+                  <select
+                    value={normalizeStatus(selectedSlide.status)}
+                    onChange={(event) =>
+                      updateEditSlideField(
+                        selectedSlide.id,
+                        'status',
+                        event.target.value
+                      )
+                    }
+                  >
+                    <option>Draft</option>
+                    <option>Published</option>
+                    <option>Pending Review</option>
+                  </select>
+                </label>
+                <label>
+                  Estimasi
+                  <input
+                    value={selectedSlide.estimated_time || selectedSlide.estimatedTime || formData.estimatedTime || ''}
+                    onChange={(event) =>
+                      updateEditSlideField(
+                        selectedSlide.id,
+                        'estimated_time',
+                        event.target.value
+                      )
+                    }
+                  />
+                </label>
+              </div>
+
+              {['text', 'text_image', 'image'].includes(
+                selectedSlide.content_type || selectedSlide.contentType || 'text'
+              ) && (
+                <label className="admin-materials-editor-text">
+                  Isi Halaman Materi
+                  <TinyMCEEditor
+                    value={selectedSlide.content || selectedSlide.bodyText || ''}
+                    onChange={(value) =>
+                      updateEditSlideField(
+                        selectedSlide.id,
+                        'content',
+                        value
+                      )
+                    }
+                    ariaLabel={`Isi ${selectedSlide.title || 'halaman materi'}`}
+                    height={320}
+                  />
+                </label>
+              )}
+            </section>
+          )}
 
           <p className="admin-materials-tip">
             i Tips: Drag & drop pada ikon titik untuk mengubah urutan materi.
@@ -3570,7 +3260,7 @@ export function AdminTutorialEdit() {
             </label>
           </div>
 
-          <label>
+          <label className="admin-tutorial-rich-field">
             <span className="admin-tutorial-label">
               Deskripsi Singkat
               <span className="admin-tutorial-required">*</span>
@@ -3598,8 +3288,8 @@ export function AdminTutorialEdit() {
                   fullDescription: value,
                 }))
               }
-              height={420}
               ariaLabel="Deskripsi lengkap materi"
+              height={420}
             />
           </label>
 
@@ -3644,7 +3334,7 @@ export function AdminTutorialEdit() {
         <section className="admin-tutorial-create-card admin-tutorial-slides-card is-step-hidden">
           <div className="admin-tutorial-card-head">
             <div>
-              <h2>Daftar Materi / Slide</h2>
+            <h2>Add Halaman Materi</h2>
               <p>
                 Slide berikut diambil dari materi yang tersimpan di SQLite.
               </p>

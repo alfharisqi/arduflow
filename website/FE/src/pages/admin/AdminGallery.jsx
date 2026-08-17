@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
 import { WorkshopImageCropper } from '../../features/profile-image-crop/WorkshopImageCropper.jsx';
-import { TinyMCEEditor } from '../../components/TinyMCEEditor.jsx';
+import { GalleryRichTextEditor } from '../../components/GalleryRichTextEditor.jsx';
 import { AdminSidebar } from './AdminSidebar.jsx';
 import {
   getInitialAdminSidebarCollapsed,
@@ -217,19 +217,6 @@ function escapeHtmlAttribute(value) {
     .replaceAll('"', '&quot;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;');
-}
-
-function GalleryRichTextEditor({ value, onChange, hasError }) {
-  return (
-    <div className={`admin-gallery-upload-editor${hasError ? ' is-invalid' : ''}`}>
-      <TinyMCEEditor
-        value={value}
-        onChange={onChange}
-        height={360}
-        ariaLabel="Deskripsi kegiatan"
-      />
-    </div>
-  );
 }
 
 function AdminGalleryUploadForm({ onCancel, onSaved, mode = 'create', initialGallery = null }) {

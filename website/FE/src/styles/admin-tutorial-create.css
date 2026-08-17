@@ -11,257 +11,45 @@
 
 
 /* =========================================================
-   TIPTAP EDITOR
-   Dipakai oleh AdminTutorialCreate.jsx
+   RICH TEXT FIELD
+   Dipakai oleh AdminTutorialForm.jsx dengan TinyMCEEditor
    ========================================================= */
 
-/* =========================================================
-   Tiptap - Admin Tutorial Create
-   File: src/styles/admin-tutorial-tiptap.css
-   ========================================================= */
-
-.admin-tutorial-tiptap-field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 18px;
+.admin-tutorial-rich-field {
+  display: block;
+  margin-top: 18px;
 }
 
-.admin-tutorial-tiptap {
-  overflow: hidden;
-  border: 1px solid #d0d5dd;
-  border-radius: 10px;
-  background: #ffffff;
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
-.admin-tutorial-tiptap:focus-within {
-  border-color: #60a5fa;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
-}
-
-.admin-tutorial-tiptap.is-error {
-  border-color: #ef4444;
-}
-
-.admin-tutorial-tiptap.is-error:focus-within {
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
-}
-
-.admin-tutorial-tiptap-toolbar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 5px;
-  padding: 8px;
-  border-bottom: 1px solid #e4e7ec;
-  background: #f8fafc;
-}
-
-.admin-tutorial-tiptap-toolbar select {
-  width: auto;
-  min-width: 120px;
-  min-height: 34px;
-  padding: 0 28px 0 9px;
-  border: 1px solid #d0d5dd;
-  border-radius: 7px;
-  background-color: #ffffff;
-  color: #344054;
-  font-size: 12px;
-  font-weight: 600;
-  outline: none;
-}
-
-.admin-tutorial-tiptap-toolbar button {
-  min-width: 34px;
-  min-height: 34px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 5px 8px;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  background: transparent;
-  color: #475467;
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease,
-    color 0.15s ease;
-}
-
-.admin-tutorial-tiptap-toolbar button:hover:not(:disabled) {
-  border-color: #dbe4f0;
-  background: #ffffff;
-  color: #1d4ed8;
-}
-
-.admin-tutorial-tiptap-toolbar button.is-active {
-  border-color: #bfdbfe;
-  background: #eff6ff;
-  color: #1d4ed8;
-}
-
-.admin-tutorial-tiptap-toolbar button:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.admin-tutorial-tiptap-divider {
-  width: 1px;
-  height: 24px;
-  margin: 0 2px;
-  background: #d0d5dd;
-}
-
-.admin-tutorial-tiptap-editor {
-  min-height: 180px;
-}
-
-.admin-tutorial-tiptap-content {
-  min-height: 180px;
-  max-height: 480px;
-  overflow-y: auto;
-  padding: 14px 16px;
-  color: #101828;
+.admin-tutorial-rich-field > .admin-tutorial-label {
+  display: block;
+  margin-bottom: 10px;
+  color: #111827;
   font-size: 14px;
-  line-height: 1.7;
-  outline: none;
+  font-weight: 700;
 }
 
-.admin-tutorial-tiptap-content > *:first-child {
-  margin-top: 0;
+.admin-tutorial-rich-field b {
+  color: #ef4444;
 }
 
-.admin-tutorial-tiptap-content > *:last-child {
-  margin-bottom: 0;
+.admin-tutorial-rich-field em {
+  color: #64748b;
+  font-style: normal;
+  font-weight: 600;
 }
 
-.admin-tutorial-tiptap-content p {
-  margin: 0 0 10px;
+.admin-tutorial-rich-field .tox-tinymce {
+  border-color: #d8dde6;
+  border-radius: 6px;
 }
 
-.admin-tutorial-tiptap-content h2 {
-  margin: 18px 0 9px;
-  color: #101828;
-  font-size: 22px;
-  line-height: 1.3;
-}
-
-.admin-tutorial-tiptap-content h3 {
-  margin: 16px 0 8px;
-  color: #101828;
-  font-size: 18px;
-  line-height: 1.35;
-}
-
-.admin-tutorial-tiptap-content ul,
-.admin-tutorial-tiptap-content ol {
-  margin: 10px 0;
-  padding-left: 24px;
-}
-
-.admin-tutorial-tiptap-content li {
-  margin: 4px 0;
-}
-
-.admin-tutorial-tiptap-content blockquote {
-  margin: 12px 0;
-  padding: 10px 14px;
-  border-left: 3px solid #60a5fa;
-  border-radius: 0 7px 7px 0;
-  background: #f8fafc;
-  color: #475467;
-}
-
-.admin-tutorial-tiptap-content pre {
-  margin: 12px 0;
-  overflow-x: auto;
-  padding: 12px 14px;
-  border-radius: 8px;
-  background: #101828;
-  color: #f8fafc;
-  font-family:
-    ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    Monaco,
-    Consolas,
-    monospace;
-  font-size: 12px;
-}
-
-.admin-tutorial-tiptap-content code {
-  padding: 2px 4px;
-  border-radius: 4px;
-  background: #f2f4f7;
-  font-family:
-    ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    Monaco,
-    Consolas,
-    monospace;
-  font-size: 0.9em;
-}
-
-.admin-tutorial-tiptap-content pre code {
-  padding: 0;
-  background: transparent;
-  color: inherit;
-}
-
-.admin-tutorial-tiptap-content a {
-  color: #2563eb;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.admin-tutorial-tiptap-content p.is-editor-empty:first-child::before {
-  height: 0;
-  float: left;
-  color: #98a2b3;
-  content: 'Deskripsi lengkap materi...';
-  pointer-events: none;
-}
-
-.admin-tutorial-tiptap-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  color: #98a2b3;
-}
-
-.admin-tutorial-tiptap-footer small {
+.admin-tutorial-rich-field .admin-tutorial-error {
+  display: block;
+  margin: 7px 0 0;
+  color: #ef4444;
   font-size: 11px;
+  font-weight: 600;
 }
-
-@media (max-width: 700px) {
-  .admin-tutorial-tiptap-toolbar {
-    align-items: stretch;
-  }
-
-  .admin-tutorial-tiptap-toolbar select {
-    width: 100%;
-  }
-
-  .admin-tutorial-tiptap-divider {
-    display: none;
-  }
-
-  .admin-tutorial-tiptap-footer {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-}
-
-
 /* =========================================================
    ADMIN TUTORIAL EDIT
    Dipakai oleh AdminTutorialEdit.jsx
@@ -2670,7 +2458,8 @@
   min-height: 155px !important;
 }
 
-.admin-tutorial-create-polished .admin-materials-editor-upload {
+.admin-tutorial-create-polished .admin-materials-editor-upload,
+.admin-tutorial-create-polished .admin-materials-editor-video-upload {
   display: grid !important;
   grid-template-columns: auto auto minmax(0, 1fr);
   align-items: center;
@@ -2682,12 +2471,14 @@
   background: #f8fafc !important;
 }
 
-.admin-tutorial-create-polished .admin-materials-editor-upload strong {
+.admin-tutorial-create-polished .admin-materials-editor-upload strong,
+.admin-tutorial-create-polished .admin-materials-editor-video-upload strong {
   color: #344054;
   font-size: 10px;
 }
 
-.admin-tutorial-create-polished .admin-materials-editor-upload button {
+.admin-tutorial-create-polished .admin-materials-editor-upload button,
+.admin-tutorial-create-polished .admin-materials-editor-video-upload button {
   min-height: 32px;
   padding: 5px 9px;
   border: 1px solid #bfdbfe;
@@ -2698,7 +2489,8 @@
   font-weight: 700;
 }
 
-.admin-tutorial-create-polished .admin-materials-editor-upload > span {
+.admin-tutorial-create-polished .admin-materials-editor-upload > span,
+.admin-tutorial-create-polished .admin-materials-editor-video-upload > span {
   min-width: 0;
   overflow: hidden;
   color: #667085;
@@ -3044,19 +2836,6 @@
 }
 
 /* Tiptap menyesuaikan card */
-.admin-tutorial-create-polished .admin-tutorial-tiptap-field {
-  margin: 4px 0 16px;
-}
-
-.admin-tutorial-create-polished .admin-tutorial-tiptap {
-  border-radius: 9px;
-}
-
-.admin-tutorial-create-polished .admin-tutorial-tiptap-content {
-  min-height: 170px;
-  font-size: 12px;
-}
-
 /* Debug */
 .admin-tutorial-create-polished .admin-tutorial-debug {
   margin-top: 16px;
@@ -4040,9 +3819,7 @@
 }
 
 .admin-tutorial-create-polished .tox-tinymce,
-.admin-tutorial-edit-page .tox-tinymce,
-.admin-tutorial-create-polished .admin-tutorial-tiptap,
-.admin-tutorial-edit-page .admin-tutorial-tiptap {
+.admin-tutorial-edit-page .tox-tinymce {
   width: 100%;
   min-width: 0;
 }
