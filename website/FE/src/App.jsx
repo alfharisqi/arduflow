@@ -80,8 +80,8 @@ const AdminLeads = lazyNamed(() => import('./pages/admin/AdminLeads.jsx'), 'Admi
 const AdminCertificates = lazyNamed(() => import('./pages/admin/AdminCertificates.jsx'), 'AdminCertificates');
 const AdminTransactions = lazyNamed(() => import('./pages/admin/AdminTransactions.jsx'), 'AdminTransactions');
 const AdminTutorial = lazyNamed(() => import('./pages/admin/AdminTutorial.jsx'), 'AdminTutorial');
-const AdminTutorialCreate = lazyNamed(() => import('./pages/admin/AdminTutorialCreate.jsx'), 'AdminTutorialCreate');
-const AdminTutorialEdit = lazyNamed(() => import('./pages/admin/AdminTutorialEdit.jsx'), 'AdminTutorialEdit');
+const AdminTutorialCreate = lazyNamed(() => import('./pages/admin/AdminTutorialForm.jsx'), 'AdminTutorialCreate');
+const AdminTutorialEdit = lazyNamed(() => import('./pages/admin/AdminTutorialForm.jsx'), 'AdminTutorialEdit');
 const AdminProjects = lazyNamed(() => import('./pages/admin/AdminProjects.jsx'), 'AdminProjects');
 const AdminGallery = lazyNamed(() => import('./pages/admin/AdminGallery.jsx'), 'AdminGallery');
 const AdminPartners = lazyNamed(() => import('./pages/admin/AdminPartners.jsx'), 'AdminPartners');
