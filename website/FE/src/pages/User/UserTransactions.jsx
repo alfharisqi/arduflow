@@ -104,16 +104,29 @@ function formatDate(value) {
 
 function statusLabel(status) {
   const labels = {
-    pending: 'Menunggu',
-    proof_uploaded: 'Menunggu Review',
-    paid: 'Lunas',
-    rejected: 'Ditolak',
+    pending: 'Menunggu Pembayaran',
+    proof_uploaded: 'Bukti Terkirim, Menunggu Review Admin',
+    paid: 'Lunas, Akses Workshop Aktif',
+    rejected: 'Ditolak, Upload Bukti Baru',
     failed: 'Gagal',
     cancelled: 'Dibatalkan',
     refunded: 'Refund',
     expired: 'Kedaluwarsa',
   };
   return labels[status] || status || '-';
+}
+
+function canUploadProof(status) {
+  return ['pending', 'rejected'].includes(status);
+}
+
+function paymentMethodLabel(transaction) {
+  return [transaction.paymentMethod, transaction.paymentChannel].filter(Boolean).join(' / ') || '-';
+}
+
+function transactionTime(transaction) {
+  const date = new Date(transaction.createdAt || transaction.paidAt || 0);
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
 }
 
 export function UserTransactions() {
@@ -200,9 +213,24 @@ export function UserTransactions() {
       if (user.id || user.userId) params.userId = user.id || user.userId;
       if (user.email) params.email = user.email;
       setTransactions(await fetchTransactions(params));
-      setMessage('Bukti pembayaran berhasil diupload. Menunggu review admin.');
+      setMessage('Bukti pembayaran berhasil dikirim. Admin akan memverifikasi pembayaran. Workshop aktif setelah disetujui.');
     } catch (uploadError) {
       setMessage(uploadError.message || 'Bukti pembayaran gagal diupload.');
+    }
+  }
+
+  async function copyPaymentCode(transaction) {
+    const code = transaction.paymentCode || '';
+    if (!code) {
+      setMessage('Nomor rekening atau kode pembayaran belum tersedia.');
+      return;
+    }
+
+    try {
+      await navigator.clipboard?.writeText(code);
+      setMessage('Nomor rekening / kode pembayaran berhasil disalin.');
+    } catch {
+      setMessage('Gagal menyalin nomor rekening. Silakan salin manual dari detail pembayaran.');
     }
   }
 
@@ -215,6 +243,13 @@ export function UserTransactions() {
         .some((value) => String(value).toLowerCase().includes(query))
     );
   }, [transactions, searchTerm]);
+
+  const actionTransactions = useMemo(
+    () => [...transactions]
+      .filter((transaction) => canUploadProof(transaction.status))
+      .sort((left, right) => transactionTime(right) - transactionTime(left)),
+    [transactions]
+  );
 
   function handleLogout() {
     window.localStorage.removeItem('arduflow_user');
@@ -287,6 +322,117 @@ export function UserTransactions() {
             <span aria-hidden="true">&#128075;&#127995;</span>
           </div>
 
+          <section className="user-payment-instructions" aria-labelledby="payment-instructions-title">
+            <div className="user-payment-instructions__head">
+              <div>
+                <h2 id="payment-instructions-title">Butuh Aksi Kamu</h2>
+                <p>Selesaikan pembayaran dan upload bukti agar akses workshop bisa diaktifkan.</p>
+              </div>
+            </div>
+
+            {isLoading ? (
+              <p className="user-payment-empty">Memuat instruksi pembayaran...</p>
+            ) : error ? (
+              <p className="user-payment-empty">{error}</p>
+            ) : actionTransactions.length === 0 ? (
+              <p className="user-payment-empty">Tidak ada transaksi yang perlu dibayar saat ini.</p>
+            ) : (
+              <div className="user-payment-card-list">
+                {actionTransactions.map((transaction, index) => (
+                  <article className="user-payment-card" key={transaction.id}>
+                    <header className="user-payment-card__header">
+                      <div>
+                        <span>{index === 0 ? 'Transaksi Terbaru' : 'Menunggu Pembayaran'}</span>
+                        <h3>{transaction.itemTitle || 'Pembayaran Arduflow'}</h3>
+                      </div>
+                      <b className={`user-transactions-pill user-transactions-pill--${transaction.status}`}>
+                        {statusLabel(transaction.status)}
+                      </b>
+                    </header>
+
+                    {transaction.rejectionReason ? (
+                      <p className="user-payment-rejection">{transaction.rejectionReason}</p>
+                    ) : null}
+
+                    <dl className="user-payment-details">
+                      <div>
+                        <dt>Invoice</dt>
+                        <dd>{transaction.invoiceNumber || '-'}</dd>
+                      </div>
+                      <div>
+                        <dt>Total Bayar</dt>
+                        <dd>{formatCurrency(transaction.amount, transaction.currency)}</dd>
+                      </div>
+                      <div>
+                        <dt>Batas Pembayaran</dt>
+                        <dd>{formatDate(transaction.dueAt)}</dd>
+                      </div>
+                      <div>
+                        <dt>Metode Pembayaran</dt>
+                        <dd>{paymentMethodLabel(transaction)}</dd>
+                      </div>
+                      <div>
+                        <dt>Nama Penerima</dt>
+                        <dd>{transaction.recipientName || '-'}</dd>
+                      </div>
+                      <div>
+                        <dt>Nomor Rekening / Kode</dt>
+                        <dd>{transaction.paymentCode || '-'}</dd>
+                      </div>
+                    </dl>
+
+                    <div className="user-payment-actions">
+                      <button type="button" onClick={() => copyPaymentCode(transaction)} disabled={!transaction.paymentCode}>
+                        Salin Nomor Rekening
+                      </button>
+                      <button
+                        type="button"
+                        className="user-transactions-payment-toggle"
+                        onClick={() => setOpenPaymentFormId((value) => (value === transaction.id ? null : transaction.id))}
+                        aria-expanded={openPaymentFormId === transaction.id}
+                      >
+                        {openPaymentFormId === transaction.id ? 'Tutup Upload' : 'Upload Bukti Pembayaran'}
+                      </button>
+                    </div>
+
+                    <div className="user-payment-body">
+                      {transaction.qrisFile?.url ? (
+                        <figure className="user-payment-qris">
+                          <img src={transaction.qrisFile.url} alt={`QRIS pembayaran ${transaction.invoiceNumber || transaction.itemTitle || ''}`} />
+                          <figcaption>Scan QRIS ini, lalu upload bukti pembayaran.</figcaption>
+                        </figure>
+                      ) : null}
+
+                      {openPaymentFormId === transaction.id ? (
+                        <form className="user-transactions-payment user-transactions-payment--card" onSubmit={(event) => handleUploadProof(event, transaction)}>
+                          <label>
+                            <span>No. referensi pembayaran</span>
+                            <input
+                              value={paymentForms[transaction.id]?.referenceNumber ?? transaction.referenceNumber ?? ''}
+                              onChange={(event) => updatePaymentForm(transaction.id, 'referenceNumber', event.target.value)}
+                              placeholder="Contoh: nomor mutasi / referensi transfer"
+                            />
+                          </label>
+                          <label>
+                            <span>File bukti pembayaran</span>
+                            <input
+                              type="file"
+                              accept="image/png,image/jpeg,image/webp,application/pdf"
+                              onChange={(event) => updatePaymentForm(transaction.id, 'proofFile', event.target.files?.[0] || null)}
+                            />
+                          </label>
+                          <button type="submit">Kirim Bukti Pembayaran</button>
+                        </form>
+                      ) : null}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+
+            {message ? <p className="user-transactions-message user-transactions-message--instructions">{message}</p> : null}
+          </section>
+
           <section className="user-transactions-panel" aria-labelledby="transactions-title">
             <div className="user-transactions-header">
               <div>
@@ -327,10 +473,10 @@ export function UserTransactions() {
                     <span>{transaction.itemTitle || '-'}</span>
                     <span>{formatCurrency(transaction.amount, transaction.currency)}</span>
                     <span>
-                      {[transaction.paymentMethod, transaction.paymentChannel].filter(Boolean).join(' / ') || '-'}
+                      {paymentMethodLabel(transaction)}
                       {transaction.recipientName ? <small>Penerima: {transaction.recipientName}</small> : null}
                       {transaction.paymentCode ? <small>Kode: {transaction.paymentCode}</small> : null}
-                      {transaction.qrisFile?.url ? <a className="user-transactions-qris" href={transaction.qrisFile.url} target="_blank" rel="noreferrer">Lihat QRIS</a> : null}
+                      {transaction.qrisFile?.url ? <small>QRIS tersedia di instruksi pembayaran.</small> : null}
                     </span>
                     <time>{formatDate(transaction.paidAt || transaction.createdAt)}</time>
                     <span>
@@ -341,10 +487,10 @@ export function UserTransactions() {
                     </span>
                     <span className="user-transactions-payment-cell">
                       {transaction.status === 'paid' ? (
-                        <strong>Produk aktif</strong>
+                        <strong>Akses aktif</strong>
                       ) : transaction.status === 'proof_uploaded' ? (
-                        <strong>Bukti terkirim</strong>
-                      ) : (
+                        <strong>Menunggu review</strong>
+                      ) : canUploadProof(transaction.status) ? (
                         <>
                           <button
                             className="user-transactions-payment-toggle"
@@ -370,13 +516,14 @@ export function UserTransactions() {
                             </form>
                           ) : null}
                         </>
+                      ) : (
+                        <strong>Tidak dapat upload</strong>
                       )}
                     </span>
                   </div>
                 ))
               )}
             </div>
-            {message ? <p className="user-transactions-message">{message}</p> : null}
           </section>
         </main>
       </section>
