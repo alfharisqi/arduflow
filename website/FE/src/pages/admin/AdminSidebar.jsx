@@ -8,6 +8,7 @@ import bookIcon from '../../assets/icons/icon-book-1.svg';
 import mailIcon from '../../assets/icons/icon-mail-1.svg';
 import cpuIcon from '../../assets/icons/icon-cpu-1.svg';
 import databaseIcon from '../../assets/icons/icons-database-1.svg';
+import dollarIcon from '../../assets/icons/icon-dollar-1.svg';
 import settingsIcon from '../../assets/icons/icon-settings-1.svg';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import collapseIcon from '../../assets/icons/icon-arrowdown-1.svg';
@@ -23,7 +24,7 @@ const adminItems = [
       { label: 'Workshop / Program', href: '/admin/program', icon: clockIcon },
       { label: 'Lead / Kontak', href: '/admin/leads', icon: usersIcon },
       { label: 'Sertifikat', href: '/admin/certificates', icon: bookIcon },
-      { label: 'Transaksi', href: '/admin/transactions', icon: databaseIcon },
+      { label: 'Transaksi', href: '/admin/transactions', icon: dollarIcon },
     ],
   },
   {

@@ -30,8 +30,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
 
 $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
 
-if ($method === 'POST' && isset($_POST['_method'])) {
-    $methodOverride = strtoupper((string) $_POST['_method']);
+if ($method === 'POST' && (isset($_POST['_method']) || isset($_GET['_method']))) {
+    $methodOverride = strtoupper((string) ($_POST['_method'] ?? $_GET['_method']));
     if (in_array($methodOverride, ['PUT', 'PATCH', 'DELETE'], true)) {
         $method = $methodOverride;
     }
@@ -175,6 +175,36 @@ function ensureTransactionTables(PDO $pdo): void
     $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_user_entitlements_transaction ON user_entitlements(transaction_id)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_user_entitlements_user_id ON user_entitlements(user_id)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_user_entitlements_email ON user_entitlements(email)');
+
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS payment_methods (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            method_type TEXT NOT NULL DEFAULT "Transfer Bank",
+            channel TEXT,
+            recipient_name TEXT,
+            payment_code TEXT,
+            qris_file_name TEXT,
+            qris_file_type TEXT,
+            qris_file_size INTEGER,
+            qris_file_path TEXT,
+            qris_file_url TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )'
+    );
+    addColumnIfMissing($pdo, 'payment_methods', 'method_type', 'TEXT NOT NULL DEFAULT "Transfer Bank"');
+    addColumnIfMissing($pdo, 'payment_methods', 'channel', 'TEXT');
+    addColumnIfMissing($pdo, 'payment_methods', 'recipient_name', 'TEXT');
+    addColumnIfMissing($pdo, 'payment_methods', 'payment_code', 'TEXT');
+    addColumnIfMissing($pdo, 'payment_methods', 'qris_file_name', 'TEXT');
+    addColumnIfMissing($pdo, 'payment_methods', 'qris_file_type', 'TEXT');
+    addColumnIfMissing($pdo, 'payment_methods', 'qris_file_size', 'INTEGER');
+    addColumnIfMissing($pdo, 'payment_methods', 'qris_file_path', 'TEXT');
+    addColumnIfMissing($pdo, 'payment_methods', 'qris_file_url', 'TEXT');
+    addColumnIfMissing($pdo, 'payment_methods', 'is_active', 'INTEGER NOT NULL DEFAULT 1');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_payment_methods_active ON payment_methods(is_active)');
 }
 
 function addColumnIfMissing(PDO $pdo, string $table, string $column, string $definition): void
@@ -335,6 +365,52 @@ function storeQrisFile(int $transactionId, string $projectRoot): ?array
     ];
 }
 
+function storePaymentMethodFile(int $paymentMethodId, string $projectRoot): ?array
+{
+    $file = $_FILES['image'] ?? $_FILES['qris'] ?? $_FILES['qrisFile'] ?? null;
+    if (!is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        throw new InvalidArgumentException('Upload gambar metode pembayaran gagal.');
+    }
+
+    $size = (int) ($file['size'] ?? 0);
+    if ($size <= 0 || $size > 5 * 1024 * 1024) {
+        throw new InvalidArgumentException('Ukuran gambar metode pembayaran maksimal 5 MB.');
+    }
+
+    $tmpName = (string) ($file['tmp_name'] ?? '');
+    $mimeType = function_exists('mime_content_type') ? (string) mime_content_type($tmpName) : (string) ($file['type'] ?? '');
+    $extensions = [
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/webp' => 'webp',
+    ];
+    if (!isset($extensions[$mimeType])) {
+        throw new InvalidArgumentException('Gambar metode pembayaran harus berupa JPG, PNG, atau WEBP.');
+    }
+
+    $storedName = 'method-' . $paymentMethodId . '-' . bin2hex(random_bytes(6)) . '.' . $extensions[$mimeType];
+    $uploadDirectory = $projectRoot . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'payment-methods';
+    if (!is_dir($uploadDirectory) && !mkdir($uploadDirectory, 0775, true) && !is_dir($uploadDirectory)) {
+        throw new RuntimeException('Folder upload metode pembayaran gagal dibuat.');
+    }
+
+    $destination = $uploadDirectory . DIRECTORY_SEPARATOR . $storedName;
+    if (!move_uploaded_file($tmpName, $destination)) {
+        throw new RuntimeException('Gambar metode pembayaran gagal disimpan.');
+    }
+
+    return [
+        'name' => basename((string) ($file['name'] ?? $storedName)),
+        'type' => $mimeType,
+        'size' => $size,
+        'path' => 'uploads/payment-methods/' . $storedName,
+        'url' => '/uploads/payment-methods/' . rawurlencode($storedName),
+    ];
+}
+
 function storePaymentProof(int $transactionId, string $projectRoot): array
 {
     $file = $_FILES['proof'] ?? $_FILES['paymentProof'] ?? null;
@@ -421,6 +497,82 @@ function findTransaction(PDO $pdo, int $id): ?array
     return is_array($row) ? $row : null;
 }
 
+function findPaymentMethod(PDO $pdo, int $id): ?array
+{
+    $statement = $pdo->prepare('SELECT * FROM payment_methods WHERE id = :id LIMIT 1');
+    $statement->execute([':id' => $id]);
+    $row = $statement->fetch(PDO::FETCH_ASSOC);
+    return is_array($row) ? $row : null;
+}
+
+function rowToPaymentMethod(array $row): array
+{
+    return [
+        'id' => (int) $row['id'],
+        'name' => $row['name'] ?? '',
+        'methodType' => $row['method_type'] ?? 'Transfer Bank',
+        'channel' => $row['channel'] ?? '',
+        'recipientName' => $row['recipient_name'] ?? '',
+        'paymentCode' => $row['payment_code'] ?? '',
+        'image' => [
+            'name' => $row['qris_file_name'] ?? null,
+            'type' => $row['qris_file_type'] ?? null,
+            'size' => isset($row['qris_file_size']) ? (int) $row['qris_file_size'] : null,
+            'path' => $row['qris_file_path'] ?? null,
+            'url' => $row['qris_file_url'] ?? null,
+        ],
+        'isActive' => (int) ($row['is_active'] ?? 1) === 1,
+        'createdAt' => $row['created_at'] ?? '',
+        'updatedAt' => $row['updated_at'] ?? '',
+    ];
+}
+
+function readPaymentMethodBody(): array
+{
+    $contentType = strtolower((string) ($_SERVER['CONTENT_TYPE'] ?? ''));
+    if (str_contains($contentType, 'multipart/form-data')) {
+        $payload = trim((string) ($_POST['payload'] ?? $_POST['data'] ?? ''));
+        if ($payload === '') {
+            return $_POST;
+        }
+
+        $data = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
+        if (!is_array($data)) {
+            throw new InvalidArgumentException('Struktur payload metode pembayaran harus berupa object.');
+        }
+
+        return isset($data['data']) && is_array($data['data']) ? $data['data'] : $data;
+    }
+
+    return readJsonBody();
+}
+
+function paymentMethodFromBody(array $data, ?array $existing = null): array
+{
+    $activeValue = $data['isActive'] ?? $data['is_active'] ?? $existing['is_active'] ?? 1;
+
+    return [
+        'name' => trim((string) ($data['name'] ?? $existing['name'] ?? '')),
+        'method_type' => trim((string) ($data['methodType'] ?? $data['method_type'] ?? $existing['method_type'] ?? 'Transfer Bank')) ?: 'Transfer Bank',
+        'channel' => trim((string) ($data['channel'] ?? $existing['channel'] ?? '')),
+        'recipient_name' => trim((string) ($data['recipientName'] ?? $data['recipient_name'] ?? $existing['recipient_name'] ?? '')),
+        'payment_code' => trim((string) ($data['paymentCode'] ?? $data['payment_code'] ?? $existing['payment_code'] ?? '')),
+        'is_active' => filter_var($activeValue, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) === false ? 0 : 1,
+    ];
+}
+
+function validatePaymentMethod(array $paymentMethod): array
+{
+    $errors = [];
+    if ($paymentMethod['name'] === '') {
+        $errors['name'] = 'Nama metode pembayaran wajib diisi.';
+    }
+    if ($paymentMethod['payment_code'] === '') {
+        $errors['paymentCode'] = 'Nomor pembayaran / detail wajib diisi.';
+    }
+    return $errors;
+}
+
 function transactionFromBody(array $data, ?array $existing = null): array
 {
     $userId = $data['userId'] ?? $data['user_id'] ?? $existing['user_id'] ?? null;
@@ -493,6 +645,215 @@ try {
 
     $transactionId = getTransactionId();
     $action = strtolower(trim((string) ($_GET['action'] ?? '')));
+
+    if ($action === 'payment-methods') {
+        if ($method === 'GET') {
+            if ($transactionId !== null) {
+                $row = findPaymentMethod($pdo, $transactionId);
+                if ($row === null) {
+                    respond(404, [
+                        'success' => false,
+                        'message' => 'Metode pembayaran tidak ditemukan.',
+                    ]);
+                }
+
+                respond(200, [
+                    'success' => true,
+                    'data' => [
+                        'paymentMethod' => rowToPaymentMethod($row),
+                    ],
+                ]);
+            }
+
+            $onlyActive = isset($_GET['active']) && $_GET['active'] !== '';
+            $sql = 'SELECT * FROM payment_methods';
+            if ($onlyActive) {
+                $sql .= ' WHERE is_active = :is_active';
+            }
+            $sql .= ' ORDER BY id DESC';
+
+            $statement = $pdo->prepare($sql);
+            if ($onlyActive) {
+                $statement->bindValue(':is_active', filter_var($_GET['active'], FILTER_VALIDATE_BOOL) ? 1 : 0, PDO::PARAM_INT);
+            }
+            $statement->execute();
+
+            respond(200, [
+                'success' => true,
+                'message' => 'Data metode pembayaran berhasil diambil.',
+                'data' => [
+                    'paymentMethods' => array_map('rowToPaymentMethod', $statement->fetchAll()),
+                ],
+            ]);
+        }
+
+        if ($method === 'POST') {
+            $incoming = readPaymentMethodBody();
+            $paymentMethod = paymentMethodFromBody($incoming);
+            $errors = validatePaymentMethod($paymentMethod);
+            if ($errors !== []) {
+                respond(422, [
+                    'success' => false,
+                    'message' => 'Validasi metode pembayaran gagal.',
+                    'errors' => $errors,
+                ]);
+            }
+
+            $now = jakartaNow();
+            $statement = $pdo->prepare(
+                'INSERT INTO payment_methods (
+                    name, method_type, channel, recipient_name, payment_code, is_active, created_at, updated_at
+                ) VALUES (
+                    :name, :method_type, :channel, :recipient_name, :payment_code, :is_active, :created_at, :updated_at
+                )'
+            );
+            $statement->execute([
+                ':name' => $paymentMethod['name'],
+                ':method_type' => $paymentMethod['method_type'],
+                ':channel' => $paymentMethod['channel'],
+                ':recipient_name' => $paymentMethod['recipient_name'],
+                ':payment_code' => $paymentMethod['payment_code'],
+                ':is_active' => $paymentMethod['is_active'],
+                ':created_at' => $now,
+                ':updated_at' => $now,
+            ]);
+
+            $createdId = (int) $pdo->lastInsertId();
+            $image = storePaymentMethodFile($createdId, $projectRoot);
+            if ($image !== null) {
+                $statement = $pdo->prepare(
+                    'UPDATE payment_methods SET
+                        qris_file_name = :qris_file_name,
+                        qris_file_type = :qris_file_type,
+                        qris_file_size = :qris_file_size,
+                        qris_file_path = :qris_file_path,
+                        qris_file_url = :qris_file_url,
+                        updated_at = :updated_at
+                     WHERE id = :id'
+                );
+                $statement->execute([
+                    ':qris_file_name' => $image['name'],
+                    ':qris_file_type' => $image['type'],
+                    ':qris_file_size' => $image['size'],
+                    ':qris_file_path' => $image['path'],
+                    ':qris_file_url' => $image['url'],
+                    ':updated_at' => jakartaNow(),
+                    ':id' => $createdId,
+                ]);
+            }
+
+            respond(201, [
+                'success' => true,
+                'message' => 'Metode pembayaran berhasil dibuat.',
+                'data' => [
+                    'paymentMethod' => rowToPaymentMethod(findPaymentMethod($pdo, $createdId) ?? []),
+                ],
+            ]);
+        }
+
+        if ($method === 'PUT' || $method === 'PATCH') {
+            if ($transactionId === null) {
+                throw new InvalidArgumentException('Parameter id wajib diisi untuk memperbarui metode pembayaran.');
+            }
+
+            $existingRow = findPaymentMethod($pdo, $transactionId);
+            if ($existingRow === null) {
+                respond(404, [
+                    'success' => false,
+                    'message' => 'Metode pembayaran yang akan diperbarui tidak ditemukan.',
+                ]);
+            }
+
+            $incoming = readPaymentMethodBody();
+            $paymentMethod = paymentMethodFromBody($incoming, $existingRow);
+            $errors = validatePaymentMethod($paymentMethod);
+            if ($errors !== []) {
+                respond(422, [
+                    'success' => false,
+                    'message' => 'Validasi metode pembayaran gagal.',
+                    'errors' => $errors,
+                ]);
+            }
+
+            $statement = $pdo->prepare(
+                'UPDATE payment_methods SET
+                    name = :name,
+                    method_type = :method_type,
+                    channel = :channel,
+                    recipient_name = :recipient_name,
+                    payment_code = :payment_code,
+                    is_active = :is_active,
+                    updated_at = :updated_at
+                 WHERE id = :id'
+            );
+            $statement->execute([
+                ':name' => $paymentMethod['name'],
+                ':method_type' => $paymentMethod['method_type'],
+                ':channel' => $paymentMethod['channel'],
+                ':recipient_name' => $paymentMethod['recipient_name'],
+                ':payment_code' => $paymentMethod['payment_code'],
+                ':is_active' => $paymentMethod['is_active'],
+                ':updated_at' => jakartaNow(),
+                ':id' => $transactionId,
+            ]);
+
+            $image = storePaymentMethodFile($transactionId, $projectRoot);
+            if ($image !== null) {
+                $statement = $pdo->prepare(
+                    'UPDATE payment_methods SET
+                        qris_file_name = :qris_file_name,
+                        qris_file_type = :qris_file_type,
+                        qris_file_size = :qris_file_size,
+                        qris_file_path = :qris_file_path,
+                        qris_file_url = :qris_file_url,
+                        updated_at = :updated_at
+                     WHERE id = :id'
+                );
+                $statement->execute([
+                    ':qris_file_name' => $image['name'],
+                    ':qris_file_type' => $image['type'],
+                    ':qris_file_size' => $image['size'],
+                    ':qris_file_path' => $image['path'],
+                    ':qris_file_url' => $image['url'],
+                    ':updated_at' => jakartaNow(),
+                    ':id' => $transactionId,
+                ]);
+            }
+
+            respond(200, [
+                'success' => true,
+                'message' => 'Metode pembayaran berhasil diperbarui.',
+                'data' => [
+                    'paymentMethod' => rowToPaymentMethod(findPaymentMethod($pdo, $transactionId) ?? []),
+                ],
+            ]);
+        }
+
+        if ($method === 'DELETE') {
+            if ($transactionId === null) {
+                throw new InvalidArgumentException('Parameter id wajib diisi untuk menghapus metode pembayaran.');
+            }
+
+            $existingRow = findPaymentMethod($pdo, $transactionId);
+            if ($existingRow === null) {
+                respond(404, [
+                    'success' => false,
+                    'message' => 'Metode pembayaran yang akan dihapus tidak ditemukan.',
+                ]);
+            }
+
+            $statement = $pdo->prepare('DELETE FROM payment_methods WHERE id = :id');
+            $statement->execute([':id' => $transactionId]);
+
+            respond(200, [
+                'success' => true,
+                'message' => 'Metode pembayaran berhasil dihapus.',
+                'data' => [
+                    'id' => $transactionId,
+                ],
+            ]);
+        }
+    }
 
     if ($method === 'POST' && $action === 'upload-proof') {
         if ($transactionId === null) {

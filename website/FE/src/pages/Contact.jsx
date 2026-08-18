@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ContactSelectedForm from "../features/leads/ContactSelectedForm";
 import contactHeroImage from "../assets/images/contact-hero.png";
 import officeMapImage from "../assets/images/library-smart-home.png";
@@ -224,7 +224,27 @@ function OfficeFaq() {
 }
 
 export function Contact() {
-  const [activeContactCategory, setActiveContactCategory] = useState("01");
+  const [activeContactCategory, setActiveContactCategory] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return window.location.hash === "#form-daftar-workshop" || params.has("workshop_id")
+      ? "03"
+      : "01";
+  });
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (window.location.hash !== "#form-daftar-workshop" && !params.has("workshop_id")) {
+      return;
+    }
+
+    setActiveContactCategory("03");
+
+    window.requestAnimationFrame(() => {
+      document
+        .getElementById("form-daftar-workshop")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, []);
 
   return (
     <>

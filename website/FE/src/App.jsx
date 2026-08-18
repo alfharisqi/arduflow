@@ -580,8 +580,15 @@ export default function App() {
       ''
     ) || '/';
 
+  const routePath =
+    path.startsWith('/detail-workshop/')
+      ? '/detail-workshop'
+      : path.startsWith('/workshop/detail/')
+        ? '/workshop/detail'
+        : path;
+
   const Page =
-    routes[path] || NotFound;
+    routes[routePath] || NotFound;
 
   let page =
     <Page />;

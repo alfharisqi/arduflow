@@ -332,6 +332,38 @@
   box-shadow: inset 4px -3px 0 -2px #696d72;
 }
 
+.admin-time-range {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-time-range label {
+  display: grid;
+  gap: 6px;
+}
+
+.admin-time-range small {
+  color: #696d72;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.admin-time-range input[type="time"] {
+  cursor: pointer;
+}
+
+.admin-time-range input[type="time"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 42px;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+  opacity: 0;
+}
+
 .admin-price-field {
   max-width: 500px;
   margin-bottom: 24px;

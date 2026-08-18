@@ -39,6 +39,7 @@ function normalizeWorkshop(row) {
     timezone: payload.schedule?.timezone || '',
     location: payload.location || '-',
     price: payload.price ?? '',
+    registrationFee: payload.registrationFee ?? payload.registration_fee ?? '',
     facilities: payload.facilities ?? null,
     bringItems: payload.bringItems ?? null,
     about: payload.about || '',
@@ -406,6 +407,7 @@ export function AdminProgram() {
         workshop.category,
         workshop.type,
         workshop.location,
+        workshop.registrationFee,
         workshop.status,
         workshop.level,
         workshop.platform,
@@ -704,13 +706,6 @@ export function AdminProgram() {
                     onChange={(event) => setDateFilter(event.target.value)}
                   />
                 </label>
-
-                <label>
-                  <span>Sumber Data</span>
-                  <select value="SQLite" disabled>
-                    <option>SQLite</option>
-                  </select>
-                </label>
               </div>
             </section>
 
@@ -723,6 +718,7 @@ export function AdminProgram() {
                     <th>Metode</th>
                     <th>Tanggal Mulai</th>
                     <th>Lokasi / Link</th>
+                    <th>Biaya Pendaftaran</th>
                     <th>Kuota</th>
                     <th>Peserta</th>
                     <th>Status</th>
@@ -734,13 +730,13 @@ export function AdminProgram() {
                 <tbody>
                   {isLoading ? (
                     <tr>
-                      <td colSpan="10" style={{ textAlign: 'center', padding: 28 }}>
+                      <td colSpan="11" style={{ textAlign: 'center', padding: 28 }}>
                         Mengambil data workshop dari SQLite...
                       </td>
                     </tr>
                   ) : paginatedWorkshops.length === 0 ? (
                     <tr>
-                      <td colSpan="10" style={{ textAlign: 'center', padding: 28 }}>
+                      <td colSpan="11" style={{ textAlign: 'center', padding: 28 }}>
                         Belum ada workshop yang cocok dengan filter.
                       </td>
                     </tr>
@@ -773,6 +769,7 @@ export function AdminProgram() {
 
                         <td>{formatSchedule(workshop)}</td>
                         <td>{workshop.location}</td>
+                        <td>{formatPrice(workshop.registrationFee)}</td>
                         <td>-</td>
                         <td>-</td>
 
@@ -1036,6 +1033,12 @@ export function AdminProgram() {
                   Harga
                 </dt>
                 <dd>{formatPrice(selectedWorkshop.price)}</dd>
+
+                <dt>
+                  <img src={usersIcon} alt="" />
+                  Biaya Pendaftaran
+                </dt>
+                <dd>{formatPrice(selectedWorkshop.registrationFee)}</dd>
               </dl>
 
               <section className="admin-program-description">

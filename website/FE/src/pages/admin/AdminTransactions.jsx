@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AdminPage, AdminTopbar } from './AdminChrome.jsx';
+import settingsIcon from '../../assets/icons/icon-settings-1.svg';
 import {
   approveTransaction,
   createTransaction,
+  createPaymentMethod,
+  deletePaymentMethod,
   deleteTransaction,
+  fetchPaymentMethods,
   fetchTransactions,
   rejectTransaction,
+  updatePaymentMethod,
   updateTransaction,
 } from '../../services/transactionApi.js';
 
@@ -24,6 +29,17 @@ const initialForm = {
   referenceNumber: '',
   dueAt: '',
   notes: '',
+};
+
+const initialPaymentMethodForm = {
+  id: null,
+  name: '',
+  methodType: 'Transfer Bank',
+  channel: '',
+  recipientName: '',
+  paymentCode: '',
+  isActive: true,
+  imageFile: null,
 };
 
 function formatCurrency(value, currency = 'IDR') {
@@ -59,14 +75,185 @@ function statusLabel(status) {
   return labels[status] || status || '-';
 }
 
+function itemTypeLabel(type) {
+  const labels = {
+    workshop: 'Workshop',
+    program: 'Workshop',
+    course: 'Workshop',
+    project: 'Proyek',
+    certificate: 'Sertifikat',
+  };
+  return labels[type] || type || 'Produk';
+}
+
+function getPaymentMethodLabel(transaction) {
+  return [transaction.paymentChannel, transaction.paymentMethod].filter(Boolean).join(' ') || '-';
+}
+
+function PaymentMethodMark({ method }) {
+  if (method.image?.url) {
+    return <img className="admin-payment-methods-image" src={method.image.url} alt="" />;
+  }
+
+  if (method.methodType === 'QRIS' || method.name.toLowerCase().includes('qris')) {
+    return (
+      <span className="admin-payment-methods-qr" aria-label="QRIS">
+        <i /><i /><i /><i /><i /><i /><i /><i /><i />
+      </span>
+    );
+  }
+
+  return <span className="admin-payment-methods-bank">{method.channel || method.name.slice(0, 8)}</span>;
+}
+
+function PaymentMethodsModal({
+  methods,
+  form,
+  isSaving,
+  message,
+  searchTerm,
+  onSearchChange,
+  onClose,
+  onEdit,
+  onDelete,
+  onSubmit,
+  onFormChange,
+  onResetForm,
+}) {
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const filteredMethods = methods.filter((method) =>
+    [method.name, method.methodType, method.channel, method.recipientName, method.paymentCode].some((value) =>
+      String(value || '').toLowerCase().includes(normalizedSearch)
+    )
+  );
+
+  return (
+    <div className="admin-payment-methods-backdrop" role="presentation">
+      <section className="admin-payment-methods-modal" role="dialog" aria-modal="true" aria-labelledby="payment-methods-title">
+        <header className="admin-payment-methods-head">
+          <div>
+            <h2 id="payment-methods-title">Kelola Metode Pembayaran</h2>
+            <p>Atur metode pembayaran yang tersedia untuk produk Arduflow.</p>
+          </div>
+          <button type="button" className="admin-payment-methods-close" onClick={onClose} aria-label="Tutup popup">x</button>
+        </header>
+
+        <div className="admin-payment-methods-toolbar">
+          <label className="admin-payment-methods-search">
+            <input
+              type="search"
+              placeholder="Cari metode pembayaran..."
+              value={searchTerm}
+              onChange={(event) => onSearchChange(event.target.value)}
+            />
+          </label>
+          <button type="button" className="admin-payment-methods-add" onClick={onResetForm}>
+            <span aria-hidden="true">+</span>
+            Tambah Metode Pembayaran
+          </button>
+        </div>
+
+        <div className="admin-payment-methods-body">
+          <form id="admin-payment-methods-form" className="admin-payment-methods-form" onSubmit={onSubmit}>
+            <label>Nama Metode
+              <input value={form.name} onChange={(event) => onFormChange('name', event.target.value)} placeholder="BCA Transfer" required />
+            </label>
+            <label>Jenis
+              <select value={form.methodType} onChange={(event) => onFormChange('methodType', event.target.value)}>
+                <option>Transfer Bank</option>
+                <option>Virtual Account</option>
+                <option>QRIS</option>
+                <option>E-Wallet</option>
+              </select>
+            </label>
+            <label>Channel / Bank
+              <input value={form.channel} onChange={(event) => onFormChange('channel', event.target.value)} placeholder="BCA / Mandiri / QRIS" />
+            </label>
+            <label>No. Pembayaran
+              <input value={form.paymentCode} onChange={(event) => onFormChange('paymentCode', event.target.value)} placeholder="No rekening / NMID / VA" required />
+            </label>
+            <label>Nama Penerima
+              <input value={form.recipientName} onChange={(event) => onFormChange('recipientName', event.target.value)} placeholder="a.n. Arduflow Indonesia" />
+            </label>
+            <label>Gambar
+              <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => onFormChange('imageFile', event.target.files?.[0] || null)} />
+            </label>
+            <label className="admin-payment-methods-check">
+              <input type="checkbox" checked={form.isActive} onChange={(event) => onFormChange('isActive', event.target.checked)} />
+              Aktif
+            </label>
+            <div className="admin-payment-methods-form-actions">
+              <button type="submit" disabled={isSaving}>{isSaving ? 'Menyimpan...' : form.id ? 'Update Metode' : 'Simpan Metode'}</button>
+              {form.id ? <button type="button" onClick={onResetForm}>Batal Edit</button> : null}
+            </div>
+          </form>
+
+          {message ? <p className="admin-payment-methods-message">{message}</p> : null}
+
+          <div className="admin-payment-methods-table" role="table" aria-label="Metode pembayaran">
+            <div className="admin-payment-methods-row admin-payment-methods-row--head" role="row">
+              <span>Nama Metode</span>
+              <span>No. Pembayaran / Detail</span>
+              <span>Gambar</span>
+              <span>Status</span>
+              <span>Aksi</span>
+            </div>
+            {filteredMethods.map((method) => (
+              <div className="admin-payment-methods-row" role="row" key={method.id || method.name}>
+                <strong>{method.name}</strong>
+                <span>{method.paymentCode}<small>{method.recipientName || method.channel || '-'}</small></span>
+                <PaymentMethodMark method={method} />
+                <span className="admin-payment-methods-status">{method.isActive ? 'Aktif' : 'Nonaktif'}</span>
+                <span className="admin-payment-methods-actions">
+                  <button type="button" onClick={() => onEdit(method)}>Edit</button>
+                  <button type="button" className="danger" onClick={() => onDelete(method)}>Hapus</button>
+                </span>
+              </div>
+            ))}
+            {filteredMethods.length === 0 ? (
+              <div className="admin-payment-methods-row" role="row">
+                <strong>Belum ada metode</strong>
+                <span>-</span>
+                <span>-</span>
+                <span>-</span>
+                <span>-</span>
+              </div>
+            ) : null}
+          </div>
+
+          <button type="button" className="admin-payment-methods-new" onClick={onResetForm}>
+            <span>+</span>
+            <b>Tambah metode pembayaran baru</b>
+            <small>Tambah rekening, e-wallet, atau metode pembayaran lainnya.</small>
+            <i aria-hidden="true">&gt;</i>
+          </button>
+        </div>
+
+        <footer className="admin-payment-methods-footer">
+          <button type="button" onClick={onClose}>Tutup</button>
+          <button type="submit" form="admin-payment-methods-form" disabled={isSaving}>Simpan Perubahan</button>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
 export function AdminTransactions() {
   const [transactions, setTransactions] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [itemTypeFilter, setItemTypeFilter] = useState('');
+  const [methodFilter, setMethodFilter] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [formData, setFormData] = useState(initialForm);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isPaymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentSearchTerm, setPaymentSearchTerm] = useState('');
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [paymentMethodForm, setPaymentMethodForm] = useState(initialPaymentMethodForm);
+  const [paymentMethodMessage, setPaymentMethodMessage] = useState('');
+  const [isPaymentMethodSaving, setPaymentMethodSaving] = useState(false);
 
   async function loadTransactions() {
     setIsLoading(true);
@@ -82,9 +269,23 @@ export function AdminTransactions() {
     }
   }
 
+  async function loadPaymentMethods() {
+    try {
+      const records = await fetchPaymentMethods();
+      setPaymentMethods(records);
+    } catch (error) {
+      setPaymentMethods([]);
+      setPaymentMethodMessage(error.message || 'Gagal memuat metode pembayaran.');
+    }
+  }
+
   useEffect(() => {
     loadTransactions();
   }, [statusFilter]);
+
+  useEffect(() => {
+    loadPaymentMethods();
+  }, []);
 
   const summary = useMemo(() => {
     const paidTotal = transactions
@@ -92,25 +293,129 @@ export function AdminTransactions() {
       .reduce((total, transaction) => total + Number(transaction.amount || 0), 0);
     return {
       total: transactions.length,
-      pending: transactions.filter((transaction) => transaction.status === 'pending').length,
-      review: transactions.filter((transaction) => transaction.status === 'proof_uploaded').length,
-      paid: transactions.filter((transaction) => transaction.status === 'paid').length,
+      workshop: transactions.filter((transaction) => transaction.itemType !== 'project').length,
+      project: transactions.filter((transaction) => transaction.itemType === 'project').length,
       revenue: paidTotal,
     };
   }, [transactions]);
 
   const displayedTransactions = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
-    if (!query) return transactions;
-    return transactions.filter((transaction) =>
-      [transaction.invoiceNumber, transaction.userName, transaction.email, transaction.itemTitle, transaction.referenceNumber]
+    return transactions.filter((transaction) => {
+      if (itemTypeFilter === 'workshop' && transaction.itemType === 'project') return false;
+      if (itemTypeFilter === 'project' && transaction.itemType !== 'project') return false;
+      if (methodFilter && !getPaymentMethodLabel(transaction).toLowerCase().includes(methodFilter.toLowerCase())) return false;
+      if (!query) return true;
+
+      return [transaction.invoiceNumber, transaction.userName, transaction.email, transaction.itemTitle, transaction.referenceNumber]
         .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(query))
-    );
-  }, [transactions, searchTerm]);
+        .some((value) => String(value).toLowerCase().includes(query));
+    });
+  }, [itemTypeFilter, methodFilter, transactions, searchTerm]);
+
+  const uniquePaymentMethods = useMemo(
+    () => {
+      const fromTransactions = transactions.map(getPaymentMethodLabel).filter((value) => value && value !== '-');
+      const fromMethods = paymentMethods.map((method) => [method.channel, method.methodType].filter(Boolean).join(' '));
+      return [...new Set([...fromMethods, ...fromTransactions].filter(Boolean))];
+    },
+    [paymentMethods, transactions]
+  );
 
   function updateFormField(name, value) {
     setFormData((current) => ({ ...current, [name]: value }));
+  }
+
+  function applyPaymentMethodToForm(methodName) {
+    const selected = paymentMethods.find((method) => method.name === methodName);
+    updateFormField('paymentMethod', methodName);
+    if (selected) {
+      setFormData((current) => ({
+        ...current,
+        paymentMethod: selected.name,
+        paymentChannel: selected.channel || selected.methodType,
+        paymentCode: selected.paymentCode,
+        recipientName: selected.recipientName,
+      }));
+    }
+  }
+
+  function updatePaymentMethodFormField(name, value) {
+    setPaymentMethodForm((current) => ({ ...current, [name]: value }));
+  }
+
+  function resetPaymentMethodForm({ clearMessage = true } = {}) {
+    setPaymentMethodForm(initialPaymentMethodForm);
+    if (clearMessage) {
+      setPaymentMethodMessage('');
+    }
+  }
+
+  function editPaymentMethod(method) {
+    setPaymentMethodForm({
+      id: method.id,
+      name: method.name,
+      methodType: method.methodType,
+      channel: method.channel,
+      recipientName: method.recipientName,
+      paymentCode: method.paymentCode,
+      isActive: method.isActive,
+      imageFile: null,
+    });
+  }
+
+  async function handlePaymentMethodSubmit(event) {
+    event.preventDefault();
+    setPaymentMethodSaving(true);
+    setPaymentMethodMessage('Menyimpan metode pembayaran...');
+
+    try {
+      const payload = {
+        name: paymentMethodForm.name,
+        methodType: paymentMethodForm.methodType,
+        channel: paymentMethodForm.channel,
+        recipientName: paymentMethodForm.recipientName,
+        paymentCode: paymentMethodForm.paymentCode,
+        isActive: paymentMethodForm.isActive,
+        imageFile: paymentMethodForm.imageFile,
+      };
+
+      if (paymentMethodForm.id) {
+        await updatePaymentMethod(paymentMethodForm.id, payload);
+        setPaymentMethodMessage('Metode pembayaran berhasil diperbarui.');
+      } else {
+        await createPaymentMethod(payload);
+        setPaymentMethodMessage('Metode pembayaran berhasil ditambahkan.');
+      }
+
+      resetPaymentMethodForm({ clearMessage: false });
+      await loadPaymentMethods();
+    } catch (error) {
+      setPaymentMethodMessage(error.message || 'Metode pembayaran gagal disimpan.');
+    } finally {
+      setPaymentMethodSaving(false);
+    }
+  }
+
+  async function handlePaymentMethodDelete(method) {
+    const confirmed = window.confirm(`Hapus metode pembayaran ${method.name}?`);
+    if (!confirmed) return;
+
+    setPaymentMethodSaving(true);
+    setPaymentMethodMessage('Menghapus metode pembayaran...');
+
+    try {
+      await deletePaymentMethod(method.id);
+      await loadPaymentMethods();
+      setPaymentMethodMessage('Metode pembayaran berhasil dihapus.');
+      if (paymentMethodForm.id === method.id) {
+        resetPaymentMethodForm();
+      }
+    } catch (error) {
+      setPaymentMethodMessage(error.message || 'Metode pembayaran gagal dihapus.');
+    } finally {
+      setPaymentMethodSaving(false);
+    }
   }
 
   async function handleSubmit(event) {
@@ -190,7 +495,7 @@ export function AdminTransactions() {
   return (
     <AdminPage pageClassName="admin-transactions-page" ariaLabel="Manajemen transaksi">
       <AdminTopbar
-        searchPlaceholder="Cari invoice, user, atau program"
+        searchPlaceholder="Cari nama, email, produk, order ID..."
         searchLabel="Cari transaksi"
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
@@ -198,35 +503,34 @@ export function AdminTransactions() {
 
       <section className="admin-transactions-hero">
         <div>
-          <span>Payment Operations</span>
           <h1>Transaksi</h1>
-          <p>Kelola pembayaran workshop, program, course, dan invoice user.</p>
+          <p>Kelola semua transaksi pada produk Arduflow.</p>
         </div>
-        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="Filter status transaksi">
-          <option value="">Semua status</option>
-          <option value="pending">Menunggu</option>
-          <option value="proof_uploaded">Menunggu Review</option>
-          <option value="paid">Lunas</option>
-          <option value="rejected">Ditolak</option>
-          <option value="failed">Gagal</option>
-          <option value="cancelled">Dibatalkan</option>
-          <option value="refunded">Refund</option>
-          <option value="expired">Kedaluwarsa</option>
-        </select>
+        <div className="admin-transactions-hero-actions">
+          <button className="admin-transactions-manage" type="button" onClick={() => setIsCreateOpen((value) => !value)}>
+            <span>{isCreateOpen ? 'Tutup Form Transaksi' : 'Tambah Transaksi'}</span>
+          </button>
+          <button className="admin-transactions-manage" type="button" onClick={() => setPaymentModalOpen(true)}>
+            <img src={settingsIcon} alt="" />
+            <span>Kelola Metode Pembayaran</span>
+          </button>
+        </div>
       </section>
 
+      <nav className="admin-transactions-tabs" aria-label="Kategori transaksi">
+        <button className={itemTypeFilter === '' ? 'is-active' : ''} type="button" onClick={() => setItemTypeFilter('')}>Semua Transaksi</button>
+        <button className={itemTypeFilter === 'workshop' ? 'is-active' : ''} type="button" onClick={() => setItemTypeFilter('workshop')}>Workshop / Program</button>
+        <button className={itemTypeFilter === 'project' ? 'is-active' : ''} type="button" onClick={() => setItemTypeFilter('project')}>Proyek</button>
+      </nav>
+
       <section className="admin-transactions-summary" aria-label="Ringkasan transaksi">
-        <article><span>Total Transaksi</span><strong>{summary.total}</strong></article>
-        <article><span>Menunggu</span><strong>{summary.pending}</strong></article>
-        <article><span>Perlu Review</span><strong>{summary.review}</strong></article>
-        <article><span>Lunas</span><strong>{summary.paid}</strong></article>
-        <article><span>Pendapatan Lunas</span><strong>{formatCurrency(summary.revenue)}</strong></article>
+        <article><span>Total Transaksi</span><strong>{summary.total}</strong><small>Semua Waktu</small></article>
+        <article><span>Workshop / Program</span><strong>{summary.workshop}</strong><small>Semua Waktu</small></article>
+        <article><span>Proyek</span><strong>{summary.project}</strong><small>Semua Waktu</small></article>
+        <article><span>Total Pendapatan</span><strong>{formatCurrency(summary.revenue)}</strong><small>Semua Waktu</small></article>
       </section>
 
       <section className="admin-transactions-create">
-        <button type="button" onClick={() => setIsCreateOpen((value) => !value)} aria-expanded={isCreateOpen}>
-          {isCreateOpen ? 'Tutup Form Tambah' : 'Tambah Transaksi'}
-        </button>
         {message ? <p>{message}</p> : null}
       </section>
 
@@ -247,11 +551,14 @@ export function AdminTransactions() {
             <label>Nama Item<input required value={formData.itemTitle} onChange={(event) => updateFormField('itemTitle', event.target.value)} /></label>
             <label>Nominal<input type="number" min="0" value={formData.amount} onChange={(event) => updateFormField('amount', event.target.value)} /></label>
             <label>Metode Pembayaran
-              <select value={formData.paymentMethod} onChange={(event) => updateFormField('paymentMethod', event.target.value)}>
+              <select value={formData.paymentMethod} onChange={(event) => applyPaymentMethodToForm(event.target.value)}>
                 <option value="">Pilih metode</option>
-                <option value="Transfer Bank">Transfer Bank</option>
-                <option value="QRIS">QRIS</option>
-                <option value="E-Wallet">E-Wallet</option>
+                {paymentMethods.filter((method) => method.isActive).map((method) => (
+                  <option value={method.name} key={method.id}>{method.name}</option>
+                ))}
+                <option value="Transfer Bank">Transfer Bank Manual</option>
+                <option value="QRIS">QRIS Manual</option>
+                <option value="E-Wallet">E-Wallet Manual</option>
               </select>
             </label>
             <label>Channel / Bank<input value={formData.paymentChannel} onChange={(event) => updateFormField('paymentChannel', event.target.value)} placeholder="BCA / Mandiri / QRIS" /></label>
@@ -275,14 +582,46 @@ export function AdminTransactions() {
           </form>
         ) : null}
         <div className="admin-transactions-table" role="table" aria-label="Daftar transaksi">
+          <div className="admin-transactions-toolbar">
+            <label className="admin-transactions-search">
+              <input
+                type="search"
+                placeholder="Cari nama, email, produk, order ID..."
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+              />
+            </label>
+            <select value={itemTypeFilter} onChange={(event) => setItemTypeFilter(event.target.value)} aria-label="Filter produk">
+              <option value="">Semua Produk</option>
+              <option value="workshop">Workshop / Program</option>
+              <option value="project">Proyek</option>
+            </select>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="Filter status transaksi">
+              <option value="">Semua Status</option>
+              <option value="pending">Menunggu</option>
+              <option value="proof_uploaded">Menunggu Review</option>
+              <option value="paid">Selesai</option>
+              <option value="rejected">Ditolak</option>
+              <option value="failed">Gagal</option>
+              <option value="cancelled">Dibatalkan</option>
+              <option value="refunded">Refund</option>
+              <option value="expired">Kedaluwarsa</option>
+            </select>
+            <select value={methodFilter} onChange={(event) => setMethodFilter(event.target.value)} aria-label="Filter metode pembayaran">
+              <option value="">Semua Metode</option>
+              {uniquePaymentMethods.map((method) => <option key={method} value={method}>{method}</option>)}
+            </select>
+            <button type="button" className="admin-transactions-date">01/05/2024 - 31/05/2024</button>
+            <button type="button" className="admin-transactions-export">Export</button>
+          </div>
           <div className="admin-transactions-table__head" role="row">
-            <span>Invoice</span>
-            <span>User</span>
-            <span>Item</span>
-            <span>Nominal</span>
-            <span>Status</span>
-            <span>Bukti</span>
+            <span>Order ID</span>
             <span>Tanggal</span>
+            <span>Produk</span>
+            <span>Pelanggan</span>
+            <span>Metode Pembayaran</span>
+            <span>Jumlah</span>
+            <span>Status</span>
             <span>Aksi</span>
           </div>
           {isLoading ? (
@@ -293,14 +632,16 @@ export function AdminTransactions() {
             displayedTransactions.map((transaction) => (
               <div className="admin-transactions-table__row" role="row" key={transaction.id}>
                 <span>{transaction.invoiceNumber}</span>
-                <span>{transaction.userName || transaction.email || '-'}</span>
-                <span>{transaction.itemTitle}</span>
+                <time>{formatDate(transaction.paidAt || transaction.createdAt)}</time>
+                <span><b>{itemTypeLabel(transaction.itemType)}</b>{transaction.itemTitle}</span>
+                <span>{transaction.userName || '-'}<small>{transaction.email || '-'}</small></span>
+                <span>{getPaymentMethodLabel(transaction)}<small>{transaction.paymentCode || transaction.referenceNumber || '-'}</small></span>
                 <span>{formatCurrency(transaction.amount, transaction.currency)}</span>
                 <span>
-                  <select value={transaction.status} onChange={(event) => handleStatusChange(transaction, event.target.value)}>
+                  <select className={`admin-transactions-status admin-transactions-status--${transaction.status}`} value={transaction.status} onChange={(event) => handleStatusChange(transaction, event.target.value)}>
                     <option value="pending">Menunggu</option>
                     <option value="proof_uploaded">Menunggu Review</option>
-                    <option value="paid">Lunas</option>
+                    <option value="paid">Selesai</option>
                     <option value="rejected">Ditolak</option>
                     <option value="failed">Gagal</option>
                     <option value="cancelled">Dibatalkan</option>
@@ -308,23 +649,33 @@ export function AdminTransactions() {
                     <option value="expired">Kedaluwarsa</option>
                   </select>
                 </span>
-                <span>
-                  {transaction.proofFile?.url ? (
-                    <a href={transaction.proofFile.url} target="_blank" rel="noreferrer">Lihat bukti</a>
-                  ) : '-'}
-                  {transaction.rejectionReason ? <small>{transaction.rejectionReason}</small> : null}
-                </span>
-                <time>{formatDate(transaction.paidAt || transaction.createdAt)}</time>
                 <span className="admin-transactions-actions">
-                  <button type="button" onClick={() => handleApprove(transaction)} disabled={!transaction.proofFile?.url || transaction.status === 'paid'}>Setujui</button>
-                  <button type="button" onClick={() => handleReject(transaction)} disabled={!transaction.proofFile?.url || transaction.status === 'paid'}>Tolak</button>
-                  <button type="button" onClick={() => handleDelete(transaction)}>Hapus</button>
+                  <button type="button" onClick={() => transaction.proofFile?.url && window.open(transaction.proofFile.url, '_blank', 'noopener,noreferrer')}>Detail</button>
+                  <button type="button" aria-label={`Setujui ${transaction.invoiceNumber}`} onClick={() => handleApprove(transaction)} disabled={!transaction.proofFile?.url || transaction.status === 'paid'}>Setujui</button>
+                  <button type="button" aria-label={`Tolak ${transaction.invoiceNumber}`} onClick={() => handleReject(transaction)} disabled={!transaction.proofFile?.url || transaction.status === 'paid'}>Tolak</button>
+                  <button type="button" aria-label={`Hapus ${transaction.invoiceNumber}`} onClick={() => handleDelete(transaction)}>Hapus</button>
                 </span>
               </div>
             ))
           )}
         </div>
       </section>
+      {isPaymentModalOpen ? (
+        <PaymentMethodsModal
+          methods={paymentMethods}
+          form={paymentMethodForm}
+          isSaving={isPaymentMethodSaving}
+          message={paymentMethodMessage}
+          searchTerm={paymentSearchTerm}
+          onSearchChange={setPaymentSearchTerm}
+          onClose={() => setPaymentModalOpen(false)}
+          onEdit={editPaymentMethod}
+          onDelete={handlePaymentMethodDelete}
+          onSubmit={handlePaymentMethodSubmit}
+          onFormChange={updatePaymentMethodFormField}
+          onResetForm={resetPaymentMethodForm}
+        />
+      ) : null}
     </AdminPage>
   );
 }

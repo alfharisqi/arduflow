@@ -15,10 +15,7 @@ declare(strict_types=1);
 
 date_default_timezone_set('Asia/Jakarta');
 
-const CERTIFICATE_API_VERSION = '2026-08-12-pathfix-v5';
-
 header('Content-Type: application/json; charset=utf-8');
-header('X-ArduFlow-Certificate-Version: ' . CERTIFICATE_API_VERSION);
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
@@ -424,159 +421,13 @@ function handleCertificateUpload(PDO $pdo): void
 
 $method = $_SERVER['REQUEST_METHOD'];
 $action = isset($_GET['action']) ? trim((string) $_GET['action']) : '';
-
-/*
-|--------------------------------------------------------------------------
-| Database configuration
-|--------------------------------------------------------------------------
-| File API ini berada di: website/API/api/certificate-api.php
-| Konfigurasi database berada di: website/API/config/database.php
-*/
-$configPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'database.php';
-
-if (!is_file($configPath)) {
-    respond(500, [
-        'success' => false,
-        'message' => 'File konfigurasi database tidak ditemukan.',
-        'debug' => [
-            'configPath' => $configPath,
-        ],
-    ]);
-}
-
-$config = require $configPath;
-
-if (!is_array($config)) {
-    respond(500, [
-        'success' => false,
-        'message' => 'Konfigurasi database tidak valid. database.php harus mengembalikan array konfigurasi.',
-        'debug' => [
-            'configPath' => $configPath,
-        ],
-    ]);
-}
-
-$databaseFile = (string) (
-    $config['sqlite']['path']
-    ?? $config['sqlite_path']
-    ?? $config['database']['sqlite_path']
-    ?? ''
-);
-
-if ($databaseFile === '') {
-    respond(500, [
-        'success' => false,
-        'message' => 'Path database SQLite belum dikonfigurasi di database.php.',
-        'debug' => [
-            'configPath' => $configPath,
-            'expectedKeys' => [
-                'sqlite.path',
-                'sqlite_path',
-                'database.sqlite_path',
-            ],
-        ],
-    ]);
-}
-
-// Normalisasi separator terlebih dahulu.
-$databaseFile = trim($databaseFile);
-
-// Deteksi path absolut tanpa regex agar aman di Windows.
-$isWindowsDrivePath = strlen($databaseFile) >= 3
-    && ctype_alpha($databaseFile[0])
-    && $databaseFile[1] === ':'
-    && ($databaseFile[2] === '\\' || $databaseFile[2] === '/');
-
-$isWindowsUncPath = str_starts_with($databaseFile, '\\\\');
-$isUnixAbsolutePath = str_starts_with($databaseFile, '/');
-$isAbsolutePath = $isWindowsDrivePath || $isWindowsUncPath || $isUnixAbsolutePath;
-
-$databaseFile = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $databaseFile);
-
-if (!$isAbsolutePath) {
-    $databaseFile = dirname(__DIR__)
-        . DIRECTORY_SEPARATOR
-        . ltrim($databaseFile, DIRECTORY_SEPARATOR);
-}
-
-// Rapikan segmen . dan .. agar path seperti config/../storage tidak bermasalah.
-function normalizeFilesystemPath(string $path): string
-{
-    $path = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
-    $prefix = '';
-
-    if (strlen($path) >= 2 && ctype_alpha($path[0]) && $path[1] === ':') {
-        $prefix = substr($path, 0, 2);
-        $path = substr($path, 2);
-    } elseif (str_starts_with($path, DIRECTORY_SEPARATOR . DIRECTORY_SEPARATOR)) {
-        $prefix = DIRECTORY_SEPARATOR . DIRECTORY_SEPARATOR;
-        $path = substr($path, 2);
-    } elseif (str_starts_with($path, DIRECTORY_SEPARATOR)) {
-        $prefix = DIRECTORY_SEPARATOR;
-        $path = ltrim($path, DIRECTORY_SEPARATOR);
-    }
-
-    $parts = [];
-    foreach (explode(DIRECTORY_SEPARATOR, $path) as $part) {
-        if ($part === '' || $part === '.') {
-            continue;
-        }
-
-        if ($part === '..') {
-            if ($parts !== []) {
-                array_pop($parts);
-            }
-            continue;
-        }
-
-        $parts[] = $part;
-    }
-
-    $joined = implode(DIRECTORY_SEPARATOR, $parts);
-
-    if ($prefix !== '' && $prefix !== DIRECTORY_SEPARATOR && $prefix !== DIRECTORY_SEPARATOR . DIRECTORY_SEPARATOR) {
-        return $prefix . DIRECTORY_SEPARATOR . $joined;
-    }
-
-    return $prefix . $joined;
-}
-
-$databaseFile = normalizeFilesystemPath($databaseFile);
-$databaseDirectory = dirname($databaseFile);
-
-if (!is_dir($databaseDirectory)) {
-    if (!mkdir($databaseDirectory, 0775, true) && !is_dir($databaseDirectory)) {
-        respond(500, [
-            'success' => false,
-            'message' => 'Folder database SQLite gagal dibuat.',
-            'debug' => [
-                'databaseDirectory' => $databaseDirectory,
-            ],
-        ]);
-    }
-}
+$databaseFile = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . 'arduflow.sqlite';
 
 try {
     $pdo = new PDO('sqlite:' . $databaseFile, null, null, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
-
-    $busyTimeout = (int) (
-        $config['sqlite']['busy_timeout_ms']
-        ?? $config['busy_timeout_ms']
-        ?? $config['database']['busy_timeout_ms']
-        ?? 5000
-    );
-
-    if ($busyTimeout < 0) {
-        $busyTimeout = 5000;
-    }
-
-    $pdo->exec('PRAGMA foreign_keys = ON');
-    $pdo->exec('PRAGMA journal_mode = WAL');
-    $pdo->exec('PRAGMA synchronous = NORMAL');
-    $pdo->exec('PRAGMA busy_timeout = ' . $busyTimeout);
 
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS certificates (
@@ -672,7 +523,6 @@ if ($method === 'GET') {
 
         respond(200, [
             'success' => true,
-            'apiVersion' => CERTIFICATE_API_VERSION,
             'message' => 'Data sertifikat berhasil diambil dari SQLite.',
             'data' => [
                 'certificates' => $certificates,

@@ -1409,9 +1409,9 @@ if ($formType === 'workshop') {
             'Jumlah peserta maksimal 150 karakter.';
     }
 
-    if (textLength($memberNames) > 2000) {
+    if (textLength($memberNames) > 20000) {
         $errors['nama_anggota_workshop'] =
-            'Nama anggota maksimal 2000 karakter.';
+            'Nama anggota maksimal 20000 karakter.';
     }
 
     if (textLength($notes) > 2000) {

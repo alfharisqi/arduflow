@@ -90,10 +90,77 @@ function normalizeTransaction(transaction) {
   };
 }
 
+function normalizePaymentMethod(paymentMethod) {
+  if (!paymentMethod || typeof paymentMethod !== 'object') return null;
+  const image = paymentMethod.image ?? paymentMethod.qrisFile ?? paymentMethod.qris_file ?? null;
+  const imageUrl = image?.url || image?.file_url || paymentMethod.qrisFileUrl || paymentMethod.qris_file_url || '';
+
+  return {
+    id: paymentMethod.id,
+    name: paymentMethod.name || '',
+    methodType: paymentMethod.methodType ?? paymentMethod.method_type ?? 'Transfer Bank',
+    channel: paymentMethod.channel || '',
+    recipientName: paymentMethod.recipientName ?? paymentMethod.recipient_name ?? '',
+    paymentCode: paymentMethod.paymentCode ?? paymentMethod.payment_code ?? '',
+    image: image || imageUrl
+      ? {
+          ...(image || {}),
+          url: imageUrl && !/^https?:\/\//i.test(imageUrl) ? apiUrl(imageUrl) : imageUrl,
+        }
+      : null,
+    isActive: Boolean(paymentMethod.isActive ?? paymentMethod.is_active ?? true),
+    createdAt: paymentMethod.createdAt ?? paymentMethod.created_at ?? '',
+    updatedAt: paymentMethod.updatedAt ?? paymentMethod.updated_at ?? '',
+  };
+}
+
+function paymentMethodBody(data = {}) {
+  if (typeof File !== 'undefined' && data?.imageFile instanceof File) {
+    const { imageFile, ...payloadData } = data;
+    const formData = new FormData();
+    formData.append('payload', JSON.stringify({ data: payloadData }));
+    formData.append('image', imageFile);
+    return formData;
+  }
+
+  return JSON.stringify({ data });
+}
+
 export async function fetchTransactions(params = {}) {
   const payload = await requestTransactions(`${TRANSACTION_API_URL}${buildQuery(params)}`);
   const records = payload?.data?.transactions || payload?.transactions || payload?.data || [];
   return Array.isArray(records) ? records.map(normalizeTransaction).filter(Boolean) : [];
+}
+
+export async function fetchPaymentMethods(params = {}) {
+  const payload = await requestTransactions(`${TRANSACTION_API_URL}${buildQuery({ action: 'payment-methods', ...params })}`);
+  const records = payload?.data?.paymentMethods || payload?.paymentMethods || payload?.data || [];
+  return Array.isArray(records) ? records.map(normalizePaymentMethod).filter(Boolean) : [];
+}
+
+export async function createPaymentMethod(data) {
+  const body = paymentMethodBody(data);
+  const payload = await requestTransactions(`${TRANSACTION_API_URL}?action=payment-methods`, {
+    method: 'POST',
+    body,
+  });
+  return normalizePaymentMethod(payload?.data?.paymentMethod || payload?.paymentMethod || payload?.data);
+}
+
+export async function updatePaymentMethod(id, data) {
+  const body = paymentMethodBody(data);
+  const isFormData = body instanceof FormData;
+  const payload = await requestTransactions(`${TRANSACTION_API_URL}?action=payment-methods&id=${encodeURIComponent(id)}${isFormData ? '&_method=PUT' : ''}`, {
+    method: isFormData ? 'POST' : 'PUT',
+    body,
+  });
+  return normalizePaymentMethod(payload?.data?.paymentMethod || payload?.paymentMethod || payload?.data);
+}
+
+export async function deletePaymentMethod(id) {
+  return requestTransactions(`${TRANSACTION_API_URL}?action=payment-methods&id=${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
 }
 
 export async function createTransaction(data) {

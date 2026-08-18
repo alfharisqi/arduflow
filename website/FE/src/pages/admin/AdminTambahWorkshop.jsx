@@ -29,9 +29,10 @@ const requiredFields = [
   ['category', 'Kategori'],
   ['type', 'Tipe Workshop'],
   ['workshopDate', 'Tanggal'],
-  ['time', 'Waktu'],
+  ['timeStart', 'Pukul Mulai'],
+  ['timeEnd', 'Pukul Selesai'],
   ['location', 'Lokasi'],
-  ['price', 'Harga'],
+  ['registrationFee', 'Biaya Pendaftaran'],
   ['about', 'Tentang Workshop'],
   ['coverImage', 'Gambar Sampul'],
 ];
@@ -46,10 +47,11 @@ const initialFormData = {
   category: '',
   type: 'Online',
   workshopDate: '',
-  time: '',
+  timeStart: '',
+  timeEnd: '',
   timezone: 'WIB (GMT+7)',
   location: '',
-  price: '',
+  registrationFee: '',
   facilities: '',
   bringItems: '',
   about: '',
@@ -148,6 +150,32 @@ function formatPrice(value) {
     currency: 'IDR',
     maximumFractionDigits: 0,
   }).format(number);
+}
+
+function normalizeTimeValue(value) {
+  const match = String(value || '').match(/(\d{1,2})[.:](\d{2})/);
+  if (!match) return '';
+
+  const hour = Math.min(23, Number(match[1]));
+  const minute = Math.min(59, Number(match[2]));
+
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+function parseWorkshopTimeRange(value) {
+  const parts = String(value || '').split(/\s*(?:-|sampai|hingga|to)\s*/i);
+  return {
+    timeStart: normalizeTimeValue(parts[0]),
+    timeEnd: normalizeTimeValue(parts[1]),
+  };
+}
+
+function formatWorkshopTimeRange(timeStart, timeEnd) {
+  const start = normalizeTimeValue(timeStart);
+  const end = normalizeTimeValue(timeEnd);
+
+  if (start && end) return `${start} - ${end}`;
+  return start || end || '';
 }
 
 function resolveImageUrl(image) {
@@ -276,11 +304,12 @@ export function AdminTambahWorkshop() {
       type: formData.type,
       schedule: {
         date: formData.workshopDate,
-        time: formData.time.trim(),
+        time: formatWorkshopTimeRange(formData.timeStart, formData.timeEnd),
         timezone: formData.timezone,
       },
       location: formData.location.trim(),
-      price: formData.price.trim(),
+      price: formData.registrationFee.trim(),
+      registrationFee: formData.registrationFee.trim(),
       facilities: formData.facilities.trim() || null,
       bringItems: formData.bringItems.trim() || null,
       about: formData.about.trim(),
@@ -357,6 +386,8 @@ export function AdminTambahWorkshop() {
 
         if (!isActive) return;
 
+        const parsedTime = parseWorkshopTimeRange(payload.schedule?.time || '');
+
         setFormData({
           ...initialFormData,
           title: payload.title || workshop.title || '',
@@ -368,10 +399,11 @@ export function AdminTambahWorkshop() {
           category: payload.category || workshop.category || '',
           type: payload.type || 'Online',
           workshopDate: payload.schedule?.date || '',
-          time: payload.schedule?.time || '',
+          timeStart: parsedTime.timeStart,
+          timeEnd: parsedTime.timeEnd,
           timezone: payload.schedule?.timezone || 'WIB (GMT+7)',
           location: payload.location || '',
-          price: String(payload.price ?? ''),
+          registrationFee: String(payload.registrationFee ?? payload.registration_fee ?? payload.price ?? ''),
           facilities: payload.facilities || '',
           bringItems: payload.bringItems || '',
           about: payload.about || '',
@@ -522,8 +554,8 @@ export function AdminTambahWorkshop() {
     updateField('slug', slugify(event.target.value));
   }
 
-  function handlePriceChange(event) {
-    updateField('price', event.target.value.replace(/\D/g, ''));
+  function handleRegistrationFeeChange(event) {
+    updateField('registrationFee', event.target.value.replace(/\D/g, ''));
   }
 
   async function uploadCroppedCover(file, previewUrl) {
@@ -809,9 +841,11 @@ export function AdminTambahWorkshop() {
           category: 'category',
           type: 'type',
           'schedule.date': 'workshopDate',
-          'schedule.time': 'time',
+          'schedule.time': 'timeStart',
           location: 'location',
-          price: 'price',
+          price: 'registrationFee',
+          registrationFee: 'registrationFee',
+          registration_fee: 'registrationFee',
           about: 'about',
           'media.coverImage': 'coverImage',
           'media.coverImage.name': 'coverImage',
@@ -1060,17 +1094,35 @@ export function AdminTambahWorkshop() {
                 </span>
               </Field>
 
-              <Field label="Waktu" required error={errors.time}>
-                <span className="admin-icon-field clock">
-                  <input
-                    ref={registerFieldRef('time')}
-                    type="text"
-                    value={formData.time}
-                    onChange={(event) => updateField('time', event.target.value)}
-                    placeholder="Contoh: 09.00 - 12.00"
-                    aria-invalid={Boolean(errors.time)}
-                  />
-                </span>
+              <Field label="Waktu" required className="admin-time-range-field" error={errors.timeStart || errors.timeEnd}>
+                <div className="admin-time-range">
+                  <label>
+                    <small>Mulai</small>
+                    <span className="admin-icon-field clock">
+                      <input
+                        ref={registerFieldRef('timeStart')}
+                        type="time"
+                        value={formData.timeStart}
+                        onChange={(event) => updateField('timeStart', event.target.value)}
+                        aria-label="Pukul mulai workshop"
+                        aria-invalid={Boolean(errors.timeStart)}
+                      />
+                    </span>
+                  </label>
+                  <label>
+                    <small>Selesai</small>
+                    <span className="admin-icon-field clock">
+                      <input
+                        ref={registerFieldRef('timeEnd')}
+                        type="time"
+                        value={formData.timeEnd}
+                        onChange={(event) => updateField('timeEnd', event.target.value)}
+                        aria-label="Pukul selesai workshop"
+                        aria-invalid={Boolean(errors.timeEnd)}
+                      />
+                    </span>
+                  </label>
+                </div>
               </Field>
 
               <Field label="Zona Waktu">
@@ -1100,17 +1152,17 @@ export function AdminTambahWorkshop() {
           </section>
 
           <section className="admin-form-section">
-            <SectionTitle number="4" title="Harga & Fasilitas" />
-            <Field label="Harga" required className="admin-price-field" error={errors.price}>
+            <SectionTitle number="4" title="Biaya & Fasilitas" />
+            <Field label="Biaya Pendaftaran" required className="admin-price-field" error={errors.registrationFee}>
               <span>
                 <input
-                  ref={registerFieldRef('price')}
+                  ref={registerFieldRef('registrationFee')}
                   type="text"
                   inputMode="numeric"
-                  value={formData.price}
-                  onChange={handlePriceChange}
-                  placeholder="Contoh: 50000"
-                  aria-invalid={Boolean(errors.price)}
+                  value={formData.registrationFee}
+                  onChange={handleRegistrationFeeChange}
+                  placeholder="Contoh: 25000"
+                  aria-invalid={Boolean(errors.registrationFee)}
                 />
                 <strong>IDR</strong>
               </span>
@@ -1289,10 +1341,10 @@ export function AdminTambahWorkshop() {
                 <h4>{formData.title || 'Judul Workshop'}</h4>
                 <p>{formData.summary || 'Deskripsi singkat workshop akan tampil di sini.'}</p>
                 <small>
-                  {formData.workshopDate || 'Tanggal'} · {formData.time || 'Waktu'}
+                  {formData.workshopDate || 'Tanggal'} · {formatWorkshopTimeRange(formData.timeStart, formData.timeEnd) || 'Waktu'}
                 </small>
                 <small>{formData.location || 'Lokasi workshop'}</small>
-                <strong>{formatPrice(formData.price)}</strong>
+                <strong>{formatPrice(formData.registrationFee)}</strong>
               </div>
             </article>
           </SidebarCard>

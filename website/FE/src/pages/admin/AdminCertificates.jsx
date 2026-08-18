@@ -1,4 +1,10 @@
-import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
+import { useEffect, useMemo, useState } from 'react';
+import { AdminSidebar } from './AdminSidebar.jsx';
+import {
+  getInitialAdminSidebarCollapsed,
+  persistAdminSidebarCollapsed,
+} from './adminSidebarState.js';
+import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import bookIcon from '../../assets/icons/icon-book-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
@@ -6,72 +12,687 @@ import downloadIcon from '../../assets/icons/icon-downloadsim-1.svg';
 import mailIcon from '../../assets/icons/icon-mail-1.svg';
 import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
 import fileIcon from '../../assets/icons/icon-file-text-1.svg';
+import { CertificateGeneratorPreview } from '../../features/certificates/CertificateGenerator.jsx';
+import {
+  createCertificateNumber,
+  createCertificatePdfFile,
+  createVerificationUrl,
+} from '../../features/certificates/certificateGenerator.js';
+import {
+  ARDUFLOW_CERTIFICATE_TEMPLATE_ID,
+  certificateTemplateOptions,
+} from '../../features/certificates/certificateTemplate.js';
+import { apiEndpoint } from '../../services/apiEndpoints.js';
 
-const certificateStats = [
-  { label: 'Total Sertifikat', value: '1.248', note: 'Semua waktu', icon: fileIcon, tone: 'blue' },
-  { label: 'Sertifikat Tersedia', value: '932', note: '74.7% dari total', icon: checkIcon, tone: 'green' },
-  { label: 'Menunggu Penerbitan', value: '156', note: '12.5% dari total', icon: clockIcon, tone: 'orange' },
-  { label: 'Tidak Lulus', value: '68', note: '5.4% dari total', icon: checkIcon, tone: 'red' },
-  { label: 'Sertifikat Diunduh', value: '785', note: '63.0% dari tersedia', icon: downloadIcon, tone: 'blue' },
-  { label: 'Error / Gagal Generate', value: '12', note: '1.0% dari total', icon: clockIcon, tone: 'red' },
-];
+const CERTIFICATE_ENDPOINT = apiEndpoint(import.meta.env.VITE_CERTIFICATE_API_URL, '/api/certificate-api.php');
 
-const certificates = [
-  ['Dewi Lestari', 'dewi@example.com', 'Sertifikat Workshop IoT Dasar', 'Workshop', 'IoT Dasar dengan Arduino', '18 Mei 2024', '20 Mei 2024', 'AFW-WS-2024-000123', 'Tersedia', '3'],
-  ['Rudi Kurniawan', 'rudi@example.com', 'Sertifikat Course Arduino Intermediate', 'Course', 'Arduino Intermediate', '16 Mei 2024', '-', '-', 'Menunggu', '0'],
-  ['Siti Aminah', 'siti@example.com', 'Sertifikat Workshop Python for IoT', 'Workshop', 'Python for IoT', '19 Mei 2024', '20 Mei 2024', 'AFW-WS-2024-000124', 'Tersedia', '1'],
-  ['Budi Santoso', 'budi@example.com', 'Sertifikat Program Smart Home', 'Program', 'Smart Home System', '10 Mei 2024', '12 Mei 2024', 'AFW-PG-2024-000098', 'Tersedia', '5'],
-  ['Nabila Putri', 'nabila@example.com', 'Sertifikat Course Web IoT Dashboard', 'Course', 'Web IoT Dashboard', '17 Mei 2024', '-', '-', 'Tidak Lulus', '0'],
-  ['Agung Setiawan', 'agung@example.com', 'Sertifikat Workshop Sensor & Actuator', 'Workshop', 'Sensor & Actuator', '15 Mei 2024', '16 Mei 2024', 'AFW-WS-2024-000121', 'Error', '0'],
-  ['Rina Marlina', 'rina@example.com', 'Sertifikat Program IoT Advanced', 'Program', 'IoT Advanced', '12 Mei 2024', '-', '-', 'Menunggu', '0'],
-  ['Ahmad Fauzi', 'ahmad@example.com', 'Sertifikat Workshop Cloud IoT', 'Workshop', 'Cloud IoT', '11 Mei 2024', '13 Mei 2024', 'AFW-WS-2024-000120', 'Tersedia', '2'],
-];
+const initialCertificateForm = {
+  templateId: ARDUFLOW_CERTIFICATE_TEMPLATE_ID,
+  userName: '',
+  description: 'Atas partisipasinya dan keberhasilan mengikuti kegiatan Workshop Arduflow IDE serta mempelajari visual programming untuk pengembangan proyek IoT.',
+  certificateTitle: 'Sertifikat Workshop Arduflow IDE',
+  type: 'Workshop',
+  workshopId: '',
+  workshopTitle: 'Workshop Arduflow IDE',
+  completedAt: '',
+  issuedAt: '',
+  instructor: '',
+  authorizedRole: 'Instruktur Arduflow IDE',
+  organizer: 'Arduflow',
+  verificationUrl: '',
+  status: 'Tersedia',
+  certificateNumber: '',
+};
 
-const pendingItems = [
-  ['Rudi Kurniawan', 'Arduino Intermediate', 'Menunggu konfirmasi mentor'],
-  ['Rina Marlina', 'IoT Advanced', 'Nilai belum final'],
-  ['Nabila Putri', 'Web IoT Dashboard', 'Verifikasi kehadiran'],
-  ['Ahmad Fauzi', 'Cloud IoT', 'Menunggu pembayaran'],
-];
+function buildCertificateEndpoint(params = {}) {
+  const url = new URL(CERTIFICATE_ENDPOINT, window.location.origin);
 
-const problemItems = [
-  ['Gagal generate (Error)', 12],
-  ['Nomor sertifikat duplikat', 6],
-  ['Data user tidak lengkap', 18],
-  ['File PDF tidak ditemukan', 9],
-];
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value) !== '') {
+      url.searchParams.set(key, value);
+    }
+  });
 
-const activityItems = [
-  ['Sertifikat diterbitkan untuk Dewi Lestari', '20 Mei 2024 10:30', 'green'],
-  ['Dewi Lestari mengunduh sertifikat', '20 Mei 2024 14:32', 'blue'],
-  ['Sertifikat dikirim email ke Siti Aminah', '20 Mei 2024 10:28', 'green'],
-  ['Sertifikat dibatalkan untuk Agung Setiawan', '19 Mei 2024 16:20', 'red'],
-];
-
-const distributionItems = [
-  ['Tersedia', '932 (74.7%)', 'green'],
-  ['Menunggu', '156 (12.5%)', 'gray'],
-  ['Tidak Lulus', '68 (5.4%)', 'red'],
-  ['Error', '12 (1.0%)', 'orange'],
-  ['Expired', '80 (6.4%)', 'blue'],
-];
-
-function CertificateBadge({ children }) {
-  return <span className={`admin-certificates-badge admin-certificates-badge--${createSlug(children)}`}>{children}</span>;
+  return url.toString();
 }
 
-function CertificateAction({ label, children }) {
+function resolveBackendAssetUrl(value) {
+  if (!value) {
+    return '';
+  }
+
+  const rawValue = String(value);
+
+  if (/^(https?:)?\/\//i.test(rawValue) || rawValue.startsWith('blob:') || rawValue.startsWith('data:')) {
+    return rawValue;
+  }
+
+  try {
+    const endpointUrl = new URL(CERTIFICATE_ENDPOINT, window.location.origin);
+    const basePath = endpointUrl.pathname.replace(/\/api\/[^/]*$/i, '');
+    const normalizedPath = rawValue.startsWith('/') ? rawValue : `/${rawValue}`;
+
+    return `${endpointUrl.origin}${basePath}${normalizedPath}`;
+  } catch (error) {
+    return rawValue;
+  }
+}
+
+function getCertificateFileUrl(file) {
+  if (!file) {
+    return '';
+  }
+
+  if (typeof file === 'string') {
+    return resolveBackendAssetUrl(file);
+  }
+
+  return resolveBackendAssetUrl(file.url || file.file_url || file.relativeUrl || file.relative_url || '');
+}
+
+function safeText(value, fallback = '-') {
+  const text = value === null || value === undefined ? '' : String(value).trim();
+
+  return text || fallback;
+}
+
+function formatDate(value) {
+  if (!value) {
+    return '-';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
+function normalizeCertificate(row) {
+  const payload = row?.payload || {};
+  const file = row?.file || payload.file || payload.certificateFile || null;
+  const userName = row?.userName || row?.user_name || payload.userName || payload.user?.name || '';
+  const email = row?.email || payload.email || payload.user?.email || '';
+  const workshopTitle =
+    row?.workshopTitle ||
+    row?.workshop_title ||
+    row?.programTitle ||
+    payload.workshopTitle ||
+    payload.programTitle ||
+    payload.workshop?.title ||
+    '';
+
+  return {
+    id: row?.id,
+    userName,
+    email,
+    certificateTitle:
+      row?.certificateTitle ||
+      row?.certificate_title ||
+      payload.certificateTitle ||
+      `Sertifikat ${workshopTitle || 'Workshop'}`,
+    type: row?.type || row?.certificate_type || payload.type || 'Workshop',
+    workshopId: row?.workshopId || row?.workshop_id || payload.workshopId || '',
+    workshopTitle,
+    completedAt: row?.completedAt || row?.completed_at || payload.completedAt || '',
+    issuedAt: row?.issuedAt || row?.issued_at || payload.issuedAt || '',
+    certificateNumber:
+      row?.certificateNumber ||
+      row?.certificate_number ||
+      payload.certificateNumber ||
+      '-',
+    description: payload.description || payload.certificateDescription || '',
+    instructor: payload.instructor || payload.instructorName || '',
+    authorizedRole: payload.authorizedRole || payload.authorized_role || 'Instruktur Arduflow IDE',
+    organizer: payload.organizer || 'Arduflow',
+    verificationUrl: payload.verificationUrl || payload.verification_url || '',
+    templateId: payload.templateId || ARDUFLOW_CERTIFICATE_TEMPLATE_ID,
+    status: row?.status || payload.status || 'Menunggu',
+    downloads: Number(row?.downloads ?? payload.downloads ?? 0),
+    file,
+    createdAt: row?.createdAt || row?.created_at || '',
+    updatedAt: row?.updatedAt || row?.updated_at || '',
+  };
+}
+
+function normalizeWorkshopOption(row) {
+  const payload = row?.payload || {};
+
+  return {
+    id: row?.id,
+    title: row?.title || payload.title || 'Workshop tanpa judul',
+    category: row?.category || payload.category || 'Workshop',
+  };
+}
+
+function CertificateBadge({ children }) {
+  const slug = String(children || '').toLowerCase().replace(/\s+/g, '-');
+
+  return <span className={`admin-certificates-badge admin-certificates-badge--${slug}`}>{children}</span>;
+}
+
+function CertificateAction({ label, className = '', children, ...props }) {
   return (
-    <button className="admin-certificates-action" type="button" aria-label={label}>
+    <button className={`admin-certificates-action ${className}`.trim()} type="button" aria-label={label} {...props}>
       {children}
     </button>
   );
 }
 
-export function AdminCertificates() {
+function AdminCertificatesTopbar({ query, onQueryChange }) {
   return (
-    <AdminPage pageClassName="admin-certificates-page" ariaLabel="Sertifikat admin">
-        <AdminTopbar searchPlaceholder="Cari sertifikat" searchLabel="Cari sertifikat" />
+    <header className="admin-dashboard-topbar">
+      <label className="admin-dashboard-search">
+        <span aria-hidden="true" />
+        <input
+          type="search"
+          placeholder="Cari sertifikat"
+          aria-label="Cari sertifikat"
+          value={query}
+          onChange={(event) => onQueryChange(event.target.value)}
+        />
+      </label>
+      <div className="admin-dashboard-account">
+        <button className="admin-dashboard-notif" type="button" aria-label="Notifikasi">
+          <img src={bellIcon} alt="" />
+        </button>
+        <span className="admin-dashboard-avatar" aria-hidden="true" />
+        <span>
+          <strong>Admin</strong>
+          <small>Super Admin</small>
+        </span>
+      </div>
+    </header>
+  );
+}
+
+function CertificateFormModal({ form, workshops, onChange, onClose, onSubmit, isSaving }) {
+  const selectedWorkshop = workshops.find((workshop) => String(workshop.id) === String(form.workshopId));
+
+  const handleWorkshopChange = (event) => {
+    const value = event.target.value;
+    const nextWorkshop = workshops.find((workshop) => String(workshop.id) === value);
+
+    onChange({
+      ...form,
+      workshopId: value,
+      workshopTitle: nextWorkshop?.title || 'Workshop Arduflow IDE',
+      certificateTitle: nextWorkshop?.title ? `Sertifikat ${nextWorkshop.title}` : 'Sertifikat Workshop Arduflow IDE',
+    });
+  };
+
+  return (
+    <div className="admin-certificates-modal-backdrop" role="presentation">
+      <section className="admin-certificates-modal" role="dialog" aria-modal="true" aria-labelledby="certificate-form-title">
+        <div className="admin-certificates-modal-head">
+          <h2 id="certificate-form-title">Tambah Sertifikat</h2>
+          <button type="button" onClick={onClose} aria-label="Tutup form">x</button>
+        </div>
+
+        <div className="admin-certificates-form-grid">
+          <label className="admin-certificates-form-wide">
+            <span>Template Sertifikat</span>
+            <select
+              value={form.templateId}
+              onChange={(event) => onChange({ ...form, templateId: event.target.value })}
+            >
+              {certificateTemplateOptions.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Nama Peserta</span>
+            <input
+              type="text"
+              value={form.userName}
+              onChange={(event) => onChange({ ...form, userName: event.target.value })}
+              placeholder="Contoh: Budi Santoso"
+              required
+            />
+          </label>
+          <label>
+            <span>Instruktur</span>
+            <input
+              type="text"
+              value={form.instructor}
+              onChange={(event) => onChange({ ...form, instructor: event.target.value })}
+              placeholder="Nama instruktur"
+              required
+            />
+          </label>
+          <label>
+            <span>Jabatan Instruktur</span>
+            <input
+              type="text"
+              value={form.authorizedRole}
+              onChange={(event) => onChange({ ...form, authorizedRole: event.target.value })}
+              placeholder="Instruktur Arduflow IDE"
+            />
+          </label>
+          <label>
+            <span>Workshop / Program</span>
+            <select value={form.workshopId} onChange={handleWorkshopChange}>
+              <option value="">Pilih workshop dari SQLite</option>
+              {workshops.map((workshop) => (
+                <option key={workshop.id} value={workshop.id}>{workshop.title}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Tanggal</span>
+            <input
+              type="date"
+              value={form.issuedAt}
+              onChange={(event) => onChange({ ...form, issuedAt: event.target.value, completedAt: event.target.value })}
+              required
+            />
+          </label>
+          <label>
+            <span>Penyelenggara</span>
+            <input
+              type="text"
+              value={form.organizer}
+              onChange={(event) => onChange({ ...form, organizer: event.target.value })}
+              placeholder="Arduflow"
+              required
+            />
+          </label>
+          <label className="admin-certificates-form-wide">
+            <span>No. Sertifikat</span>
+            <input
+              type="text"
+              value={form.certificateNumber}
+              onChange={(event) => onChange({ ...form, certificateNumber: event.target.value })}
+              placeholder="Otomatis jika dikosongkan"
+            />
+          </label>
+          <label className="admin-certificates-form-wide">
+            <span>URL Verifikasi</span>
+            <input
+              type="url"
+              value={form.verificationUrl}
+              onChange={(event) => onChange({ ...form, verificationUrl: event.target.value })}
+              placeholder="Otomatis jika dikosongkan"
+            />
+          </label>
+          <label className="admin-certificates-form-wide">
+            <span>Deskripsi Sertifikat</span>
+            <textarea
+              value={form.description}
+              onChange={(event) => onChange({ ...form, description: event.target.value })}
+              placeholder="Atas partisipasinya dan keberhasilan mengikuti kegiatan Workshop..."
+              rows="4"
+              required
+            />
+          </label>
+          <div className="admin-certificates-form-wide">
+            <span className="admin-certificates-preview-label">Preview Template</span>
+            <CertificateGeneratorPreview data={form} />
+          </div>
+        </div>
+
+        <div className="admin-certificates-modal-actions">
+          <button type="button" onClick={onClose}>Batal</button>
+          <button type="button" className="admin-certificates-primary" onClick={onSubmit} disabled={isSaving}>
+            {isSaving ? 'Membuat PDF...' : 'Generate PDF Sertifikat'}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function CertificateDetailModal({ certificate, onClose }) {
+  if (!certificate) {
+    return null;
+  }
+
+  const fileUrl = getCertificateFileUrl(certificate.file);
+
+  return (
+    <div className="admin-certificates-modal-backdrop" role="presentation">
+      <section className="admin-certificates-modal detail" role="dialog" aria-modal="true" aria-labelledby="certificate-detail-title">
+        <div className="admin-certificates-modal-head">
+          <h2 id="certificate-detail-title">Detail Sertifikat</h2>
+          <button type="button" onClick={onClose} aria-label="Tutup detail">x</button>
+        </div>
+
+        <div className="admin-certificates-detail-profile">
+          <span className="admin-certificates-detail-avatar" />
+          <h3>{safeText(certificate.userName)}</h3>
+          <p>{safeText(certificate.email)}</p>
+          <CertificateBadge>{certificate.status}</CertificateBadge>
+        </div>
+
+        <dl className="admin-certificates-detail-list">
+          <dt>Nama Sertifikat</dt><dd>{safeText(certificate.certificateTitle)}</dd>
+          <dt>Workshop / Program</dt><dd>{safeText(certificate.workshopTitle)}</dd>
+          <dt>Jenis</dt><dd>{safeText(certificate.type)}</dd>
+          <dt>Nomor Sertifikat</dt><dd>{safeText(certificate.certificateNumber)}</dd>
+          <dt>Tanggal Selesai</dt><dd>{formatDate(certificate.completedAt)}</dd>
+          <dt>Tanggal Terbit</dt><dd>{formatDate(certificate.issuedAt)}</dd>
+          <dt>File Sertifikat</dt><dd>{fileUrl ? <a href={fileUrl} target="_blank" rel="noreferrer">Buka file</a> : 'Belum diupload'}</dd>
+        </dl>
+      </section>
+    </div>
+  );
+}
+
+export function AdminCertificates() {
+  const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialAdminSidebarCollapsed);
+  const [certificates, setCertificates] = useState([]);
+  const [workshops, setWorkshops] = useState([]);
+  const [query, setQuery] = useState('');
+  const [filters, setFilters] = useState({
+    type: '',
+    status: '',
+    workshopTitle: '',
+    issuedAt: '',
+    completedAt: '',
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [form, setForm] = useState(initialCertificateForm);
+  const [isFormOpen, setFormOpen] = useState(false);
+  const [selectedCertificate, setSelectedCertificate] = useState(null);
+
+  const handleToggleSidebar = () => {
+    setSidebarCollapsed((value) => {
+      const nextValue = !value;
+      persistAdminSidebarCollapsed(nextValue);
+      return nextValue;
+    });
+  };
+
+  const loadCertificates = async () => {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch(CERTIFICATE_ENDPOINT, {
+        headers: { Accept: 'application/json' },
+      });
+
+      const contentType = response.headers.get('content-type') || '';
+      const result = contentType.includes('application/json') ? await response.json() : null;
+
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.message || `Endpoint sertifikat belum siap. HTTP ${response.status}`);
+      }
+
+      const payload = result.data || {};
+      const rows = Array.isArray(payload.certificates) ? payload.certificates : [];
+      const workshopRows =
+        Array.isArray(payload.workshops)
+          ? payload.workshops
+          : Array.isArray(payload.options?.workshops)
+            ? payload.options.workshops
+            : [];
+
+      setCertificates(rows.map(normalizeCertificate));
+      setWorkshops(workshopRows.map(normalizeWorkshopOption));
+    } catch (requestError) {
+      setCertificates([]);
+      setWorkshops([]);
+      setError(requestError.message || 'Gagal mengambil data sertifikat.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCertificates();
+  }, []);
+
+  const filteredCertificates = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    return certificates.filter((certificate) => {
+      const haystack = [
+        certificate.userName,
+        certificate.email,
+        certificate.certificateTitle,
+        certificate.workshopTitle,
+        certificate.certificateNumber,
+      ].join(' ').toLowerCase();
+
+      if (normalizedQuery && !haystack.includes(normalizedQuery)) {
+        return false;
+      }
+
+      if (filters.type && certificate.type !== filters.type) {
+        return false;
+      }
+
+      if (filters.status && certificate.status !== filters.status) {
+        return false;
+      }
+
+      if (filters.workshopTitle && certificate.workshopTitle !== filters.workshopTitle) {
+        return false;
+      }
+
+      if (filters.issuedAt && certificate.issuedAt !== filters.issuedAt) {
+        return false;
+      }
+
+      if (filters.completedAt && certificate.completedAt !== filters.completedAt) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [certificates, filters, query]);
+
+  const stats = useMemo(() => {
+    const total = certificates.length;
+    const available = certificates.filter((item) => item.status === 'Tersedia').length;
+    const pending = certificates.filter((item) => item.status === 'Menunggu').length;
+    const failed = certificates.filter((item) => item.status === 'Tidak Lulus').length;
+    const errorCount = certificates.filter((item) => item.status === 'Error').length;
+    const downloaded = certificates.reduce((sum, item) => sum + item.downloads, 0);
+
+    const percentage = (value) => (total > 0 ? `${Math.round((value / total) * 100)}% dari total` : 'Belum ada data');
+
+    return [
+      { label: 'Total Sertifikat', value: total, note: 'Data dari SQLite', icon: fileIcon, tone: 'blue' },
+      { label: 'Sertifikat Tersedia', value: available, note: percentage(available), icon: checkIcon, tone: 'green' },
+      { label: 'Menunggu Penerbitan', value: pending, note: percentage(pending), icon: clockIcon, tone: 'orange' },
+      { label: 'Tidak Lulus', value: failed, note: percentage(failed), icon: checkIcon, tone: 'red' },
+      { label: 'Sertifikat Diunduh', value: downloaded, note: `${downloaded} total download`, icon: downloadIcon, tone: 'blue' },
+      { label: 'Error / Gagal Upload', value: errorCount, note: percentage(errorCount), icon: clockIcon, tone: 'red' },
+    ];
+  }, [certificates]);
+
+  const uniqueTypes = useMemo(() => [...new Set(certificates.map((item) => item.type).filter(Boolean))], [certificates]);
+  const uniqueStatuses = useMemo(() => [...new Set(certificates.map((item) => item.status).filter(Boolean))], [certificates]);
+  const uniquePrograms = useMemo(() => [...new Set(certificates.map((item) => item.workshopTitle).filter(Boolean))], [certificates]);
+  const pendingItems = certificates.filter((item) => item.status === 'Menunggu').slice(0, 4);
+  const problemItems = [
+    ['Gagal upload / generate', certificates.filter((item) => item.status === 'Error').length],
+    ['Tidak lulus', certificates.filter((item) => item.status === 'Tidak Lulus').length],
+    ['Belum punya file', certificates.filter((item) => !getCertificateFileUrl(item.file)).length],
+  ];
+  const activityItems = certificates.slice(0, 4);
+
+  const handleCreateCertificate = async () => {
+    setIsSaving(true);
+    setError('');
+
+    try {
+      const issuedAt = form.issuedAt || new Date().toISOString().slice(0, 10);
+      const certificateNumber = form.certificateNumber || createCertificateNumber();
+      const verificationUrl = form.verificationUrl || createVerificationUrl(certificateNumber);
+      const payload = {
+        ...form,
+        email: form.email || `peserta-${Date.now()}@arduflow.local`,
+        certificateTitle: form.certificateTitle || `Sertifikat ${form.workshopTitle || 'Workshop Arduflow IDE'}`,
+        workshopTitle: form.workshopTitle || 'Workshop Arduflow IDE',
+        completedAt: form.completedAt || issuedAt,
+        issuedAt,
+        certificateNumber,
+        verificationUrl,
+        authorizedRole: form.authorizedRole || 'Instruktur Arduflow IDE',
+        status: 'Tersedia',
+      };
+      const requiredFields = [
+        ['userName', 'Nama peserta wajib diisi.'],
+        ['description', 'Deskripsi sertifikat wajib diisi.'],
+        ['issuedAt', 'Tanggal wajib diisi.'],
+        ['instructor', 'Instruktur wajib diisi.'],
+        ['organizer', 'Penyelenggara wajib diisi.'],
+      ];
+      const validationMessage = requiredFields
+        .map(([key, message]) => (String(payload[key] || '').trim() ? '' : message))
+        .filter(Boolean)
+        .join(' ');
+
+      if (validationMessage) {
+        throw new Error(validationMessage);
+      }
+
+      const response = await fetch(CERTIFICATE_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result?.success) {
+        const apiErrors = result?.errors ? Object.values(result.errors).join(' ') : '';
+        throw new Error(apiErrors || result?.message || 'Sertifikat gagal disimpan.');
+      }
+
+      const certificate = normalizeCertificate(result.data?.certificate || {});
+      const pdfFile = await createCertificatePdfFile({
+        ...payload,
+        ...certificate,
+        participantName: certificate.userName || payload.userName,
+        programName: certificate.workshopTitle || payload.workshopTitle,
+        issueDate: certificate.issuedAt || payload.issuedAt,
+        certificateNumber: certificate.certificateNumber || payload.certificateNumber,
+        authorizedBy: certificate.instructor || payload.instructor,
+        authorizedRole: certificate.authorizedRole || payload.authorizedRole,
+        organizationName: certificate.organizer || payload.organizer,
+        organizerName: certificate.organizer || payload.organizer,
+        verificationUrl: certificate.verificationUrl || payload.verificationUrl,
+      });
+      await handleUploadCertificate(certificate, pdfFile, { silent: true });
+
+      setForm(initialCertificateForm);
+      setFormOpen(false);
+      await loadCertificates();
+    } catch (submitError) {
+      setError(submitError.message || 'Sertifikat gagal disimpan.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleUploadCertificate = async (certificate, file, options = {}) => {
+    if (!file) {
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('certificate', file);
+
+    if (!options.silent) {
+      setError('');
+    }
+
+    try {
+      const response = await fetch(buildCertificateEndpoint({ action: 'upload-certificate', id: certificate.id }), {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.message || 'Upload sertifikat gagal.');
+      }
+
+      if (!options.silent) {
+        await loadCertificates();
+      }
+    } catch (uploadError) {
+      setError(uploadError.message || 'Upload sertifikat gagal.');
+      throw uploadError;
+    }
+  };
+
+  const handleDeleteCertificate = async (certificate) => {
+    const confirmed = window.confirm(`Hapus sertifikat ${certificate.certificateTitle}?`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    setError('');
+
+    try {
+      const response = await fetch(buildCertificateEndpoint({ id: certificate.id }), {
+        method: 'DELETE',
+        headers: { Accept: 'application/json' },
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.message || 'Sertifikat gagal dihapus.');
+      }
+
+      await loadCertificates();
+    } catch (deleteError) {
+      setError(deleteError.message || 'Sertifikat gagal dihapus.');
+    }
+  };
+
+  const exportCsv = () => {
+    const header = ['Nama User', 'Email', 'Nama Sertifikat', 'Jenis', 'Materi / Program', 'Tgl Selesai', 'Tgl Terbit', 'No. Sertifikat', 'Status'];
+    const rows = filteredCertificates.map((certificate) => [
+      certificate.userName,
+      certificate.email,
+      certificate.certificateTitle,
+      certificate.type,
+      certificate.workshopTitle,
+      certificate.completedAt,
+      certificate.issuedAt,
+      certificate.certificateNumber,
+      certificate.status,
+    ]);
+    const csv = [header, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell || '').replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'sertifikat-arduflow.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <main className={`admin-dashboard-page admin-certificates-page${isSidebarCollapsed ? ' admin-dashboard-page--collapsed' : ''}`}>
+      <AdminSidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleSidebar} />
+
+      <section className="admin-dashboard-main" aria-label="Sertifikat admin">
+        <AdminCertificatesTopbar query={query} onQueryChange={setQuery} />
 
         <div className="admin-certificates-layout">
           <section className="admin-certificates-content">
@@ -80,10 +701,15 @@ export function AdminCertificates() {
                 <h1>Sertifikat</h1>
                 <p>Dashboard <span>/</span> Sertifikat</p>
               </div>
+              <button type="button" className="admin-certificates-primary" onClick={() => setFormOpen(true)}>
+                + Tambah Sertifikat
+              </button>
             </div>
 
+            {error ? <p className="admin-certificates-alert">{error}</p> : null}
+
             <section className="admin-certificates-stats" aria-label="Ringkasan sertifikat">
-              {certificateStats.map((item) => (
+              {stats.map((item) => (
                 <article className="admin-certificates-stat" key={item.label}>
                   <span className={`admin-certificates-stat-icon is-${item.tone}`}>
                     <img src={item.icon} alt="" />
@@ -99,81 +725,138 @@ export function AdminCertificates() {
 
             <section className="admin-certificates-filter" aria-label="Filter sertifikat">
               <label className="admin-certificates-search">
-                <input type="search" placeholder="Cari nama user, email, atau nomor sertifikat..." />
+                <input
+                  type="search"
+                  placeholder="Cari nama user, email, atau nomor sertifikat..."
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                />
               </label>
-              {['Jenis', 'Status', 'Materi / Program', 'Batch / Kelas'].map((label) => (
-                <label key={label}>
-                  <span>{label}</span>
-                  <select defaultValue="">
-                    <option value="">{label === 'Jenis' ? 'Semua Jenis' : label === 'Status' ? 'Semua Status' : label === 'Materi / Program' ? 'Semua Materi' : 'Semua Batch'}</option>
-                  </select>
-                </label>
-              ))}
+              <label>
+                <span>Jenis</span>
+                <select value={filters.type} onChange={(event) => setFilters({ ...filters, type: event.target.value })}>
+                  <option value="">Semua Jenis</option>
+                  {uniqueTypes.map((item) => <option key={item}>{item}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Status</span>
+                <select value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}>
+                  <option value="">Semua Status</option>
+                  {uniqueStatuses.map((item) => <option key={item}>{item}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Materi / Program</span>
+                <select value={filters.workshopTitle} onChange={(event) => setFilters({ ...filters, workshopTitle: event.target.value })}>
+                  <option value="">Semua Materi</option>
+                  {uniquePrograms.map((item) => <option key={item}>{item}</option>)}
+                </select>
+              </label>
               <label>
                 <span>Tanggal Terbit</span>
-                <input type="text" placeholder="Pilih rentang tanggal" />
+                <input type="date" value={filters.issuedAt} onChange={(event) => setFilters({ ...filters, issuedAt: event.target.value })} />
               </label>
               <label>
                 <span>Tanggal Selesai</span>
-                <input type="text" placeholder="Pilih rentang tanggal" />
+                <input type="date" value={filters.completedAt} onChange={(event) => setFilters({ ...filters, completedAt: event.target.value })} />
               </label>
-              <button type="button">Reset Filter</button>
-              <button type="button" className="admin-certificates-primary">Export CSV</button>
+              <button type="button" onClick={() => setFilters({ type: '', status: '', workshopTitle: '', issuedAt: '', completedAt: '' })}>
+                Reset Filter
+              </button>
+              <button type="button" className="admin-certificates-primary" onClick={exportCsv}>Export CSV</button>
             </section>
 
             <section className="admin-certificates-table-card">
-              <table className="admin-certificates-table">
-                <thead>
-                  <tr>
-                    <th><input type="checkbox" aria-label="Pilih semua sertifikat" /></th>
-                    <th>Nama User</th>
-                    <th>Email</th>
-                    <th>Nama Sertifikat</th>
-                    <th>Jenis</th>
-                    <th>Materi / Program</th>
-                    <th>Tgl Selesai</th>
-                    <th>Tgl Terbit</th>
-                    <th>No. Sertifikat</th>
-                    <th>Status</th>
-                    <th>Download</th>
-                    <th>Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {certificates.map((item) => (
-                    <tr key={`${item[1]}-${item[2]}`}>
-                      <td><input type="checkbox" aria-label={`Pilih ${item[0]}`} /></td>
-                      <td><span className="admin-certificates-avatar" />{item[0]}</td>
-                      <td>{item[1]}</td>
-                      <td>{item[2]}</td>
-                      <td><CertificateBadge>{item[3]}</CertificateBadge></td>
-                      <td>{item[4]}</td>
-                      <td>{item[5]}</td>
-                      <td>{item[6]}</td>
-                      <td>{item[7]}</td>
-                      <td><CertificateBadge>{item[8]}</CertificateBadge></td>
-                      <td>{item[9]}</td>
-                      <td>
-                        <div className="admin-certificates-actions">
-                          <CertificateAction label={`Preview ${item[2]}`}><img src={eyeIcon} alt="" /></CertificateAction>
-                          <CertificateAction label={`Download ${item[2]}`}><img src={downloadIcon} alt="" /></CertificateAction>
-                          <CertificateAction label={`Kirim email ${item[2]}`}><img src={mailIcon} alt="" /></CertificateAction>
-                          <CertificateAction label={`Menu ${item[2]}`}>...</CertificateAction>
-                        </div>
-                      </td>
+              <div className="admin-certificates-table-scroll">
+                <table className="admin-certificates-table">
+                  <thead>
+                    <tr>
+                      <th><input type="checkbox" aria-label="Pilih semua sertifikat" /></th>
+                      <th>Nama User</th>
+                      <th>Email</th>
+                      <th>Nama Sertifikat</th>
+                      <th>Jenis</th>
+                      <th>Materi / Program</th>
+                      <th>Tgl Selesai</th>
+                      <th>Tgl Terbit</th>
+                      <th>No. Sertifikat</th>
+                      <th>Status</th>
+                      <th>File</th>
+                      <th>Aksi</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {isLoading ? (
+                      <tr><td colSpan="12" className="admin-certificates-empty">Memuat data sertifikat...</td></tr>
+                    ) : filteredCertificates.length === 0 ? (
+                      <tr><td colSpan="12" className="admin-certificates-empty">Belum ada sertifikat yang cocok dengan filter.</td></tr>
+                    ) : (
+                      filteredCertificates.map((certificate) => {
+                        const fileUrl = getCertificateFileUrl(certificate.file);
+
+                        return (
+                          <tr key={certificate.id || `${certificate.email}-${certificate.certificateTitle}`}>
+                            <td><input type="checkbox" aria-label={`Pilih ${certificate.userName}`} /></td>
+                            <td><span className="admin-certificates-avatar" />{safeText(certificate.userName)}</td>
+                            <td>{safeText(certificate.email)}</td>
+                            <td>{safeText(certificate.certificateTitle)}</td>
+                            <td><CertificateBadge>{certificate.type}</CertificateBadge></td>
+                            <td>{safeText(certificate.workshopTitle)}</td>
+                            <td>{formatDate(certificate.completedAt)}</td>
+                            <td>{formatDate(certificate.issuedAt)}</td>
+                            <td>{safeText(certificate.certificateNumber)}</td>
+                            <td><CertificateBadge>{certificate.status}</CertificateBadge></td>
+                            <td>{fileUrl ? <a href={fileUrl} target="_blank" rel="noreferrer">Buka</a> : 'Belum ada'}</td>
+                            <td>
+                              <div className="admin-certificates-actions">
+                                <CertificateAction label={`Lihat ${certificate.certificateTitle}`} onClick={() => setSelectedCertificate(certificate)}>
+                                  <img src={eyeIcon} alt="" />
+                                </CertificateAction>
+                                <label className="admin-certificates-upload-action" aria-label={`Upload ${certificate.certificateTitle}`}>
+                                  <img src={fileIcon} alt="" />
+                                  <input
+                                    type="file"
+                                    accept="application/pdf,image/png,image/jpeg,image/webp"
+                                    onChange={(event) => {
+                                      handleUploadCertificate(certificate, event.target.files?.[0]);
+                                      event.target.value = '';
+                                    }}
+                                  />
+                                </label>
+                                <CertificateAction
+                                  label={`Download ${certificate.certificateTitle}`}
+                                  disabled={!fileUrl}
+                                  onClick={() => fileUrl && window.open(fileUrl, '_blank', 'noopener,noreferrer')}
+                                >
+                                  <img src={downloadIcon} alt="" />
+                                </CertificateAction>
+                                <CertificateAction
+                                  label={`Kirim email ${certificate.certificateTitle}`}
+                                  onClick={() => {
+                                    window.location.href = `mailto:${certificate.email}?subject=${encodeURIComponent(certificate.certificateTitle)}`;
+                                  }}
+                                >
+                                  <img src={mailIcon} alt="" />
+                                </CertificateAction>
+                                <CertificateAction className="danger" label={`Hapus ${certificate.certificateTitle}`} onClick={() => handleDeleteCertificate(certificate)}>
+                                  Delete
+                                </CertificateAction>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
               <div className="admin-certificates-pagination">
-                <span>Menampilkan 1 - 8 dari 1.248 data</span>
+                <span>Menampilkan {filteredCertificates.length} dari {certificates.length} data</span>
                 <div>
-                  <button type="button">&lt;</button>
+                  <button type="button" disabled>&lt;</button>
                   <button type="button" className="is-active">1</button>
-                  <button type="button">2</button>
-                  <button type="button">3</button>
-                  <button type="button">156</button>
-                  <button type="button">&gt;</button>
+                  <button type="button" disabled>&gt;</button>
                 </div>
               </div>
             </section>
@@ -182,112 +865,58 @@ export function AdminCertificates() {
               <article className="admin-certificates-panel">
                 <div className="admin-certificates-panel-head">
                   <h2>Menunggu Penerbitan</h2>
-                  <a href="/admin/certificates/pending">Lihat semua</a>
                 </div>
-                <table>
-                  <thead><tr><th>User</th><th>Program / Materi</th><th>Alasan</th><th>Aksi</th></tr></thead>
-                  <tbody>
-                    {pendingItems.map((item) => (
-                      <tr key={item[0]}><td>{item[0]}</td><td>{item[1]}</td><td>{item[2]}</td><td><button type="button">Generate</button></td></tr>
-                    ))}
-                  </tbody>
-                </table>
-                <button type="button" className="admin-certificates-wide-button">Lihat semua (156)</button>
+                <div className="admin-certificates-panel-list">
+                  {pendingItems.length === 0 ? (
+                    <p>Tidak ada sertifikat yang menunggu.</p>
+                  ) : pendingItems.map((item) => (
+                    <p key={item.id || item.email}><b>{item.userName}</b><span>{item.workshopTitle || item.certificateTitle}</span></p>
+                  ))}
+                </div>
               </article>
 
               <article className="admin-certificates-panel admin-certificates-problems">
                 <div className="admin-certificates-panel-head">
                   <h2>Sertifikat Bermasalah</h2>
-                  <a href="/admin/certificates/problems">Lihat semua</a>
                 </div>
                 {problemItems.map((item) => (
                   <p key={item[0]}><span>{item[0]}</span><strong>{item[1]}</strong></p>
                 ))}
-                <button type="button" className="admin-certificates-wide-button">Lihat semua (45)</button>
               </article>
 
               <article className="admin-certificates-panel">
                 <div className="admin-certificates-panel-head">
                   <h2>Aktivitas Terbaru</h2>
-                  <a href="/admin/certificates/activity">Lihat semua</a>
                 </div>
                 <div className="admin-certificates-activity">
-                  {activityItems.map((item) => (
-                    <p key={item[0]}>
-                      <span className={`admin-certificates-dot is-${item[2]}`} />
-                      <b>{item[0]}</b>
-                      <time>{item[1]}</time>
+                  {activityItems.length === 0 ? (
+                    <p><span className="admin-certificates-dot is-gray" /><b>Belum ada aktivitas sertifikat.</b><time>-</time></p>
+                  ) : activityItems.map((item) => (
+                    <p key={item.id || item.email}>
+                      <span className={`admin-certificates-dot is-${item.status === 'Tersedia' ? 'green' : item.status === 'Error' ? 'red' : 'orange'}`} />
+                      <b>{item.certificateTitle}</b>
+                      <time>{formatDate(item.updatedAt || item.issuedAt)}</time>
                     </p>
                   ))}
                 </div>
-                <button type="button" className="admin-certificates-wide-button">Lihat semua aktivitas</button>
               </article>
-
-              <article className="admin-certificates-panel admin-certificates-distribution">
-                <div className="admin-certificates-panel-head">
-                  <h2>Distribusi Sertifikat</h2>
-                </div>
-                <div className="admin-certificates-donut"><strong>Total<br />1.248<br />Sertifikat</strong></div>
-                <ul>
-                  {distributionItems.map((item) => (
-                    <li key={item[0]}><span className={`admin-certificates-dot is-${item[2]}`} />{item[0]} <b>{item[1]}</b></li>
-                  ))}
-                </ul>
-              </article>
-            </section>
-
-            <section className="admin-certificates-quick">
-              <h2>Aksi Cepat</h2>
-              <div>
-                {['Generate Semua Menunggu', 'Kirim Ulang Email Sertifikat', 'Export Data Sertifikat', 'Cek Nomor Duplikat', 'Bersihkan File Error'].map((item) => (
-                  <button type="button" key={item}>{item}</button>
-                ))}
-              </div>
             </section>
           </section>
-
-          <aside className="admin-certificates-detail" aria-label="Detail sertifikat">
-            <div className="admin-certificates-detail-head">
-              <h2>Detail Sertifikat</h2>
-              <button type="button" aria-label="Tutup detail">x</button>
-            </div>
-            <div className="admin-certificates-detail-profile">
-              <span className="admin-certificates-detail-avatar" />
-              <h3>Dewi Lestari</h3>
-              <p>dewi@example.com</p>
-              <CertificateBadge>Tersedia</CertificateBadge>
-            </div>
-            <dl>
-              <dt>Program / Materi</dt><dd>IoT Dasar dengan Arduino</dd>
-              <dt>Jenis</dt><dd>Workshop</dd>
-              <dt>Status Kelulusan</dt><dd><CertificateBadge>Lulus</CertificateBadge></dd>
-              <dt>Nilai / Progress</dt><dd>92 / 100</dd>
-              <dt>Nomor Sertifikat</dt><dd>AFW-WS-2024-000123</dd>
-              <dt>Tanggal Selesai</dt><dd>18 Mei 2024</dd>
-              <dt>Tanggal Terbit</dt><dd>20 Mei 2024 10:30</dd>
-            </dl>
-            <section className="admin-certificates-history">
-              <h3>Riwayat Download</h3>
-              <p><span>20 Mei 2024 14:32</span><b>IP: 103.23.10.5</b></p>
-              <p><span>25 Mei 2024 09:11</span><b>IP: 36.81.23.18</b></p>
-              <p><span>28 Mei 2024 16:45</span><b>IP: 114.4.21.90</b></p>
-              <a href="/admin/certificates/download-history">Lihat semua (3)</a>
-            </section>
-            <section className="admin-certificates-history">
-              <h3>Riwayat Email</h3>
-              <p><span>20 Mei 2024 10:31</span><b>Sertifikat dikirim</b></p>
-              <p><span>25 Mei 2024 09:12</span><b>Kirim ulang</b></p>
-              <a href="/admin/certificates/email-history">Lihat semua (2)</a>
-            </section>
-            <div className="admin-certificates-detail-actions">
-              <button type="button" className="is-blue">Preview Sertifikat</button>
-              <button type="button">Download PDF</button>
-              <button type="button">Kirim via Email</button>
-              <button type="button">Generate Ulang</button>
-              <button type="button" className="is-danger">Revoke / Batalkan Sertifikat</button>
-            </div>
-          </aside>
         </div>
-    </AdminPage>
+
+        {isFormOpen ? (
+          <CertificateFormModal
+            form={form}
+            workshops={workshops}
+            onChange={setForm}
+            onClose={() => setFormOpen(false)}
+            onSubmit={handleCreateCertificate}
+            isSaving={isSaving}
+          />
+        ) : null}
+
+        <CertificateDetailModal certificate={selectedCertificate} onClose={() => setSelectedCertificate(null)} />
+      </section>
+    </main>
   );
 }
