@@ -148,6 +148,112 @@ function normalizeStatus(value) {
   return 'Draft';
 }
 
+function getTutorialKey(tutorial) {
+  const key = tutorial?.id ?? tutorial?.slug ?? tutorial?.title;
+  return key === undefined || key === null ? '' : String(key);
+}
+
+function toApiStatus(value) {
+  const status = String(value || 'draft').trim().toLowerCase();
+
+  if (status === 'published') {
+    return 'published';
+  }
+
+  if (status === 'pending review' || status === 'pending_review') {
+    return 'pending_review';
+  }
+
+  if (status === 'archived') {
+    return 'archived';
+  }
+
+  return 'draft';
+}
+
+function buildTutorialUpdatePayload(tutorial, nextStatus) {
+  const apiStatus = toApiStatus(nextStatus ?? tutorial.status);
+  const pageSettings = tutorial.page_settings || {};
+  const accessSettings = tutorial.access_settings || {};
+  const cta = tutorial.cta || {};
+  const slides = Array.isArray(tutorial.slides) ? tutorial.slides : [];
+  const fallbackContent =
+    tutorial.full_description ||
+    tutorial.fullDescription ||
+    tutorial.short_description ||
+    tutorial.description ||
+    '-';
+
+  return {
+    title: tutorial.title || 'Tanpa Judul',
+    slug: tutorial.slug || `tutorial-${tutorial.id || Date.now()}`,
+    category: tutorial.category && tutorial.category !== '-' ? tutorial.category : 'Umum',
+    display_order: Number(tutorial.display_order || 1),
+    descriptions: {
+      short_description: tutorial.short_description || tutorial.description || '-',
+      full_description: tutorial.full_description || tutorial.fullDescription || fallbackContent,
+    },
+    learning_information: {
+      difficulty_level: tutorial.difficulty_level || tutorial.level || '',
+      estimated_time: tutorial.estimated_time || tutorial.estimatedTime || '',
+    },
+    page_settings: {
+      ...pageSettings,
+      page_order: Number(tutorial.page_order || pageSettings.page_order || 1),
+      status: apiStatus,
+      active: tutorial.active ?? pageSettings.active ?? true,
+      show_on_page: tutorial.show_on_page ?? pageSettings.show_on_page ?? true,
+      featured: tutorial.featured ?? pageSettings.featured ?? false,
+      comments: tutorial.comments ?? pageSettings.comments ?? true,
+    },
+    access_settings: {
+      user_level: accessSettings.user_level || tutorial.user_level || 'semua_pengguna',
+      access_requirement:
+        accessSettings.access_requirement ?? tutorial.access_requirement ?? '',
+      prerequisite: accessSettings.prerequisite ?? tutorial.prerequisite ?? '',
+    },
+    cta: {
+      text: cta.text ?? tutorial.cta_text ?? '',
+      target_link: cta.target_link ?? tutorial.cta_target_link ?? '',
+      url_slug: cta.url_slug ?? tutorial.cta_url_slug ?? '',
+      publish_schedule: cta.publish_schedule ?? tutorial.publish_schedule ?? '',
+    },
+    card_image: tutorial.card_image_name
+      ? {
+          file_name: tutorial.card_image_name,
+          file_type: tutorial.card_image_type || null,
+          file_size: tutorial.card_image_size || null,
+        }
+      : null,
+    slides: slides.length
+      ? slides.map((slide, index) => ({
+          order: Number(slide.order || slide.slide_order || index + 1),
+          title: slide.title || `Halaman ${index + 1}`,
+          content_type: slide.content_type || 'text',
+          body_text: slide.body_text ?? slide.content ?? '',
+          content: slide.content ?? slide.body_text ?? '',
+          estimated_time: slide.estimated_time || '',
+          status: slide.status || apiStatus,
+          image: slide.image || null,
+          image_name: slide.image_name || slide.image?.file_name || null,
+          image_type: slide.image_type || slide.image?.file_type || null,
+          image_size: slide.image_size || slide.image?.file_size || null,
+          video_url: slide.video_url || '',
+        }))
+      : [
+          {
+            order: 1,
+            title: tutorial.title || 'Materi',
+            content_type: 'text',
+            body_text: fallbackContent,
+            content: fallbackContent,
+            estimated_time: tutorial.estimated_time || '',
+            status: apiStatus,
+          },
+        ],
+  };
+}
+
 function formatDate(value, includeTime = false) {
   if (!value) {
     return '-';
@@ -325,6 +431,10 @@ export function AdminTutorial() {
 
   const [tutorials, setTutorials] = useState([]);
   const [selectedTutorial, setSelectedTutorial] = useState(null);
+  const [checkedTutorialKeys, setCheckedTutorialKeys] = useState([]);
+  const [busyTutorialId, setBusyTutorialId] = useState(null);
+  const [actionMessage, setActionMessage] = useState('');
+  const [actionError, setActionError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
 
@@ -349,6 +459,30 @@ export function AdminTutorial() {
     window.location.href = `/admin/tutorial/edit?id=${encodeURIComponent(
       tutorial.id
     )}`;
+  };
+
+  const parseApiResponse = async (response) => {
+    const responseText = await response.text();
+    let result = {};
+
+    try {
+      result = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      throw new Error(
+        `Response API bukan JSON yang valid. Isi response: ${responseText.slice(
+          0,
+          250
+        )}`
+      );
+    }
+
+    if (!response.ok || result.success === false) {
+      throw new Error(
+        result.message || `API mengembalikan HTTP ${response.status}.`
+      );
+    }
+
+    return result;
   };
 
   const handleDeleteTutorial = async (tutorial) => {
@@ -377,25 +511,7 @@ export function AdminTutorial() {
         }
       );
 
-      const responseText = await response.text();
-      let result = {};
-
-      try {
-        result = responseText ? JSON.parse(responseText) : {};
-      } catch {
-        throw new Error(
-          `Response API bukan JSON yang valid. Isi response: ${responseText.slice(
-            0,
-            250
-          )}`
-        );
-      }
-
-      if (!response.ok || result.success === false) {
-        throw new Error(
-          result.message || `API mengembalikan HTTP ${response.status}.`
-        );
-      }
+      const result = await parseApiResponse(response);
 
       setTutorials((current) =>
         current.filter((item) => String(item.id) !== String(tutorial.id))
@@ -404,13 +520,16 @@ export function AdminTutorial() {
       setSelectedTutorial((current) =>
         current && String(current.id) === String(tutorial.id) ? null : current
       );
+      setCheckedTutorialKeys((current) =>
+        current.filter((key) => key !== getTutorialKey(tutorial))
+      );
 
-      window.alert(result.message || 'Materi berhasil dihapus.');
+      setActionError('');
+      setActionMessage(result.message || 'Materi berhasil dihapus.');
     } catch (error) {
       console.error('Gagal menghapus materi tutorial:', error);
-      window.alert(
-        error.message || 'Materi gagal dihapus dari database.'
-      );
+      setActionMessage('');
+      setActionError(error.message || 'Materi gagal dihapus dari database.');
     }
   };
 
@@ -451,6 +570,10 @@ export function AdminTutorial() {
       const normalizedRows = rows.map(normalizeTutorial);
 
       setTutorials(normalizedRows);
+      setCheckedTutorialKeys((current) => {
+        const availableKeys = new Set(normalizedRows.map(getTutorialKey));
+        return current.filter((key) => availableKeys.has(key));
+      });
 
       setSelectedTutorial((current) => {
         if (!normalizedRows.length) {
@@ -474,6 +597,7 @@ export function AdminTutorial() {
       console.error('Gagal mengambil data tutorial SQLite:', error);
       setTutorials([]);
       setSelectedTutorial(null);
+      setCheckedTutorialKeys([]);
       setLoadError(
         error.message ||
           'Data tutorial tidak dapat diambil dari API SQLite.'
@@ -594,6 +718,26 @@ export function AdminTutorial() {
     levelFilter,
   ]);
 
+  const filteredTutorialKeys = useMemo(
+    () => filteredTutorials.map(getTutorialKey).filter(Boolean),
+    [filteredTutorials]
+  );
+
+  const isFilteredTutorialsChecked =
+    filteredTutorialKeys.length > 0 &&
+    filteredTutorialKeys.every((key) => checkedTutorialKeys.includes(key));
+
+  const selectedTutorials = useMemo(
+    () =>
+      tutorials.filter((tutorial) =>
+        checkedTutorialKeys.includes(getTutorialKey(tutorial))
+      ),
+    [tutorials, checkedTutorialKeys]
+  );
+
+  const selectedTutorialCount = selectedTutorials.length;
+  const isBulkActionBusy = busyTutorialId === 'bulk';
+
   const latestTutorials = useMemo(() => {
     return [...tutorials]
       .sort((a, b) => {
@@ -660,6 +804,162 @@ export function AdminTutorial() {
     setLevelFilter('');
   };
 
+  const handleToggleTutorialCheck = (tutorial) => {
+    const tutorialKey = getTutorialKey(tutorial);
+
+    if (!tutorialKey) {
+      return;
+    }
+
+    setCheckedTutorialKeys((current) =>
+      current.includes(tutorialKey)
+        ? current.filter((key) => key !== tutorialKey)
+        : [...current, tutorialKey]
+    );
+  };
+
+  const handleToggleFilteredTutorialChecks = () => {
+    if (!filteredTutorialKeys.length) {
+      return;
+    }
+
+    setCheckedTutorialKeys((current) => {
+      const currentSet = new Set(current);
+      const shouldUncheck = filteredTutorialKeys.every((key) =>
+        currentSet.has(key)
+      );
+
+      if (shouldUncheck) {
+        return current.filter((key) => !filteredTutorialKeys.includes(key));
+      }
+
+      filteredTutorialKeys.forEach((key) => currentSet.add(key));
+      return [...currentSet];
+    });
+  };
+
+  const updateTutorialStatus = async (tutorial, status) => {
+    if (!tutorial?.id) {
+      throw new Error('ID tutorial tidak tersedia.');
+    }
+
+    const response = await fetch(
+      `${ARTICLE_API_URL}?id=${encodeURIComponent(tutorial.id)}`,
+      {
+        method: 'PUT',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(buildTutorialUpdatePayload(tutorial, status)),
+      }
+    );
+
+    const result = await parseApiResponse(response);
+    return normalizeTutorial({ ...tutorial, ...(result.data || {}) });
+  };
+
+  const handleBulkStatus = async (status, successMessage) => {
+    if (!selectedTutorials.length) {
+      setActionError('Pilih minimal satu tutorial terlebih dahulu.');
+      return;
+    }
+
+    try {
+      setBusyTutorialId('bulk');
+      setActionError('');
+      setActionMessage('');
+
+      const updatedTutorials = [];
+
+      for (const tutorial of selectedTutorials) {
+        updatedTutorials.push(await updateTutorialStatus(tutorial, status));
+      }
+
+      setTutorials((current) =>
+        current.map(
+          (tutorial) =>
+            updatedTutorials.find(
+              (updated) => String(updated.id) === String(tutorial.id)
+            ) || tutorial
+        )
+      );
+      setSelectedTutorial((current) =>
+        current
+          ? updatedTutorials.find(
+              (updated) => String(updated.id) === String(current.id)
+            ) || current
+          : current
+      );
+      setCheckedTutorialKeys([]);
+      setActionMessage(
+        `${successMessage} (${updatedTutorials.length} tutorial).`
+      );
+    } catch (error) {
+      console.error('Gagal menjalankan aksi cepat tutorial:', error);
+      setActionMessage('');
+      setActionError(
+        error.message || 'Gagal menjalankan aksi cepat tutorial.'
+      );
+    } finally {
+      setBusyTutorialId(null);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedTutorials.length) {
+      setActionError('Pilih minimal satu tutorial terlebih dahulu.');
+      return;
+    }
+
+    const isConfirmed = window.confirm(
+      `${selectedTutorialCount} tutorial akan dihapus permanen. Lanjutkan?`
+    );
+
+    if (!isConfirmed) {
+      return;
+    }
+
+    try {
+      setBusyTutorialId('bulk');
+      setActionError('');
+      setActionMessage('');
+
+      for (const tutorial of selectedTutorials) {
+        const response = await fetch(
+          `${ARTICLE_API_URL}?id=${encodeURIComponent(tutorial.id)}`,
+          {
+            method: 'DELETE',
+            headers: {
+              Accept: 'application/json',
+            },
+          }
+        );
+        await parseApiResponse(response);
+      }
+
+      const deletedKeys = selectedTutorials.map(getTutorialKey);
+      setTutorials((current) =>
+        current.filter(
+          (tutorial) => !deletedKeys.includes(getTutorialKey(tutorial))
+        )
+      );
+      setSelectedTutorial((current) =>
+        current && deletedKeys.includes(getTutorialKey(current)) ? null : current
+      );
+      setCheckedTutorialKeys([]);
+      setActionMessage(
+        `Tutorial terpilih berhasil dihapus (${selectedTutorialCount} tutorial).`
+      );
+    } catch (error) {
+      console.error('Gagal menghapus tutorial terpilih:', error);
+      setActionMessage('');
+      setActionError(error.message || 'Gagal menghapus tutorial terpilih.');
+    } finally {
+      setBusyTutorialId(null);
+    }
+  };
+
   return (
     <main
       className={`admin-dashboard-page admin-tutorial-page${
@@ -687,6 +987,68 @@ export function AdminTutorial() {
                 </p>
               </div>
             </div>
+
+            {actionMessage ? (
+              <p role="status" className="admin-tutorial-feedback is-success">
+                {actionMessage}
+              </p>
+            ) : null}
+
+            {actionError ? (
+              <p role="alert" className="admin-tutorial-feedback is-error">
+                {actionError}
+              </p>
+            ) : null}
+
+            {selectedTutorialCount ? (
+              <section
+                className="admin-tutorial-bulk-actions"
+                aria-label="Aksi tutorial terpilih"
+              >
+                <span>{selectedTutorialCount} tutorial dipilih</span>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleBulkStatus(
+                        'published',
+                        'Tutorial terpilih berhasil dipublish'
+                      )
+                    }
+                    disabled={isBulkActionBusy}
+                  >
+                    Publish Terpilih
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleBulkStatus(
+                        'draft',
+                        'Tutorial terpilih berhasil dijadikan draft'
+                      )
+                    }
+                    disabled={isBulkActionBusy}
+                  >
+                    Jadikan Draft
+                  </button>
+                  <button
+                    type="button"
+                    className="is-danger"
+                    onClick={handleBulkDelete}
+                    disabled={isBulkActionBusy}
+                  >
+                    Hapus
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCheckedTutorialKeys([])}
+                    disabled={isBulkActionBusy}
+                  >
+                    Batal Pilih
+                  </button>
+                </div>
+              </section>
+            ) : null}
 
             <section
               className="admin-tutorial-stats"
@@ -808,6 +1170,10 @@ export function AdminTutorial() {
                       <input
                         type="checkbox"
                         aria-label="Pilih semua tutorial"
+                        checked={isFilteredTutorialsChecked}
+                        disabled={filteredTutorials.length === 0}
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={handleToggleFilteredTutorialChecks}
                       />
                     </th>
                     <th>Judul Tutorial</th>
@@ -861,6 +1227,11 @@ export function AdminTutorial() {
                           <input
                             type="checkbox"
                             aria-label={`Pilih ${item.title}`}
+                            checked={checkedTutorialKeys.includes(
+                              getTutorialKey(item)
+                            )}
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={() => handleToggleTutorialCheck(item)}
                           />
                         </td>
 
