@@ -75,6 +75,46 @@ function statusLabel(status) {
   return labels[status] || status || '-';
 }
 
+function csvCell(value) {
+  return `"${String(value ?? '').replace(/"/g, '""')}"`;
+}
+
+function exportTransactionsCsv(transactions, filename = 'arduflow-transactions.csv') {
+  const headers = [
+    'Order ID',
+    'Tanggal',
+    'Produk',
+    'Judul Item',
+    'Pelanggan',
+    'Email',
+    'Metode Pembayaran',
+    'Jumlah',
+    'Status',
+    'Referensi',
+  ];
+  const rows = transactions.map((transaction) => [
+    transaction.invoiceNumber,
+    transaction.paidAt || transaction.createdAt,
+    itemTypeLabel(transaction.itemType),
+    transaction.itemTitle,
+    transaction.userName,
+    transaction.email,
+    getPaymentMethodLabel(transaction),
+    transaction.amount,
+    statusLabel(transaction.status),
+    transaction.referenceNumber || transaction.paymentCode,
+  ]);
+  const csv = [headers, ...rows].map((row) => row.map(csvCell).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 function itemTypeLabel(type) {
   const labels = {
     workshop: 'Workshop',
@@ -267,6 +307,17 @@ export function AdminTransactions() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  function resetFilters() {
+    setSearchTerm('');
+    setStatusFilter('');
+    setItemTypeFilter('');
+    setMethodFilter('');
+  }
+
+  function exportCurrentTransactions() {
+    exportTransactionsCsv(displayedTransactions, 'arduflow-transactions-filtered.csv');
   }
 
   async function loadPaymentMethods() {
@@ -501,10 +552,10 @@ export function AdminTransactions() {
         onSearchChange={setSearchTerm}
       />
 
-      <section className="admin-transactions-hero">
+      <section className="admin-transactions-heading">
         <div>
           <h1>Transaksi</h1>
-          <p>Kelola semua transaksi pada produk Arduflow.</p>
+          <p>Dashboard <span>/</span> Transaksi</p>
         </div>
         <div className="admin-transactions-hero-actions">
           <button className="admin-transactions-manage" type="button" onClick={() => setIsCreateOpen((value) => !value)}>
@@ -581,7 +632,7 @@ export function AdminTransactions() {
             <button type="submit">Simpan Transaksi</button>
           </form>
         ) : null}
-        <div className="admin-transactions-table" role="table" aria-label="Daftar transaksi">
+        <section className="admin-transactions-panel" aria-label="Daftar transaksi">
           <div className="admin-transactions-toolbar">
             <label className="admin-transactions-search">
               <input
@@ -609,56 +660,75 @@ export function AdminTransactions() {
             </select>
             <select value={methodFilter} onChange={(event) => setMethodFilter(event.target.value)} aria-label="Filter metode pembayaran">
               <option value="">Semua Metode</option>
-              {uniquePaymentMethods.map((method) => <option key={method} value={method}>{method}</option>)}
-            </select>
-            <button type="button" className="admin-transactions-date">01/05/2024 - 31/05/2024</button>
-            <button type="button" className="admin-transactions-export">Export</button>
+                {uniquePaymentMethods.map((method) => <option key={method} value={method}>{method}</option>)}
+              </select>
+            <button type="button" onClick={resetFilters}>Reset</button>
+            <button type="button" className="admin-transactions-export" disabled={!displayedTransactions.length} onClick={exportCurrentTransactions}>Export CSV</button>
           </div>
-          <div className="admin-transactions-table__head" role="row">
-            <span>Order ID</span>
-            <span>Tanggal</span>
-            <span>Produk</span>
-            <span>Pelanggan</span>
-            <span>Metode Pembayaran</span>
-            <span>Jumlah</span>
-            <span>Status</span>
-            <span>Aksi</span>
+          <div className="admin-transactions-table-wrap">
+            <table className="admin-transactions-table">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Tanggal</th>
+                  <th>Produk</th>
+                  <th>Pelanggan</th>
+                  <th>Metode</th>
+                  <th>Jumlah</th>
+                  <th>Status</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan="8">Memuat transaksi...</td>
+                  </tr>
+                ) : displayedTransactions.length === 0 ? (
+                  <tr>
+                    <td colSpan="8">Belum ada transaksi sesuai filter.</td>
+                  </tr>
+                ) : (
+                  displayedTransactions.map((transaction) => (
+                    <tr key={transaction.id}>
+                      <td><strong>{transaction.invoiceNumber}</strong></td>
+                      <td>{formatDate(transaction.paidAt || transaction.createdAt)}</td>
+                      <td>
+                        <span className="admin-transactions-product">
+                          <b>{itemTypeLabel(transaction.itemType)}</b>
+                          <small>{transaction.itemTitle || '-'}</small>
+                        </span>
+                      </td>
+                      <td>{transaction.userName || '-'}<small>{transaction.email || '-'}</small></td>
+                      <td>{getPaymentMethodLabel(transaction)}<small>{transaction.paymentCode || transaction.referenceNumber || '-'}</small></td>
+                      <td>{formatCurrency(transaction.amount, transaction.currency)}</td>
+                      <td>
+                        <select className={`admin-transactions-status admin-transactions-status--${transaction.status}`} value={transaction.status} onChange={(event) => handleStatusChange(transaction, event.target.value)}>
+                          <option value="pending">Menunggu</option>
+                          <option value="proof_uploaded">Menunggu Review</option>
+                          <option value="paid">Selesai</option>
+                          <option value="rejected">Ditolak</option>
+                          <option value="failed">Gagal</option>
+                          <option value="cancelled">Dibatalkan</option>
+                          <option value="refunded">Refund</option>
+                          <option value="expired">Kedaluwarsa</option>
+                        </select>
+                      </td>
+                      <td>
+                        <div className="admin-transactions-actions">
+                          <button type="button" onClick={() => transaction.proofFile?.url && window.open(transaction.proofFile.url, '_blank', 'noopener,noreferrer')} disabled={!transaction.proofFile?.url}>Bukti</button>
+                          <button type="button" aria-label={`Setujui ${transaction.invoiceNumber}`} onClick={() => handleApprove(transaction)} disabled={!transaction.proofFile?.url || transaction.status === 'paid'}>Setujui</button>
+                          <button type="button" aria-label={`Tolak ${transaction.invoiceNumber}`} onClick={() => handleReject(transaction)} disabled={!transaction.proofFile?.url || transaction.status === 'paid'}>Tolak</button>
+                          <button type="button" className="admin-transactions-action-danger" aria-label={`Hapus ${transaction.invoiceNumber}`} onClick={() => handleDelete(transaction)}>Hapus</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-          {isLoading ? (
-            <div className="admin-transactions-table__row" role="row"><span>Memuat transaksi...</span><span>-</span><span>-</span><span>-</span><span>-</span><span>-</span><span>-</span><span>-</span></div>
-          ) : displayedTransactions.length === 0 ? (
-            <div className="admin-transactions-table__row" role="row"><span>Belum ada transaksi.</span><span>-</span><span>-</span><span>-</span><span>-</span><span>-</span><span>-</span><span>-</span></div>
-          ) : (
-            displayedTransactions.map((transaction) => (
-              <div className="admin-transactions-table__row" role="row" key={transaction.id}>
-                <span>{transaction.invoiceNumber}</span>
-                <time>{formatDate(transaction.paidAt || transaction.createdAt)}</time>
-                <span><b>{itemTypeLabel(transaction.itemType)}</b>{transaction.itemTitle}</span>
-                <span>{transaction.userName || '-'}<small>{transaction.email || '-'}</small></span>
-                <span>{getPaymentMethodLabel(transaction)}<small>{transaction.paymentCode || transaction.referenceNumber || '-'}</small></span>
-                <span>{formatCurrency(transaction.amount, transaction.currency)}</span>
-                <span>
-                  <select className={`admin-transactions-status admin-transactions-status--${transaction.status}`} value={transaction.status} onChange={(event) => handleStatusChange(transaction, event.target.value)}>
-                    <option value="pending">Menunggu</option>
-                    <option value="proof_uploaded">Menunggu Review</option>
-                    <option value="paid">Selesai</option>
-                    <option value="rejected">Ditolak</option>
-                    <option value="failed">Gagal</option>
-                    <option value="cancelled">Dibatalkan</option>
-                    <option value="refunded">Refund</option>
-                    <option value="expired">Kedaluwarsa</option>
-                  </select>
-                </span>
-                <span className="admin-transactions-actions">
-                  <button type="button" onClick={() => transaction.proofFile?.url && window.open(transaction.proofFile.url, '_blank', 'noopener,noreferrer')}>Detail</button>
-                  <button type="button" aria-label={`Setujui ${transaction.invoiceNumber}`} onClick={() => handleApprove(transaction)} disabled={!transaction.proofFile?.url || transaction.status === 'paid'}>Setujui</button>
-                  <button type="button" aria-label={`Tolak ${transaction.invoiceNumber}`} onClick={() => handleReject(transaction)} disabled={!transaction.proofFile?.url || transaction.status === 'paid'}>Tolak</button>
-                  <button type="button" aria-label={`Hapus ${transaction.invoiceNumber}`} onClick={() => handleDelete(transaction)}>Hapus</button>
-                </span>
-              </div>
-            ))
-          )}
-        </div>
+        </section>
       </section>
       {isPaymentModalOpen ? (
         <PaymentMethodsModal
