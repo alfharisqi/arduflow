@@ -18,7 +18,71 @@ import mapIcon from '../../assets/icons/icon-map-pin-1.svg';
 
 const WORKSHOP_ENDPOINT =
   apiEndpoint(import.meta.env.VITE_WORKSHOP_API_URL, '/api/workshop-api.php');
+const FORMHANDLE_ENDPOINT = apiEndpoint(
+  import.meta.env.VITE_FORMHANDLE_API_URL,
+  '/api/formhandle.php',
+);
 const PAGE_SIZE = 6;
+
+function parseParticipantCount(value) {
+  const match = String(value || '').match(/\d+/);
+  if (!match) return 0;
+
+  const count = Number(match[0]);
+  return Number.isFinite(count) && count > 0 ? count : 0;
+}
+
+function countMemberRows(value) {
+  return String(value || '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean).length;
+}
+
+function participantCountFromRegistration(registration) {
+  const estimate = parseParticipantCount(registration.participantEstimate);
+  if (estimate > 0) return estimate;
+
+  const memberRows = countMemberRows(registration.memberNames);
+  return memberRows > 0 ? memberRows : 1;
+}
+
+function normalizeWorkshopRegistration(item) {
+  const meta = item?.meta && typeof item.meta === 'object' ? item.meta : {};
+
+  return {
+    id: item?.id || `workshop-${item?.numeric_id || Math.random()}`,
+    workshopId: meta.workshop_id ?? null,
+    workshopChoice: meta.workshop_choice || item?.message || '-',
+    participantName: item?.name || '-',
+    participantEmail: item?.email || '-',
+    participantEstimate: meta.participant_estimate || '',
+    memberNames: meta.member_names || '',
+    status: item?.status || 'Baru',
+    createdAt: item?.created_at || '',
+    createdAtLabel: item?.created_at_label || '-',
+  };
+}
+
+function summarizeRegistrations(registrations) {
+  return registrations.reduce((summary, registration) => {
+    const key = String(registration.workshopId || '');
+    if (!key) return summary;
+
+    const current = summary[key] || {
+      registrationCount: 0,
+      participantCount: 0,
+      registrations: [],
+    };
+
+    current.registrationCount += 1;
+    current.participantCount += participantCountFromRegistration(registration);
+    current.registrations.push(registration);
+    summary[key] = current;
+
+    return summary;
+  }, {});
+}
 
 function normalizeWorkshop(row) {
   const payload = row?.payload && typeof row.payload === 'object' ? row.payload : {};
@@ -230,9 +294,11 @@ export function AdminProgram() {
   );
 
   const [workshops, setWorkshops] = useState([]);
+  const [workshopRegistrations, setWorkshopRegistrations] = useState([]);
   const [selectedWorkshopId, setSelectedWorkshopId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [registrationError, setRegistrationError] = useState('');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -254,14 +320,29 @@ export function AdminProgram() {
   async function loadWorkshops() {
     setIsLoading(true);
     setLoadError('');
+    setRegistrationError('');
 
     try {
-      const response = await fetch(WORKSHOP_ENDPOINT, {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-        },
-      });
+      const [workshopResponse, leadsResponse] = await Promise.allSettled([
+        fetch(WORKSHOP_ENDPOINT, {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+          },
+        }),
+        fetch(FORMHANDLE_ENDPOINT, {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+          },
+        }),
+      ]);
+
+      if (workshopResponse.status === 'rejected') {
+        throw workshopResponse.reason;
+      }
+
+      const response = workshopResponse.value;
 
       const rawText = await response.text();
 
@@ -287,6 +368,33 @@ export function AdminProgram() {
 
       setWorkshops(normalized);
 
+      if (leadsResponse.status === 'fulfilled') {
+        try {
+          const leadsText = await leadsResponse.value.text();
+          let leadsResult;
+
+          leadsResult = leadsText ? JSON.parse(leadsText) : {};
+
+          if (!leadsResponse.value.ok || !leadsResult.success) {
+            throw new Error(leadsResult.message || `Gagal mengambil peserta. HTTP ${leadsResponse.value.status}.`);
+          }
+
+          const leads = Array.isArray(leadsResult.data?.leads) ? leadsResult.data.leads : [];
+          setWorkshopRegistrations(
+            leads
+              .filter((item) => item?.form_type === 'workshop')
+              .map(normalizeWorkshopRegistration),
+          );
+        } catch (participantError) {
+          console.error('[AdminProgram] REGISTRATION LOAD ERROR:', participantError);
+          setWorkshopRegistrations([]);
+          setRegistrationError(participantError.message || 'Gagal mengambil data peserta workshop.');
+        }
+      } else {
+        setWorkshopRegistrations([]);
+        setRegistrationError(leadsResponse.reason?.message || 'Gagal mengambil data peserta workshop.');
+      }
+
       setSelectedWorkshopId((currentId) => {
         if (currentId && normalized.some((item) => item.id === currentId)) {
           return currentId;
@@ -298,6 +406,7 @@ export function AdminProgram() {
       console.error('[AdminProgram] LOAD ERROR:', error);
       setLoadError(error.message || 'Gagal mengambil data workshop.');
       setWorkshops([]);
+      setWorkshopRegistrations([]);
       setSelectedWorkshopId(null);
     } finally {
       setIsLoading(false);
@@ -469,6 +578,40 @@ export function AdminProgram() {
     [workshops, selectedWorkshopId],
   );
 
+  const registrationSummaryByWorkshop = useMemo(
+    () => summarizeRegistrations(workshopRegistrations),
+    [workshopRegistrations],
+  );
+
+  const latestWorkshopRegistrations = useMemo(
+    () =>
+      [...workshopRegistrations]
+        .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+        .slice(0, 5),
+    [workshopRegistrations],
+  );
+
+  const totalParticipantCount = useMemo(
+    () =>
+      workshopRegistrations.reduce(
+        (total, registration) => total + participantCountFromRegistration(registration),
+        0,
+      ),
+    [workshopRegistrations],
+  );
+
+  const selectedWorkshopRegistrationSummary = selectedWorkshop
+    ? registrationSummaryByWorkshop[String(selectedWorkshop.id)] || {
+        registrationCount: 0,
+        participantCount: 0,
+        registrations: [],
+      }
+    : {
+        registrationCount: 0,
+        participantCount: 0,
+        registrations: [],
+      };
+
   const stats = useMemo(() => {
     const total = workshops.length;
 
@@ -503,8 +646,8 @@ export function AdminProgram() {
       },
       {
         label: 'Peserta Terdaftar',
-        value: '0',
-        note: 'Belum ada data peserta',
+        value: String(totalParticipantCount),
+        note: `${workshopRegistrations.length} pendaftaran`,
         icon: usersIcon,
         tone: 'blue',
       },
@@ -523,7 +666,7 @@ export function AdminProgram() {
         tone: 'purple',
       },
     ];
-  }, [workshops]);
+  }, [totalParticipantCount, workshopRegistrations.length, workshops]);
 
   const upcomingPrograms = useMemo(() => {
     const today = new Date();
@@ -741,75 +884,87 @@ export function AdminProgram() {
                       </td>
                     </tr>
                   ) : (
-                    paginatedWorkshops.map((workshop) => (
-                      <tr
-                        key={workshop.id ?? workshop.slug}
-                        className={
-                          selectedWorkshop?.id === workshop.id
-                            ? 'is-selected'
-                            : ''
-                        }
-                      >
-                        <td>
-                          <WorkshopImage workshop={workshop} className="admin-program-thumb" />
+                    paginatedWorkshops.map((workshop) => {
+                      const registrationSummary = registrationSummaryByWorkshop[String(workshop.id)] || {
+                        registrationCount: 0,
+                        participantCount: 0,
+                      };
 
-                          <span>
-                            <b>{workshop.title}</b>
-                            <small>{workshop.summary}</small>
-                          </span>
-                        </td>
+                      return (
+                        <tr
+                          key={workshop.id ?? workshop.slug}
+                          className={
+                            selectedWorkshop?.id === workshop.id
+                              ? 'is-selected'
+                              : ''
+                          }
+                        >
+                          <td>
+                            <WorkshopImage workshop={workshop} className="admin-program-thumb" />
 
-                        <td>
-                          <ProgramBadge>{workshop.category}</ProgramBadge>
-                        </td>
+                            <span>
+                              <b>{workshop.title}</b>
+                              <small>{workshop.summary}</small>
+                            </span>
+                          </td>
 
-                        <td>
-                          <ProgramBadge>{workshop.type}</ProgramBadge>
-                        </td>
+                          <td>
+                            <ProgramBadge>{workshop.category}</ProgramBadge>
+                          </td>
 
-                        <td>{formatSchedule(workshop)}</td>
-                        <td>{workshop.location}</td>
-                        <td>{formatPrice(workshop.registrationFee)}</td>
-                        <td>-</td>
-                        <td>-</td>
+                          <td>
+                            <ProgramBadge>{workshop.type}</ProgramBadge>
+                          </td>
 
-                        <td>
-                          <ProgramBadge>{workshop.status}</ProgramBadge>
-                        </td>
+                          <td>{formatSchedule(workshop)}</td>
+                          <td>{workshop.location}</td>
+                          <td>{formatPrice(workshop.registrationFee)}</td>
+                          <td>-</td>
+                          <td>
+                            <strong className="admin-program-participant-count">
+                              {registrationSummary.participantCount}
+                            </strong>
+                            <small>{registrationSummary.registrationCount} pendaftaran</small>
+                          </td>
 
-                        <td>-</td>
+                          <td>
+                            <ProgramBadge>{workshop.status}</ProgramBadge>
+                          </td>
 
-                        <td>
-                          <div className="admin-program-actions">
-                            <ProgramAction
-                              label={`Lihat ${workshop.title}`}
-                              onClick={() => {
-                                setSelectedWorkshopId(workshop.id);
-                                setDetailModalOpen(true);
-                              }}
-                            >
-                              <img src={eyeIcon} alt="" />
-                            </ProgramAction>
+                          <td>-</td>
 
-                            <ProgramAction
-                              label={`Edit ${workshop.title}`}
-                              onClick={() => handleEditWorkshop(workshop)}
-                            >
-                              Edit
-                            </ProgramAction>
+                          <td>
+                            <div className="admin-program-actions">
+                              <ProgramAction
+                                label={`Lihat ${workshop.title}`}
+                                onClick={() => {
+                                  setSelectedWorkshopId(workshop.id);
+                                  setDetailModalOpen(true);
+                                }}
+                              >
+                                <img src={eyeIcon} alt="" />
+                              </ProgramAction>
 
-                            <ProgramAction
-                              label={`Hapus ${workshop.title}`}
-                              onClick={() => handleDeleteWorkshop(workshop)}
-                              disabled={deletingId === workshop.id}
-                              className="is-danger"
-                            >
-                              {deletingId === workshop.id ? '...' : 'Delete'}
-                            </ProgramAction>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                              <ProgramAction
+                                label={`Edit ${workshop.title}`}
+                                onClick={() => handleEditWorkshop(workshop)}
+                              >
+                                Edit
+                              </ProgramAction>
+
+                              <ProgramAction
+                                label={`Hapus ${workshop.title}`}
+                                onClick={() => handleDeleteWorkshop(workshop)}
+                                disabled={deletingId === workshop.id}
+                                className="is-danger"
+                              >
+                                {deletingId === workshop.id ? '...' : 'Delete'}
+                              </ProgramAction>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -883,12 +1038,24 @@ export function AdminProgram() {
               <article className="admin-program-panel">
                 <div className="admin-program-panel-head">
                   <h2>Peserta Terbaru</h2>
+                  <span>{workshopRegistrations.length} pendaftaran</span>
                 </div>
 
-                <p>
-                  Data peserta belum tersedia pada payload workshop yang
-                  disimpan di SQLite.
-                </p>
+                {registrationError ? (
+                  <p>{registrationError}</p>
+                ) : latestWorkshopRegistrations.length === 0 ? (
+                  <p>Belum ada peserta workshop.</p>
+                ) : (
+                  latestWorkshopRegistrations.map((registration) => (
+                    <p key={registration.id}>
+                      <span className="admin-program-user-dot" aria-hidden="true" />
+                      <b>{registration.participantName}</b>
+                      <span>{registration.workshopChoice}</span>
+                      <span>{participantCountFromRegistration(registration)} peserta</span>
+                      <ProgramBadge>{registration.status}</ProgramBadge>
+                    </p>
+                  ))
+                )}
               </article>
 
               <article className="admin-program-panel admin-program-problems">
@@ -1030,6 +1197,15 @@ export function AdminProgram() {
 
                 <dt>
                   <img src={usersIcon} alt="" />
+                  Peserta
+                </dt>
+                <dd>
+                  {selectedWorkshopRegistrationSummary.participantCount} peserta dari{' '}
+                  {selectedWorkshopRegistrationSummary.registrationCount} pendaftaran
+                </dd>
+
+                <dt>
+                  <img src={usersIcon} alt="" />
                   Harga
                 </dt>
                 <dd>{formatPrice(selectedWorkshop.price)}</dd>
@@ -1049,6 +1225,25 @@ export function AdminProgram() {
               <section className="admin-program-description">
                 <h3>Tentang Workshop</h3>
                 <p>{selectedWorkshop.about || '-'}</p>
+              </section>
+
+              <section className="admin-program-description">
+                <h3>Peserta Terdaftar</h3>
+                {selectedWorkshopRegistrationSummary.registrations.length === 0 ? (
+                  <p>Belum ada peserta yang mendaftar workshop ini.</p>
+                ) : (
+                  <div className="admin-program-registrants">
+                    {selectedWorkshopRegistrationSummary.registrations.map((registration) => (
+                      <p key={registration.id}>
+                        <b>{registration.participantName}</b>
+                        <span>{registration.participantEmail}</span>
+                        <small>
+                          {participantCountFromRegistration(registration)} peserta · {registration.createdAtLabel}
+                        </small>
+                      </p>
+                    ))}
+                  </div>
+                )}
               </section>
 
               <div className="admin-program-detail-actions">

@@ -375,6 +375,14 @@
   height: 14px;
 }
 
+.admin-program-participant-count {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+}
+
 .admin-program-pagination {
   display: flex;
   align-items: center;
@@ -635,6 +643,29 @@
   margin: 0;
   font-size: 12px;
   line-height: 1.6;
+  color: #4b5563;
+}
+
+.admin-program-registrants {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-program-registrants p {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+}
+
+.admin-program-registrants b {
+  color: #111827;
+}
+
+.admin-program-registrants span,
+.admin-program-registrants small {
   color: #4b5563;
 }
 
