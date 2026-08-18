@@ -64,8 +64,12 @@ function normalizeWorkshopRegistration(item) {
   };
 }
 
+function isRegisteredWorkshopParticipant(registration) {
+  return ['Terdaftar', 'Selesai'].includes(registration.status);
+}
+
 function summarizeRegistrations(registrations) {
-  return registrations.reduce((summary, registration) => {
+  return registrations.filter(isRegisteredWorkshopParticipant).reduce((summary, registration) => {
     const key = String(registration.workshopId || '');
     if (!key) return summary;
 

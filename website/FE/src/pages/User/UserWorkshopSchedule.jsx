@@ -4,6 +4,7 @@ import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import certificateIcon from '../../assets/icons/icon-downloadsim-1.svg';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import { ProfileAvatar } from '../../features/profile-image-crop/ProfileAvatar.jsx';
+import { fetchTransactions } from '../../services/transactionApi.js';
 import { fetchWorkshops, isPublicWorkshop } from '../../services/workshopApi.js';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 
@@ -175,9 +176,44 @@ export function UserWorkshopSchedule() {
       setIsLoadingWorkshops(true);
       setWorkshopError('');
       try {
-        const records = await fetchWorkshops();
+        const params = {};
+        if (user.id || user.userId) params.userId = user.id || user.userId;
+        if (user.email) params.email = user.email;
+
+        if (!params.userId && !params.email) {
+          setWorkshops([]);
+          return;
+        }
+
+        const [workshopRecords, transactionRecords] = await Promise.all([
+          fetchWorkshops(),
+          fetchTransactions({ ...params, status: 'paid' }),
+        ]);
         if (isMounted) {
-          setWorkshops(records.filter(isPublicWorkshop));
+          const paidWorkshopTransactions = transactionRecords.filter(
+            (transaction) => transaction.itemType !== 'project' && transaction.status === 'paid'
+          );
+          const paidWorkshopIds = new Set(
+            paidWorkshopTransactions
+              .map((transaction) => String(transaction.itemId || ''))
+              .filter(Boolean)
+          );
+          const paidWorkshopFallbacks = paidWorkshopTransactions
+            .filter((transaction) => !transaction.itemId)
+            .map((transaction) => ({
+              id: `transaction-${transaction.id}`,
+              title: transaction.itemTitle,
+              method: transaction.paymentChannel || transaction.paymentMethod || 'Workshop',
+              location: 'Akses aktif setelah pembayaran disetujui',
+              startsAt: transaction.paidAt || transaction.createdAt,
+              timeText: '',
+              status: 'Terdaftar',
+            }));
+
+          setWorkshops([
+            ...workshopRecords.filter((workshop) => isPublicWorkshop(workshop) && paidWorkshopIds.has(String(workshop.id))),
+            ...paidWorkshopFallbacks,
+          ]);
         }
       } catch (error) {
         if (isMounted) {
@@ -196,7 +232,7 @@ export function UserWorkshopSchedule() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [user.email, user.id, user.userId]);
 
   const schedules = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -345,7 +381,7 @@ export function UserWorkshopSchedule() {
                 </div>
               ) : schedules.length === 0 ? (
                 <div className="user-workshop-table__row" role="row">
-                  <span>Belum ada workshop atau program yang tersedia.</span>
+                  <span>Belum ada workshop yang sudah aktif. Workshop akan muncul setelah pembayaran disetujui admin.</span>
                   <span>-</span>
                   <span>-</span>
                   <span>-</span>

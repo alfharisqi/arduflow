@@ -205,6 +205,13 @@ function ensureTransactionTables(PDO $pdo): void
     addColumnIfMissing($pdo, 'payment_methods', 'qris_file_url', 'TEXT');
     addColumnIfMissing($pdo, 'payment_methods', 'is_active', 'INTEGER NOT NULL DEFAULT 1');
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_payment_methods_active ON payment_methods(is_active)');
+
+    $workshopRegistrationTable = $pdo->query(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'workshop_registrations' LIMIT 1"
+    )->fetchColumn();
+    if ($workshopRegistrationTable !== false) {
+        addColumnIfMissing($pdo, 'workshop_registrations', 'transaction_id', 'INTEGER NULL');
+    }
 }
 
 function addColumnIfMissing(PDO $pdo, string $table, string $column, string $definition): void
@@ -486,6 +493,53 @@ function grantProductAccess(PDO $pdo, array $transaction, string $now): void
         ':granted_at' => $now,
         ':created_at' => $now,
         ':updated_at' => $now,
+    ]);
+
+    if (($transaction['item_type'] ?? '') !== 'workshop') {
+        return;
+    }
+
+    $workshopRegistrationTable = $pdo->query(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'workshop_registrations' LIMIT 1"
+    )->fetchColumn();
+    if ($workshopRegistrationTable === false) {
+        return;
+    }
+
+    $payload = json_decode((string) ($transaction['payload_json'] ?? '{}'), true);
+    $registrationId = null;
+    if (is_array($payload)) {
+        $registrationId = $payload['workshopRegistration']['id']
+            ?? $payload['workshop_registration']['id']
+            ?? $payload['registrationId']
+            ?? $payload['registration_id']
+            ?? null;
+    }
+
+    if ($registrationId !== null && (int) $registrationId > 0) {
+        $statement = $pdo->prepare(
+            'UPDATE workshop_registrations
+             SET status = "registered",
+                 updated_at = :updated_at
+             WHERE id = :id'
+        );
+        $statement->execute([
+            ':updated_at' => $now,
+            ':id' => (int) $registrationId,
+        ]);
+
+        return;
+    }
+
+    $statement = $pdo->prepare(
+        'UPDATE workshop_registrations
+         SET status = "registered",
+             updated_at = :updated_at
+         WHERE transaction_id = :transaction_id'
+    );
+    $statement->execute([
+        ':updated_at' => $now,
+        ':transaction_id' => (int) $transaction['id'],
     ]);
 }
 

@@ -117,6 +117,14 @@ function WorkshopForm() {
     type: "",
     message: "",
   });
+  const storedUser = useMemo(() => {
+    try {
+      const rawUser = window.localStorage.getItem("arduflow_user");
+      return rawUser ? JSON.parse(rawUser) : {};
+    } catch {
+      return {};
+    }
+  }, []);
 
   useEffect(() => {
     let isActive = true;
@@ -327,7 +335,7 @@ function WorkshopForm() {
 
       await showSuccessAlert(
         "Pendaftaran Berhasil",
-        result.message || "Pendaftaran workshop berhasil dikirim."
+        result.message || "Pendaftaran workshop berhasil dikirim. Silakan lanjutkan pembayaran di halaman Transaksi."
       );
 
       form.reset();
@@ -335,6 +343,7 @@ function WorkshopForm() {
       setParticipantCount("");
       setParticipants([]);
       setParticipantFileName("");
+      window.location.assign("/transaksi");
     } catch (error) {
       console.error("Workshop gagal:", error);
 
@@ -381,6 +390,7 @@ function WorkshopForm() {
               type="text"
               placeholder="Masukkan nama lengkap"
               autoComplete="name"
+              defaultValue={storedUser.name || storedUser.fullName || ""}
               minLength={3}
               maxLength={150}
               required
@@ -401,6 +411,7 @@ function WorkshopForm() {
               type="email"
               placeholder="Masukkan email"
               autoComplete="email"
+              defaultValue={storedUser.email || ""}
               maxLength={191}
               required
             />
@@ -421,6 +432,7 @@ function WorkshopForm() {
               placeholder="08xxxxxxxxxx"
               autoComplete="tel"
               inputMode="numeric"
+              defaultValue={storedUser.whatsapp || storedUser.phone || ""}
               required
             />
 

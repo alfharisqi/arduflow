@@ -176,6 +176,141 @@ function ensureWorkshopRegistrationColumns(PDO $pdo): void
         'member_names',
         'TEXT NULL'
     );
+
+    addColumnIfMissing(
+        $pdo,
+        'workshop_registrations',
+        'transaction_id',
+        'INTEGER NULL'
+    );
+}
+
+function ensureTransactionTablesForWorkshop(PDO $pdo): void
+{
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NULL,
+            user_name TEXT,
+            email TEXT,
+            item_type TEXT NOT NULL DEFAULT "workshop",
+            item_id INTEGER NULL,
+            item_title TEXT NOT NULL,
+            amount REAL NOT NULL DEFAULT 0,
+            currency TEXT NOT NULL DEFAULT "IDR",
+            payment_method TEXT,
+            payment_channel TEXT,
+            payment_code TEXT,
+            recipient_name TEXT,
+            qris_file_name TEXT,
+            qris_file_type TEXT,
+            qris_file_size INTEGER,
+            qris_file_path TEXT,
+            qris_file_url TEXT,
+            invoice_number TEXT NOT NULL UNIQUE,
+            reference_number TEXT,
+            status TEXT NOT NULL DEFAULT "pending",
+            paid_at TEXT,
+            due_at TEXT,
+            notes TEXT,
+            proof_file_name TEXT,
+            proof_file_type TEXT,
+            proof_file_size INTEGER,
+            proof_file_path TEXT,
+            proof_file_url TEXT,
+            proof_uploaded_at TEXT,
+            reviewed_at TEXT,
+            reviewed_by TEXT,
+            rejection_reason TEXT,
+            payload_json TEXT NOT NULL DEFAULT "{}",
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )'
+    );
+
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS payment_methods (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            method_type TEXT NOT NULL DEFAULT "Transfer Bank",
+            channel TEXT,
+            recipient_name TEXT,
+            payment_code TEXT,
+            qris_file_name TEXT,
+            qris_file_type TEXT,
+            qris_file_size INTEGER,
+            qris_file_path TEXT,
+            qris_file_url TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )'
+    );
+
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_transactions_email ON transactions(email)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status)');
+}
+
+function generateWorkshopInvoiceNumber(): string
+{
+    try {
+        $suffix = strtoupper(bin2hex(random_bytes(3)));
+    } catch (Throwable) {
+        $suffix = strtoupper(substr(str_replace('.', '', uniqid('', true)), -6));
+    }
+
+    return 'AFW-INV-' . gmdate('Ymd') . '-' . $suffix;
+}
+
+function parseMoneyValue(mixed $value): float
+{
+    $digits = preg_replace('/\D+/', '', (string) $value) ?? '';
+    return $digits === '' ? 0.0 : (float) $digits;
+}
+
+function firstActivePaymentMethod(PDO $pdo): array
+{
+    if (!tableExists($pdo, 'payment_methods')) {
+        return [];
+    }
+
+    $statement = $pdo->query(
+        'SELECT *
+         FROM payment_methods
+         WHERE is_active = 1
+         ORDER BY id DESC
+         LIMIT 1'
+    );
+
+    $row = $statement->fetch();
+    return is_array($row) ? $row : [];
+}
+
+function workshopPrice(PDO $pdo, ?int $workshopId): float
+{
+    if ($workshopId === null || !tableExists($pdo, 'workshops')) {
+        return 0.0;
+    }
+
+    $statement = $pdo->prepare(
+        'SELECT payload_json
+         FROM workshops
+         WHERE id = :id
+         LIMIT 1'
+    );
+    $statement->execute([':id' => $workshopId]);
+    $payload = json_decode((string) ($statement->fetchColumn() ?: '{}'), true);
+
+    if (!is_array($payload)) {
+        return 0.0;
+    }
+
+    return parseMoneyValue(
+        $payload['registrationFee']
+            ?? $payload['registration_fee']
+            ?? $payload['price']
+            ?? 0
+    );
 }
 
 /*
@@ -393,6 +528,8 @@ function normalizeAdminStatus(?string $status): string
 {
     return match (strtolower(trim((string) $status))) {
         'new', 'baru' => 'Baru',
+        'pending_payment' => 'Menunggu Pembayaran',
+        'registered', 'active', 'paid' => 'Terdaftar',
         'in_progress', 'processing', 'processed', 'diproses' => 'Diproses',
         'waiting', 'pending', 'menunggu' => 'Menunggu Balasan',
         'done', 'completed', 'selesai' => 'Selesai',
@@ -566,6 +703,7 @@ function fetchAdminLeads(PDO $pdo): array
                 participant_whatsapp,
                 institution_name,
                 workshop_id,
+                transaction_id,
                 workshop_choice,
                 participant_estimate,
                 member_names,
@@ -608,6 +746,7 @@ function fetchAdminLeads(PDO $pdo): array
                 'meta' => [
                     'institution_name' => $row['institution_name'] ?? null,
                     'workshop_id' => $row['workshop_id'] ?? null,
+                    'transaction_id' => $row['transaction_id'] ?? null,
                     'workshop_choice' => $row['workshop_choice'] ?? null,
                     'participant_estimate' => $row['participant_estimate'] ?? null,
                     'member_names' => $row['member_names'] ?? null,
@@ -1464,6 +1603,26 @@ if ($formType === 'workshop') {
             : null;
 
     try {
+        ensureTransactionTablesForWorkshop($pdo);
+
+        $participantCount = (int) (preg_replace('/\D+/', '', $participantEstimate) ?: 1);
+        $participantCount = max(1, $participantCount);
+        $unitPrice = workshopPrice($pdo, $workshopId);
+        $totalAmount = $unitPrice * $participantCount;
+        $paymentMethod = firstActivePaymentMethod($pdo);
+        $invoiceNumber = generateWorkshopInvoiceNumber();
+        $transactionPayload = [
+            'workshopRegistration' => [
+                'participantName' => $participantName,
+                'participantEmail' => $participantEmail,
+                'participantWhatsapp' => $participantWhatsapp,
+                'institutionName' => $institutionNameValue,
+                'participantEstimate' => $participantEstimateValue,
+                'memberNames' => $memberNamesValue,
+                'notes' => $notesValue,
+            ],
+        ];
+
         $pdo->beginTransaction();
 
         $statement = $pdo->prepare(
@@ -1516,21 +1675,123 @@ if ($formType === 'workshop') {
             ':member_names' => $memberNamesValue,
             ':notes' => $notesValue,
             ':source' => 'website',
-            ':status' => 'new',
+            ':status' => 'pending_payment',
             ':created_at' => $now,
             ':updated_at' => $now,
         ]);
 
         $id = (int) $pdo->lastInsertId();
 
+        $transactionPayload['workshopRegistration']['id'] = $id;
+
+        $transactionStatement = $pdo->prepare(
+            'INSERT INTO transactions (
+                user_id,
+                user_name,
+                email,
+                item_type,
+                item_id,
+                item_title,
+                amount,
+                currency,
+                payment_method,
+                payment_channel,
+                payment_code,
+                recipient_name,
+                qris_file_name,
+                qris_file_type,
+                qris_file_size,
+                qris_file_path,
+                qris_file_url,
+                invoice_number,
+                reference_number,
+                status,
+                paid_at,
+                due_at,
+                notes,
+                payload_json,
+                created_at,
+                updated_at
+            ) VALUES (
+                NULL,
+                :user_name,
+                :email,
+                "workshop",
+                :item_id,
+                :item_title,
+                :amount,
+                "IDR",
+                :payment_method,
+                :payment_channel,
+                :payment_code,
+                :recipient_name,
+                :qris_file_name,
+                :qris_file_type,
+                :qris_file_size,
+                :qris_file_path,
+                :qris_file_url,
+                :invoice_number,
+                "",
+                "pending",
+                NULL,
+                NULL,
+                :notes,
+                :payload_json,
+                :created_at,
+                :updated_at
+            )'
+        );
+
+        $transactionStatement->execute([
+            ':user_name' => $participantName,
+            ':email' => $participantEmail,
+            ':item_id' => $workshopId,
+            ':item_title' => $workshopChoice,
+            ':amount' => $totalAmount,
+            ':payment_method' => (string) ($paymentMethod['name'] ?? ''),
+            ':payment_channel' => (string) ($paymentMethod['channel'] ?? $paymentMethod['method_type'] ?? ''),
+            ':payment_code' => (string) ($paymentMethod['payment_code'] ?? ''),
+            ':recipient_name' => (string) ($paymentMethod['recipient_name'] ?? ''),
+            ':qris_file_name' => $paymentMethod['qris_file_name'] ?? null,
+            ':qris_file_type' => $paymentMethod['qris_file_type'] ?? null,
+            ':qris_file_size' => $paymentMethod['qris_file_size'] ?? null,
+            ':qris_file_path' => $paymentMethod['qris_file_path'] ?? null,
+            ':qris_file_url' => $paymentMethod['qris_file_url'] ?? null,
+            ':invoice_number' => $invoiceNumber,
+            ':notes' => 'Pendaftaran workshop #' . $id,
+            ':payload_json' => json_encode($transactionPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            ':created_at' => $now,
+            ':updated_at' => $now,
+        ]);
+
+        $transactionId = (int) $pdo->lastInsertId();
+
+        $linkStatement = $pdo->prepare(
+            'UPDATE workshop_registrations
+             SET transaction_id = :transaction_id,
+                 updated_at = :updated_at
+             WHERE id = :id'
+        );
+        $linkStatement->execute([
+            ':transaction_id' => $transactionId,
+            ':updated_at' => $now,
+            ':id' => $id,
+        ]);
+
         $pdo->commit();
 
         sendJson(
             201,
             true,
-            'Pendaftaran workshop berhasil dikirim.',
+            'Pendaftaran workshop berhasil dikirim. Silakan lanjutkan pembayaran di halaman Transaksi.',
             [
                 'form_type' => 'workshop',
+                'transaction' => [
+                    'id' => $transactionId,
+                    'invoice_number' => $invoiceNumber,
+                    'amount' => $totalAmount,
+                    'status' => 'pending',
+                ],
                 'registration' => [
                     'id' => $id,
                     'participant_name' =>
@@ -1550,7 +1811,8 @@ if ($formType === 'workshop') {
                         $memberNamesValue,
                     'notes' => $notesValue,
                     'source' => 'website',
-                    'status' => 'new',
+                    'status' => 'pending_payment',
+                    'transaction_id' => $transactionId,
                     'version' => 1,
                     'created_at' => $now,
                     'updated_at' => $now,

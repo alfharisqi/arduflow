@@ -136,6 +136,15 @@ export function UserTransactions() {
     if (user.id || user.userId) params.userId = user.id || user.userId;
     if (user.email) params.email = user.email;
 
+    if (!params.userId && !params.email) {
+      setTransactions([]);
+      setError('Login diperlukan untuk melihat transaksi.');
+      setIsLoading(false);
+      return () => {
+        isMounted = false;
+      };
+    }
+
     setIsLoading(true);
     fetchTransactions(params)
       .then((records) => {

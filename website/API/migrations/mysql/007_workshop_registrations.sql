@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS workshop_registrations (
     participant_whatsapp VARCHAR(64) NOT NULL,
     institution_name VARCHAR(255) NULL,
     workshop_id BIGINT UNSIGNED NULL,
+    transaction_id BIGINT UNSIGNED NULL,
     workshop_choice VARCHAR(255) NOT NULL,
     participant_estimate VARCHAR(191) NULL,
     member_names TEXT NULL,
