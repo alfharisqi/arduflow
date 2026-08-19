@@ -28,6 +28,16 @@ function normalizeProject(project) {
   const category = project.category || tags[0] || 'Proyek';
   const coverImage = project.coverImage || project.cover_image || project.image || null;
   const projectFile = project.projectFile || project.project_file || null;
+  const circuitImage = project.circuitImage || project.circuit_image || null;
+
+  const tools = normalizeList(project.tools).map((tool) => {
+    if (!tool || typeof tool !== 'object') return tool;
+
+    return {
+      ...tool,
+      imageUrl: resolveFileUrl(tool.image),
+    };
+  });
 
   return {
     id: project.id,
@@ -40,11 +50,13 @@ function normalizeProject(project) {
     difficulty: project.difficulty || 'Pemula',
     estimatedTime: project.estimatedTime || '',
     tags: tags.length ? tags : [category],
-    tools: normalizeList(project.tools),
+    tools,
     nodes: normalizeList(project.nodes),
     steps: normalizeList(project.steps),
     coverImage,
     coverImageUrl: resolveFileUrl(coverImage),
+    circuitImage,
+    circuitImageUrl: resolveFileUrl(circuitImage),
     projectFile,
     projectFileUrl: resolveFileUrl(projectFile),
     programmingLanguage: project.programmingLanguage || '',

@@ -447,6 +447,19 @@
   border-radius: 4px;
 }
 
+.admin-gallery-thumb-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-gallery-thumb-placeholder img {
+  width: 45%;
+  height: 45%;
+  object-fit: contain;
+  opacity: 0.55;
+}
+
 .admin-gallery-badge {
   display: inline-flex;
   align-items: center;
@@ -626,8 +639,12 @@
   font-weight: 800;
 }
 
-.admin-gallery-panel-head a {
+.admin-gallery-panel-head a,
+.admin-gallery-panel-head button {
+  border: 0;
+  background: transparent;
   color: #1d4ed8;
+  cursor: pointer;
   font-family: 'Inter', sans-serif;
   font-size: 10px;
   font-weight: 700;

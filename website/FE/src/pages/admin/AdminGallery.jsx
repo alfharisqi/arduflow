@@ -17,20 +17,6 @@ import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
 import fileIcon from '../../assets/icons/icon-file-text-1.svg';
 import galleryIcon from '../../assets/icons/icon-image-placeholder-1.svg';
 import mapIcon from '../../assets/icons/icon-map-pin-1.svg';
-import workshopMainImage from '../../assets/images/workshop-list-presentation-main.jpg';
-import workshopMarketImage from '../../assets/images/workshop-list-presentation-market.jpg';
-import workshopSpeakerImage from '../../assets/images/workshop-list-presentation-speaker.jpg';
-import workshopGroupImage from '../../assets/images/workshop-experience-group.png';
-import workshopStudentImage from '../../assets/images/workshop-experience-student.png';
-
-const galleryImages = [
-  workshopMainImage,
-  workshopMarketImage,
-  workshopSpeakerImage,
-  workshopGroupImage,
-  workshopStudentImage,
-];
-
 
 const GALLERY_API_URL = apiEndpoint(
   import.meta.env.VITE_GALLERY_API_URL,
@@ -96,61 +82,6 @@ async function getGalleryFromApi() {
   return Array.isArray(result.data) ? result.data : [];
 }
 
-const galleryItems = [
-  ['Workshop IoT Beginner', 'Pelatihan dasar IoT untuk pemula', 'Foto', 'Workshop', '42', 'Published', '1.245', '18 Mei 2024', '20 Mei 2024', 'Ahmad Fauzi'],
-  ['Program Arduflow Goes to School', 'Edukasi IoT di SMK Negeri 2', 'Foto', 'Program', '35', 'Published', '986', '15 Mei 2024', '16 Mei 2024', 'Siti Aisyah'],
-  ['Partner Visit - Universitas ABC', 'Kunjungan kerjasama & diskusi', 'Foto', 'Partner', '28', 'Review', '210', '10 Mei 2024', '11 Mei 2024', 'Budi Santoso'],
-  ['Komunitas IoT Meet Up #5', 'Gathering & sharing komunitas IoT', 'Video', 'Komunitas', '1', 'Published', '1.532', '8 Mei 2024', '8 Mei 2024', 'Rudi Kurniawan'],
-  ['Event Arduino Day 2024', 'Perayaan Arduino Day bersama komunitas', 'Foto', 'Event', '56', 'Published', '2.845', '4 Mei 2024', '5 Mei 2024', 'Ahmad Fauzi'],
-  ['Dokumentasi Kelas IDE', 'Kelas penggunaan Arduflow IDE', 'Video', 'Dokumentasi', '3', 'Draft', '0', '30 Apr 2024', '1 Mei 2024', 'Siti Aisyah'],
-  ['Bootcamp IoT Advanced', 'Hari ke-1 sampai Hari ke-3', 'Album', 'Workshop', '72', 'Review', '0', '25 Apr 2024', '27 Apr 2024', 'Budi Santoso'],
-  ['Expo Inovasi Teknologi', 'Pameran inovasi siswa & mahasiswa', 'Foto', 'Event', '33', 'Archived', '312', '20 Apr 2024', '22 Apr 2024', 'Rudi Kurniawan'],
-];
-
-const recentGalleries = [
-  ['Dokumentasi Kelas IDE', 'Draft'],
-  ['Bootcamp IoT Advanced', '27 Apr 2024'],
-  ['Expo Inovasi Teknologi', '22 Apr 2024'],
-  ['Gathering Komunitas IoT', '19 Apr 2024'],
-];
-
-const reviewMedia = [
-  ['Partner Visit - Universitas ABC', 'Thumbnail kosong'],
-  ['Video Testimonial Event', 'Video belum diproses'],
-  ['Dokumentasi Kelas IDE', 'Deskripsi kosong'],
-  ['Bootcamp IoT Advanced', 'File terlalu besar'],
-];
-
-const popularGalleries = [
-  ['Workshop IoT Beginner', '2.845'],
-  ['Event Arduino Day 2024', '2.156'],
-  ['Komunitas IoT Meet Up #5', '1.532'],
-  ['Program Arduflow Goes to School', '986'],
-  ['Partner Visit - Universitas ABC', '720'],
-];
-
-const draftGalleries = [
-  ['Dokumentasi Kelas IDE', '3 item'],
-  ['Video Pembukaan Event', '1 item'],
-  ['Kunjungan Industri SMK', '18 item'],
-  ['Foto Hari Terakhir Bootcamp', '24 item'],
-];
-
-const activities = [
-  ['Ahmad Fauzi mengupload 42 foto di "Workshop IoT Beginner"', '20 Mei 2024 14:25', 'blue'],
-  ['Siti Aisyah mempublish galeri "Program Arduflow Goes to School"', '16 Mei 2024 10:12', 'blue'],
-  ['Budi Santoso mengganti cover "Bootcamp IoT Advanced"', '27 Apr 2024 09:10', 'purple'],
-  ['Rudi Kurniawan menghapus 2 foto di "Expo Inovasi Teknologi"', '22 Apr 2024 16:45', 'purple'],
-];
-
-const mediaProblems = [
-  ['Thumbnail kosong', 12],
-  ['File terlalu besar (> 100MB)', 8],
-  ['Video belum diproses', 6],
-  ['Deskripsi/judul kosong', 15],
-  ['Link rusak', 4],
-];
-
 function AdminGalleryTopbar() {
   return (
     <header className="admin-dashboard-topbar">
@@ -176,31 +107,22 @@ function GalleryBadge({ children }) {
   return <span className={`admin-gallery-badge admin-gallery-badge--${slug}`}>{children}</span>;
 }
 
-function GalleryAction({ label, children }) {
-  let content = children;
+function GalleryThumbnail({ item, className = 'admin-gallery-thumb' }) {
+  const coverUrl = item ? resolveGalleryCoverUrl(item.coverPath, item.coverUrl) : '';
 
-  if (label.startsWith('Edit ')) {
-    content = '✎';
-  } else if (label.startsWith('Featured ')) {
-    content = '☆';
-  } else if (label.startsWith('Menu ')) {
-    content = '⋮';
+  if (!coverUrl) {
+    return (
+      <span className={`${className} admin-gallery-thumb-placeholder`} aria-hidden="true">
+        <img src={galleryIcon} alt="" />
+      </span>
+    );
   }
 
   return (
-    <button className="admin-gallery-action" type="button" aria-label={label}>
-      {content}
-    </button>
-  );
-}
-
-function GalleryThumbnail({ index, className = 'admin-gallery-thumb' }) {
-  return (
     <img
-      className={`${className} is-${index % galleryImages.length}`}
-      src={galleryImages[index % galleryImages.length]}
-      alt=""
-      aria-hidden="true"
+      className={className}
+      src={coverUrl}
+      alt={item?.title || 'Thumbnail galeri'}
     />
   );
 }
@@ -211,12 +133,70 @@ function stripHtml(value) {
   return element.textContent?.trim() || '';
 }
 
-function escapeHtmlAttribute(value) {
-  return String(value || '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('"', '&quot;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;');
+function compactText(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function toNumber(...values) {
+  const rawValue = values.find((value) => value !== undefined && value !== null && value !== '');
+  if (rawValue === undefined) return 0;
+  if (typeof rawValue === 'number') return Number.isFinite(rawValue) ? rawValue : 0;
+
+  const normalizedValue = String(rawValue).replace(/\./g, '').replace(',', '.');
+  const parsedValue = Number(normalizedValue);
+  return Number.isFinite(parsedValue) ? parsedValue : 0;
+}
+
+function getMediaCount(item) {
+  const count = toNumber(item?.mediaCount, item?.jumlahMedia, item?.totalMedia, item?.media_count, item?.total_media);
+  return count > 0 ? count : 1;
+}
+
+function normalizeGalleryStatus(item) {
+  return String(item?.status || '').trim().toLowerCase();
+}
+
+function getStatusLabel(item) {
+  return normalizeGalleryStatus(item) === 'published' ? 'Published' : 'Draft';
+}
+
+function getMediaType(item) {
+  const type = String(item?.mediaType || item?.type || item?.jenisMedia || item?.jenis_media || '').trim();
+  return type || 'Foto';
+}
+
+function getViewerCount(item) {
+  return toNumber(item?.viewer, item?.viewers, item?.totalViewer, item?.total_viewer, item?.views, item?.view_count);
+}
+
+function getGalleryTimestamp(item) {
+  const timestamp = Date.parse(item?.updatedAt || item?.updated_at || item?.createdAt || item?.created_at || item?.eventDate || item?.event_date || '');
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function getGallerySummary(item, maxLength = 120) {
+  const summary = compactText(stripHtml(item?.description || ''));
+  if (summary.length <= maxLength) return summary;
+
+  const clipped = summary.slice(0, maxLength + 1);
+  const lastSpace = clipped.lastIndexOf(' ');
+  const safeText = lastSpace > Math.floor(maxLength * 0.65)
+    ? clipped.slice(0, lastSpace)
+    : summary.slice(0, maxLength);
+
+  return `${safeText.trim()}...`;
+}
+
+function getGalleryIssues(item) {
+  const issues = [];
+
+  if (!compactText(item?.title)) issues.push('Judul kosong');
+  if (!compactText(stripHtml(item?.description))) issues.push('Deskripsi kosong');
+  if (!resolveGalleryCoverUrl(item?.coverPath, item?.coverUrl)) issues.push('Cover kosong');
+  if (!compactText(item?.eventDate)) issues.push('Tanggal kosong');
+  if (!compactText(item?.userName)) issues.push('Uploader kosong');
+
+  return issues;
 }
 
 function AdminGalleryUploadForm({ onCancel, onSaved, mode = 'create', initialGallery = null }) {
@@ -640,6 +620,14 @@ export function AdminGallery() {
   const [galleryError, setGalleryError] = useState('');
   const [editingGallery, setEditingGallery] = useState(null);
   const [busyGalleryId, setBusyGalleryId] = useState(null);
+  const [filters, setFilters] = useState({
+    search: '',
+    mediaType: '',
+    status: '',
+    tag: '',
+    eventDate: '',
+    userName: '',
+  });
   const selectedGallery = selectedGalleryIndex !== null ? galleryData[selectedGalleryIndex] : null;
 
   const loadGalleryData = async () => {
@@ -671,18 +659,68 @@ export function AdminGallery() {
     });
   };
 
+  const updateFilter = (field, value) => {
+    setFilters((current) => ({ ...current, [field]: value }));
+    setSelectedGalleryIndex(null);
+  };
+
+  const resetFilters = () => {
+    setFilters({
+      search: '',
+      mediaType: '',
+      status: '',
+      tag: '',
+      eventDate: '',
+      userName: '',
+    });
+    setSelectedGalleryIndex(null);
+  };
+
+  const filterOptions = useMemo(() => ({
+    mediaTypes: Array.from(new Set(galleryData.map(getMediaType).filter(Boolean))).sort(),
+    statuses: Array.from(new Set(galleryData.map(getStatusLabel).filter(Boolean))).sort(),
+    tags: Array.from(new Set(galleryData.map((item) => item.tag || 'Dokumentasi').filter(Boolean))).sort(),
+    users: Array.from(new Set(galleryData.map((item) => item.userName || 'Admin').filter(Boolean))).sort(),
+  }), [galleryData]);
+
+  const filteredGalleryData = useMemo(() => {
+    const search = compactText(filters.search).toLowerCase();
+
+    return galleryData.filter((item) => {
+      const haystack = [
+        item.title,
+        item.tag,
+        item.userName,
+        item.eventDate,
+        item.createdAt,
+        getMediaType(item),
+        getStatusLabel(item),
+        stripHtml(item.description),
+      ].join(' ').toLowerCase();
+
+      if (search && !haystack.includes(search)) return false;
+      if (filters.mediaType && getMediaType(item) !== filters.mediaType) return false;
+      if (filters.status && getStatusLabel(item) !== filters.status) return false;
+      if (filters.tag && (item.tag || 'Dokumentasi') !== filters.tag) return false;
+      if (filters.eventDate && item.eventDate !== filters.eventDate) return false;
+      if (filters.userName && (item.userName || 'Admin') !== filters.userName) return false;
+
+      return true;
+    });
+  }, [filters, galleryData]);
+
   const getGallerySelectionKey = (gallery, index) => String(gallery?.id || `row-${index}`);
 
   const allGallerySelected =
-    galleryData.length > 0 &&
-    galleryData.every((gallery, index) =>
+    filteredGalleryData.length > 0 &&
+    filteredGalleryData.every((gallery, index) =>
       selectedGalleryIds.has(getGallerySelectionKey(gallery, index))
     );
 
   const handleToggleAllGalleries = (checked) => {
     setSelectedGalleryIds(
       checked
-        ? new Set(galleryData.map((gallery, index) => getGallerySelectionKey(gallery, index)))
+        ? new Set(filteredGalleryData.map((gallery, index) => getGallerySelectionKey(gallery, index)))
         : new Set()
     );
   };
@@ -703,7 +741,7 @@ export function AdminGallery() {
     });
   };
 
-  const selectedGalleries = galleryData.filter((gallery, index) =>
+  const selectedGalleries = filteredGalleryData.filter((gallery, index) =>
     selectedGalleryIds.has(getGallerySelectionKey(gallery, index))
   );
 
@@ -764,6 +802,37 @@ export function AdminGallery() {
     }
   };
 
+  const handleUpdateGalleryStatus = async (gallery, status) => {
+    if (!gallery?.id) {
+      setGalleryError('ID galeri tidak tersedia.');
+      return;
+    }
+
+    try {
+      setBusyGalleryId(gallery.id);
+      setGalleryError('');
+
+      const response = await fetch(GALLERY_API_URL, {
+        method: 'POST',
+        body: createGalleryStatusPayload(gallery, status),
+      });
+      const responseText = await response.text();
+      const result = responseText ? JSON.parse(responseText) : {};
+
+      if (!response.ok || result.success === false) {
+        throw new Error(result.message || `Gagal mengubah status ${gallery.title}.`);
+      }
+
+      await showSuccessAlert('Berhasil', result.message || 'Status galeri berhasil diubah.');
+      await loadGalleryData();
+    } catch (error) {
+      console.error('Gagal mengubah status galeri:', error);
+      setGalleryError(error.message || 'Gagal mengubah status galeri.');
+    } finally {
+      setBusyGalleryId(null);
+    }
+  };
+
   const handleBulkDelete = async () => {
     if (selectedGalleries.length === 0) return;
 
@@ -807,10 +876,11 @@ export function AdminGallery() {
     setUploadFormOpen(true);
   };
 
-  const handleViewGallery = (index) => {
+  const handleViewGallery = (gallery) => {
     setEditingGallery(null);
     setUploadFormOpen(false);
-    setSelectedGalleryIndex(index);
+    const nextIndex = galleryData.findIndex((item) => String(item.id) === String(gallery?.id));
+    setSelectedGalleryIndex(nextIndex >= 0 ? nextIndex : null);
   };
 
   const handleEditGallery = (gallery) => {
@@ -864,38 +934,18 @@ export function AdminGallery() {
   };
 
   const galleryStats = useMemo(() => {
-    const toNumber = (...values) => {
-      const rawValue = values.find((value) => value !== undefined && value !== null && value !== '');
-      if (rawValue === undefined) return 0;
-      if (typeof rawValue === 'number') return Number.isFinite(rawValue) ? rawValue : 0;
-
-      const normalizedValue = String(rawValue).replace(/\./g, '').replace(',', '.');
-      const parsedValue = Number(normalizedValue);
-      return Number.isFinite(parsedValue) ? parsedValue : 0;
-    };
-
-    const getMediaCount = (item) => {
-      const count = toNumber(item.mediaCount, item.jumlahMedia, item.totalMedia, item.media_count, item.total_media);
-      return count > 0 ? count : 1;
-    };
-
-    const normalizeStatus = (item) => String(item.status || '').trim().toLowerCase();
-    const normalizeType = (item) => String(item.mediaType || item.type || item.jenisMedia || item.jenis_media || 'foto').trim().toLowerCase();
-
     const totalGallery = galleryData.length;
     const totalMedia = galleryData.reduce((sum, item) => sum + getMediaCount(item), 0);
-    const publishedItems = galleryData.filter((item) => ['published', 'publish', 'publik'].includes(normalizeStatus(item)));
-    const draftItems = galleryData.filter((item) => ['draft', 'belum publish', 'unpublished'].includes(normalizeStatus(item)));
-    const reviewItems = galleryData.filter((item) => ['review', 'perlu review', 'pending', 'menunggu review'].includes(normalizeStatus(item)));
+    const publishedItems = galleryData.filter((item) => normalizeGalleryStatus(item) === 'published');
+    const draftItems = galleryData.filter((item) => normalizeGalleryStatus(item) === 'draft');
+    const issueItems = galleryData.filter((item) => getGalleryIssues(item).length > 0);
     const videoPublished = publishedItems.reduce((sum, item) => (
-      normalizeType(item).includes('video') ? sum + getMediaCount(item) : sum
+      getMediaType(item).toLowerCase().includes('video') ? sum + getMediaCount(item) : sum
     ), 0);
     const photoPublished = publishedItems.reduce((sum, item) => (
-      normalizeType(item).includes('video') ? sum : sum + getMediaCount(item)
+      getMediaType(item).toLowerCase().includes('video') ? sum : sum + getMediaCount(item)
     ), 0);
-    const totalViewer = galleryData.reduce((sum, item) => (
-      sum + toNumber(item.viewer, item.viewers, item.totalViewer, item.total_viewer, item.views, item.view_count)
-    ), 0);
+    const totalViewer = galleryData.reduce((sum, item) => sum + getViewerCount(item), 0);
     const percent = (value) => (totalGallery > 0 ? `${((value / totalGallery) * 100).toFixed(1)}% dari total` : '0% dari total');
 
     return [
@@ -903,9 +953,61 @@ export function AdminGallery() {
       { label: 'Foto Published', value: photoPublished.toLocaleString('id-ID'), note: percent(publishedItems.length), icon: checkIcon, tone: 'green' },
       { label: 'Video Published', value: videoPublished.toLocaleString('id-ID'), note: percent(videoPublished), icon: galleryIcon, tone: 'blue' },
       { label: 'Draft / Belum Publish', value: draftItems.length.toLocaleString('id-ID'), note: percent(draftItems.length), icon: fileIcon, tone: 'orange' },
-      { label: 'Perlu Review', value: reviewItems.length.toLocaleString('id-ID'), note: percent(reviewItems.length), icon: clockIcon, tone: 'purple' },
+      { label: 'Data Perlu Dilengkapi', value: issueItems.length.toLocaleString('id-ID'), note: percent(issueItems.length), icon: clockIcon, tone: 'purple' },
       { label: 'Total Viewer Galeri', value: totalViewer.toLocaleString('id-ID'), note: 'Sesuai data tabel', icon: eyeIcon, tone: 'blue' },
     ];
+  }, [galleryData]);
+
+  const recentGalleries = useMemo(
+    () => [...galleryData].sort((a, b) => getGalleryTimestamp(b) - getGalleryTimestamp(a)).slice(0, 4),
+    [galleryData]
+  );
+
+  const issueGalleries = useMemo(
+    () => galleryData
+      .map((item) => ({ item, issues: getGalleryIssues(item) }))
+      .filter(({ issues }) => issues.length > 0)
+      .slice(0, 4),
+    [galleryData]
+  );
+
+  const publishedGalleries = useMemo(
+    () => galleryData
+      .filter((item) => normalizeGalleryStatus(item) === 'published')
+      .sort((a, b) => getGalleryTimestamp(b) - getGalleryTimestamp(a))
+      .slice(0, 4),
+    [galleryData]
+  );
+
+  const draftGalleries = useMemo(
+    () => galleryData
+      .filter((item) => normalizeGalleryStatus(item) === 'draft')
+      .sort((a, b) => getGalleryTimestamp(b) - getGalleryTimestamp(a))
+      .slice(0, 4),
+    [galleryData]
+  );
+
+  const activities = useMemo(
+    () => [...galleryData]
+      .sort((a, b) => getGalleryTimestamp(b) - getGalleryTimestamp(a))
+      .slice(0, 5)
+      .map((item) => ({
+        text: `${item.userName || 'Admin'} ${normalizeGalleryStatus(item) === 'published' ? 'mempublish' : 'menyimpan draft'} galeri "${item.title || 'Tanpa Judul'}"`,
+        time: formatGalleryDate(item.updatedAt || item.createdAt || item.eventDate),
+        tone: normalizeGalleryStatus(item) === 'published' ? 'blue' : 'purple',
+      })),
+    [galleryData]
+  );
+
+  const mediaProblems = useMemo(() => {
+    const counts = galleryData.reduce((result, item) => {
+      getGalleryIssues(item).forEach((issue) => {
+        result[issue] = (result[issue] || 0) + 1;
+      });
+      return result;
+    }, {});
+
+    return Object.entries(counts);
   }, [galleryData]);
 
   return (
@@ -957,27 +1059,58 @@ export function AdminGallery() {
 
             <section className="admin-gallery-filter" aria-label="Filter galeri">
               <label className="admin-gallery-search">
-                <input type="search" placeholder="Cari judul kegiatan / nama file..." />
+                <input
+                  type="search"
+                  placeholder="Cari judul kegiatan / nama file..."
+                  value={filters.search}
+                  onChange={(event) => updateFilter('search', event.target.value)}
+                />
               </label>
-              {['Jenis Media', 'Status', 'Kategori'].map((label) => (
-                <label key={label}>
-                  <span>{label}</span>
-                  <select defaultValue="">
-                    <option value="">
-                      {label === 'Jenis Media' ? 'Semua Jenis' : label === 'Status' ? 'Semua Status' : 'Semua Kategori'}
-                    </option>
-                  </select>
-                </label>
-              ))}
+              <label>
+                <span>Jenis Media</span>
+                <select value={filters.mediaType} onChange={(event) => updateFilter('mediaType', event.target.value)}>
+                  <option value="">Semua Jenis</option>
+                  {filterOptions.mediaTypes.map((type) => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Status</span>
+                <select value={filters.status} onChange={(event) => updateFilter('status', event.target.value)}>
+                  <option value="">Semua Status</option>
+                  {filterOptions.statuses.map((status) => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Kategori</span>
+                <select value={filters.tag} onChange={(event) => updateFilter('tag', event.target.value)}>
+                  <option value="">Semua Kategori</option>
+                  {filterOptions.tags.map((tag) => (
+                    <option key={tag} value={tag}>{tag}</option>
+                  ))}
+                </select>
+              </label>
               <label>
                 <span>Tanggal Kegiatan</span>
-                <input type="text" placeholder="Pilih rentang tanggal" />
+                <input
+                  type="date"
+                  value={filters.eventDate}
+                  onChange={(event) => updateFilter('eventDate', event.target.value)}
+                />
               </label>
               <label>
                 <span>Upload By</span>
-                <select defaultValue=""><option value="">Semua Admin</option></select>
+                <select value={filters.userName} onChange={(event) => updateFilter('userName', event.target.value)}>
+                  <option value="">Semua Admin</option>
+                  {filterOptions.users.map((userName) => (
+                    <option key={userName} value={userName}>{userName}</option>
+                  ))}
+                </select>
               </label>
-              <button type="button">Reset Filter</button>
+              <button type="button" onClick={resetFilters}>Reset Filter</button>
               <button type="button" className="admin-gallery-primary" onClick={handleOpenUploadForm}><img src={downloadIcon} alt="" /> Upload Media</button>
             </section>
 
@@ -1053,12 +1186,12 @@ export function AdminGallery() {
                         {galleryError}
                       </td>
                     </tr>
-                  ) : galleryData.length === 0 ? (
+                  ) : filteredGalleryData.length === 0 ? (
                     <tr>
-                      <td colSpan="12">Belum ada data galeri.</td>
+                      <td colSpan="12">{galleryData.length === 0 ? 'Belum ada data galeri.' : 'Tidak ada galeri yang sesuai filter.'}</td>
                     </tr>
                   ) : (
-                    galleryData.map((item, index) => (
+                    filteredGalleryData.map((item, index) => (
                       <tr key={item.id || `${item.title}-${index}`}>
                         <td>
                           <input
@@ -1071,22 +1204,14 @@ export function AdminGallery() {
                           />
                         </td>
                         <td>
-                          {item.coverUrl || item.coverPath ? (
-                            <img
-                              className="admin-gallery-thumb"
-                              src={resolveGalleryCoverUrl(item.coverPath, item.coverUrl)}
-                              alt={item.title}
-                            />
-                          ) : (
-                            <GalleryThumbnail index={index} />
-                          )}
+                          <GalleryThumbnail item={item} />
                         </td>
-                        <td><b>{item.title}</b><small>{stripHtml(item.description)}</small></td>
-                        <td><GalleryBadge>Foto</GalleryBadge></td>
+                        <td><b>{item.title}</b><small>{getGallerySummary(item)}</small></td>
+                        <td><GalleryBadge>{getMediaType(item)}</GalleryBadge></td>
                         <td><GalleryBadge>{item.tag || 'Dokumentasi'}</GalleryBadge></td>
-                        <td>1</td>
-                        <td><GalleryBadge>{item.status === 'published' ? 'Published' : 'Draft'}</GalleryBadge></td>
-                        <td>0</td>
+                        <td>{getMediaCount(item)}</td>
+                        <td><GalleryBadge>{getStatusLabel(item)}</GalleryBadge></td>
+                        <td>{getViewerCount(item).toLocaleString('id-ID')}</td>
                         <td>{formatGalleryDate(item.eventDate)}</td>
                         <td>{formatGalleryDate(item.createdAt)}</td>
                         <td>{item.userName || 'Admin'}</td>
@@ -1095,7 +1220,7 @@ export function AdminGallery() {
                             <button
                               className="admin-gallery-action admin-gallery-action--view"
                               type="button"
-                              onClick={() => handleViewGallery(index)}
+                              onClick={() => handleViewGallery(item)}
                               disabled={busyGalleryId === item.id}
                             >
                               <img src={eyeIcon} alt="" /> Lihat
@@ -1124,14 +1249,11 @@ export function AdminGallery() {
                 </tbody>
               </table>
               <div className="admin-gallery-pagination">
-                <span>Menampilkan {galleryData.length} data galeri</span>
+                <span>Menampilkan {filteredGalleryData.length} dari {galleryData.length} data galeri</span>
                 <div>
-                  <button type="button">&lt;</button>
+                  <button type="button" disabled>&lt;</button>
                   <button type="button" className="is-active">1</button>
-                  <button type="button">2</button>
-                  <button type="button">3</button>
-                  <button type="button">156</button>
-                  <button type="button">&gt;</button>
+                  <button type="button" disabled>&gt;</button>
                 </div>
                 <select defaultValue="10">
                   <option value="10">10 / halaman</option>
@@ -1141,59 +1263,86 @@ export function AdminGallery() {
 
             <section className="admin-gallery-bottom admin-gallery-bottom--top">
               <article className="admin-gallery-panel">
-                <div className="admin-gallery-panel-head"><h2>Galeri Terbaru</h2><a href="/admin/gallery/recent">Lihat semua</a></div>
-                {recentGalleries.map((item, index) => (
-                  <p key={item[0]}><GalleryThumbnail index={index} className="admin-gallery-mini-thumb" /><b>{item[0]}</b><time>{item[1]}</time></p>
+                <div className="admin-gallery-panel-head"><h2>Galeri Terbaru</h2><button type="button" onClick={loadGalleryData}>Refresh</button></div>
+                {recentGalleries.length === 0 ? (
+                  <p><span>Belum ada data galeri.</span></p>
+                ) : recentGalleries.map((item) => (
+                  <p key={item.id || item.title}>
+                    <GalleryThumbnail item={item} className="admin-gallery-mini-thumb" />
+                    <b>{item.title || 'Tanpa Judul'}</b>
+                    <time>{formatGalleryDate(item.updatedAt || item.createdAt || item.eventDate)}</time>
+                  </p>
                 ))}
               </article>
 
               <article className="admin-gallery-panel admin-gallery-review">
-                <div className="admin-gallery-panel-head"><h2>Media Perlu Review</h2><a href="/admin/gallery/review">Lihat semua</a></div>
-                {reviewMedia.map((item) => (
-                  <p key={item[0]}><span>{item[0]}</span><GalleryBadge>{item[1]}</GalleryBadge></p>
+                <div className="admin-gallery-panel-head"><h2>Data Perlu Dilengkapi</h2><button type="button" onClick={() => updateFilter('status', '')}>Lihat semua</button></div>
+                {issueGalleries.length === 0 ? (
+                  <p><span>Tidak ada masalah data dari endpoint.</span></p>
+                ) : issueGalleries.map(({ item, issues }) => (
+                  <p key={item.id || item.title}><span>{item.title || 'Tanpa Judul'}</span><GalleryBadge>{issues[0]}</GalleryBadge></p>
                 ))}
               </article>
 
               <article className="admin-gallery-panel">
-                <div className="admin-gallery-panel-head"><h2>Galeri Populer</h2><a href="/admin/gallery/popular">Lihat semua</a></div>
+                <div className="admin-gallery-panel-head"><h2>Published Terbaru</h2><button type="button" onClick={() => updateFilter('status', 'Published')}>Filter</button></div>
                 <table>
                   <tbody>
-                    {popularGalleries.map((item, index) => (
-                      <tr key={item[0]}><td>{index + 1}</td><td>{item[0]}</td><td>{item[1]}</td></tr>
+                    {publishedGalleries.length === 0 ? (
+                      <tr><td colSpan="3">Belum ada galeri published.</td></tr>
+                    ) : publishedGalleries.map((item, index) => (
+                      <tr key={item.id || item.title}>
+                        <td>{index + 1}</td>
+                        <td>{item.title || 'Tanpa Judul'}</td>
+                        <td>{formatGalleryDate(item.updatedAt || item.createdAt || item.eventDate)}</td>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
               </article>
 
               <article className="admin-gallery-panel">
-                <div className="admin-gallery-panel-head"><h2>Draft Belum Publish</h2><a href="/admin/gallery/drafts">Lihat semua</a></div>
-                {draftGalleries.map((item, index) => (
-                  <p key={item[0]}><GalleryThumbnail index={index + 1} className="admin-gallery-mini-thumb" /><b>{item[0]}</b><time>{item[1]}</time></p>
+                <div className="admin-gallery-panel-head"><h2>Draft Belum Publish</h2><button type="button" onClick={() => updateFilter('status', 'Draft')}>Filter</button></div>
+                {draftGalleries.length === 0 ? (
+                  <p><span>Belum ada draft galeri.</span></p>
+                ) : draftGalleries.map((item) => (
+                  <p key={item.id || item.title}>
+                    <GalleryThumbnail item={item} className="admin-gallery-mini-thumb" />
+                    <b>{item.title || 'Tanpa Judul'}</b>
+                    <time>{formatGalleryDate(item.updatedAt || item.createdAt || item.eventDate)}</time>
+                  </p>
                 ))}
               </article>
             </section>
 
             <section className="admin-gallery-bottom admin-gallery-bottom--bottom">
               <article className="admin-gallery-panel admin-gallery-activity">
-                <div className="admin-gallery-panel-head"><h2>Aktivitas Terbaru</h2><a href="/admin/gallery/activity">Lihat semua</a></div>
-                {activities.map((item) => (
-                  <p key={item[0]}><span className={`admin-gallery-dot is-${item[2]}`} /><b>{item[0]}</b><time>{item[1]}</time></p>
+                <div className="admin-gallery-panel-head"><h2>Aktivitas Terbaru</h2><button type="button" onClick={loadGalleryData}>Refresh</button></div>
+                {activities.length === 0 ? (
+                  <p><span className="admin-gallery-dot is-purple" /><b>Belum ada aktivitas galeri.</b></p>
+                ) : activities.map((item) => (
+                  <p key={`${item.text}-${item.time}`}><span className={`admin-gallery-dot is-${item.tone}`} /><b>{item.text}</b><time>{item.time}</time></p>
                 ))}
               </article>
 
               <article className="admin-gallery-panel admin-gallery-problems">
-                <div className="admin-gallery-panel-head"><h2>Media Bermasalah</h2><a href="/admin/gallery/problems">Lihat semua</a></div>
-                {mediaProblems.map((item) => (
-                  <p key={item[0]}><span>{item[0]}</span><strong>{item[1]}</strong></p>
+                <div className="admin-gallery-panel-head"><h2>Masalah Data</h2><button type="button" onClick={loadGalleryData}>Refresh</button></div>
+                {mediaProblems.length === 0 ? (
+                  <p><span>Tidak ada masalah data.</span><strong>0</strong></p>
+                ) : mediaProblems.map(([label, count]) => (
+                  <p key={label}><span>{label}</span><strong>{count}</strong></p>
                 ))}
               </article>
 
               <section className="admin-gallery-quick">
                 <h2>Aksi Cepat</h2>
                 <div>
-                  {['Upload Foto / Video', 'Buat Album Baru', 'Kompres Media Besar', 'Publish Draft Terpilih', 'Cek Link Rusak', 'Reorder Galeri Homepage'].map((item) => (
-                    <button type="button" key={item}>{item}</button>
-                  ))}
+                  <button type="button" onClick={handleOpenUploadForm}>Upload Media</button>
+                  <button type="button" onClick={loadGalleryData}>Refresh Data</button>
+                  <button type="button" onClick={() => handleBulkStatus('published')} disabled={selectedGalleries.length === 0 || busyGalleryId === 'bulk'}>Publish Terpilih</button>
+                  <button type="button" onClick={() => handleBulkStatus('draft')} disabled={selectedGalleries.length === 0 || busyGalleryId === 'bulk'}>Jadikan Draft</button>
+                  <button type="button" onClick={handleBulkDelete} disabled={selectedGalleries.length === 0 || busyGalleryId === 'bulk'}>Hapus Terpilih</button>
+                  <button type="button" onClick={resetFilters}>Reset Filter</button>
                 </div>
               </section>
             </section>
@@ -1216,51 +1365,40 @@ export function AdminGallery() {
                 <h2>Detail Galeri</h2>
                 <button type="button" aria-label="Tutup detail" onClick={() => setSelectedGalleryIndex(null)}>x</button>
               </div>
-              {selectedGallery.coverUrl || selectedGallery.coverPath ? (
-                <img
-                  className="admin-gallery-detail-image"
-                  src={resolveGalleryCoverUrl(selectedGallery.coverPath, selectedGallery.coverUrl)}
-                  alt={selectedGallery.title}
-                />
-              ) : (
-                <GalleryThumbnail index={selectedGalleryIndex} className="admin-gallery-detail-image" />
-              )}
+              <GalleryThumbnail item={selectedGallery} className="admin-gallery-detail-image" />
               <div className="admin-gallery-detail-title">
                 <h3>{selectedGallery.title}</h3>
-                <GalleryBadge>{selectedGallery.status === 'published' ? 'Published' : 'Draft'}</GalleryBadge>
-                <p><span>Foto</span><span>{selectedGallery.tag || 'Dokumentasi'}</span></p>
+                <GalleryBadge>{getStatusLabel(selectedGallery)}</GalleryBadge>
+                <p><span>{getMediaType(selectedGallery)}</span><span>{selectedGallery.tag || 'Dokumentasi'}</span></p>
               </div>
               <dl>
                 <dt><img src={clockIcon} alt="" />Tanggal Kegiatan</dt><dd>{formatGalleryDate(selectedGallery.eventDate)}</dd>
                 <dt><img src={mapIcon} alt="" />Upload By</dt><dd>{selectedGallery.userName || 'Admin'}</dd>
-                <dt><img src={galleryIcon} alt="" />Jumlah Media</dt><dd>1 foto</dd>
+                <dt><img src={galleryIcon} alt="" />Jumlah Media</dt><dd>{getMediaCount(selectedGallery)} {getMediaType(selectedGallery).toLowerCase()}</dd>
               </dl>
               <section className="admin-gallery-description">
                 <h3>Deskripsi</h3>
-                <p>{stripHtml(selectedGallery.description) || 'Belum ada deskripsi.'}</p>
+                <p>{getGallerySummary(selectedGallery, 220) || 'Belum ada deskripsi.'}</p>
               </section>
               <section className="admin-gallery-preview">
                 <h3>Preview Media</h3>
                 <div>
-                  {selectedGallery.coverUrl || selectedGallery.coverPath ? (
-                    <img
-                      className="admin-gallery-mini-thumb"
-                      src={resolveGalleryCoverUrl(selectedGallery.coverPath, selectedGallery.coverUrl)}
-                      alt={selectedGallery.title}
-                    />
-                  ) : (
-                    <GalleryThumbnail index={selectedGalleryIndex} className="admin-gallery-mini-thumb" />
-                  )}
+                  <GalleryThumbnail item={selectedGallery} className="admin-gallery-mini-thumb" />
                 </div>
-                <a href="/admin/gallery/media">Lihat semua media</a>
+                <a href={`/galeri/detail?id=${encodeURIComponent(selectedGallery.id)}`} target="_blank" rel="noreferrer">Preview halaman publik</a>
               </section>
               <div className="admin-gallery-detail-actions">
-                <button type="button" className="is-blue">Edit Galeri</button>
-                <button type="button">Preview Galeri</button>
-                <button type="button" className="is-green">Publish / Unpublish</button>
-                <button type="button" className="is-purple">Atur Cover</button>
-                <button type="button" className="is-orange">Tandai Featured</button>
-                <button type="button" className="is-danger">Arsipkan</button>
+                <button type="button" className="is-blue" onClick={() => handleEditGallery(selectedGallery)}>Edit Galeri</button>
+                <button type="button" onClick={() => window.open(`/galeri/detail?id=${encodeURIComponent(selectedGallery.id)}`, '_blank', 'noopener,noreferrer')}>Preview Galeri</button>
+                <button
+                  type="button"
+                  className="is-green"
+                  onClick={() => handleUpdateGalleryStatus(selectedGallery, normalizeGalleryStatus(selectedGallery) === 'published' ? 'draft' : 'published')}
+                  disabled={busyGalleryId === selectedGallery.id}
+                >
+                  {normalizeGalleryStatus(selectedGallery) === 'published' ? 'Jadikan Draft' : 'Publish'}
+                </button>
+                <button type="button" className="is-danger" onClick={() => handleDeleteGallery(selectedGallery)} disabled={busyGalleryId === selectedGallery.id}>Hapus</button>
               </div>
             </aside>
             </div>

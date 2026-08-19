@@ -177,6 +177,12 @@ function ensureProjectTables(PDO $pdo): void
             project_file_size INTEGER,
             project_file_path TEXT,
             project_file_url TEXT,
+            circuit_image_name TEXT,
+            circuit_image_type TEXT,
+            circuit_image_size INTEGER,
+            circuit_image_path TEXT,
+            circuit_image_url TEXT,
+            component_images_json TEXT,
             payload_json TEXT NOT NULL,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
@@ -194,6 +200,12 @@ function ensureProjectTables(PDO $pdo): void
         addColumnIfMissing($pdo, 'project_submissions', 'project_file_size', 'INTEGER');
         addColumnIfMissing($pdo, 'project_submissions', 'project_file_path', 'TEXT');
         addColumnIfMissing($pdo, 'project_submissions', 'project_file_url', 'TEXT');
+        addColumnIfMissing($pdo, 'project_submissions', 'circuit_image_name', 'TEXT');
+        addColumnIfMissing($pdo, 'project_submissions', 'circuit_image_type', 'TEXT');
+        addColumnIfMissing($pdo, 'project_submissions', 'circuit_image_size', 'INTEGER');
+        addColumnIfMissing($pdo, 'project_submissions', 'circuit_image_path', 'TEXT');
+        addColumnIfMissing($pdo, 'project_submissions', 'circuit_image_url', 'TEXT');
+        addColumnIfMissing($pdo, 'project_submissions', 'component_images_json', 'TEXT');
     }
 }
 
@@ -221,12 +233,24 @@ function rowToProject(array $row): array
         'file_path' => $row['project_file_path'] ?? null,
         'file_url' => $row['project_file_url'] ?? null,
     ];
+    $circuitImage = [
+        'file_name' => $row['circuit_image_name'] ?? null,
+        'file_type' => $row['circuit_image_type'] ?? null,
+        'file_size' => isset($row['circuit_image_size']) ? (int) $row['circuit_image_size'] : null,
+        'file_path' => $row['circuit_image_path'] ?? null,
+        'file_url' => $row['circuit_image_url'] ?? null,
+    ];
     $payloadCoverImage = isset($payload['coverImage']) && is_array($payload['coverImage'])
         ? $payload['coverImage']
         : [];
     $payloadProjectFile = isset($payload['projectFile']) && is_array($payload['projectFile'])
         ? $payload['projectFile']
         : [];
+    $payloadCircuitImage = isset($payload['circuitImage']) && is_array($payload['circuitImage'])
+        ? $payload['circuitImage']
+        : [];
+    $componentImages = json_decode((string) ($row['component_images_json'] ?? '[]'), true);
+    $componentImages = is_array($componentImages) ? $componentImages : [];
 
     return [
         'id' => (int) $row['id'],
@@ -237,6 +261,7 @@ function rowToProject(array $row): array
         'visibility' => $row['visibility'],
         'coverImage' => hasStoredFile($coverImage) ? array_replace($payloadCoverImage, $coverImage) : ($payload['coverImage'] ?? null),
         'projectFile' => hasStoredFile($projectFile) ? array_replace($payloadProjectFile, $projectFile) : ($payload['projectFile'] ?? null),
+        'circuitImage' => hasStoredFile($circuitImage) ? array_replace($payloadCircuitImage, $circuitImage) : ($payload['circuitImage'] ?? null),
         'ownerName' => $payload['ownerName'] ?? 'User',
         'ownerUsername' => $payload['ownerUsername'] ?? '-',
         'userId' => $payload['userId'] ?? null,
@@ -245,6 +270,7 @@ function rowToProject(array $row): array
         'programmingLanguage' => $payload['programmingLanguage'] ?? '',
         'payment' => $payload['payment'] ?? null,
         'tags' => $payload['tags'] ?? [],
+        'componentImages' => $componentImages,
         'tools' => $payload['tools'] ?? [],
         'nodes' => $payload['nodes'] ?? [],
         'steps' => $payload['steps'] ?? [],
@@ -326,6 +352,33 @@ function getUploadedFile(string $field): ?array
     return $file;
 }
 
+function getUploadedFileAtIndex(string $field, int $index): ?array
+{
+    $files = $_FILES[$field] ?? null;
+
+    if (!is_array($files) || !isset($files['name']) || !is_array($files['name'])) {
+        return null;
+    }
+
+    $error = (int) ($files['error'][$index] ?? UPLOAD_ERR_NO_FILE);
+
+    if ($error === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+
+    if ($error !== UPLOAD_ERR_OK) {
+        throw new InvalidArgumentException('Upload gambar komponen gagal. Kode error: ' . $error);
+    }
+
+    return [
+        'name' => $files['name'][$index] ?? '',
+        'type' => $files['type'][$index] ?? '',
+        'tmp_name' => $files['tmp_name'][$index] ?? '',
+        'error' => $error,
+        'size' => $files['size'][$index] ?? 0,
+    ];
+}
+
 function detectUploadedMimeType(array $file): string
 {
     $tmpName = (string) ($file['tmp_name'] ?? '');
@@ -398,6 +451,15 @@ function storeUploadedCoverImage(array $storage): ?array
         : storeUploadedFile($file, $storage, 'project-cover', ['jpg', 'jpeg', 'png', 'webp'], 2 * 1024 * 1024, true);
 }
 
+function storeUploadedCircuitImage(array $storage): ?array
+{
+    $file = getUploadedFile('circuit_image');
+
+    return $file === null
+        ? null
+        : storeUploadedFile($file, $storage, 'circuit-image', ['jpg', 'jpeg', 'png', 'webp'], 2 * 1024 * 1024, true);
+}
+
 function storeUploadedProjectFile(array $storage): ?array
 {
     $file = getUploadedFile('project_file');
@@ -405,6 +467,45 @@ function storeUploadedProjectFile(array $storage): ?array
     return $file === null
         ? null
         : storeUploadedFile($file, $storage, 'project-file', ['json', 'flow'], 10 * 1024 * 1024);
+}
+
+function storeUploadedComponentImages(array $storage, array $tools): array
+{
+    $images = [];
+
+    foreach ($tools as $index => $tool) {
+        $uploadedFile = getUploadedFileAtIndex('component_images', (int) $index);
+        $existingImage = is_array($tool) && isset($tool['image']) && is_array($tool['image'])
+            ? $tool['image']
+            : null;
+
+        $images[$index] = $uploadedFile === null
+            ? $existingImage
+            : storeUploadedFile($uploadedFile, $storage, 'component-image', ['jpg', 'jpeg', 'png', 'webp'], 2 * 1024 * 1024, true);
+    }
+
+    return $images;
+}
+
+function applyComponentImagesToTools(array $tools, array $componentImages): array
+{
+    return array_values(array_map(
+        static function ($tool, int $index) use ($componentImages) {
+            $normalizedTool = is_array($tool)
+                ? $tool
+                : ['name' => (string) $tool];
+
+            if (isset($componentImages[$index]) && is_array($componentImages[$index])) {
+                $normalizedTool['image'] = $componentImages[$index];
+            } else {
+                unset($normalizedTool['image']);
+            }
+
+            return $normalizedTool;
+        },
+        $tools,
+        array_keys($tools)
+    ));
 }
 
 try {
@@ -515,7 +616,9 @@ try {
         $status = trim((string) ($project['status'] ?? 'draft')) ?: 'draft';
         $visibility = trim((string) ($project['visibility'] ?? 'draft')) ?: 'draft';
         $coverImage = storeUploadedCoverImage($projectImageStorage) ?? extractCoverImage($project, $projectImageStorage);
+        $circuitImage = storeUploadedCircuitImage($projectImageStorage);
         $projectFile = storeUploadedProjectFile($projectImageStorage);
+        $componentImages = storeUploadedComponentImages($projectImageStorage, is_array($project['tools'] ?? null) ? $project['tools'] : []);
 
         $now = jakartaNow();
         $project['title'] = $title;
@@ -532,8 +635,20 @@ try {
             $project['projectFile'] = $projectFile;
         }
 
+        if ($circuitImage !== null) {
+            $project['circuitImage'] = $circuitImage;
+        }
+
+        $project['tools'] = applyComponentImagesToTools(is_array($project['tools'] ?? null) ? $project['tools'] : [], $componentImages);
+
         $payloadJson = json_encode(
             $project,
+            JSON_UNESCAPED_UNICODE |
+            JSON_UNESCAPED_SLASHES |
+            JSON_THROW_ON_ERROR
+        );
+        $componentImagesJson = json_encode(
+            array_values(array_filter($componentImages, static fn ($image) => is_array($image))),
             JSON_UNESCAPED_UNICODE |
             JSON_UNESCAPED_SLASHES |
             JSON_THROW_ON_ERROR
@@ -556,6 +671,12 @@ try {
                 project_file_size,
                 project_file_path,
                 project_file_url,
+                circuit_image_name,
+                circuit_image_type,
+                circuit_image_size,
+                circuit_image_path,
+                circuit_image_url,
+                component_images_json,
                 payload_json,
                 created_at,
                 updated_at
@@ -575,6 +696,12 @@ try {
                 :project_file_size,
                 :project_file_path,
                 :project_file_url,
+                :circuit_image_name,
+                :circuit_image_type,
+                :circuit_image_size,
+                :circuit_image_path,
+                :circuit_image_url,
+                :component_images_json,
                 :payload_json,
                 :created_at,
                 :updated_at
@@ -597,6 +724,12 @@ try {
             ':project_file_size' => $projectFile['file_size'] ?? null,
             ':project_file_path' => $projectFile['file_path'] ?? null,
             ':project_file_url' => $projectFile['file_url'] ?? null,
+            ':circuit_image_name' => $circuitImage['file_name'] ?? null,
+            ':circuit_image_type' => $circuitImage['file_type'] ?? null,
+            ':circuit_image_size' => $circuitImage['file_size'] ?? null,
+            ':circuit_image_path' => $circuitImage['file_path'] ?? null,
+            ':circuit_image_url' => $circuitImage['file_url'] ?? null,
+            ':component_images_json' => $componentImagesJson,
             ':payload_json' => $payloadJson,
             ':created_at' => $now,
             ':updated_at' => $now,
@@ -654,7 +787,9 @@ try {
         }
 
         $coverImage = storeUploadedCoverImage($projectImageStorage) ?? extractCoverImage($incoming, $projectImageStorage);
+        $circuitImage = storeUploadedCircuitImage($projectImageStorage);
         $projectFile = storeUploadedProjectFile($projectImageStorage);
+        $componentImages = storeUploadedComponentImages($projectImageStorage, is_array($project['tools'] ?? null) ? $project['tools'] : []);
 
         if ($coverImage === null) {
             $coverImage = [
@@ -684,9 +819,31 @@ try {
             $project['projectFile'] = $projectFile;
         }
 
+        if ($circuitImage === null) {
+            $circuitImage = [
+                'file_name' => $existingRow['circuit_image_name'] ?? null,
+                'file_type' => $existingRow['circuit_image_type'] ?? null,
+                'file_size' => isset($existingRow['circuit_image_size']) ? (int) $existingRow['circuit_image_size'] : null,
+                'file_path' => $existingRow['circuit_image_path'] ?? null,
+                'file_url' => $existingRow['circuit_image_url'] ?? null,
+            ];
+        }
+
+        if (($circuitImage['file_name'] ?? null) !== null) {
+            $project['circuitImage'] = $circuitImage;
+        }
+
+        $project['tools'] = applyComponentImagesToTools(is_array($project['tools'] ?? null) ? $project['tools'] : [], $componentImages);
+
         $now = jakartaNow();
         $payloadJson = json_encode(
             $project,
+            JSON_UNESCAPED_UNICODE |
+            JSON_UNESCAPED_SLASHES |
+            JSON_THROW_ON_ERROR
+        );
+        $componentImagesJson = json_encode(
+            array_values(array_filter($componentImages, static fn ($image) => is_array($image))),
             JSON_UNESCAPED_UNICODE |
             JSON_UNESCAPED_SLASHES |
             JSON_THROW_ON_ERROR
@@ -710,6 +867,12 @@ try {
                 project_file_size = :project_file_size,
                 project_file_path = :project_file_path,
                 project_file_url = :project_file_url,
+                circuit_image_name = :circuit_image_name,
+                circuit_image_type = :circuit_image_type,
+                circuit_image_size = :circuit_image_size,
+                circuit_image_path = :circuit_image_path,
+                circuit_image_url = :circuit_image_url,
+                component_images_json = :component_images_json,
                 payload_json = :payload_json,
                 updated_at = :updated_at
              WHERE id = :id'
@@ -731,6 +894,12 @@ try {
             ':project_file_size' => $projectFile['file_size'] ?? null,
             ':project_file_path' => $projectFile['file_path'] ?? null,
             ':project_file_url' => $projectFile['file_url'] ?? null,
+            ':circuit_image_name' => $circuitImage['file_name'] ?? null,
+            ':circuit_image_type' => $circuitImage['file_type'] ?? null,
+            ':circuit_image_size' => $circuitImage['file_size'] ?? null,
+            ':circuit_image_path' => $circuitImage['file_path'] ?? null,
+            ':circuit_image_url' => $circuitImage['file_url'] ?? null,
+            ':component_images_json' => $componentImagesJson,
             ':payload_json' => $payloadJson,
             ':updated_at' => $now,
             ':id' => $projectId,

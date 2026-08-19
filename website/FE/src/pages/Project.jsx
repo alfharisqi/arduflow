@@ -31,10 +31,28 @@ function projectDetailHref(project) {
   return `/project/detail?id=${encodeURIComponent(project.id)}`;
 }
 
+function stripHtml(value) {
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = String(value || "");
+  return wrapper.textContent || wrapper.innerText || "";
+}
+
+function projectSummary(value) {
+  return stripHtml(value).replace(/\s+/g, " ").trim();
+}
+
+function projectImage(project) {
+  return project.coverImageUrl || projectHeroImage;
+}
+
+function toolLabel(tool) {
+  return String(tool?.name || tool?.title || tool || "").trim();
+}
+
 function buildMetrics(projects) {
   const owners = new Set(projects.map((project) => project.ownerName).filter(Boolean));
   const tags = new Set(projects.flatMap((project) => project.tags || []));
-  const tools = new Set(projects.flatMap((project) => project.tools || []));
+  const tools = new Set(projects.flatMap((project) => (project.tools || []).map(toolLabel)).filter(Boolean));
 
   return [
     { value: formatNumber(projects.length), label: "Proyek" },
@@ -109,11 +127,11 @@ function FeaturedProjects({ projects, loading }) {
         <div className="featured-projects__grid">
           {projects.length ? projects.map((project) => (
             <article className="featured-card" key={project.id}>
-              <img src={projectHeroImage} alt="" className="featured-card__image" />
+              <img src={projectImage(project)} alt="" className="featured-card__image" />
               <div className="featured-card__body">
                 <h3>{project.title}</h3>
                 <span className="featured-card__category">{project.category}</span>
-                <p>{project.description}</p>
+                <p>{projectSummary(project.description)}</p>
                 <a href={projectDetailHref(project)}>
                   Lihat Detail Proyek <span aria-hidden="true">-&gt;</span>
                 </a>
@@ -162,12 +180,12 @@ function ProjectLibrary({ projects, loading }) {
           {filteredProjects.length ? filteredProjects.map((project) => (
             <article className="project-card" key={project.id}>
               <div className="project-card__media">
-                <img src={projectHeroImage} alt="" />
+                <img src={projectImage(project)} alt="" />
               </div>
               <div className="project-card__body">
                 <h3>{project.title}</h3>
                 <span className="project-card__category">{project.category}</span>
-                <p>{project.description}</p>
+                <p>{projectSummary(project.description)}</p>
                 <a href={projectDetailHref(project)}>
                   Lihat Detail Proyek <span aria-hidden="true">-&gt;</span>
                 </a>

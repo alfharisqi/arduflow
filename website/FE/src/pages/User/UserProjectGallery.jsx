@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { createElement, useEffect, useMemo, useRef, useState } from 'react';
 import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import certificateIcon from '../../assets/icons/icon-downloadsim-1.svg';
@@ -25,6 +25,82 @@ const menuItems = [
 const PROJECT_API_URL = apiEndpoint(
   import.meta.env.VITE_PROJECT_API_URL,
   '/api/projects-api.php'
+);
+
+const ARDUFLOW_NODE_CATALOG = [
+  { category: 'Hardware I/O', name: 'Digital Out', description: 'PIN: HIGH / LOW' },
+  { category: 'Hardware I/O', name: 'Digital In', description: 'READ PIN STATUS' },
+  { category: 'Hardware I/O', name: 'PWM / Analog Out', description: '0 - 255 RANGE' },
+  { category: 'Hardware I/O', name: 'Servo Motor', description: '0 - 180° DEGREES' },
+  { category: 'Hardware I/O', name: 'Analog In', description: '0 - 1023 RANGE' },
+  { category: 'Hardware I/O', name: 'Value Monitor', description: 'WATCH VALUES' },
+  { category: 'Hardware I/O', name: 'Serial TX', description: 'SEND DATA' },
+  { category: 'Hardware I/O', name: 'Serial RX Switch', description: 'MATCH COMMANDS' },
+  { category: 'Hardware I/O', name: 'Serial RX (String)', description: 'RAW INCOMING TEXT' },
+  { category: 'Hardware I/O', name: 'SoftwareSerial', description: 'VIRTUAL SERIAL PORT' },
+  { category: 'Hardware I/O', name: 'JSON Parser', description: 'EXTRACT JSON KEYS' },
+  { category: 'Hardware I/O', name: 'JSON Output', description: 'BUILD JSON STRING' },
+  { category: 'Hardware I/O', name: 'EEPROM Store', description: 'PERSIST STATE' },
+  { category: 'Hardware I/O', name: 'EEPROM Read', description: 'READ ON BOOT' },
+  { category: 'Hardware I/O', name: 'Delay', description: 'SIGNAL DELAY MS' },
+  { category: 'Hardware I/O', name: 'Timer', description: 'COUNT UP / DOWN' },
+  { category: 'Hardware I/O', name: 'Schedule', description: 'TIME RECURRING' },
+  { category: 'Hardware I/O', name: 'Push Button', description: 'MANUAL MOMENTARY' },
+  { category: 'Hardware I/O', name: 'Square Wave', description: 'OSCILLATOR SIGNAL' },
+  { category: 'Hardware I/O', name: 'Counter Up/Down', description: 'TRIGGER COUNT' },
+  { category: 'Hardware I/O', name: 'Math Operation', description: 'ARITHMETIC OPERATORS' },
+  { category: 'Indicators', name: 'Light Bulb', description: 'ON/OFF DISPLAY' },
+  { category: 'Indicators', name: 'Gauge Display', description: 'VISUAL ANALOG' },
+  { category: 'Logic & Control', name: 'Boolean (High/Low)', description: 'TOGGLE SIGNAL' },
+  { category: 'Logic & Control', name: 'Numeric Value', description: 'STATIC NUMBER' },
+  { category: 'Logic & Control', name: 'Boolean Value', description: '0 / 1 / TRUE / FALSE' },
+  { category: 'Logic & Control', name: 'String Value', description: 'CUSTOM TEXT / STRING' },
+  { category: 'Logic & Control', name: 'If Then Else', description: 'CONDITIONAL BRANCH' },
+  { category: 'Logic & Control', name: 'Comparator', description: 'A > B?' },
+  { category: 'Logic & Control', name: 'Logic AND', description: 'TRUE IF BOTH' },
+  { category: 'Logic & Control', name: 'Logic NOT', description: 'INVERT SIGNAL' },
+  { category: 'Logic & Control', name: 'Logic OR', description: 'TRUE IF ANY' },
+  { category: 'Logic & Control', name: 'Logic OR +', description: 'ADJUSTABLE INPUTS' },
+  { category: 'Logic & Control', name: 'Pulse Timer', description: 'HIGH FOR X MILLISECONDS' },
+  { category: 'Logic & Control', name: 'Latch (SR / Hold)', description: 'SET / RESET FLIP-FLOP' },
+  { category: 'Logic & Control', name: 'Shift Register 8-Ch', description: '74HC595 / 8-BIT SIPO' },
+];
+
+const WOKWI_COMPONENT_CATALOG = [
+  { category: 'Board', name: 'Arduino Uno R3', specification: 'ATmega328P development board', wokwiElement: 'wokwi-arduino-uno' },
+  { category: 'Board', name: 'Arduino Mega', specification: 'ATmega2560 development board', wokwiElement: 'wokwi-arduino-mega' },
+  { category: 'Board', name: 'Arduino Nano', specification: 'Compact ATmega328P board', wokwiElement: 'wokwi-arduino-nano' },
+  { category: 'Board', name: 'ESP32 DevKit', specification: 'WiFi and Bluetooth microcontroller', wokwiElement: 'wokwi-esp32-devkit-v1' },
+  { category: 'Board', name: 'Arduino Nano RP2040 Connect', specification: 'RP2040 WiFi development board', wokwiElement: 'wokwi-nano-rp2040-connect' },
+  { category: 'Prototyping', name: 'Breadboard', specification: 'Solderless prototyping board', wokwiElement: '' },
+  { category: 'Prototyping', name: 'Jumper Wire', specification: 'Male/female wiring connection', wokwiElement: '' },
+  { category: 'Passive', name: 'Resistor', specification: 'Current limiting resistor', wokwiElement: 'wokwi-resistor' },
+  { category: 'Passive', name: 'Potentiometer', specification: 'Analog variable resistor', wokwiElement: 'wokwi-potentiometer' },
+  { category: 'Output', name: 'LED', specification: 'Single color indicator light', wokwiElement: 'wokwi-led' },
+  { category: 'Output', name: 'RGB LED', specification: 'Red, green, blue indicator light', wokwiElement: 'wokwi-rgb-led' },
+  { category: 'Output', name: 'Buzzer', specification: 'Audio alert component', wokwiElement: 'wokwi-buzzer' },
+  { category: 'Output', name: 'Servo Motor', specification: '0-180 degree actuator', wokwiElement: 'wokwi-servo' },
+  { category: 'Output', name: 'Relay Module', specification: 'Digital controlled switch module', wokwiElement: '' },
+  { category: 'Display', name: 'LCD 16x2', specification: 'Character LCD display', wokwiElement: 'wokwi-lcd1602' },
+  { category: 'Display', name: 'OLED SSD1306', specification: 'I2C monochrome OLED display', wokwiElement: 'wokwi-ssd1306' },
+  { category: 'Display', name: '7 Segment Display', specification: 'Numeric LED display', wokwiElement: 'wokwi-7segment' },
+  { category: 'Input', name: 'Pushbutton', specification: 'Momentary digital input', wokwiElement: 'wokwi-pushbutton' },
+  { category: 'Input', name: 'Keypad 4x4', specification: 'Matrix keypad input', wokwiElement: 'wokwi-membrane-keypad' },
+  { category: 'Sensor', name: 'DHT22', specification: 'Temperature and humidity sensor', wokwiElement: 'wokwi-dht22' },
+  { category: 'Sensor', name: 'HC-SR04 Ultrasonic', specification: 'Distance measurement sensor', wokwiElement: 'wokwi-hc-sr04' },
+  { category: 'Sensor', name: 'PIR Motion Sensor', specification: 'Motion detection sensor', wokwiElement: 'wokwi-pir-motion-sensor' },
+  { category: 'Sensor', name: 'LDR Photoresistor', specification: 'Light level sensor', wokwiElement: 'wokwi-photoresistor-sensor' },
+  { category: 'Sensor', name: 'MPU6050', specification: 'Accelerometer and gyroscope module', wokwiElement: 'wokwi-mpu6050' },
+  { category: 'Module', name: 'NeoPixel Ring', specification: 'Addressable RGB LED ring', wokwiElement: 'wokwi-led-ring' },
+  { category: 'Module', name: 'IR Receiver', specification: 'Infrared remote receiver', wokwiElement: 'wokwi-ir-receiver' },
+  { category: 'Module', name: 'RTC DS1307', specification: 'Real time clock module', wokwiElement: 'wokwi-ds1307' },
+  { category: 'Module', name: 'Micro SD Card', specification: 'SPI storage module', wokwiElement: 'wokwi-microsd-card' },
+];
+
+const SUPPORTED_WOKWI_ELEMENTS = new Set(
+  WOKWI_COMPONENT_CATALOG
+    .map((component) => component.wokwiElement)
+    .filter(Boolean)
 );
 
 function getStoredUser() {
@@ -224,6 +300,15 @@ function getProjectFileName(file) {
   return file?.name || file?.file_name || file?.fileName || '';
 }
 
+function getProjectFileUrl(file) {
+  const rawUrl = String(file?.file_url || file?.fileUrl || file?.url || file?.src || '').trim();
+
+  if (!rawUrl) return '';
+  if (/^(https?:\/\/|data:|blob:)/i.test(rawUrl)) return rawUrl;
+
+  return `${API_BASE_URL}${rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`}`;
+}
+
 function getInitialProjectForm(project) {
   const payload = projectPayload(project);
   const payment = project?.payment || payload.payment || {};
@@ -233,7 +318,11 @@ function getInitialProjectForm(project) {
     title: projectField(project, 'title'),
     category: projectField(project, 'category'),
     description: projectField(project, 'description'),
-    tools: normalizeProjectList(project?.tools || payload.tools),
+    tools: normalizeProjectList(project?.tools || payload.tools).map((tool) => (
+      typeof tool === 'string'
+        ? { name: tool, specification: '', image: null, imageFile: null }
+        : { ...tool, imageFile: null }
+    )),
     nodes: normalizeProjectList(project?.nodes || payload.nodes),
     steps: normalizeProjectList(project?.steps || payload.steps),
     isPaid: Boolean(payment.isPaid || project?.isPaid || payload.isPaid),
@@ -241,6 +330,7 @@ function getInitialProjectForm(project) {
     paymentCode: payment.paymentCode || project?.paymentCode || payload.paymentCode || '',
     projectFile: null,
     coverImage: null,
+    circuitImage: null,
     altText: project?.coverImage?.altText || payload.coverImage?.altText || project?.altText || payload.altText || '',
     visibility: projectField(project, 'visibility', 'public'),
     difficulty: projectField(project, 'difficulty'),
@@ -269,6 +359,39 @@ function UploadRowActions({ onEdit, onDelete }) {
       <button type="button" onClick={onEdit}>Edit</button>
       <button type="button" className="danger" onClick={onDelete}>Hapus</button>
     </span>
+  );
+}
+
+function WokwiComponentPreview({ elementName, fallback }) {
+  if (!SUPPORTED_WOKWI_ELEMENTS.has(elementName)) {
+    return <span aria-hidden="true"><BoxPlusIcon /></span>;
+  }
+
+  return (
+    <span className="project-upload-wokwi-preview" aria-hidden="true" title={fallback}>
+      {createElement(elementName)}
+    </span>
+  );
+}
+
+function ComponentImageField({ tool, index, onChange }) {
+  const imageName = tool.imageFile?.name || getProjectFileName(tool.image);
+  const imageUrl = tool.imageFile ? '' : getProjectFileUrl(tool.image);
+
+  return (
+    <label className="project-upload-component-image">
+      <input
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        onChange={(event) => onChange(index, event)}
+      />
+      {imageUrl ? (
+        <img src={imageUrl} alt="" />
+      ) : (
+        <WokwiComponentPreview elementName={tool.wokwiElement} fallback={tool.name} />
+      )}
+      <small>{imageName || (tool.wokwiElement ? 'Preview Wokwi' : 'Upload gambar')}</small>
+    </label>
   );
 }
 
@@ -314,8 +437,12 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
   const [fieldErrors, setFieldErrors] = useState({});
   const [coverCrop, setCoverCrop] = useState(null);
   const [coverPreviewUrl, setCoverPreviewUrl] = useState('');
+  const [circuitPreviewUrl, setCircuitPreviewUrl] = useState('');
+  const [selectedToolKey, setSelectedToolKey] = useState('');
+  const [selectedNodeKey, setSelectedNodeKey] = useState('');
   const existingProjectFileName = getProjectFileName(initialProject?.projectFile);
   const existingCoverImageName = getProjectFileName(initialProject?.coverImage);
+  const existingCircuitImageName = getProjectFileName(initialProject?.circuitImage);
 
   useEffect(() => {
     setFormData(getInitialProjectForm(initialProject));
@@ -323,6 +450,8 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     setFormError('');
     setJsonResult(null);
     setNewTag('');
+    setSelectedToolKey('');
+    setSelectedNodeKey('');
   }, [initialProject, mode, projectId]);
 
   useEffect(() => {
@@ -335,6 +464,17 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     setCoverPreviewUrl(nextUrl);
     return () => URL.revokeObjectURL(nextUrl);
   }, [formData.coverImage, initialProject]);
+
+  useEffect(() => {
+    if (!formData.circuitImage) {
+      setCircuitPreviewUrl(getProjectFileUrl(initialProject?.circuitImage));
+      return undefined;
+    }
+
+    const nextUrl = URL.createObjectURL(formData.circuitImage);
+    setCircuitPreviewUrl(nextUrl);
+    return () => URL.revokeObjectURL(nextUrl);
+  }, [formData.circuitImage, initialProject]);
 
   useEffect(() => () => {
     if (coverCrop?.source) {
@@ -419,6 +559,24 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
       }
     }
 
+    if (name === 'circuitImage' && file) {
+      if (!file.type.startsWith('image/')) {
+        setFieldErrors((current) => ({
+          ...current,
+          circuitImage: 'Gambar rangkaian harus berupa file gambar.',
+        }));
+        return;
+      }
+
+      if (file.size > 2 * 1024 * 1024) {
+        setFieldErrors((current) => ({
+          ...current,
+          circuitImage: 'Ukuran gambar rangkaian maksimal 2 MB.',
+        }));
+        return;
+      }
+    }
+
     setFormData((current) => ({ ...current, [name]: file }));
     clearFieldError(name);
   }
@@ -451,45 +609,77 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     clearFieldError('description');
   }
 
-  async function addTool() {
-    const name = await showPromptAlert({
-      title: 'Tambah Komponen',
-      text: 'Masukkan nama alat atau komponen.',
-      requiredMessage: 'Nama komponen wajib diisi.',
-    });
-    if (!name?.trim()) return;
-    const specification = await showPromptAlert({
-      title: 'Spesifikasi Komponen',
-      text: 'Masukkan keterangan atau spesifikasi.',
-    }) || '';
+  function addTool() {
+    const selectedTool = WOKWI_COMPONENT_CATALOG[Number(selectedToolKey)];
+
+    if (!selectedTool) {
+      setFieldErrors((current) => ({
+        ...current,
+        tools: 'Pilih alat atau komponen terlebih dahulu.',
+      }));
+      return;
+    }
+
     setFormData((current) => ({
       ...current,
-      tools: [...current.tools, { name: name.trim(), specification: specification.trim() }],
+      tools: [...current.tools, { ...selectedTool, image: null, imageFile: null }],
     }));
+    setSelectedToolKey('');
     clearFieldError('tools');
   }
 
-  async function editTool(index) {
-    const selected = formData.tools[index];
-    if (!selected) return;
-    const name = await showPromptAlert({
-      title: 'Edit Komponen',
-      text: 'Edit nama alat atau komponen.',
-      inputValue: selected.name,
-      requiredMessage: 'Nama komponen wajib diisi.',
-    });
-    if (!name?.trim()) return;
-    const specification = await showPromptAlert({
-      title: 'Edit Spesifikasi',
-      text: 'Edit keterangan atau spesifikasi.',
-      inputValue: selected.specification || '',
-    }) || '';
+  function editTool(index) {
+    const selectedTool = WOKWI_COMPONENT_CATALOG[Number(selectedToolKey)];
+
+    if (!selectedTool) {
+      setFieldErrors((current) => ({
+        ...current,
+        tools: 'Pilih komponen pengganti dari daftar, lalu klik Edit pada baris komponen.',
+      }));
+      return;
+    }
+
     setFormData((current) => ({
       ...current,
       tools: current.tools.map((tool, toolIndex) =>
-        toolIndex === index ? { name: name.trim(), specification: specification.trim() } : tool
+        toolIndex === index
+          ? { ...tool, ...selectedTool }
+          : tool
       ),
     }));
+    setSelectedToolKey('');
+    clearFieldError('tools');
+  }
+
+  function handleComponentImageChange(index, event) {
+    const file = event.target.files?.[0] || null;
+    event.target.value = '';
+
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setFieldErrors((current) => ({
+        ...current,
+        tools: 'Gambar komponen harus berupa file gambar.',
+      }));
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setFieldErrors((current) => ({
+        ...current,
+        tools: 'Ukuran gambar komponen maksimal 2 MB.',
+      }));
+      return;
+    }
+
+    setFormData((current) => ({
+      ...current,
+      tools: current.tools.map((tool, toolIndex) =>
+        toolIndex === index ? { ...tool, imageFile: file } : tool
+      ),
+    }));
+    clearFieldError('tools');
   }
 
   async function deleteTool(index) {
@@ -505,45 +695,44 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     }));
   }
 
-  async function addNode() {
-    const name = await showPromptAlert({
-      title: 'Tambah Node ArduFlow',
-      text: 'Masukkan nama node ArduFlow.',
-      requiredMessage: 'Nama node wajib diisi.',
-    });
-    if (!name?.trim()) return;
-    const description = await showPromptAlert({
-      title: 'Keterangan Node',
-      text: 'Masukkan fungsi atau keterangan node.',
-    }) || '';
+  function addNode() {
+    const selectedNode = ARDUFLOW_NODE_CATALOG[Number(selectedNodeKey)];
+
+    if (!selectedNode) {
+      setFieldErrors((current) => ({
+        ...current,
+        nodes: 'Pilih node ArduFlow terlebih dahulu.',
+      }));
+      return;
+    }
+
     setFormData((current) => ({
       ...current,
-      nodes: [...current.nodes, { name: name.trim(), description: description.trim() }],
+      nodes: [...current.nodes, selectedNode],
     }));
+    setSelectedNodeKey('');
     clearFieldError('nodes');
   }
 
-  async function editNode(index) {
-    const selected = formData.nodes[index];
-    if (!selected) return;
-    const name = await showPromptAlert({
-      title: 'Edit Node ArduFlow',
-      text: 'Edit nama node ArduFlow.',
-      inputValue: selected.name,
-      requiredMessage: 'Nama node wajib diisi.',
-    });
-    if (!name?.trim()) return;
-    const description = await showPromptAlert({
-      title: 'Edit Keterangan Node',
-      text: 'Edit fungsi atau keterangan node.',
-      inputValue: selected.description || '',
-    }) || '';
+  function editNode(index) {
+    const selectedNode = ARDUFLOW_NODE_CATALOG[Number(selectedNodeKey)];
+
+    if (!selectedNode) {
+      setFieldErrors((current) => ({
+        ...current,
+        nodes: 'Pilih node pengganti dari daftar, lalu klik Edit pada baris node.',
+      }));
+      return;
+    }
+
     setFormData((current) => ({
       ...current,
       nodes: current.nodes.map((node, nodeIndex) =>
-        nodeIndex === index ? { name: name.trim(), description: description.trim() } : node
+        nodeIndex === index ? selectedNode : node
       ),
     }));
+    setSelectedNodeKey('');
+    clearFieldError('nodes');
   }
 
   async function deleteNode(index) {
@@ -645,6 +834,19 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
       : null;
   }
 
+  function toolToJson(tool) {
+    if (typeof tool === 'string') {
+      return { name: tool, specification: '' };
+    }
+
+    const { imageFile, ...toolData } = tool || {};
+
+    return {
+      ...toolData,
+      image: imageFile ? fileToJson(imageFile) : (toolData.image || null),
+    };
+  }
+
   function validateProjectForm(status) {
     const isDraft = status === 'draft';
     const isEdit = mode === 'edit';
@@ -695,7 +897,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
           .replace(/-+/g, '-'),
         category: formData.category.trim(),
         description: formData.description.trim(),
-        tools: formData.tools,
+        tools: formData.tools.map(toolToJson),
         nodes: formData.nodes,
         steps: formData.steps,
         payment: {
@@ -708,6 +910,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
         coverImage: formData.coverImage
           ? { ...fileToJson(formData.coverImage), altText: formData.altText.trim() }
           : (initialProject?.coverImage || null),
+        circuitImage: fileToJson(formData.circuitImage) || initialProject?.circuitImage || null,
         visibility: isDraft ? 'draft' : formData.visibility,
         difficulty: formData.difficulty,
         estimatedTime: formData.estimatedTime.trim(),
@@ -746,6 +949,16 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
       if (formData.coverImage) {
         payload.append('cover_image', formData.coverImage);
       }
+
+      if (formData.circuitImage) {
+        payload.append('circuit_image', formData.circuitImage);
+      }
+
+      formData.tools.forEach((tool, index) => {
+        if (tool?.imageFile) {
+          payload.append(`component_images[${index}]`, tool.imageFile);
+        }
+      });
 
       const response = await fetch(isEdit ? `${PROJECT_API_URL}?id=${encodeURIComponent(projectId || initialProject.id)}` : PROJECT_API_URL, {
         method: 'POST',
@@ -821,19 +1034,37 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
 
           <section className="project-upload-list-section">
             <div className="project-upload-section-head">
-              <div><h3>Alat &amp; Komponen *</h3><p>Daftarkan alat dan komponen yang digunakan dalam proyek ini</p></div>
+              <div><h3>Alat &amp; Komponen *</h3><p>Pilih alat dan komponen elektronik dari katalog Wokwi yang digunakan dalam proyek ini</p></div>
+            </div>
+            <div className="project-upload-node-picker project-upload-component-picker">
+              <select
+                value={selectedToolKey}
+                onChange={(event) => {
+                  setSelectedToolKey(event.target.value);
+                  clearFieldError('tools');
+                }}
+              >
+                <option value="">Pilih alat atau komponen</option>
+                {WOKWI_COMPONENT_CATALOG.map((tool, index) => (
+                  <option value={index} key={`${tool.category}-${tool.name}`}>
+                    {tool.category} - {tool.name} - {tool.specification}
+                  </option>
+                ))}
+              </select>
               <button type="button" onClick={addTool}><PlusIcon /> Tambah Item</button>
             </div>
             <div className={`project-upload-table${fieldErrors.tools ? ' has-error' : ''}`}>
-              <div className="project-upload-table__head project-upload-table__head--actions"><span>Nama Alat/Komponen</span><span>Keterangan/Spesifikasi</span><span>Aksi</span></div>
+              <div className="project-upload-table__head project-upload-table__head--components"><span>Kategori</span><span>Nama Alat/Komponen</span><span>Keterangan/Spesifikasi</span><span>Gambar</span><span>Aksi</span></div>
               {formData.tools.length ? formData.tools.map((tool, index) => (
-                <div className="project-upload-table__head project-upload-table__head--actions" key={`${tool.name}-${index}`}>
+                <div className="project-upload-table__head project-upload-table__head--components" key={`${tool.name}-${index}`}>
+                  <span>{tool.category || '-'}</span>
                   <span>{tool.name}</span>
                   <span>{tool.specification || '-'}</span>
+                  <ComponentImageField tool={tool} index={index} onChange={handleComponentImageChange} />
                   <UploadRowActions onEdit={() => editTool(index)} onDelete={() => deleteTool(index)} />
                 </div>
               )) : (
-                <div className="project-upload-empty"><BoxPlusIcon /><strong>Belum ada alat atau komponen</strong><p>Klik tombol “Tambah Item” untuk menambahkan</p></div>
+                <div className="project-upload-empty"><BoxPlusIcon /><strong>Belum ada alat atau komponen</strong><p>Pilih item dari katalog, lalu klik tombol “Tambah Item”</p></div>
               )}
             </div>
             {fieldErrors.tools ? <em className="project-upload-error">{fieldErrors.tools}</em> : null}
@@ -841,14 +1072,31 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
 
           <section className="project-upload-list-section">
             <div className="project-upload-section-head">
-              <div><h3>Node ArduFlow yang Digunakan *</h3><p>Sebutkan node atau blok Arduflow yang digunakan dalam proyek ini</p></div>
+              <div><h3>Node ArduFlow yang Digunakan *</h3><p>Pilih node dari katalog ArduFlow yang digunakan dalam proyek ini</p></div>
+            </div>
+            <div className="project-upload-node-picker">
+              <select
+                value={selectedNodeKey}
+                onChange={(event) => {
+                  setSelectedNodeKey(event.target.value);
+                  clearFieldError('nodes');
+                }}
+              >
+                <option value="">Pilih node ArduFlow</option>
+                {ARDUFLOW_NODE_CATALOG.map((node, index) => (
+                  <option value={index} key={`${node.category}-${node.name}`}>
+                    {node.category} - {node.name} - {node.description}
+                  </option>
+                ))}
+              </select>
               <button type="button" onClick={addNode}><PlusIcon /> Tambah Node</button>
             </div>
             {formData.nodes.length ? (
               <div className={`project-upload-table${fieldErrors.nodes ? ' has-error' : ''}`}>
-                <div className="project-upload-table__head project-upload-table__head--actions"><span>Node</span><span>Deskripsi</span><span>Aksi</span></div>
+                <div className="project-upload-table__head project-upload-table__head--nodes"><span>Kategori</span><span>Node</span><span>Keterangan</span><span>Aksi</span></div>
                 {formData.nodes.map((node, index) => (
-                  <div className="project-upload-table__head project-upload-table__head--actions" key={`${node.name}-${index}`}>
+                  <div className="project-upload-table__head project-upload-table__head--nodes" key={`${node.name}-${index}`}>
+                    <span>{node.category || '-'}</span>
                     <span>{node.name}</span>
                     <span>{node.description || '-'}</span>
                     <UploadRowActions onEdit={() => editNode(index)} onDelete={() => deleteNode(index)} />
@@ -932,6 +1180,22 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
             <UploadField label="Alt Text" hint="Pilih gambar yang mewakili proyek Anda">
               <input name="altText" type="text" value={formData.altText} onChange={handleInputChange} placeholder="Deskripsikan proyek anda" />
             </UploadField>
+          </section>
+
+          <section className="project-upload-card project-upload-cover">
+            <h3>Gambar Rangkaian</h3>
+            <label className={`project-upload-cover-box${fieldErrors.circuitImage ? ' has-error' : ''}`}>
+              <input name="circuitImage" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFileChange} />
+              {circuitPreviewUrl ? (
+                <img className="project-upload-cover-preview" src={circuitPreviewUrl} alt="Preview gambar rangkaian" />
+              ) : (
+                <ImageIcon />
+              )}
+              <span>{formData.circuitImage?.name || existingCircuitImageName || 'Upload gambar rangkaian'}</span>
+              <small>{existingCircuitImageName && !formData.circuitImage ? 'Gambar lama tetap digunakan jika tidak diganti' : 'PNG, JPG, WEBP maksimal 2 MB'}</small>
+              <strong>Pilih Gambar</strong>
+            </label>
+            {fieldErrors.circuitImage ? <em className="project-upload-error">{fieldErrors.circuitImage}</em> : null}
           </section>
 
           <section className="project-upload-card project-upload-visibility">

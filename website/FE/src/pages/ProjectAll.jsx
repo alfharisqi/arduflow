@@ -12,6 +12,24 @@ function projectDetailHref(project) {
   return `/project/detail?id=${encodeURIComponent(project.id)}`;
 }
 
+function stripHtml(value) {
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = String(value || "");
+  return wrapper.textContent || wrapper.innerText || "";
+}
+
+function projectSummary(value) {
+  return stripHtml(value).replace(/\s+/g, " ").trim();
+}
+
+function projectImage(project) {
+  return project.coverImageUrl || projectHeroImage;
+}
+
+function toolLabel(tool) {
+  return String(tool?.name || tool?.title || tool || "").trim();
+}
+
 function projectMatchesType(project, filter) {
   if (filter === "Semua") return true;
   const normalized = normalizeFilter(filter);
@@ -32,10 +50,10 @@ function projectMatchesSearch(project, searchTerm) {
   return [
     project.title,
     project.category,
-    project.description,
+    projectSummary(project.description),
     project.difficulty,
     ...(project.tags || []),
-    ...(project.tools || []),
+    ...(project.tools || []).map(toolLabel),
   ].join(" ").toLowerCase().includes(keyword);
 }
 
@@ -160,7 +178,7 @@ export function ProjectAll() {
               <div className="project-search-results">
                 {visibleSearchResults.length ? visibleSearchResults.map((project) => (
                   <a className="project-search-result" href={projectDetailHref(project)} key={project.id}>
-                    <img src={projectHeroImage} alt="" />
+                    <img src={projectImage(project)} alt="" />
                     <span className="project-search-result__content">
                       <strong>{project.title}</strong>
                       <span className="project-search-result__meta">
@@ -246,11 +264,11 @@ export function ProjectAll() {
         <div className="all-projects-grid">
           {visibleProjects.length ? visibleProjects.map((project) => (
             <article className="all-project-card" key={project.id}>
-              <img src={projectHeroImage} alt="" className="all-project-card__image" />
+              <img src={projectImage(project)} alt="" className="all-project-card__image" />
               <div className="all-project-card__body">
                 <h2>{project.title}</h2>
                 <span className="all-project-card__category">{project.category}</span>
-                <p>{project.description}</p>
+                <p>{projectSummary(project.description)}</p>
                 <a href={projectDetailHref(project)}>
                   Lihat Detail Proyek <span aria-hidden="true">-&gt;</span>
                 </a>

@@ -5,10 +5,43 @@ const GALLERY_API_URL = apiEndpoint(
   '/api/galery-api.php',
 );
 
+const GALLERY_SUMMARY_MAX_LENGTH = 180;
+
 function stripHtml(value) {
   const wrapper = document.createElement('div');
   wrapper.innerHTML = String(value || '');
   return wrapper.textContent || wrapper.innerText || '';
+}
+
+function normalizePlainText(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function truncateText(value, maxLength = GALLERY_SUMMARY_MAX_LENGTH) {
+  const text = normalizePlainText(value);
+
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  const clipped = text.slice(0, maxLength + 1);
+  const lastSpace = clipped.lastIndexOf(' ');
+  const safeText = lastSpace > Math.floor(maxLength * 0.7)
+    ? clipped.slice(0, lastSpace)
+    : text.slice(0, maxLength);
+
+  return `${safeText.trim()}...`;
+}
+
+function gallerySummary(rawDescription, title) {
+  const plainDescription = normalizePlainText(stripHtml(rawDescription));
+  const normalizedTitle = normalizePlainText(title);
+  const summarySource =
+    normalizedTitle && plainDescription.toLowerCase().startsWith(normalizedTitle.toLowerCase())
+      ? plainDescription.slice(normalizedTitle.length).trim()
+      : plainDescription;
+
+  return truncateText(summarySource);
 }
 
 function resolveGalleryImageUrl(item) {
@@ -36,12 +69,13 @@ function resolveGalleryImageUrl(item) {
 
 function normalizeGallery(item) {
   const rawDescription = String(item.description || '');
+  const title = item.title || 'Dokumentasi Kegiatan';
 
   return {
     id: item.id,
-    title: item.title || 'Dokumentasi Kegiatan',
+    title,
     tag: item.tag || 'Dokumentasi',
-    description: stripHtml(rawDescription),
+    description: gallerySummary(rawDescription, title),
     descriptionHtml: rawDescription,
     userName: item.userName || item.user_name || 'Admin',
     eventDate: item.eventDate || item.event_date || null,

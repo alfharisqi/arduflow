@@ -260,6 +260,127 @@ function resolveProjectCoverUrl(project) {
   return `${API_BASE_URL}/${normalizedPath}`;
 }
 
+function getProjectDescription(project) {
+  return (
+    project?.description ||
+    project?.summary ||
+    project?.payload?.description ||
+    project?.payload?.summary ||
+    'Belum ada deskripsi proyek.'
+  );
+}
+
+function getProjectPlatform(project) {
+  const tags = getProjectArray(project, 'tags');
+
+  return (
+    project?.platform ||
+    project?.programmingLanguage ||
+    project?.payload?.platform ||
+    project?.payload?.programmingLanguage ||
+    tags[0] ||
+    '-'
+  );
+}
+
+function getProjectTags(project) {
+  const rawTags = [
+    project?.category,
+    project?.difficulty,
+    ...getProjectArray(project, 'tags'),
+  ];
+
+  return [...new Set(rawTags.filter(Boolean).map((tag) => String(tag).trim()).filter(Boolean))].slice(0, 4);
+}
+
+function getProjectItemQuantity(item) {
+  if (!item || typeof item !== 'object') return '';
+  return item.quantity || item.qty || item.amount || item.total || '';
+}
+
+function getProjectItemDescription(item, fallback = '') {
+  if (typeof item === 'string') return fallback;
+  if (!item || typeof item !== 'object') return fallback;
+
+  return item.description || item.desc || item.note || item.function || fallback;
+}
+
+function getProjectItemImageUrl(item) {
+  const image = item && typeof item === 'object' ? item.image : null;
+  const rawUrl = String(item?.imageUrl || image?.file_url || image?.fileUrl || image?.url || image?.src || '').trim();
+
+  if (!rawUrl) return '';
+  if (/^(https?:\/\/|data:|blob:)/i.test(rawUrl)) return rawUrl;
+
+  return `${API_BASE_URL}${rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`}`;
+}
+
+function getProjectCircuitImageUrl(project) {
+  const image = project?.circuitImage || project?.payload?.circuitImage || null;
+  const rawUrl = String(image?.file_url || image?.fileUrl || image?.url || image?.src || '').trim();
+
+  if (!rawUrl) return '';
+  if (/^(https?:\/\/|data:|blob:)/i.test(rawUrl)) return rawUrl;
+
+  return `${API_BASE_URL}${rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`}`;
+}
+
+function AdminProjectImagePlaceholder() {
+  return (
+    <span className="admin-projects-wire-placeholder" aria-hidden="true">
+      <img src={galleryIcon} alt="" />
+    </span>
+  );
+}
+
+function AdminProjectStatCard({ icon, label, value }) {
+  return (
+    <article className="admin-projects-wire-stat">
+      <span aria-hidden="true">{icon}</span>
+      <small>{label}</small>
+      <strong>{value || '-'}</strong>
+    </article>
+  );
+}
+
+function AdminProjectCircuitPreview({ tools }) {
+  const visibleTools = tools.slice(0, 5);
+
+  return (
+    <div className="admin-projects-wire-circuit">
+      <div className="admin-projects-wire-board">
+        <span>ARDUINO</span>
+        <i />
+      </div>
+      <div className="admin-projects-wire-lines" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </div>
+      <div className="admin-projects-wire-breadboard" aria-hidden="true" />
+      <ul>
+        {(visibleTools.length ? visibleTools : ['Arduino Uno', 'Sensor', 'Breadboard']).map((tool, index) => (
+          <li key={`${getProjectItemLabel(tool, 'komponen')}-${index}`}>
+            <span />
+            {getProjectItemLabel(tool, `Komponen ${index + 1}`)}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function AdminProjectStepCard({ step, index }) {
+  return (
+    <article className="admin-projects-wire-step">
+      <b>{index + 1}</b>
+      <AdminProjectImagePlaceholder />
+      <strong>{getProjectStepLabel(step, index)}</strong>
+      <p>{getProjectItemDescription(step, 'Ikuti urutan pengerjaan sesuai dokumentasi proyek.')}</p>
+    </article>
+  );
+}
+
 export function AdminProjects() {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialAdminSidebarCollapsed);
   const [projects, setProjects] = useState([]);
@@ -1336,116 +1457,116 @@ export function AdminProjects() {
               </div>
 
               <>
-                <div className="admin-projects-detail-profile">
-                  {resolveProjectCoverUrl(selectedProject) ? (
+                <section className="admin-projects-wire-hero">
+                  <div className="admin-projects-wire-media">
+                    {resolveProjectCoverUrl(selectedProject) ? (
+                      <img
+                        src={resolveProjectCoverUrl(selectedProject)}
+                        alt={selectedProject.title || 'Cover proyek'}
+                      />
+                    ) : (
+                      <AdminProjectImagePlaceholder />
+                    )}
+                    <div className="admin-projects-wire-thumbs" aria-hidden="true">
+                      {[0, 1, 2, 3].map((item) => (
+                        <AdminProjectImagePlaceholder key={item} />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="admin-projects-wire-summary">
+                    <div className="admin-projects-wire-tags">
+                      {(getProjectTags(selectedProject).length ? getProjectTags(selectedProject) : ['Draft']).map((tag) => (
+                        <span key={tag}>{tag}</span>
+                      ))}
+                    </div>
+                    <h3>{selectedProject.title || '-'}</h3>
+                    <p>{getProjectDescription(selectedProject)}</p>
+                    <div className="admin-projects-wire-owner">
+                      <span className="admin-projects-avatar" />
+                      <span>
+                        <b>{getProjectOwnerName(selectedProject)}</b>
+                        <small>{getProjectOwnerUsername(selectedProject)}</small>
+                      </span>
+                      <ProjectBadge>{selectedProject.status || 'draft'}</ProjectBadge>
+                    </div>
+
+                    <div className="admin-projects-wire-stats">
+                      <AdminProjectStatCard icon="01" label="Tingkat" value={selectedProject.difficulty || '-'} />
+                      <AdminProjectStatCard icon="02" label="Jumlah Node" value={`${getProjectArray(selectedProject, 'nodes').length} Node`} />
+                      <AdminProjectStatCard icon="03" label="Platform" value={getProjectPlatform(selectedProject)} />
+                      <AdminProjectStatCard icon="04" label="Kategori" value={selectedProject.category || '-'} />
+                    </div>
+
+                    <div className="admin-projects-wire-main-actions">
+                      <button type="button" className="is-dark" onClick={() => window.open(`/project/detail?id=${encodeURIComponent(selectedProject.id)}`, '_blank', 'noopener,noreferrer')}>
+                        Buka Halaman Detail
+                      </button>
+                      <button type="button" onClick={() => handlePreviewProject(selectedProject)}>
+                        {getProjectFileUrl(selectedProject) ? 'Unduh File Proyek' : 'Preview Proyek'}
+                      </button>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="admin-projects-wire-grid">
+                  <article className="admin-projects-wire-card">
+                    <h3>Alat dan Komponen</h3>
+                    <div className="admin-projects-wire-list">
+                      {(getProjectArray(selectedProject, 'tools').length ? getProjectArray(selectedProject, 'tools') : ['Belum ada komponen']).slice(0, 6).map((tool, index) => (
+                        <p key={`${getProjectItemLabel(tool, 'tool')}-${index}`}>
+                          {getProjectItemImageUrl(tool) ? (
+                            <img src={getProjectItemImageUrl(tool)} alt="" aria-hidden="true" />
+                          ) : (
+                            <span aria-hidden="true" />
+                          )}
+                          <b>{getProjectItemLabel(tool)}</b>
+                          <small>{getProjectItemQuantity(tool) || (typeof tool === 'string' ? '-' : '1 pcs')}</small>
+                        </p>
+                      ))}
+                    </div>
+                  </article>
+
+                  <article className="admin-projects-wire-card">
+                    <h3>Node ArduFlow yang Digunakan</h3>
+                    <div className="admin-projects-wire-node-list">
+                      {(getProjectArray(selectedProject, 'nodes').length ? getProjectArray(selectedProject, 'nodes') : ['Belum ada node']).slice(0, 5).map((node, index) => (
+                        <p key={`${getProjectItemLabel(node, 'node')}-${index}`}>
+                          <span aria-hidden="true"><img src={zapIcon} alt="" /></span>
+                          <b>{getProjectItemLabel(node)}</b>
+                          <small>{getProjectItemDescription(node, 'Node pendukung proyek ArduFlow.')}</small>
+                        </p>
+                      ))}
+                    </div>
+                  </article>
+                </section>
+
+                <section className="admin-projects-wire-card">
+                  <h3>Gambar Rangkaian</h3>
+                  {getProjectCircuitImageUrl(selectedProject) ? (
                     <img
-                      className="admin-projects-detail-image"
-                      src={resolveProjectCoverUrl(selectedProject)}
-                      alt={selectedProject.title || 'Cover proyek'}
+                      className="admin-projects-wire-circuit-image"
+                      src={getProjectCircuitImageUrl(selectedProject)}
+                      alt={`Gambar rangkaian ${selectedProject.title || 'proyek'}`}
                     />
                   ) : (
-                    <span className="admin-projects-detail-image" />
-                  )}
-                  <div>
-                    <h3>{selectedProject.title || '-'}</h3>
-                    <ProjectBadge>{selectedProject.status || 'draft'}</ProjectBadge>
-                    <p>
-                      <span className="admin-projects-avatar" />
-                      {getProjectOwnerName(selectedProject)}
-                      <br />
-                      <small>
-                        {getProjectOwnerUsername(selectedProject)}
-                      </small>
-                    </p>
-                  </div>
-                </div>
-
-                <dl>
-                  <dt>Kategori</dt>
-                  <dd>{selectedProject.category || '-'}</dd>
-
-                  <dt>Level</dt>
-                  <dd>{selectedProject.difficulty || '-'}</dd>
-
-                  <dt>Tanggal Upload</dt>
-                  <dd>
-                    {selectedProject.createdAt
-                      ? new Date(selectedProject.createdAt).toLocaleString('id-ID')
-                      : '-'}
-                  </dd>
-
-                  <dt>Update Terakhir</dt>
-                  <dd>
-                    {selectedProject.updatedAt
-                      ? new Date(selectedProject.updatedAt).toLocaleString('id-ID')
-                      : '-'}
-                  </dd>
-
-                  <dt>Deskripsi Singkat</dt>
-                  <dd>{selectedProject.description || '-'}</dd>
-
-                  <dt>Harga</dt>
-                  <dd>{formatProjectPrice(selectedProject)}</dd>
-                </dl>
-
-                <section className="admin-projects-components">
-                  <h3>Alat dan Komponen</h3>
-                  <div>
-                    {getProjectArray(selectedProject, 'tools').length > 0 ? (
-                      getProjectArray(selectedProject, 'tools').map((tool, index) => (
-                        <span key={`${tool.name || 'tool'}-${index}`}>
-                          {getProjectItemLabel(tool)}
-                        </span>
-                      ))
-                    ) : (
-                      <span>Belum ada komponen</span>
-                    )}
-                  </div>
-                </section>
-
-                <section className="admin-projects-components">
-                  <h3>Node yang Digunakan</h3>
-                  <div>
-                    {getProjectArray(selectedProject, 'nodes').length > 0 ? (
-                      getProjectArray(selectedProject, 'nodes').map((node, index) => (
-                        <span key={`${getProjectItemLabel(node, 'node')}-${index}`}>
-                          {getProjectItemLabel(node)}
-                        </span>
-                      ))
-                    ) : (
-                      <span>Belum ada node</span>
-                    )}
-                  </div>
-                </section>
-
-                <section className="admin-projects-history">
-                  <h3>Langkah-langkah</h3>
-                  {getProjectArray(selectedProject, 'steps').length > 0 ? (
-                    getProjectArray(selectedProject, 'steps').map((step, index) => (
-                      <p key={`${getProjectStepLabel(step, index)}-${index}`}>
-                        <b>{index + 1}. {getProjectStepLabel(step, index)}</b>
-                      </p>
-                    ))
-                  ) : (
-                    <p>Belum ada langkah pengerjaan.</p>
+                    <AdminProjectCircuitPreview tools={getProjectArray(selectedProject, 'tools')} />
                   )}
                 </section>
 
-                <section className="admin-projects-detail-stats">
-                  <article>
-                    <span>Viewer</span>
-                    <strong>{selectedProject.viewer ?? 0}</strong>
-                  </article>
-
-                  <article>
-                    <span>Like</span>
-                    <strong>{selectedProject.likes ?? 0}</strong>
-                  </article>
-
-                  <article>
-                    <span>Save</span>
-                    <strong>{selectedProject.saves ?? 0}</strong>
-                  </article>
+                <section className="admin-projects-wire-card">
+                  <h3>Langkah Pengerjaan</h3>
+                  <div className="admin-projects-wire-steps">
+                    {(getProjectArray(selectedProject, 'steps').length ? getProjectArray(selectedProject, 'steps') : ['Belum ada langkah pengerjaan']).slice(0, 5).map((step, index) => (
+                      <AdminProjectStepCard key={`${getProjectStepLabel(step, index)}-${index}`} step={step} index={index} />
+                    ))}
+                  </div>
+                  <div className="admin-projects-wire-note">
+                    <img src={checkIcon} alt="" />
+                    <span>
+                      Harga {formatProjectPrice(selectedProject)}. Diunggah {formatProjectDateTime(selectedProject.createdAt).date}, terakhir diperbarui {formatProjectDateTime(selectedProject.updatedAt).date}.
+                    </span>
+                  </div>
                 </section>
 
                 <div className="admin-projects-detail-actions">

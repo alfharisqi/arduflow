@@ -1,12 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { createElement, useEffect, useMemo, useState } from "react";
 
-import projectFallbackImage from "../assets/images/project-hero-reference.png";
 import monitorIcon from "../assets/icons/icon-monitor-1.svg";
 import cpuIcon from "../assets/icons/icon-cpu-1.svg";
 import zapIcon from "../assets/icons/icon-zap-1.svg";
 import workflowIcon from "../assets/icons/icon-workflow-1.svg";
 import clockIcon from "../assets/icons/icon-clock-1.svg";
-import { fetchProjectSubmission } from "../services/projectApi.js";
+import fileIcon from "../assets/icons/icon-file-text-1.svg";
+import downloadIcon from "../assets/icons/icon-downloadsim-1.svg";
+import {
+  fetchProjectSubmission,
+  fetchProjectSubmissions,
+  isPublicProject,
+} from "../services/projectApi.js";
 
 function getProjectIdFromUrl() {
   return new URLSearchParams(window.location.search).get("id") || "";
@@ -26,6 +31,10 @@ function getToolName(tool) {
   return String(tool?.name || tool?.title || tool || "").trim();
 }
 
+function getToolCategory(tool) {
+  return String(tool?.category || tool?.type || "Komponen").trim();
+}
+
 function getToolSpec(tool) {
   return String(
     tool?.specification ||
@@ -34,6 +43,112 @@ function getToolSpec(tool) {
       tool?.spec ||
       "-"
   ).trim();
+}
+
+function getToolVisualLabel(tool) {
+  return getToolName(tool).slice(0, 2).toUpperCase() || "IO";
+}
+
+const WOKWI_ELEMENT_BY_TOOL_NAME = {
+  "7 segment display": "wokwi-7segment",
+  "arduino mega": "wokwi-arduino-mega",
+  "arduino nano": "wokwi-arduino-nano",
+  "arduino uno": "wokwi-arduino-uno",
+  "arduino uno r3": "wokwi-arduino-uno",
+  buzzer: "wokwi-buzzer",
+  dht22: "wokwi-dht22",
+  "esp32 devkit": "wokwi-esp32-devkit-v1",
+  "hc-sr04 ultrasonic": "wokwi-hc-sr04",
+  "ir receiver": "wokwi-ir-receiver",
+  "keypad 4x4": "wokwi-membrane-keypad",
+  "lcd 16x2": "wokwi-lcd1602",
+  led: "wokwi-led",
+  "ldr photoresistor": "wokwi-photoresistor-sensor",
+  "micro sd card": "wokwi-microsd-card",
+  mpu6050: "wokwi-mpu6050",
+  "arduino nano rp2040 connect": "wokwi-nano-rp2040-connect",
+  "neopixel ring": "wokwi-led-ring",
+  "oled ssd1306": "wokwi-ssd1306",
+  "pir motion sensor": "wokwi-pir-motion-sensor",
+  potentiometer: "wokwi-potentiometer",
+  pushbutton: "wokwi-pushbutton",
+  resistor: "wokwi-resistor",
+  "rgb led": "wokwi-rgb-led",
+  "rtc ds1307": "wokwi-ds1307",
+  "servo motor": "wokwi-servo",
+};
+
+const SUPPORTED_WOKWI_ELEMENTS = new Set([
+  "wokwi-7segment",
+  "wokwi-arduino-mega",
+  "wokwi-arduino-nano",
+  "wokwi-arduino-uno",
+  "wokwi-buzzer",
+  "wokwi-dht22",
+  "wokwi-ds1307",
+  "wokwi-esp32-devkit-v1",
+  "wokwi-hc-sr04",
+  "wokwi-ir-receiver",
+  "wokwi-lcd1602",
+  "wokwi-lcd2004",
+  "wokwi-led",
+  "wokwi-led-ring",
+  "wokwi-membrane-keypad",
+  "wokwi-microsd-card",
+  "wokwi-mpu6050",
+  "wokwi-nano-rp2040-connect",
+  "wokwi-photoresistor-sensor",
+  "wokwi-pir-motion-sensor",
+  "wokwi-potentiometer",
+  "wokwi-pushbutton",
+  "wokwi-resistor",
+  "wokwi-rgb-led",
+  "wokwi-servo",
+  "wokwi-ssd1306",
+]);
+
+const WOKWI_ELEMENT_KEYWORD_MATCHERS = [
+  [/arduino.*mega|mega/, "wokwi-arduino-mega"],
+  [/arduino.*nano|nano(?!.*rp2040)/, "wokwi-arduino-nano"],
+  [/rp2040/, "wokwi-nano-rp2040-connect"],
+  [/arduino|uno/, "wokwi-arduino-uno"],
+  [/esp32/, "wokwi-esp32-devkit-v1"],
+  [/dht/, "wokwi-dht22"],
+  [/ultrasonic|hc[\s-]?sr04|distance/, "wokwi-hc-sr04"],
+  [/servo/, "wokwi-servo"],
+  [/rgb.*led/, "wokwi-rgb-led"],
+  [/\bled\b|lampu/, "wokwi-led"],
+  [/button|push/, "wokwi-pushbutton"],
+  [/resistor/, "wokwi-resistor"],
+  [/potensio|potentiometer/, "wokwi-potentiometer"],
+  [/buzzer/, "wokwi-buzzer"],
+  [/lcd.*20x4|20x4/, "wokwi-lcd2004"],
+  [/lcd|16x2/, "wokwi-lcd1602"],
+  [/oled|ssd1306/, "wokwi-ssd1306"],
+  [/7.?segment/, "wokwi-7segment"],
+  [/keypad/, "wokwi-membrane-keypad"],
+  [/pir|motion/, "wokwi-pir-motion-sensor"],
+  [/ldr|photoresistor|cahaya/, "wokwi-photoresistor-sensor"],
+  [/mpu6050|gyro|accelerometer/, "wokwi-mpu6050"],
+  [/neopixel|led ring/, "wokwi-led-ring"],
+  [/ir receiver|infrared/, "wokwi-ir-receiver"],
+  [/rtc|ds1307/, "wokwi-ds1307"],
+  [/sd card|microsd/, "wokwi-microsd-card"],
+];
+
+function normalizeToolName(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function getWokwiElementName(tool) {
+  const explicitElement = String(tool?.wokwiElement || "").trim();
+  if (SUPPORTED_WOKWI_ELEMENTS.has(explicitElement)) return explicitElement;
+
+  const normalizedName = normalizeToolName(getToolName(tool));
+  const exactElement = WOKWI_ELEMENT_BY_TOOL_NAME[normalizedName];
+  if (exactElement) return exactElement;
+
+  return WOKWI_ELEMENT_KEYWORD_MATCHERS.find(([pattern]) => pattern.test(normalizedName))?.[1] || "";
 }
 
 function getNodeDescription(node) {
@@ -45,46 +160,288 @@ function getNodeDescription(node) {
 }
 
 function getStepTitle(step, index) {
-  return String(step?.title || `Langkah ${index + 1}`).trim();
+  return String(step?.title || step?.name || "").trim();
 }
 
 function getStepBody(step) {
   return String(step?.description || step?.body || step || "").trim();
 }
 
-function NodePreview({ nodes }) {
-  const previewNodes = nodes.slice(0, 4);
+function visibleList(items, limit) {
+  return items.slice(0, limit);
+}
 
-  if (!previewNodes.length) {
-    return null;
+function getCircuitLabel(tool) {
+  return getToolName(tool) || "Komponen";
+}
+
+function StatCard({ icon, label, value }) {
+  return (
+    <div className="project-detail__stat">
+      <img src={icon} alt="" aria-hidden="true" />
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function CircuitDiagram({ tools }) {
+  const legendItems = visibleList(tools, 5);
+
+  return (
+    <div className="project-circuit">
+      <div className="project-circuit__canvas" aria-hidden="true">
+        <div className="circuit-board">ARDUINO<br />UNO</div>
+        <div className="circuit-lcd" />
+        <div className="circuit-breadboard" />
+        <div className="circuit-sensor" />
+        <span className="wire wire--a" />
+        <span className="wire wire--b" />
+        <span className="wire wire--c" />
+        <span className="wire wire--d" />
+      </div>
+      <aside className="project-circuit__legend">
+        <strong>Keterangan:</strong>
+        {legendItems.length ? legendItems.map((tool, index) => (
+          <span key={`${getCircuitLabel(tool)}-${index}`}>
+            <i aria-hidden="true" />
+            {getCircuitLabel(tool)}
+          </span>
+        )) : (
+          <span><i aria-hidden="true" />Belum ada komponen</span>
+        )}
+      </aside>
+    </div>
+  );
+}
+
+function CircuitSection({ project, tools }) {
+  return (
+    <section id="rangkaian" className="detail-card detail-circuit" aria-labelledby="circuit-title">
+      <h2 id="circuit-title">Gambar Rangkaian</h2>
+      {project.circuitImageUrl ? (
+        <div className="project-circuit project-circuit--image">
+          <img src={project.circuitImageUrl} alt={`Gambar rangkaian ${project.title}`} />
+        </div>
+      ) : (
+        <CircuitDiagram tools={tools} />
+      )}
+    </section>
+  );
+}
+
+function InfoNotice() {
+  return (
+    <div className="project-detail__notice">
+      <span aria-hidden="true">i</span>
+      <p>Proyek ini dibuat menggunakan ArduFlow. Anda dapat membuka proyek ini di ArduFlow IDE untuk melihat atau mengeditnya.</p>
+    </div>
+  );
+}
+
+function SectionFooterButton({ children }) {
+  return <button className="detail-card__footer-button" type="button">{children}</button>;
+}
+
+function StepArrow() {
+  return <span className="detail-step-arrow" aria-hidden="true">-&gt;</span>;
+}
+
+function NodeIcon({ index }) {
+  const icon = index % 2 === 0 ? zapIcon : workflowIcon;
+
+  return (
+    <span className="detail-node-icon">
+      <img src={icon} alt="" aria-hidden="true" />
+    </span>
+  );
+}
+
+function ComponentImage({ tool }) {
+  const wokwiElement = getWokwiElementName(tool);
+
+  if (wokwiElement) {
+    return (
+      <span className="detail-wokwi-visual" aria-hidden="true">
+        {createElement(wokwiElement)}
+      </span>
+    );
+  }
+
+  if (tool?.imageUrl) {
+    return <img className="detail-component-image" src={tool.imageUrl} alt="" aria-hidden="true" />;
   }
 
   return (
-    <div className="detail-node-preview" aria-label="Preview node ArduFlow">
-      <div className="preview-wire preview-wire--one" aria-hidden="true" />
-      <div className="preview-wire preview-wire--two" aria-hidden="true" />
-      {previewNodes.map((node, index) => (
-        <div
-          className={`preview-node ${
-            [
-              "preview-node--timer",
-              "preview-node--boolean",
-              "preview-node--digital",
-              "preview-node--delay",
-            ][index]
-          }`}
-          key={`${node.name || node.title || "node"}-${index}`}
-        >
-          <span>{String(node.name || node.title || "NODE").toUpperCase()}</span>
-          <strong>{node.type || node.category || "ArduFlow"}</strong>
-        </div>
-      ))}
-    </div>
+    <span className="detail-component-fallback" aria-hidden="true">
+      {getToolVisualLabel(tool)}
+    </span>
+  );
+}
+
+function DetailStep({ step, index, isLast }) {
+  const title = getStepTitle(step, index);
+
+  return (
+    <>
+      <article className="detail-step">
+        <strong>{index + 1}</strong>
+        {title ? <h3>{title}</h3> : null}
+        <p>{getStepBody(step)}</p>
+      </article>
+      {!isLast && <StepArrow />}
+    </>
   );
 }
 
 function EmptyDetail({ children }) {
   return <p className="admin-empty-state admin-empty-state--wide">{children}</p>;
+}
+
+function ProjectDetailFallbackLink() {
+  return (
+    <a className="project-detail__back" href="/project">
+      <span aria-hidden="true">&larr;</span>
+      Kembali ke Daftar Proyek
+    </a>
+  );
+}
+
+function normalizeDescription(value) {
+  return stripHtml(value).replace(/\s+/g, " ").trim();
+}
+
+function getProjectFileHref(project) {
+  return project.projectFileUrl || "#rangkaian";
+}
+
+function getProjectFileLabel(project) {
+  return project.projectFileUrl ? "Unduh File Proyek" : "Lihat Rangkaian";
+}
+
+function getPlatform(project) {
+  return project.programmingLanguage || project.tags?.[0] || project.category || "-";
+}
+
+function getTags(project) {
+  const tags = Array.isArray(project.tags) && project.tags.length
+    ? project.tags
+    : [project.category].filter(Boolean);
+
+  return tags.slice(0, 4);
+}
+
+function ProjectHero({ project, tools, nodes, tags, description }) {
+  const platform = getPlatform(project);
+  const category = project.category || tags[0] || "-";
+
+  return (
+    <section className="project-detail__hero" aria-labelledby="project-detail-title">
+      <div className="project-detail__summary">
+        <div className="project-detail__tags" aria-label="Kategori proyek">
+          {tags.map((tag) => (
+            <span key={tag}>{tag}</span>
+          ))}
+        </div>
+
+        <h1 id="project-detail-title">{project.title}</h1>
+        <p>{description}</p>
+
+        <div className="project-detail__stats" aria-label="Ringkasan proyek">
+          <StatCard icon={monitorIcon} label="Tingkat" value={project.difficulty || "-"} />
+          <StatCard icon={cpuIcon} label="Jumlah Node" value={`${formatNumber(nodes.length)} Node`} />
+          <StatCard icon={fileIcon} label="Platform" value={platform} />
+          <StatCard icon={clockIcon} label="Kategori" value={category} />
+        </div>
+
+        <div className="project-detail__actions">
+          <a className="project-detail__button project-detail__button--primary" href="/ide">
+            Buka ArduFlow IDE <span aria-hidden="true">-&gt;</span>
+          </a>
+          <a
+            className="project-detail__button project-detail__button--secondary"
+            href={getProjectFileHref(project)}
+            target={project.projectFileUrl ? "_blank" : undefined}
+            rel={project.projectFileUrl ? "noreferrer" : undefined}
+          >
+            {getProjectFileLabel(project)}
+            <img src={downloadIcon} alt="" aria-hidden="true" />
+          </a>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ComponentsCard({ tools }) {
+  return (
+    <section className="detail-card detail-components" aria-labelledby="components-title">
+      <h2 id="components-title">Alat dan Komponen</h2>
+      {tools.length ? (
+        <ul>
+          {visibleList(tools, 6).map((tool, index) => (
+            <li key={`${getToolName(tool)}-${index}`}>
+              <ComponentImage tool={tool} />
+              <span className="detail-component-copy">
+                <small>{getToolCategory(tool)}</small>
+                <strong>{getToolName(tool) || `Komponen ${index + 1}`}</strong>
+                <em>{getToolSpec(tool)}</em>
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyDetail>Belum ada data alat dan komponen.</EmptyDetail>
+      )}
+      {tools.length > 6 && <SectionFooterButton>Lihat Semua Komponen</SectionFooterButton>}
+    </section>
+  );
+}
+
+function NodesCard({ nodes }) {
+  return (
+    <section className="detail-card detail-nodes" aria-labelledby="nodes-title">
+      <h2 id="nodes-title">Node ArduFlow yang Digunakan</h2>
+      {nodes.length ? (
+        <ul>
+          {visibleList(nodes, 4).map((node, index) => (
+            <li key={`${node.name || node.title || "node"}-${index}`}>
+              <NodeIcon index={index} />
+              <span>
+                <strong>{node.name || node.title || `Node ${index + 1}`}</strong>
+                {getNodeDescription(node)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyDetail>Belum ada data node ArduFlow.</EmptyDetail>
+      )}
+      {nodes.length > 4 && <SectionFooterButton>Lihat Semua Node</SectionFooterButton>}
+    </section>
+  );
+}
+
+function StepsSection({ steps }) {
+  return (
+    <section className="detail-steps" aria-labelledby="steps-title">
+      <h2 id="steps-title">Langkah Pengerjaan</h2>
+      {steps.length ? (
+        <div className="detail-steps__grid">
+          {visibleList(steps, 5).map((step, index, list) => (
+            <DetailStep
+              step={step}
+              index={index}
+              isLast={index === list.length - 1}
+              key={`${getStepTitle(step, index)}-${index}`}
+            />
+          ))}
+        </div>
+      ) : (
+        <EmptyDetail>Belum ada data langkah pengerjaan.</EmptyDetail>
+      )}
+    </section>
+  );
 }
 
 export function ProjectDetail() {
@@ -102,9 +459,15 @@ export function ProjectDetail() {
       setError("");
 
       try {
-        const row = await fetchProjectSubmission(projectId);
+        const row = projectId
+          ? await fetchProjectSubmission(projectId)
+          : (await fetchProjectSubmissions()).find(isPublicProject);
 
         if (!isActive) return;
+
+        if (!row) {
+          throw new Error("Belum ada proyek publik di database.");
+        }
 
         setProject(row);
       } catch (fetchError) {
@@ -150,145 +513,32 @@ export function ProjectDetail() {
   const nodes = Array.isArray(project.nodes) ? project.nodes : [];
   const steps = Array.isArray(project.steps) ? project.steps : [];
   const tags = Array.isArray(project.tags) && project.tags.length
-    ? project.tags
+    ? getTags(project)
     : [project.category].filter(Boolean);
-  const description = stripHtml(project.description);
-  const coverImageUrl = project.coverImageUrl || projectFallbackImage;
-  const coverAlt = project.coverImage?.altText || project.title;
-  const platform =
-    project.programmingLanguage || project.tags?.[0] || project.category || "-";
-
+  const description = normalizeDescription(project.description);
   return (
-    <section className="project-detail" aria-labelledby="project-detail-title">
-      <div className="project-detail__content">
-        <div className="project-detail__hero">
-          <img
-            className="project-detail__image"
-            src={coverImageUrl}
-            alt={coverAlt}
-          />
+    <main className="project-detail">
+      <div className="project-detail__shell">
+        <ProjectDetailFallbackLink />
 
-          <div className="project-detail__summary">
-            <div className="project-detail__tags" aria-label="Kategori proyek">
-              {tags.slice(0, 4).map((tag) => (
-                <span key={tag}>{tag}</span>
-              ))}
-            </div>
-
-            <h1 id="project-detail-title">{project.title}</h1>
-            <p>{description}</p>
-
-            <div className="project-detail__stats" aria-label="Ringkasan proyek">
-              <div>
-                <img src={monitorIcon} alt="" aria-hidden="true" />
-                <span>
-                  <strong>Tingkat</strong>
-                  {project.difficulty || "-"}
-                </span>
-              </div>
-              <div>
-                <img src={cpuIcon} alt="" aria-hidden="true" />
-                <span>
-                  <strong>Jumlah Node</strong>
-                  {formatNumber(nodes.length)} Node
-                </span>
-              </div>
-              <div>
-                <img src={cpuIcon} alt="" aria-hidden="true" />
-                <span>
-                  <strong>Platform</strong>
-                  {platform}
-                </span>
-              </div>
-            </div>
-
-
-            <div className="project-detail__actions">
-              <a className="project-detail__button project-detail__button--primary" href="/ide">
-                Buka ArduFlow IDE
-              </a>
-              {project.projectFileUrl ? (
-                <a
-                  className="project-detail__button project-detail__button--secondary"
-                  href={project.projectFileUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Unduh File Proyek
-                </a>
-              ) : (
-                <a className="project-detail__button project-detail__button--secondary" href="#rangkaian">
-                  Lihat Rangkaian
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
+        <ProjectHero
+          project={project}
+          tools={tools}
+          nodes={nodes}
+          tags={tags}
+          description={description}
+        />
 
         <div className="project-detail__info">
-          <section className="detail-card detail-components" aria-labelledby="components-title">
-            <h2 id="components-title">Alat dan Komponen</h2>
-            {tools.length ? (
-              <ul>
-                {tools.map((tool, index) => (
-                  <li key={`${getToolName(tool)}-${index}`}>
-                    <img src={cpuIcon} alt="" aria-hidden="true" />
-                    <span>{getToolName(tool)}</span>
-                    <strong>{getToolSpec(tool)}</strong>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <EmptyDetail>Belum ada data alat dan komponen.</EmptyDetail>
-            )}
-          </section>
-
-          <section
-            id="rangkaian"
-            className="detail-card detail-nodes"
-            aria-labelledby="nodes-title"
-          >
-            <h2 id="nodes-title">Node ArduFlow yang Digunakan</h2>
-            {nodes.length ? (
-              <>
-                <ul>
-                  {nodes.map((node, index) => (
-                    <li key={`${node.name || node.title || "node"}-${index}`}>
-                      <span className={`detail-node-icon detail-node-icon--${index % 2 === 0 ? "red" : "green"}`}>
-                        <img src={index % 2 === 0 ? zapIcon : workflowIcon} alt="" aria-hidden="true" />
-                      </span>
-                      <span>
-                        <strong>{node.name || node.title || `Node ${index + 1}`}</strong>
-                        {getNodeDescription(node)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                <NodePreview nodes={nodes} />
-              </>
-            ) : (
-              <EmptyDetail>Belum ada data node ArduFlow.</EmptyDetail>
-            )}
-          </section>
+          <ComponentsCard tools={tools} />
+          <NodesCard nodes={nodes} />
         </div>
-      </div>
 
-      <section className="detail-steps" aria-labelledby="steps-title">
-        <h2 id="steps-title">Langkah Pengerjaan</h2>
-        {steps.length ? (
-          <div className="detail-steps__grid">
-            {steps.map((step, index) => (
-              <article className="detail-step" key={`${getStepTitle(step, index)}-${index}`}>
-                <strong>{index + 1}</strong>
-                <h3>{getStepTitle(step, index)}</h3>
-                <p>{getStepBody(step)}</p>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <EmptyDetail>Belum ada data langkah pengerjaan.</EmptyDetail>
-        )}
-      </section>
-    </section>
+        <CircuitSection project={project} tools={tools} />
+
+        <StepsSection steps={steps} />
+        <InfoNotice />
+      </div>
+    </main>
   );
 }

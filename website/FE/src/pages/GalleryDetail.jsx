@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import fallbackImage from '../assets/images/workshop-experience-group.png';
 import {
   fetchGallerySubmission,
   isPublishedGallery,
@@ -96,15 +95,6 @@ export function GalleryDetail() {
     <main className="gallery-detail-page">
       <article className="gallery-detail-shell">
         <a className="gallery-detail-back" href="/galeri">Kembali ke Galeri</a>
-
-        <header className="gallery-detail-hero">
-          <img src={item.imageUrl || fallbackImage} alt={item.title} />
-          <div>
-            <span>{item.tag}</span>
-            <h1>{item.title}</h1>
-            <p>{item.description || 'Belum ada deskripsi dokumentasi.'}</p>
-          </div>
-        </header>
 
         <section className="gallery-detail-meta" aria-label="Informasi galeri">
           <div>

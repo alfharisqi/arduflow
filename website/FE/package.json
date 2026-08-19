@@ -12,6 +12,7 @@
     "@pdfme/generator": "^6.1.12",
     "@pdfme/schemas": "^6.1.12",
     "@vitejs/plugin-react": "^4.3.4",
+    "@wokwi/elements": "^1.9.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "sweetalert2": "^11.26.25",

@@ -755,7 +755,7 @@
 }
 
 .admin-projects-detail {
-  width: min(440px, calc(100vw - 40px));
+  width: min(1120px, calc(100vw - 40px));
   max-height: calc(100vh - 100px);
   overflow-y: auto;
   border-radius: 8px;
@@ -964,6 +964,486 @@
   color: #ea580c;
 }
 
+.admin-projects-wire-hero,
+.admin-projects-wire-card,
+.admin-projects-wire-grid {
+  font-family: 'Inter', sans-serif;
+}
+
+.admin-projects-wire-hero {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.82fr) minmax(0, 1.18fr);
+  gap: 28px;
+  padding: 22px 20px 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.admin-projects-wire-media {
+  min-width: 0;
+}
+
+.admin-projects-wire-media > img,
+.admin-projects-wire-media > .admin-projects-wire-placeholder {
+  width: 100%;
+  aspect-ratio: 1 / 0.82;
+  border: 1px solid #dfe5ee;
+  border-radius: 8px;
+  background: #f7f8fa;
+  object-fit: cover;
+}
+
+.admin-projects-wire-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-projects-wire-placeholder img {
+  width: 44px;
+  height: 44px;
+  opacity: 0.38;
+}
+
+.admin-projects-wire-thumbs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.admin-projects-wire-thumbs .admin-projects-wire-placeholder {
+  width: 100%;
+  aspect-ratio: 1.35 / 1;
+  border: 1px solid #dfe5ee;
+  border-radius: 6px;
+  background: #f7f8fa;
+}
+
+.admin-projects-wire-thumbs img {
+  width: 24px;
+  height: 24px;
+}
+
+.admin-projects-wire-summary {
+  min-width: 0;
+  padding-top: 8px;
+}
+
+.admin-projects-wire-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.admin-projects-wire-tags span {
+  min-width: 76px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #eef0f3;
+  color: #111827;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.admin-projects-wire-summary h3 {
+  margin: 0 0 10px;
+  color: #111827;
+  font-size: 25px;
+  line-height: 1.22;
+}
+
+.admin-projects-wire-summary > p {
+  margin: 0 0 14px;
+  color: #2f3744;
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.admin-projects-wire-owner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  color: #111827;
+  font-size: 12px;
+}
+
+.admin-projects-wire-owner span:nth-child(2) {
+  display: grid;
+  gap: 2px;
+  margin-right: auto;
+}
+
+.admin-projects-wire-owner small {
+  color: #6b7280;
+}
+
+.admin-projects-wire-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 18px;
+  border: 1px solid #dfe5ee;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.admin-projects-wire-stat {
+  min-height: 112px;
+  padding: 15px 12px;
+  text-align: center;
+  border-right: 1px solid #dfe5ee;
+}
+
+.admin-projects-wire-stat:last-child {
+  border-right: 0;
+}
+
+.admin-projects-wire-stat span,
+.admin-projects-wire-stat small,
+.admin-projects-wire-stat strong {
+  display: block;
+}
+
+.admin-projects-wire-stat span {
+  width: 30px;
+  height: 30px;
+  margin: 0 auto 10px;
+  border-radius: 7px;
+  border: 1px solid #d1d5db;
+  color: #111827;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 28px;
+}
+
+.admin-projects-wire-stat small {
+  margin-bottom: 6px;
+  color: #4b5563;
+  font-size: 11px;
+}
+
+.admin-projects-wire-stat strong {
+  color: #111827;
+  font-size: 14px;
+}
+
+.admin-projects-wire-main-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.admin-projects-wire-main-actions button {
+  min-height: 48px;
+  padding: 0 16px;
+  border: 1px solid #111827;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #111827;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.admin-projects-wire-main-actions .is-dark {
+  background: linear-gradient(135deg, #111827, #3f4654);
+  color: #ffffff;
+}
+
+.admin-projects-wire-grid {
+  display: grid;
+  grid-template-columns: 0.88fr 1.12fr;
+  gap: 20px;
+  padding: 18px 20px 0;
+}
+
+.admin-projects-wire-card {
+  margin: 18px 20px 0;
+  padding: 18px;
+  border: 1px solid #dfe5ee;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.admin-projects-wire-grid .admin-projects-wire-card {
+  margin: 0;
+}
+
+.admin-projects-wire-card h3 {
+  margin: 0 0 14px;
+  color: #111827;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.admin-projects-wire-list {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-projects-wire-list p {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid #dfe5ee;
+  border-radius: 7px;
+  color: #111827;
+  font-size: 13px;
+}
+
+.admin-projects-wire-list p > span {
+  width: 18px;
+  height: 18px;
+  border: 1px solid #9ca3af;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #ffffff 0 48%, #e5e7eb 49% 100%);
+}
+
+.admin-projects-wire-list p > img {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.admin-projects-wire-list small {
+  color: #111827;
+  font-size: 12px;
+}
+
+.admin-projects-wire-node-list {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-projects-wire-node-list p {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 12px 14px;
+  min-height: 58px;
+  margin: 0;
+}
+
+.admin-projects-wire-node-list p > span {
+  grid-row: span 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  background: #f7f8fa;
+}
+
+.admin-projects-wire-node-list img {
+  width: 22px;
+  height: 22px;
+}
+
+.admin-projects-wire-node-list b {
+  align-self: end;
+  color: #111827;
+  font-size: 13px;
+}
+
+.admin-projects-wire-node-list small {
+  color: #374151;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.admin-projects-wire-circuit {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.95fr) minmax(160px, 1fr) minmax(150px, 0.65fr);
+  gap: 20px;
+  align-items: center;
+  min-height: 210px;
+}
+
+.admin-projects-wire-circuit-image {
+  display: block;
+  width: 100%;
+  max-height: 360px;
+  border: 1px solid #dfe5ee;
+  border-radius: 8px;
+  object-fit: contain;
+  background: #f8fafc;
+}
+
+.admin-projects-wire-board {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 170px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background:
+    linear-gradient(#d1d5db 0 0) 22px 22px / 42px 28px no-repeat,
+    linear-gradient(#9ca3af 0 0) 24px calc(100% - 34px) / 28px 28px no-repeat,
+    #f8fafc;
+  color: #111827;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.admin-projects-wire-board i {
+  position: absolute;
+  right: 14px;
+  width: 5px;
+  height: 96px;
+  border-radius: 999px;
+  background: repeating-linear-gradient(to bottom, #9ca3af 0 5px, transparent 5px 10px);
+}
+
+.admin-projects-wire-lines {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-projects-wire-lines span {
+  height: 2px;
+  background: #4b5563;
+}
+
+.admin-projects-wire-lines span:nth-child(2) {
+  transform: translateY(18px);
+}
+
+.admin-projects-wire-lines span:nth-child(3) {
+  transform: translateY(-18px);
+}
+
+.admin-projects-wire-breadboard {
+  width: 100%;
+  min-height: 96px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background:
+    radial-gradient(circle, #9ca3af 1.6px, transparent 2px) 9px 9px / 14px 14px,
+    #f8fafc;
+}
+
+.admin-projects-wire-circuit ul {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid #dfe5ee;
+  border-radius: 8px;
+  list-style: none;
+  color: #111827;
+  font-size: 12px;
+}
+
+.admin-projects-wire-circuit li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-projects-wire-circuit li span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #6b7280;
+}
+
+.admin-projects-wire-steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.admin-projects-wire-step {
+  position: relative;
+  min-height: 176px;
+  padding: 18px 12px 14px;
+  border: 1px solid #dfe5ee;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.admin-projects-wire-step b:first-child {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #4b5563;
+  color: #ffffff;
+  font-size: 13px;
+  line-height: 26px;
+}
+
+.admin-projects-wire-step .admin-projects-wire-placeholder {
+  width: 58px;
+  height: 50px;
+  margin: 0 auto 12px;
+  border-radius: 6px;
+  background: #f3f4f6;
+}
+
+.admin-projects-wire-step .admin-projects-wire-placeholder img {
+  width: 25px;
+  height: 25px;
+}
+
+.admin-projects-wire-step strong,
+.admin-projects-wire-step p {
+  display: block;
+  margin: 0;
+}
+
+.admin-projects-wire-step strong {
+  margin-bottom: 8px;
+  color: #111827;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.admin-projects-wire-step p {
+  color: #374151;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.admin-projects-wire-note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid #dfe5ee;
+  border-radius: 7px;
+  background: #f8fafc;
+  color: #4b5563;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.admin-projects-wire-note img {
+  width: 20px;
+  height: 20px;
+}
+
+.admin-projects-detail-actions {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  padding: 18px 20px 20px;
+}
+
 @media (max-width: 720px) {
   .admin-projects-detail-overlay {
     padding: 70px 14px 14px;
@@ -971,5 +1451,34 @@
 
   .admin-projects-detail {
     width: 100%;
+  }
+
+  .admin-projects-wire-hero,
+  .admin-projects-wire-grid,
+  .admin-projects-wire-circuit,
+  .admin-projects-wire-main-actions,
+  .admin-projects-detail-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-projects-wire-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-projects-wire-stat:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .admin-projects-wire-stat:nth-child(-n + 2) {
+    border-bottom: 1px solid #dfe5ee;
+  }
+
+  .admin-projects-wire-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-projects-wire-circuit ul {
+    grid-column: auto;
+    grid-row: auto;
   }
 }
