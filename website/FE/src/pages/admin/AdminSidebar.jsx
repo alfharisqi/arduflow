@@ -1,10 +1,13 @@
 import dashboardIcon from '../../assets/icons/icons-dashboard-1.svg';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
-import clockIcon from '../../assets/icons/icon-clock-1.svg';
+import userIcon from '../../assets/icons/icon-user-2.svg';
+import workshopIcon from '../../assets/icons/icon-workshop-1.svg';
 import graduationIcon from '../../assets/icons/icon-graduation-cap-1.svg';
-import galleryIcon from '../../assets/icons/icon-image-placeholder-1.svg';
+import certificateIcon from '../../assets/icons/icon-file-text-1.svg';
+import contactIcon from '../../assets/icons/icon-kontak-1.svg';
+import mediaIcon from '../../assets/icons/icon-media.svg';
+import projectIcon from '../../assets/icons/icon-proyek.svg';
 import globeIcon from '../../assets/icons/icons-globe-1.svg';
-import bookIcon from '../../assets/icons/icon-book-1.svg';
 import mailIcon from '../../assets/icons/icon-mail-1.svg';
 import cpuIcon from '../../assets/icons/icon-cpu-1.svg';
 import databaseIcon from '../../assets/icons/icons-database-1.svg';
@@ -19,11 +22,11 @@ const adminItems = [
     title: 'Manajemen Utama',
     items: [
       { label: 'Dashboard', href: '/admin/dashboard', icon: dashboardIcon },
-      { label: 'User', href: '/admin/users', icon: usersIcon },
+      { label: 'User', href: '/admin/users', icon: userIcon },
       { label: 'Verifikasi Akun', href: '/admin/verification', icon: mailIcon, count: 12 },
-      { label: 'Workshop / Program', href: '/admin/program', icon: clockIcon },
-      { label: 'Lead / Kontak', href: '/admin/leads', icon: usersIcon },
-      { label: 'Sertifikat', href: '/admin/certificates', icon: bookIcon },
+      { label: 'Workshop / Program', href: '/admin/program', icon: workshopIcon },
+      { label: 'Lead / Kontak', href: '/admin/leads', icon: contactIcon },
+      { label: 'Sertifikat', href: '/admin/certificates', icon: certificateIcon },
       { label: 'Transaksi', href: '/admin/transactions', icon: dollarIcon },
     ],
   },
@@ -31,8 +34,8 @@ const adminItems = [
     title: 'Konten',
     items: [
       { label: 'Tutorial', href: '/admin/tutorial', icon: graduationIcon },
-      { label: 'Proyek', href: '/admin/projects', icon: galleryIcon },
-      { label: 'Galeri Kegiatan', href: '/admin/gallery', icon: galleryIcon },
+      { label: 'Proyek', href: '/admin/projects', icon: projectIcon },
+      { label: 'Galeri Kegiatan', href: '/admin/gallery', icon: mediaIcon },
       { label: 'Partner / Kolaborator', href: '/admin/partners', icon: globeIcon },
       { label: 'Arduflow IDE', href: '/admin/ide', icon: cpuIcon },
     ],

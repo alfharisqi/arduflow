@@ -42,6 +42,12 @@
     flex: 0 0 auto;
   }
 
+  .site-header--user .navbar-user-actions .nav-ide,
+  .navbar-user-avatar,
+  .navbar-menu-toggle {
+    position: static;
+  }
+
   .featured-projects__grid {
     grid-template-columns: repeat(3, minmax(0, 344px));
     gap: 24px;
@@ -281,6 +287,12 @@
   .navbar-user-actions {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .site-header--user .navbar-user-actions .nav-ide,
+  .navbar-user-avatar,
+  .navbar-menu-toggle {
+    position: static;
   }
 
   .project-hero,

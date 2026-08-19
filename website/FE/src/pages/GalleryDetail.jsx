@@ -26,6 +26,15 @@ function formatGalleryDate(value) {
   });
 }
 
+function sanitizeGalleryHtml(value) {
+  return String(value || '')
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+    .replace(/\son\w+="[^"]*"/gi, '')
+    .replace(/\son\w+='[^']*'/gi, '')
+    .replace(/\s(href|src)=["']javascript:[^"']*["']/gi, '');
+}
+
 export function GalleryDetail() {
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -81,6 +90,8 @@ export function GalleryDetail() {
     );
   }
 
+  const contentHtml = sanitizeGalleryHtml(item.descriptionHtml) || '<p>Belum ada isi dokumentasi.</p>';
+
   return (
     <main className="gallery-detail-page">
       <article className="gallery-detail-shell">
@@ -113,9 +124,9 @@ export function GalleryDetail() {
         <section className="gallery-detail-content" aria-labelledby="gallery-detail-content-title">
           <h2 id="gallery-detail-content-title">Isi Dokumentasi</h2>
           <div
-            className="gallery-detail-richtext"
+            className="gallery-detail-richtext mce-content-body"
             dangerouslySetInnerHTML={{
-              __html: item.descriptionHtml || '<p>Belum ada isi dokumentasi.</p>',
+              __html: contentHtml,
             }}
           />
         </section>

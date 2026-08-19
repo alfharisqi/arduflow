@@ -14,6 +14,7 @@ import { AdminTambahWorkshop } from './pages/admin/AdminTambahWorkshop.jsx';
 
 import { Tutorial } from './pages/Tutorial.jsx';
 import { TutorialDetail } from './pages/TutorialDetail.jsx';
+import { Materi } from './pages/Materi.jsx';
 import { BeginnerEbook } from './pages/BeginnerEbook.jsx';
 import { IdeEbook } from './pages/IdeEbook.jsx';
 import { HardwareEbook } from './pages/HardwareEbook.jsx';
@@ -105,6 +106,7 @@ const routes = {
 
   '/tutorial': Tutorial,
   '/tutorial/detail': TutorialDetail,
+  '/materi': Materi,
   '/tutorial/panduan-pemula': BeginnerEbook,
   '/tutorial/penggunaan-ide': IdeEbook,
   '/tutorial/dasar-hardware-iot': HardwareEbook,
@@ -585,7 +587,11 @@ export default function App() {
       ? '/detail-workshop'
       : path.startsWith('/workshop/detail/')
         ? '/workshop/detail'
-        : path;
+        : path.startsWith('/materi/')
+          ? '/materi'
+          : path.startsWith('/tutorial/detail/')
+            ? '/tutorial/detail'
+            : path;
 
   const Page =
     routes[routePath] || NotFound;

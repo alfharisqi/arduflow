@@ -18,9 +18,14 @@
 .documentation-page__heading {
   position: absolute;
   width: 425px;
-  height: 81px;
+  height: 121px;
   left: 95px;
   top: 57px;
+}
+
+.gallery-landing-tag {
+  width: 292px;
+  margin-bottom: 16px;
 }
 
 .documentation-page__heading p {
@@ -64,13 +69,13 @@
 .documentation-input--search {
   width: 677px;
   left: 95px;
-  top: 162px;
+  top: 210px;
 }
 
 .documentation-input--date {
   width: 282px;
   left: 805px;
-  top: 162px;
+  top: 210px;
 }
 
 .documentation-input input {
@@ -108,7 +113,7 @@
 .documentation-input--tag {
   width: 190px;
   left: 1120px;
-  top: 162px;
+  top: 210px;
 }
 
 .gallery-page__date input {
@@ -402,7 +407,7 @@
   width: 1280px;
   height: 1948px;
   left: 59px;
-  top: 290px;
+  top: 338px;
 }
 
 .documentation-gallery__grid {
@@ -854,9 +859,17 @@
 
 .gallery-detail-richtext {
   color: #dce7f4;
-  font-family: "Rajdhani", sans-serif;
-  font-size: 20px;
-  line-height: 1.62;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 16px;
+  line-height: 1.7;
+  position: relative;
+  overflow-wrap: anywhere;
+}
+
+.gallery-detail-richtext::after {
+  content: "";
+  display: block;
+  clear: both;
 }
 
 .gallery-detail-richtext :first-child {
@@ -867,9 +880,115 @@
   margin-bottom: 0;
 }
 
+.gallery-detail-richtext p {
+  margin: 0 0 14px;
+}
+
+.gallery-detail-richtext h1,
+.gallery-detail-richtext h2,
+.gallery-detail-richtext h3,
+.gallery-detail-richtext h4,
+.gallery-detail-richtext h5,
+.gallery-detail-richtext h6 {
+  margin: 22px 0 12px;
+  color: #ffffff;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.gallery-detail-richtext h1 {
+  font-size: 32px;
+}
+
+.gallery-detail-richtext h2 {
+  font-size: 26px;
+}
+
+.gallery-detail-richtext h3 {
+  font-size: 22px;
+}
+
+.gallery-detail-richtext h4,
+.gallery-detail-richtext h5,
+.gallery-detail-richtext h6 {
+  font-size: 18px;
+}
+
+.gallery-detail-richtext ul,
+.gallery-detail-richtext ol {
+  margin: 0 0 16px 24px;
+  padding: 0;
+}
+
+.gallery-detail-richtext li {
+  margin: 5px 0;
+}
+
+.gallery-detail-richtext a {
+  color: #8bd3ff;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.gallery-detail-richtext blockquote {
+  margin: 18px 0;
+  padding: 12px 18px;
+  border-left: 4px solid #ff6a00;
+  background: rgba(255, 106, 0, 0.08);
+  color: #f8fafc;
+}
+
+.gallery-detail-richtext table {
+  width: 100%;
+  margin: 18px 0;
+  border-collapse: collapse;
+  color: #dce7f4;
+}
+
+.gallery-detail-richtext th,
+.gallery-detail-richtext td {
+  padding: 10px 12px;
+  border: 1px solid #294767;
+  text-align: left;
+  vertical-align: top;
+}
+
+.gallery-detail-richtext th {
+  background: #0c213a;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.gallery-detail-richtext hr {
+  height: 1px;
+  margin: 24px 0;
+  border: 0;
+  background: #294767;
+}
+
+.gallery-detail-richtext pre {
+  overflow-x: auto;
+  margin: 18px 0;
+  padding: 16px;
+  border: 1px solid #294767;
+  border-radius: 8px;
+  background: #020e21;
+  color: #f8fafc;
+}
+
+.gallery-detail-richtext code {
+  font-family: Consolas, Monaco, "Courier New", monospace;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
 .gallery-detail-richtext img {
   display: block;
-  width: min(100%, 920px);
+  max-width: 100%;
+  height: auto;
+  width: auto;
   max-height: 680px;
   object-fit: contain;
   margin: 18px 0;
@@ -882,7 +1001,91 @@
 }
 
 .gallery-detail-richtext figcaption {
-  display: none;
+  margin-top: 8px;
+  color: #8ea3bd;
+  font-size: 14px;
+  text-align: center;
+}
+
+.gallery-detail-richtext img[data-text-wrap="inline"] {
+  display: inline-block;
+  float: none;
+  margin: 0 4px;
+  max-width: 100%;
+}
+
+.gallery-detail-richtext img[data-text-wrap="squareLeft"],
+.gallery-detail-richtext img[data-text-wrap="tightLeft"],
+.gallery-detail-richtext img[data-text-wrap="front"] {
+  float: left;
+  max-width: 48%;
+  margin: 6px 18px 12px 0;
+}
+
+.gallery-detail-richtext img[data-text-wrap="squareRight"],
+.gallery-detail-richtext img[data-text-wrap="tightRight"] {
+  float: right;
+  max-width: 48%;
+  margin: 6px 0 12px 18px;
+}
+
+.gallery-detail-richtext img[data-text-wrap="topBottom"] {
+  display: block;
+  float: none;
+  clear: both;
+  margin: 16px auto;
+  max-width: 100%;
+}
+
+.gallery-detail-richtext img[data-text-wrap="center"] {
+  display: block;
+  float: none;
+  clear: both;
+  margin: 16px auto;
+  max-width: 70%;
+}
+
+.gallery-detail-richtext img[data-text-wrap="behind"] {
+  position: absolute;
+  z-index: 0;
+  max-width: 55%;
+  opacity: 0.55;
+}
+
+.gallery-detail-richtext .arduino-code-block {
+  position: relative;
+  margin: 18px 0;
+  overflow: hidden;
+  border: 1px solid #294767;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.gallery-detail-richtext .arduino-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  border-bottom: 1px solid #d1d5db;
+  background: #eef2f7;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.gallery-detail-richtext .arduino-code-block pre {
+  margin: 0;
+  padding: 16px;
+  border: 0;
+  border-radius: 0;
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.gallery-detail-richtext .arduino-code-block code {
+  color: #0f172a;
+  white-space: pre;
 }
 
 .gallery-detail-link {

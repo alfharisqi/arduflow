@@ -142,7 +142,7 @@
 .user-workshop-table__head,
 .user-workshop-table__row {
   display: grid;
-  grid-template-columns: 220px 115px 330px 153px 226px 77px;
+  grid-template-columns: 198px 102px 270px 140px 150px 68px 193px;
   align-items: center;
   width: 1121px;
 }
@@ -226,6 +226,200 @@
   filter: invert(12%) sepia(100%) saturate(7488%) hue-rotate(4deg) brightness(105%) contrast(119%);
 }
 
+.user-workshop-detail-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 96px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid #2563eb;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 21px;
+  cursor: pointer;
+}
+
+.user-workshop-detail-button:hover {
+  background: #dbeafe;
+}
+
+.user-workshop-detail-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(15, 23, 42, 0.46);
+}
+
+.user-workshop-detail {
+  width: min(560px, 100vw);
+  height: 100vh;
+  overflow-y: auto;
+  padding: 28px;
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: -18px 0 40px rgba(15, 23, 42, 0.18);
+  font-family: 'Rajdhani', sans-serif;
+}
+
+.user-workshop-detail__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.user-workshop-detail__head span {
+  display: block;
+  color: #2563eb;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 21px;
+}
+
+.user-workshop-detail__head h2 {
+  margin: 4px 0 0;
+  color: #0f172a;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 34px;
+}
+
+.user-workshop-detail__head button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+}
+
+.user-workshop-detail__cover {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  background: #f1f5f9;
+}
+
+.user-workshop-detail__state,
+.user-workshop-detail__error {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 21px;
+}
+
+.user-workshop-detail__state {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.user-workshop-detail__error {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.user-workshop-detail__meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.user-workshop-detail__meta article {
+  min-height: 78px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.user-workshop-detail__meta small,
+.user-workshop-detail__section h3 {
+  display: block;
+  margin: 0 0 8px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.user-workshop-detail__meta strong {
+  display: block;
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 22px;
+  overflow-wrap: anywhere;
+}
+
+.user-workshop-detail__meeting {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 44px;
+  margin-bottom: 18px;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 24px;
+  text-decoration: none;
+}
+
+.user-workshop-detail__section {
+  margin-top: 18px;
+}
+
+.user-workshop-detail__section h3 {
+  color: #0f172a;
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.user-workshop-detail__section p,
+.user-workshop-detail__rich-text,
+.user-workshop-detail__section li {
+  color: #334155;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 24px;
+}
+
+.user-workshop-detail__rich-text p {
+  margin: 0 0 10px;
+}
+
+.user-workshop-detail__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.user-workshop-detail__section ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
 .user-workshop-pagination {
   display: flex;
   align-items: center;
@@ -261,4 +455,20 @@
 
 .user-workshop-pagination__active {
   color: #2563eb;
+}
+
+@media (max-width: 760px) {
+  .user-workshop-detail {
+    padding: 22px;
+  }
+
+  .user-workshop-detail__head h2 {
+    font-size: 23px;
+    line-height: 29px;
+  }
+
+  .user-workshop-detail__meta,
+  .user-workshop-detail__grid {
+    grid-template-columns: 1fr;
+  }
 }

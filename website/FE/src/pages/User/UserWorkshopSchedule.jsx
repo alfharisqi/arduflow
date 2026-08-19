@@ -5,7 +5,7 @@ import certificateIcon from '../../assets/icons/icon-downloadsim-1.svg';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import { ProfileAvatar } from '../../features/profile-image-crop/ProfileAvatar.jsx';
 import { fetchTransactions } from '../../services/transactionApi.js';
-import { fetchWorkshops, isPublicWorkshop } from '../../services/workshopApi.js';
+import { fetchWorkshopDetail, fetchWorkshops, isPublicWorkshop } from '../../services/workshopApi.js';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 
 const menuItems = [
@@ -46,6 +46,29 @@ function formatWorkshopDateTime(workshop) {
   return [dateText, workshop.timeText].filter(Boolean).join(' ');
 }
 
+function formatWorkshopDate(workshop) {
+  const date = parseWorkshopDate(workshop.startsAt);
+  if (!date) return 'Tanggal belum diatur';
+
+  return new Intl.DateTimeFormat('id-ID', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+}
+
+function formatWorkshopPrice(value) {
+  const number = Number(String(value ?? '').replace(/\D/g, ''));
+  if (!Number.isFinite(number) || number <= 0) return 'Gratis';
+
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0,
+  }).format(number);
+}
+
 function getWorkshopStatus(workshop) {
   const rawStatus = String(workshop.status || '').toLowerCase();
   if (rawStatus.includes('selesai') || rawStatus.includes('completed')) return 'Selesai';
@@ -82,6 +105,27 @@ function getInitials(name) {
     .map((part) => part[0])
     .join('')
     .toUpperCase();
+}
+
+function stripHtml(value) {
+  return String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function sanitizeWorkshopHtml(value) {
+  return String(value || '')
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/\son\w+="[^"]*"/gi, '')
+    .replace(/\son\w+='[^']*'/gi, '')
+    .replace(/\s(href|src)=["']javascript:[^"']*["']/gi, '');
+}
+
+function splitDetailItems(value, fallback) {
+  const items = String(value || '')
+    .split(/\n|,|;/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return items.length ? items : fallback;
 }
 
 function SidebarIcon({ name }) {
@@ -157,6 +201,23 @@ function FilterIcon() {
   );
 }
 
+function DetailIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="12" cy="12" r="2.8" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M18 6 6 18M6 6l12 12" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function UserWorkshopSchedule() {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialSidebarCollapsed);
   const [workshops, setWorkshops] = useState([]);
@@ -164,6 +225,9 @@ export function UserWorkshopSchedule() {
   const [workshopError, setWorkshopError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortMode, setSortMode] = useState('Relevance');
+  const [selectedWorkshop, setSelectedWorkshop] = useState(null);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const [detailError, setDetailError] = useState('');
   const user = getStoredUser();
   const fullName = user.name || user.fullName || 'Nama Lengkap';
   const greetingName = user.nickname || fullName;
@@ -269,6 +333,45 @@ export function UserWorkshopSchedule() {
     });
   }
 
+  async function handleOpenDetail(schedule) {
+    setSelectedWorkshop(schedule);
+    setDetailError('');
+
+    if (!schedule?.id || String(schedule.id).startsWith('transaction-')) return;
+
+    setIsLoadingDetail(true);
+    try {
+      const detail = await fetchWorkshopDetail({ id: schedule.id });
+      setSelectedWorkshop((current) => (current?.id === schedule.id ? { ...current, ...detail } : current));
+    } catch (error) {
+      setDetailError(error.message || 'Gagal memuat detail workshop.');
+    } finally {
+      setIsLoadingDetail(false);
+    }
+  }
+
+  function handleCloseDetail() {
+    setSelectedWorkshop(null);
+    setDetailError('');
+    setIsLoadingDetail(false);
+  }
+
+  const selectedStatus = selectedWorkshop ? getWorkshopStatus(selectedWorkshop) : '';
+  const selectedMethod = selectedWorkshop?.method || 'Online';
+  const selectedAboutHtml = sanitizeWorkshopHtml(selectedWorkshop?.about);
+  const selectedAboutText = stripHtml(selectedAboutHtml || selectedWorkshop?.description || selectedWorkshop?.summary);
+  const selectedFacilities = splitDetailItems(selectedWorkshop?.facilities, [
+    'Materi praktik sesuai program workshop',
+    'Pendampingan selama sesi berlangsung',
+    'Sertifikat atau e-certificate jika tersedia',
+  ]);
+  const selectedBringItems = splitDetailItems(selectedWorkshop?.bringItems, [
+    'Laptop pribadi',
+    'Koneksi internet yang stabil untuk sesi online',
+    'Catatan atau alat tulis untuk merangkum materi',
+  ]);
+  const selectedMeetingUrl = selectedWorkshop?.meetingUrl || '';
+
   return (
     <div className={`dashboard-user-page user-workshop-page${isSidebarCollapsed ? ' dashboard-user-page--collapsed' : ''}`}>
       <aside className="dashboard-sidebar" aria-label="Dashboard sidebar">
@@ -360,10 +463,12 @@ export function UserWorkshopSchedule() {
                 <span>Waktu</span>
                 <span>Status</span>
                 <span>Notif</span>
+                <span>Detail</span>
               </div>
               {isLoadingWorkshops ? (
                 <div className="user-workshop-table__row" role="row">
                   <span>Memuat jadwal workshop...</span>
+                  <span>-</span>
                   <span>-</span>
                   <span>-</span>
                   <span>-</span>
@@ -378,10 +483,12 @@ export function UserWorkshopSchedule() {
                   <span>-</span>
                   <span>-</span>
                   <span>-</span>
+                  <span>-</span>
                 </div>
               ) : schedules.length === 0 ? (
                 <div className="user-workshop-table__row" role="row">
                   <span>Belum ada workshop yang sudah aktif. Workshop akan muncul setelah pembayaran disetujui admin.</span>
+                  <span>-</span>
                   <span>-</span>
                   <span>-</span>
                   <span>-</span>
@@ -414,6 +521,15 @@ export function UserWorkshopSchedule() {
                       >
                         <img src={bellIcon} alt="" aria-hidden="true" />
                       </button>
+                      <button
+                        className="user-workshop-detail-button"
+                        type="button"
+                        aria-label={`Lihat detail ${schedule.title || 'workshop'}`}
+                        onClick={() => handleOpenDetail(schedule)}
+                      >
+                        <DetailIcon />
+                        <span>Detail</span>
+                      </button>
                     </div>
                   );
                 })
@@ -430,6 +546,96 @@ export function UserWorkshopSchedule() {
           </section>
         </main>
       </section>
+
+      {selectedWorkshop && (
+        <div className="user-workshop-detail-overlay" role="presentation" onClick={handleCloseDetail}>
+          <aside
+            className="user-workshop-detail"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="user-workshop-detail-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="user-workshop-detail__head">
+              <div>
+                <span>Detail Workshop</span>
+                <h2 id="user-workshop-detail-title">{selectedWorkshop.title || 'Workshop tanpa judul'}</h2>
+              </div>
+              <button type="button" aria-label="Tutup detail workshop" onClick={handleCloseDetail}>
+                <CloseIcon />
+              </button>
+            </div>
+
+            {selectedWorkshop.coverImageUrl && (
+              <img className="user-workshop-detail__cover" src={selectedWorkshop.coverImageUrl} alt={selectedWorkshop.title || 'Cover workshop'} />
+            )}
+
+            {isLoadingDetail && <p className="user-workshop-detail__state">Memuat detail terbaru...</p>}
+            {detailError && <p className="user-workshop-detail__error">{detailError}</p>}
+
+            <div className="user-workshop-detail__meta">
+              <article>
+                <small>Metode</small>
+                <b className={`user-workshop-pill user-workshop-pill--${getWorkshopMethodClass(selectedMethod)}`}>{selectedMethod}</b>
+              </article>
+              <article>
+                <small>Status</small>
+                <b className={`user-workshop-pill user-workshop-pill--${getWorkshopStatusClass(selectedStatus)}`}>{selectedStatus}</b>
+              </article>
+              <article>
+                <small>Tanggal</small>
+                <strong>{formatWorkshopDate(selectedWorkshop)}</strong>
+              </article>
+              <article>
+                <small>Waktu</small>
+                <strong>{[selectedWorkshop.timeText, selectedWorkshop.timezone].filter(Boolean).join(' ') || '-'}</strong>
+              </article>
+              <article>
+                <small>Lokasi</small>
+                <strong>{selectedWorkshop.location || '-'}</strong>
+              </article>
+              <article>
+                <small>Biaya</small>
+                <strong>{formatWorkshopPrice(selectedWorkshop.registrationFee ?? selectedWorkshop.price)}</strong>
+              </article>
+            </div>
+
+            {selectedMeetingUrl && (
+              <a className="user-workshop-detail__meeting" href={selectedMeetingUrl} target="_blank" rel="noreferrer">
+                Buka Link Meeting
+              </a>
+            )}
+
+            <section className="user-workshop-detail__section">
+              <h3>Tentang Workshop</h3>
+              {selectedAboutHtml ? (
+                <div className="user-workshop-detail__rich-text" dangerouslySetInnerHTML={{ __html: selectedAboutHtml }} />
+              ) : (
+                <p>{selectedAboutText || 'Detail deskripsi workshop belum tersedia.'}</p>
+              )}
+            </section>
+
+            <section className="user-workshop-detail__grid">
+              <div className="user-workshop-detail__section">
+                <h3>Fasilitas</h3>
+                <ul>
+                  {selectedFacilities.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="user-workshop-detail__section">
+                <h3>Yang Perlu Dibawa</h3>
+                <ul>
+                  {selectedBringItems.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            </section>
+          </aside>
+        </div>
+      )}
     </div>
   );
 }

@@ -81,6 +81,7 @@ export function Navbar() {
   const menuLinks = [
     { label: 'Beranda', href: '/' },
     { label: 'Tutorial', href: '/tutorial' },
+    { label: 'Materi', href: '/materi' },
     { label: 'Proyek', href: '/project' },
     { label: 'Workshop', href: '/workshop' },
   ];
@@ -97,6 +98,7 @@ export function Navbar() {
           <a
             className={
               current === item.path ||
+              (item.path === '/materi' && current.startsWith('/materi/')) ||
               (item.path === '/workshop' &&
                 (current === '/daftar-workshop' ||
                   current === '/workshop/daftar' ||

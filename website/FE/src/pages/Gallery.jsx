@@ -146,6 +146,7 @@ export function Gallery() {
     <main className="documentation-page gallery-page">
       <div className="documentation-page__canvas">
         <div className="documentation-page__heading">
+          <div className="landing-tag gallery-landing-tag">CAPTURE. DOCUMENT. INSPIRE.</div>
           <p>Gallery Documentation</p>
           <h1>Galeri Dokumentasi Kegiatan</h1>
         </div>

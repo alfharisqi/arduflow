@@ -28,7 +28,10 @@ const CERTIFICATE_ENDPOINT = apiEndpoint(import.meta.env.VITE_CERTIFICATE_API_UR
 
 const initialCertificateForm = {
   templateId: ARDUFLOW_CERTIFICATE_TEMPLATE_ID,
+  registrationId: '',
+  userId: '',
   userName: '',
+  email: '',
   description: 'Atas partisipasinya dan keberhasilan mengikuti kegiatan Workshop Arduflow IDE serta mempelajari visual programming untuk pengembangan proyek IoT.',
   certificateTitle: 'Sertifikat Workshop Arduflow IDE',
   type: 'Workshop',
@@ -130,6 +133,8 @@ function normalizeCertificate(row) {
 
   return {
     id: row?.id,
+    registrationId: row?.registrationId || row?.registration_id || payload.registrationId || '',
+    userId: row?.userId || row?.user_id || payload.userId || '',
     userName,
     email,
     certificateTitle:
@@ -168,6 +173,20 @@ function normalizeWorkshopOption(row) {
     id: row?.id,
     title: row?.title || payload.title || 'Workshop tanpa judul',
     category: row?.category || payload.category || 'Workshop',
+  };
+}
+
+function normalizeParticipantOption(row) {
+  return {
+    id: row?.registrationId || row?.registration_id || row?.id || '',
+    registrationId: row?.registrationId || row?.registration_id || row?.id || '',
+    userId: row?.userId || row?.user_id || '',
+    workshopId: row?.workshopId || row?.workshop_id || '',
+    workshopChoice: row?.workshopChoice || row?.workshop_choice || '-',
+    participantName: row?.participantName || row?.participant_name || row?.name || '-',
+    participantEmail: row?.participantEmail || row?.participant_email || row?.email || '',
+    status: row?.status || 'Baru',
+    createdAt: row?.createdAt || row?.created_at || '',
   };
 }
 
@@ -212,27 +231,82 @@ function AdminCertificatesTopbar({ query, onQueryChange }) {
   );
 }
 
-function CertificateFormModal({ form, workshops, onChange, onClose, onSubmit, isSaving }) {
-  const selectedWorkshop = workshops.find((workshop) => String(workshop.id) === String(form.workshopId));
+function CertificateFormModal({
+  form,
+  workshops,
+  participants,
+  onChange,
+  onClose,
+  onSubmit,
+  onSubmitAll,
+  isSaving,
+}) {
+  const selectedWorkshop = workshops.find(
+    (workshop) => String(workshop.id) === String(form.workshopId),
+  );
+
+  const workshopParticipants = useMemo(
+    () =>
+      participants.filter(
+        (participant) =>
+          String(participant.workshopId) === String(form.workshopId),
+      ),
+    [participants, form.workshopId],
+  );
+
+  const selectedParticipant = workshopParticipants.find(
+    (participant) =>
+      String(participant.registrationId) === String(form.registrationId),
+  );
 
   const handleWorkshopChange = (event) => {
     const value = event.target.value;
-    const nextWorkshop = workshops.find((workshop) => String(workshop.id) === value);
+    const nextWorkshop = workshops.find(
+      (workshop) => String(workshop.id) === value,
+    );
 
     onChange({
       ...form,
       workshopId: value,
-      workshopTitle: nextWorkshop?.title || 'Workshop Arduflow IDE',
-      certificateTitle: nextWorkshop?.title ? `Sertifikat ${nextWorkshop.title}` : 'Sertifikat Workshop Arduflow IDE',
+      workshopTitle: nextWorkshop?.title || '',
+      certificateTitle: nextWorkshop?.title
+        ? `Sertifikat ${nextWorkshop.title}`
+        : 'Sertifikat Workshop Arduflow IDE',
+      registrationId: '',
+      userId: '',
+      userName: '',
+      email: '',
+    });
+  };
+
+  const handleParticipantChange = (event) => {
+    const registrationId = event.target.value;
+    const participant = workshopParticipants.find(
+      (item) => String(item.registrationId) === registrationId,
+    );
+
+    onChange({
+      ...form,
+      registrationId,
+      userId: participant?.userId || '',
+      userName: participant?.participantName || '',
+      email: participant?.participantEmail || '',
     });
   };
 
   return (
     <div className="admin-certificates-modal-backdrop" role="presentation">
-      <section className="admin-certificates-modal" role="dialog" aria-modal="true" aria-labelledby="certificate-form-title">
+      <section
+        className="admin-certificates-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="certificate-form-title"
+      >
         <div className="admin-certificates-modal-head">
-          <h2 id="certificate-form-title">Tambah Sertifikat</h2>
-          <button type="button" onClick={onClose} aria-label="Tutup form">x</button>
+          <h2 id="certificate-form-title">Generate Sertifikat Peserta Workshop</h2>
+          <button type="button" onClick={onClose} aria-label="Tutup form">
+            x
+          </button>
         </div>
 
         <div className="admin-certificates-form-grid">
@@ -240,7 +314,9 @@ function CertificateFormModal({ form, workshops, onChange, onClose, onSubmit, is
             <span>Template Sertifikat</span>
             <select
               value={form.templateId}
-              onChange={(event) => onChange({ ...form, templateId: event.target.value })}
+              onChange={(event) =>
+                onChange({ ...form, templateId: event.target.value })
+              }
             >
               {certificateTemplateOptions.map((template) => (
                 <option key={template.id} value={template.id}>
@@ -249,100 +325,213 @@ function CertificateFormModal({ form, workshops, onChange, onClose, onSubmit, is
               ))}
             </select>
           </label>
+
+          <label className="admin-certificates-form-wide">
+            <span>Workshop / Program</span>
+            <select value={form.workshopId} onChange={handleWorkshopChange} required>
+              <option value="">Pilih workshop dari SQLite</option>
+              {workshops.map((workshop) => (
+                <option key={workshop.id} value={workshop.id}>
+                  {workshop.title}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="admin-certificates-form-wide">
+            <span>Peserta yang Mendaftar</span>
+            <select
+              value={form.registrationId}
+              onChange={handleParticipantChange}
+              disabled={!form.workshopId}
+              required
+            >
+              <option value="">
+                {!form.workshopId
+                  ? 'Pilih workshop terlebih dahulu'
+                  : workshopParticipants.length === 0
+                    ? 'Belum ada peserta untuk workshop ini'
+                    : 'Pilih peserta workshop'}
+              </option>
+              {workshopParticipants.map((participant) => (
+                <option
+                  key={participant.registrationId}
+                  value={participant.registrationId}
+                >
+                  {participant.participantName} — {participant.participantEmail || 'tanpa email'} — {participant.status}
+                </option>
+              ))}
+            </select>
+            {form.workshopId ? (
+              <small style={{ display: 'block', marginTop: 6 }}>
+                {workshopParticipants.length} pendaftaran ditemukan untuk {selectedWorkshop?.title || 'workshop ini'}.
+              </small>
+            ) : null}
+          </label>
+
           <label>
             <span>Nama Peserta</span>
             <input
               type="text"
               value={form.userName}
-              onChange={(event) => onChange({ ...form, userName: event.target.value })}
-              placeholder="Contoh: Budi Santoso"
-              required
+              readOnly
+              placeholder="Otomatis dari data pendaftaran"
             />
           </label>
+
+          <label>
+            <span>Email Peserta</span>
+            <input
+              type="email"
+              value={form.email}
+              readOnly
+              placeholder="Otomatis dari data pendaftaran"
+            />
+          </label>
+
+          <label>
+            <span>Status Pendaftaran</span>
+            <input
+              type="text"
+              value={selectedParticipant?.status || ''}
+              readOnly
+              placeholder="-"
+            />
+          </label>
+
+          <label>
+            <span>ID Pendaftaran</span>
+            <input
+              type="text"
+              value={form.registrationId}
+              readOnly
+              placeholder="-"
+            />
+          </label>
+
           <label>
             <span>Instruktur</span>
             <input
               type="text"
               value={form.instructor}
-              onChange={(event) => onChange({ ...form, instructor: event.target.value })}
+              onChange={(event) =>
+                onChange({ ...form, instructor: event.target.value })
+              }
               placeholder="Nama instruktur"
               required
             />
           </label>
+
           <label>
             <span>Jabatan Instruktur</span>
             <input
               type="text"
               value={form.authorizedRole}
-              onChange={(event) => onChange({ ...form, authorizedRole: event.target.value })}
+              onChange={(event) =>
+                onChange({ ...form, authorizedRole: event.target.value })
+              }
               placeholder="Instruktur Arduflow IDE"
             />
           </label>
-          <label>
-            <span>Workshop / Program</span>
-            <select value={form.workshopId} onChange={handleWorkshopChange}>
-              <option value="">Pilih workshop dari SQLite</option>
-              {workshops.map((workshop) => (
-                <option key={workshop.id} value={workshop.id}>{workshop.title}</option>
-              ))}
-            </select>
-          </label>
+
           <label>
             <span>Tanggal</span>
             <input
               type="date"
               value={form.issuedAt}
-              onChange={(event) => onChange({ ...form, issuedAt: event.target.value, completedAt: event.target.value })}
+              onChange={(event) =>
+                onChange({
+                  ...form,
+                  issuedAt: event.target.value,
+                  completedAt: event.target.value,
+                })
+              }
               required
             />
           </label>
+
           <label>
             <span>Penyelenggara</span>
             <input
               type="text"
               value={form.organizer}
-              onChange={(event) => onChange({ ...form, organizer: event.target.value })}
+              onChange={(event) =>
+                onChange({ ...form, organizer: event.target.value })
+              }
               placeholder="Arduflow"
               required
             />
           </label>
+
           <label className="admin-certificates-form-wide">
             <span>No. Sertifikat</span>
             <input
               type="text"
               value={form.certificateNumber}
-              onChange={(event) => onChange({ ...form, certificateNumber: event.target.value })}
+              onChange={(event) =>
+                onChange({ ...form, certificateNumber: event.target.value })
+              }
               placeholder="Otomatis jika dikosongkan"
             />
+            <small style={{ display: 'block', marginTop: 6 }}>
+              Untuk Generate Semua Peserta, nomor sertifikat dibuat otomatis dan unik untuk setiap peserta.
+            </small>
           </label>
+
           <label className="admin-certificates-form-wide">
             <span>URL Verifikasi</span>
             <input
               type="url"
               value={form.verificationUrl}
-              onChange={(event) => onChange({ ...form, verificationUrl: event.target.value })}
+              onChange={(event) =>
+                onChange({ ...form, verificationUrl: event.target.value })
+              }
               placeholder="Otomatis jika dikosongkan"
             />
           </label>
+
           <label className="admin-certificates-form-wide">
             <span>Deskripsi Sertifikat</span>
             <textarea
               value={form.description}
-              onChange={(event) => onChange({ ...form, description: event.target.value })}
+              onChange={(event) =>
+                onChange({ ...form, description: event.target.value })
+              }
               placeholder="Atas partisipasinya dan keberhasilan mengikuti kegiatan Workshop..."
               rows="4"
               required
             />
           </label>
+
           <div className="admin-certificates-form-wide">
-            <span className="admin-certificates-preview-label">Preview Template</span>
+            <span className="admin-certificates-preview-label">
+              Preview Template
+            </span>
             <CertificateGeneratorPreview data={form} />
           </div>
         </div>
 
         <div className="admin-certificates-modal-actions">
-          <button type="button" onClick={onClose}>Batal</button>
-          <button type="button" className="admin-certificates-primary" onClick={onSubmit} disabled={isSaving}>
+          <button type="button" onClick={onClose} disabled={isSaving}>
+            Batal
+          </button>
+          <button
+            type="button"
+            onClick={onSubmitAll}
+            disabled={
+              isSaving ||
+              !form.workshopId ||
+              workshopParticipants.length === 0
+            }
+          >
+            {isSaving ? 'Memproses...' : `Generate Semua (${workshopParticipants.length})`}
+          </button>
+          <button
+            type="button"
+            className="admin-certificates-primary"
+            onClick={onSubmit}
+            disabled={isSaving || !form.registrationId}
+          >
             {isSaving ? 'Membuat PDF...' : 'Generate PDF Sertifikat'}
           </button>
         </div>
@@ -374,6 +563,7 @@ function CertificateDetailModal({ certificate, onClose }) {
         </div>
 
         <dl className="admin-certificates-detail-list">
+          <dt>ID Pendaftaran</dt><dd>{safeText(certificate.registrationId)}</dd>
           <dt>Nama Sertifikat</dt><dd>{safeText(certificate.certificateTitle)}</dd>
           <dt>Workshop / Program</dt><dd>{safeText(certificate.workshopTitle)}</dd>
           <dt>Jenis</dt><dd>{safeText(certificate.type)}</dd>
@@ -391,6 +581,7 @@ export function AdminCertificates() {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialAdminSidebarCollapsed);
   const [certificates, setCertificates] = useState([]);
   const [workshops, setWorkshops] = useState([]);
+  const [participants, setParticipants] = useState([]);
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState({
     type: '',
@@ -438,12 +629,20 @@ export function AdminCertificates() {
           : Array.isArray(payload.options?.workshops)
             ? payload.options.workshops
             : [];
+      const participantRows =
+        Array.isArray(payload.participants)
+          ? payload.participants
+          : Array.isArray(payload.options?.participants)
+            ? payload.options.participants
+            : [];
 
       setCertificates(rows.map(normalizeCertificate));
       setWorkshops(workshopRows.map(normalizeWorkshopOption));
+      setParticipants(participantRows.map(normalizeParticipantOption));
     } catch (requestError) {
       setCertificates([]);
       setWorkshops([]);
+      setParticipants([]);
       setError(requestError.message || 'Gagal mengambil data sertifikat.');
     } finally {
       setIsLoading(false);
@@ -525,79 +724,223 @@ export function AdminCertificates() {
   ];
   const activityItems = certificates.slice(0, 4);
 
+  const createCertificateForParticipant = async (
+    participant,
+    selectedWorkshop,
+    options = {},
+  ) => {
+    if (!participant?.registrationId) {
+      throw new Error('Data pendaftaran peserta tidak valid.');
+    }
+
+    if (!selectedWorkshop?.id) {
+      throw new Error('Workshop wajib dipilih.');
+    }
+
+    const issuedAt = form.issuedAt || new Date().toISOString().slice(0, 10);
+    const certificateNumber = options.forceAutoNumber
+      ? createCertificateNumber()
+      : form.certificateNumber || createCertificateNumber();
+    const verificationUrl = options.forceAutoNumber
+      ? createVerificationUrl(certificateNumber)
+      : form.verificationUrl || createVerificationUrl(certificateNumber);
+
+    const payload = {
+      ...form,
+      registrationId: participant.registrationId,
+      userId: participant.userId || '',
+      userName: participant.participantName,
+      email: participant.participantEmail,
+      workshopId: selectedWorkshop.id,
+      workshopTitle: selectedWorkshop.title,
+      certificateTitle:
+        form.certificateTitle || `Sertifikat ${selectedWorkshop.title}`,
+      completedAt: form.completedAt || issuedAt,
+      issuedAt,
+      certificateNumber,
+      verificationUrl,
+      authorizedRole: form.authorizedRole || 'Instruktur Arduflow IDE',
+      status: 'Tersedia',
+    };
+
+    const requiredFields = [
+      ['registrationId', 'Peserta workshop wajib dipilih dari data pendaftaran.'],
+      ['userName', 'Nama peserta dari pendaftaran tidak tersedia.'],
+      ['email', 'Email peserta dari pendaftaran tidak tersedia.'],
+      ['workshopId', 'Workshop wajib dipilih.'],
+      ['description', 'Deskripsi sertifikat wajib diisi.'],
+      ['issuedAt', 'Tanggal wajib diisi.'],
+      ['instructor', 'Instruktur wajib diisi.'],
+      ['organizer', 'Penyelenggara wajib diisi.'],
+    ];
+
+    const validationMessage = requiredFields
+      .map(([key, message]) =>
+        String(payload[key] || '').trim() ? '' : message,
+      )
+      .filter(Boolean)
+      .join(' ');
+
+    if (validationMessage) {
+      throw new Error(validationMessage);
+    }
+
+    const response = await fetch(CERTIFICATE_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const rawText = await response.text();
+    let result;
+
+    try {
+      result = rawText ? JSON.parse(rawText) : {};
+    } catch {
+      throw new Error(
+        `Response API sertifikat bukan JSON. HTTP ${response.status}.`,
+      );
+    }
+
+    if (!response.ok || !result?.success) {
+      const apiErrors = result?.errors
+        ? Object.values(result.errors).join(' ')
+        : '';
+      throw new Error(
+        apiErrors || result?.message || 'Sertifikat gagal disimpan.',
+      );
+    }
+
+    const certificate = normalizeCertificate(result.data?.certificate || {});
+    const pdfFile = await createCertificatePdfFile({
+      ...payload,
+      ...certificate,
+      participantName: certificate.userName || payload.userName,
+      programName: certificate.workshopTitle || payload.workshopTitle,
+      issueDate: certificate.issuedAt || payload.issuedAt,
+      certificateNumber:
+        certificate.certificateNumber || payload.certificateNumber,
+      authorizedBy: certificate.instructor || payload.instructor,
+      authorizedRole: certificate.authorizedRole || payload.authorizedRole,
+      organizationName: certificate.organizer || payload.organizer,
+      organizerName: certificate.organizer || payload.organizer,
+      verificationUrl:
+        certificate.verificationUrl || payload.verificationUrl,
+    });
+
+    await handleUploadCertificate(certificate, pdfFile, { silent: true });
+
+    return certificate;
+  };
+
   const handleCreateCertificate = async () => {
     setIsSaving(true);
     setError('');
 
     try {
-      const issuedAt = form.issuedAt || new Date().toISOString().slice(0, 10);
-      const certificateNumber = form.certificateNumber || createCertificateNumber();
-      const verificationUrl = form.verificationUrl || createVerificationUrl(certificateNumber);
-      const payload = {
-        ...form,
-        email: form.email || `peserta-${Date.now()}@arduflow.local`,
-        certificateTitle: form.certificateTitle || `Sertifikat ${form.workshopTitle || 'Workshop Arduflow IDE'}`,
-        workshopTitle: form.workshopTitle || 'Workshop Arduflow IDE',
-        completedAt: form.completedAt || issuedAt,
-        issuedAt,
-        certificateNumber,
-        verificationUrl,
-        authorizedRole: form.authorizedRole || 'Instruktur Arduflow IDE',
-        status: 'Tersedia',
-      };
-      const requiredFields = [
-        ['userName', 'Nama peserta wajib diisi.'],
-        ['description', 'Deskripsi sertifikat wajib diisi.'],
-        ['issuedAt', 'Tanggal wajib diisi.'],
-        ['instructor', 'Instruktur wajib diisi.'],
-        ['organizer', 'Penyelenggara wajib diisi.'],
-      ];
-      const validationMessage = requiredFields
-        .map(([key, message]) => (String(payload[key] || '').trim() ? '' : message))
-        .filter(Boolean)
-        .join(' ');
+      const selectedWorkshop = workshops.find(
+        (workshop) => String(workshop.id) === String(form.workshopId),
+      );
+      const participant = participants.find(
+        (item) =>
+          String(item.registrationId) === String(form.registrationId) &&
+          String(item.workshopId) === String(form.workshopId),
+      );
 
-      if (validationMessage) {
-        throw new Error(validationMessage);
+      if (!selectedWorkshop) {
+        throw new Error('Pilih workshop terlebih dahulu.');
       }
 
-      const response = await fetch(CERTIFICATE_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result?.success) {
-        const apiErrors = result?.errors ? Object.values(result.errors).join(' ') : '';
-        throw new Error(apiErrors || result?.message || 'Sertifikat gagal disimpan.');
+      if (!participant) {
+        throw new Error(
+          'Pilih peserta dari daftar pendaftaran workshop. Nama peserta tidak dapat diisi manual.',
+        );
       }
 
-      const certificate = normalizeCertificate(result.data?.certificate || {});
-      const pdfFile = await createCertificatePdfFile({
-        ...payload,
-        ...certificate,
-        participantName: certificate.userName || payload.userName,
-        programName: certificate.workshopTitle || payload.workshopTitle,
-        issueDate: certificate.issuedAt || payload.issuedAt,
-        certificateNumber: certificate.certificateNumber || payload.certificateNumber,
-        authorizedBy: certificate.instructor || payload.instructor,
-        authorizedRole: certificate.authorizedRole || payload.authorizedRole,
-        organizationName: certificate.organizer || payload.organizer,
-        organizerName: certificate.organizer || payload.organizer,
-        verificationUrl: certificate.verificationUrl || payload.verificationUrl,
-      });
-      await handleUploadCertificate(certificate, pdfFile, { silent: true });
+      await createCertificateForParticipant(participant, selectedWorkshop);
 
       setForm(initialCertificateForm);
       setFormOpen(false);
       await loadCertificates();
     } catch (submitError) {
       setError(submitError.message || 'Sertifikat gagal disimpan.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleGenerateAllCertificates = async () => {
+    setIsSaving(true);
+    setError('');
+
+    try {
+      const selectedWorkshop = workshops.find(
+        (workshop) => String(workshop.id) === String(form.workshopId),
+      );
+
+      if (!selectedWorkshop) {
+        throw new Error('Pilih workshop terlebih dahulu.');
+      }
+
+      const workshopParticipants = participants.filter(
+        (participant) =>
+          String(participant.workshopId) === String(selectedWorkshop.id),
+      );
+
+      if (workshopParticipants.length === 0) {
+        throw new Error('Belum ada peserta yang mendaftar workshop ini.');
+      }
+
+      const existingRegistrationIds = new Set(
+        certificates
+          .filter(
+            (certificate) =>
+              String(certificate.workshopId) === String(selectedWorkshop.id),
+          )
+          .map((certificate) => String(certificate.registrationId || ''))
+          .filter(Boolean),
+      );
+
+      const participantsToGenerate = workshopParticipants.filter(
+        (participant) =>
+          !existingRegistrationIds.has(String(participant.registrationId)),
+      );
+
+      if (participantsToGenerate.length === 0) {
+        throw new Error(
+          'Semua peserta workshop ini sudah memiliki sertifikat.',
+        );
+      }
+
+      const failed = [];
+
+      for (const participant of participantsToGenerate) {
+        try {
+          await createCertificateForParticipant(participant, selectedWorkshop, {
+            forceAutoNumber: true,
+          });
+        } catch (participantError) {
+          failed.push(
+            `${participant.participantName}: ${participantError.message}`,
+          );
+        }
+      }
+
+      await loadCertificates();
+
+      if (failed.length > 0) {
+        throw new Error(
+          `${participantsToGenerate.length - failed.length} sertifikat berhasil dibuat. ${failed.length} gagal: ${failed.join(' | ')}`,
+        );
+      }
+
+      setForm(initialCertificateForm);
+      setFormOpen(false);
+    } catch (submitError) {
+      setError(submitError.message || 'Generate semua sertifikat gagal.');
     } finally {
       setIsSaving(false);
     }
@@ -701,7 +1044,7 @@ export function AdminCertificates() {
                 <h1>Sertifikat</h1>
                 <p>Dashboard <span>/</span> Sertifikat</p>
               </div>
-              <button type="button" className="admin-certificates-primary" onClick={() => setFormOpen(true)}>
+              <button type="button" className="admin-certificates-primary" onClick={() => { setForm(initialCertificateForm); setFormOpen(true); }}>
                 + Tambah Sertifikat
               </button>
             </div>
@@ -908,9 +1251,11 @@ export function AdminCertificates() {
           <CertificateFormModal
             form={form}
             workshops={workshops}
+            participants={participants}
             onChange={setForm}
             onClose={() => setFormOpen(false)}
             onSubmit={handleCreateCertificate}
+            onSubmitAll={handleGenerateAllCertificates}
             isSaving={isSaving}
           />
         ) : null}

@@ -1,6 +1,7 @@
 export const navigation = [
   { label: 'Beranda', path: '/' },
   { label: 'Tutorial', path: '/tutorial' },
+  { label: 'Materi', path: '/materi' },
   { label: 'Proyek', path: '/project' },
   { label: 'Workshop', path: '/workshop' },
   { label: 'Tentang Kami', path: '/partner' },

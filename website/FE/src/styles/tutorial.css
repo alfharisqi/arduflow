@@ -4761,3 +4761,1266 @@
   }
 }
 
+/* Tutorial overview + material reader */
+.tutorial-overview-page,
+.materi-page {
+  min-height: 100vh;
+  padding: 64px 24px 96px;
+  color: #f6f9ff;
+  background:
+    radial-gradient(94.74% 149.33% at 80% 20%, rgba(0, 162, 255, 0.3) 0%, rgba(0, 162, 255, 0) 40%),
+    radial-gradient(94.74% 149.33% at 20% 80%, rgba(255, 106, 0, 0.32) 0%, rgba(255, 106, 0, 0) 40%),
+    #030b1e;
+  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
+}
+
+.tutorial-overview-shell,
+.materi-shell {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+}
+
+.tutorial-overview-back,
+.materi-back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  margin-bottom: 24px;
+  color: #8bd3ff;
+  font-size: 16px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.tutorial-overview-state,
+.materi-state,
+.tutorial-overview-content,
+.tutorial-overview-outline,
+.materi-reader {
+  border: 1px solid rgba(0, 164, 255, 0.22);
+  background: rgba(2, 14, 33, 0.82);
+}
+
+.tutorial-overview-state,
+.materi-state {
+  padding: 32px;
+}
+
+.tutorial-overview-state h1,
+.materi-state h1 {
+  margin: 0 0 10px;
+  color: #ff5e0a;
+  font-family: 'Orbitron', 'Rajdhani', Arial, Helvetica, sans-serif;
+  font-size: 36px;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.tutorial-overview-state p,
+.materi-state p {
+  margin: 0;
+  color: #8da4be;
+  font-size: 20px;
+  line-height: 1.35;
+}
+
+.tutorial-overview-hero,
+.materi-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.8fr);
+  gap: 32px;
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+.tutorial-overview-copy,
+.materi-hero > div {
+  min-width: 0;
+}
+
+.tutorial-overview-eyebrow,
+.materi-eyebrow {
+  margin: 0 0 12px;
+  color: #ff5e0a;
+  font-family: 'Orbitron', 'Rajdhani', Arial, Helvetica, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.tutorial-overview-hero h1,
+.materi-hero h1 {
+  margin: 0;
+  color: #f6f9ff;
+  font-family: 'Orbitron', 'Rajdhani', Arial, Helvetica, sans-serif;
+  font-size: clamp(40px, 6vw, 68px);
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.02;
+  text-transform: uppercase;
+}
+
+.tutorial-overview-hero p:not(.tutorial-overview-eyebrow),
+.materi-hero p:not(.materi-eyebrow) {
+  max-width: 640px;
+  margin: 20px 0 0;
+  color: #8da4be;
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.tutorial-overview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 30px;
+}
+
+.tutorial-overview-media,
+.materi-hero > img {
+  min-width: 0;
+  border: 1px solid rgba(0, 164, 255, 0.22);
+  background: #020e21;
+}
+
+.tutorial-overview-media img,
+.materi-hero > img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+}
+
+.tutorial-overview-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.tutorial-overview-meta article {
+  padding: 20px;
+  border: 1px solid rgba(0, 164, 255, 0.22);
+  background: #06172c;
+}
+
+.tutorial-overview-meta span {
+  display: block;
+  color: #8da4be;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.tutorial-overview-meta strong {
+  display: block;
+  margin-top: 8px;
+  color: #ffffff;
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.tutorial-overview-content,
+.tutorial-overview-outline {
+  margin-bottom: 28px;
+  padding: 32px;
+}
+
+.tutorial-overview-content h2,
+.tutorial-overview-outline h2,
+.materi-sidebar h2,
+.materi-content-head h2 {
+  margin: 0;
+  color: #ff5e0a;
+  font-family: 'Orbitron', 'Rajdhani', Arial, Helvetica, sans-serif;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.tutorial-overview-content h2 {
+  margin-bottom: 18px;
+  font-size: 28px;
+}
+
+.tutorial-overview-outline > div:first-child {
+  margin-bottom: 22px;
+}
+
+.tutorial-overview-outline h2 {
+  font-size: 30px;
+}
+
+.tutorial-overview-outline-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.tutorial-overview-outline-card {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid rgba(0, 164, 255, 0.22);
+  background: #06172c;
+}
+
+.tutorial-overview-outline-card > span,
+.materi-content-head > span,
+.materi-sidebar button span {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  color: #ffffff;
+  background: #ff6a00;
+  border-radius: 4px;
+  font-family: 'Orbitron', 'Rajdhani', Arial, Helvetica, sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.tutorial-overview-outline-card h3 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 22px;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+}
+
+.tutorial-overview-outline-card p {
+  display: -webkit-box;
+  margin: 8px 0 14px;
+  overflow: hidden;
+  color: #8da4be;
+  font-size: 16px;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.tutorial-overview-outline-card a {
+  grid-column: 2;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1px solid #00a4ff;
+  border-radius: 4px;
+  color: #f6f9ff;
+  background: #05162e;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.materi-reader {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  align-items: start;
+}
+
+.materi-catalog-page {
+  padding-top: 0;
+}
+
+.materi-landing-hero {
+  position: relative;
+  width: calc(100% + 48px);
+  height: 651px;
+  min-height: 651px;
+  margin: -64px -24px 0;
+  overflow: hidden;
+  background:
+    radial-gradient(94.74% 149.33% at 80% 20%, rgba(0, 162, 255, 0.3) 0%, rgba(0, 162, 255, 0) 40%),
+    radial-gradient(111.51% 175.77% at 3.23% 44.85%, rgba(255, 106, 0, 0.4) 0%, rgba(255, 106, 0, 0) 34.95%),
+    linear-gradient(0deg, #030b1e, #030b1e),
+    #fff;
+}
+
+.materi-landing-inner {
+  position: absolute;
+  left: clamp(24px, 10.55vw, 152px);
+  top: 51px;
+  width: min(1276px, calc(100% - 48px));
+  height: 504px;
+}
+
+.materi-landing-copy {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  top: 42px;
+  width: 586px;
+  height: 459px;
+}
+
+.materi-landing-tag {
+  width: 250px;
+  margin-bottom: 18px;
+}
+
+.materi-landing-copy h1 {
+  width: min(586px, 100%);
+  margin: 0;
+  color: #ffffff;
+  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
+  font-size: 60px;
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: 0;
+}
+
+.materi-landing-copy p {
+  width: min(560px, 100%);
+  margin: 28px 0 0;
+  color: #ffffff;
+  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 28px;
+}
+
+.materi-landing-actions {
+  position: absolute;
+  left: 0;
+  top: 385px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  width: 546.1px;
+  height: 48px;
+  margin-top: 0;
+}
+
+.materi-landing-visual {
+  position: absolute;
+  z-index: 1;
+  left: min(690px, calc(100% - 626px));
+  top: 0;
+  width: 626px;
+  height: 504px;
+  pointer-events: none;
+}
+
+.materi-landing-visual img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 10%, #000 92%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 10%, #000 92%, transparent 100%);
+}
+
+.materi-catalog-search {
+  width: min(640px, 100%);
+  margin: 64px 0 28px;
+}
+
+.materi-catalog-page .materi-shell {
+  scroll-margin-top: 84px;
+}
+
+.materials-page-shell {
+  width: min(1240px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 64px 0 96px;
+}
+
+.materials-section {
+  margin-bottom: 88px;
+}
+
+.materials-section__head {
+  max-width: 720px;
+  margin-bottom: 30px;
+}
+
+.materials-section__head--split {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  max-width: none;
+  align-items: end;
+}
+
+.materials-eyebrow {
+  display: inline-flex;
+  margin-bottom: 10px;
+  color: #00a2ff;
+  font-family: 'Orbitron', 'Rajdhani', Arial, Helvetica, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.materials-section h2,
+.materials-final-cta h2 {
+  margin: 0;
+  color: #ffffff;
+  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
+  font-size: clamp(34px, 4vw, 48px);
+  font-weight: 700;
+  line-height: 1.08;
+}
+
+.materials-section__head p,
+.materials-final-cta p {
+  margin: 14px 0 0;
+  color: #9bb0c9;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.materials-soft-warning {
+  max-width: 360px;
+  margin: 0;
+  color: #ffb47a;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.materials-category-grid,
+.materials-card-grid,
+.materials-starter-grid,
+.materials-popular-grid,
+.materials-project-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.materials-category-card {
+  display: grid;
+  gap: 10px;
+  min-height: 154px;
+  padding: 22px;
+  border: 1px solid rgba(0, 162, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(6, 23, 44, 0.78);
+  color: #ffffff;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+}
+
+.materials-category-card:hover,
+.materials-category-card:focus-visible,
+.materials-category-card.is-active {
+  transform: translateY(-4px);
+  border-color: #00a2ff;
+  box-shadow: 0 18px 44px rgba(0, 162, 255, 0.14);
+}
+
+.materials-category-card__icon,
+.materials-path-node > span,
+.materials-practice-card > span {
+  display: inline-grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(0, 162, 255, 0.3);
+  border-radius: 8px;
+  background: rgba(0, 162, 255, 0.09);
+  color: #00a2ff;
+  font-family: 'Orbitron', 'Rajdhani', Arial, Helvetica, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.materials-category-card strong {
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+.materials-category-card small {
+  color: #8ea3bd;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.materials-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(0, 162, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(6, 23, 44, 0.86);
+  transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+}
+
+.materials-card:hover,
+.materials-card:focus-within {
+  transform: translateY(-4px);
+  border-color: rgba(0, 162, 255, 0.72);
+  box-shadow: 0 18px 44px rgba(0, 162, 255, 0.12);
+}
+
+.materials-card__media {
+  position: relative;
+  display: block;
+  height: 190px;
+  background: #041329;
+}
+
+.materials-card--featured .materials-card__media {
+  height: 220px;
+}
+
+.materials-card__media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.materials-card__flag {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #ff6a00;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.materials-card__body {
+  padding: 20px;
+}
+
+.materials-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.materials-card__badges span {
+  padding: 5px 9px;
+  border: 1px solid rgba(0, 162, 255, 0.25);
+  border-radius: 999px;
+  color: #8bd3ff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.materials-card h3,
+.materials-project-card h3,
+.materials-path-node h3,
+.materials-practice-card h3 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.18;
+}
+
+.materials-card p,
+.materials-project-card p,
+.materials-path-node p,
+.materials-practice-card p {
+  display: -webkit-box;
+  margin: 12px 0 0;
+  overflow: hidden;
+  color: #9bb0c9;
+  font-size: 16px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.materials-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-top: 16px;
+  color: #d8e7f6;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.materials-card__link,
+.materials-project-card a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 18px;
+  color: #00a2ff;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.materials-path-list {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.materials-path-list::before,
+.materials-practice-steps::before {
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  top: 42px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 162, 255, 0.48), transparent);
+  content: "";
+}
+
+.materials-path-node,
+.materials-practice-card {
+  position: relative;
+  z-index: 1;
+  padding: 20px;
+  border: 1px solid rgba(0, 162, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(3, 11, 30, 0.92);
+}
+
+.materials-path-node.is-active {
+  border-color: #00a2ff;
+  box-shadow: 0 0 0 3px rgba(0, 162, 255, 0.12);
+}
+
+.materials-path-node strong,
+.materials-practice-card small {
+  display: block;
+  margin: 14px 0 8px;
+  color: #ff6a00;
+  font-family: 'Orbitron', 'Rajdhani', Arial, Helvetica, sans-serif;
+  font-size: 13px;
+}
+
+.materials-catalog-controls {
+  display: grid;
+  gap: 18px;
+  margin-bottom: 26px;
+}
+
+.materials-search {
+  display: grid;
+  gap: 9px;
+}
+
+.materials-search span,
+.materials-select-row span {
+  color: #d8e7f6;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.materials-search input,
+.materials-select-row select {
+  height: 48px;
+  border: 1px solid rgba(0, 162, 255, 0.32);
+  border-radius: 7px;
+  background: #020e21;
+  color: #ffffff;
+  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
+  font-size: 16px;
+  padding: 0 16px;
+}
+
+.materials-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.materials-filter-row button {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid rgba(0, 162, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(6, 23, 44, 0.72);
+  color: #8bd3ff;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.materials-filter-row button.is-active,
+.materials-filter-row button:hover {
+  background: #00a2ff;
+  color: #031126;
+}
+
+.materials-select-row {
+  display: flex;
+  gap: 16px;
+}
+
+.materials-select-row label {
+  display: grid;
+  gap: 8px;
+  min-width: 180px;
+}
+
+.materials-practice {
+  padding: 42px;
+  border: 1px solid rgba(0, 162, 255, 0.18);
+  border-radius: 10px;
+  background:
+    radial-gradient(60% 100% at 88% 0%, rgba(0, 162, 255, 0.18), transparent 60%),
+    rgba(2, 14, 33, 0.86);
+}
+
+.materials-practice-steps {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.materials-project-card {
+  overflow: hidden;
+  border: 1px solid rgba(0, 162, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(6, 23, 44, 0.86);
+}
+
+.materials-project-card img {
+  display: block;
+  width: 100%;
+  height: 176px;
+  object-fit: cover;
+}
+
+.materials-project-card div {
+  padding: 20px;
+}
+
+.materials-project-card span {
+  display: inline-flex;
+  margin-bottom: 10px;
+  color: #ff6a00;
+  font-weight: 800;
+}
+
+.materials-project-card small {
+  display: block;
+  margin-top: 8px;
+  color: #8bd3ff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.materials-card-grid--compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.materials-final-cta {
+  display: flex;
+  justify-content: space-between;
+  gap: 32px;
+  align-items: center;
+  padding: 42px;
+  border: 1px solid rgba(0, 162, 255, 0.22);
+  border-radius: 12px;
+  background:
+    radial-gradient(60% 110% at 12% 30%, rgba(255, 106, 0, 0.18), transparent 54%),
+    radial-gradient(60% 100% at 88% 20%, rgba(0, 162, 255, 0.2), transparent 60%),
+    #020e21;
+}
+
+.materials-final-cta > div:first-child {
+  max-width: 690px;
+}
+
+.materials-final-cta__actions {
+  display: flex;
+  gap: 14px;
+  flex: 0 0 auto;
+}
+
+.materials-empty-state {
+  padding: 34px;
+  border: 1px solid rgba(0, 162, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(6, 23, 44, 0.78);
+  text-align: center;
+}
+
+.materials-empty-state h3 {
+  margin: 0 0 8px;
+  color: #ffffff;
+  font-size: 26px;
+}
+
+.materials-empty-state p {
+  margin: 0;
+  color: #9bb0c9;
+}
+
+.materi-catalog-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+  margin-top: 28px;
+}
+
+.materi-catalog-list {
+  display: grid;
+  gap: 16px;
+}
+
+.materi-catalog-row {
+  background: rgba(2, 14, 33, 0.82);
+}
+
+.materi-filter-panel {
+  position: sticky;
+  top: 24px;
+}
+
+.materi-sidebar {
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 24px;
+  border-right: 1px solid rgba(0, 164, 255, 0.22);
+}
+
+.materi-sidebar h2 {
+  margin-bottom: 18px;
+  font-size: 20px;
+}
+
+.materi-sidebar > div {
+  display: grid;
+  gap: 10px;
+}
+
+.materi-sidebar button {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-height: 58px;
+  padding: 10px;
+  color: #dce8ff;
+  text-align: left;
+  background: #06172c;
+  border: 1px solid rgba(0, 164, 255, 0.18);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.materi-sidebar button.is-active {
+  border-color: #00a4ff;
+  box-shadow: 0 0 0 3px rgba(0, 164, 255, 0.14);
+}
+
+.materi-sidebar button span {
+  width: 34px;
+  height: 34px;
+  font-size: 15px;
+}
+
+.materi-sidebar button strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 16px;
+  line-height: 1.15;
+}
+
+.materi-content {
+  min-width: 0;
+  padding: 32px;
+}
+
+.materi-content-head {
+  display: grid;
+  grid-template-columns: 50px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  margin-bottom: 28px;
+}
+
+.materi-content-head > span {
+  width: 50px;
+  height: 50px;
+  background: #00a4ff;
+  font-size: 26px;
+}
+
+.materi-content-head h2 {
+  font-size: 28px;
+  line-height: 1.15;
+}
+
+.materi-content-head p {
+  margin: 8px 0 0;
+  color: #8da4be;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.materi-content-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
+  gap: 28px;
+  align-items: start;
+  padding: 28px;
+  border: 1px solid rgba(0, 164, 255, 0.22);
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 8px;
+}
+
+.materi-rich-content {
+  min-width: 0;
+  color: #06172c;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.materi-rich-content h1,
+.materi-rich-content h2,
+.materi-rich-content h3,
+.materi-rich-content h4 {
+  margin: 0 0 12px;
+  color: #00a4ff;
+  font-family: 'Orbitron', 'Rajdhani', Arial, Helvetica, sans-serif;
+  line-height: 1.2;
+}
+
+.materi-rich-content p,
+.materi-rich-content ul,
+.materi-rich-content ol,
+.materi-rich-content blockquote {
+  margin: 0 0 14px;
+}
+
+.materi-rich-content ul,
+.materi-rich-content ol {
+  padding-left: 24px;
+}
+
+.materi-rich-content a {
+  color: #ff6a00;
+  font-weight: 700;
+}
+
+.materi-rich-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+
+.materi-media {
+  min-width: 0;
+}
+
+.materi-media img,
+.materi-media iframe {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border: 0;
+  border-radius: 6px;
+  background: #06172c;
+}
+
+.materi-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 28px;
+}
+
+.materi-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 170px;
+  min-height: 46px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 6px;
+  color: #ffffff;
+  background: #ff6a00;
+  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.materi-button.secondary {
+  background: #05162e;
+  border: 1px solid #00a4ff;
+}
+
+.materi-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+@media (max-width: 980px) {
+  .tutorial-overview-hero,
+  .materi-hero,
+  .materi-reader,
+  .materi-catalog-layout,
+  .materi-content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .materi-landing-hero {
+    height: auto;
+    min-height: 0;
+  }
+
+  .materi-landing-inner {
+    position: relative;
+    left: auto;
+    top: auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 36px;
+    height: auto;
+    margin: 0 auto;
+    padding: 64px 0 72px;
+  }
+
+  .materi-landing-copy,
+  .materi-landing-visual,
+  .materi-landing-actions {
+    position: static;
+  }
+
+  .materi-landing-copy {
+    width: min(100%, 640px);
+    height: auto;
+  }
+
+  .materi-landing-actions {
+    margin-top: 40px;
+  }
+
+  .materi-landing-visual {
+    width: min(100%, 667px);
+    height: auto;
+  }
+
+  .materi-landing-visual img {
+    height: auto;
+  }
+
+  .materi-landing-copy h1 {
+    font-size: clamp(46px, 7vw, 58px);
+    line-height: 1.06;
+  }
+
+  .materials-page-shell {
+    width: min(100% - 36px, 760px);
+    padding-block: 56px 80px;
+  }
+
+  .materials-section__head--split,
+  .materials-final-cta {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .materials-category-grid,
+  .materials-card-grid,
+  .materials-starter-grid,
+  .materials-popular-grid,
+  .materials-project-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .materials-path-list,
+  .materials-practice-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .materials-path-list::before,
+  .materials-practice-steps::before {
+    left: 24px;
+    right: auto;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    height: auto;
+  }
+
+  .materials-path-node,
+  .materials-practice-card {
+    align-items: flex-start;
+    padding-left: 64px;
+    text-align: left;
+  }
+
+  .materials-path-node > span,
+  .materials-practice-card > span {
+    position: absolute;
+    left: 16px;
+    top: 20px;
+  }
+
+  .materials-select-row {
+    flex-direction: column;
+  }
+
+  .materials-catalog-controls {
+    padding: 18px;
+  }
+
+  .materials-select-row {
+    flex-direction: column;
+  }
+
+  .materials-final-cta__actions {
+    flex-wrap: wrap;
+  }
+
+  .materi-filter-panel,
+  .materi-sidebar {
+    position: static;
+    max-height: none;
+    border-right: 0;
+    border-bottom: 1px solid rgba(0, 164, 255, 0.22);
+  }
+
+  .tutorial-overview-outline-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .tutorial-overview-page,
+  .materi-page {
+    padding: 42px 18px 64px;
+  }
+
+  .materi-landing-hero {
+    width: calc(100% + 36px);
+    margin: -42px -18px 0;
+  }
+
+  .materi-landing-inner {
+    width: calc(100% - 48px);
+    padding: 44px 0 56px;
+  }
+
+  .materi-landing-copy h1 {
+    font-size: clamp(38px, 11vw, 48px);
+    line-height: 1.08;
+  }
+
+  .materi-landing-copy p {
+    margin-top: 18px;
+    font-size: 17px;
+    line-height: 1.35;
+  }
+
+  .materi-landing-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin-top: 28px;
+    width: 100%;
+    height: auto;
+  }
+
+  .materi-landing-actions .landing-primary,
+  .materi-landing-actions .landing-secondary {
+    width: 100%;
+  }
+
+  .materials-page-shell {
+    width: calc(100% - 32px);
+    padding-block: 44px 64px;
+  }
+
+  .materials-section {
+    margin-bottom: 64px;
+  }
+
+  .materials-section__head h2,
+  .materials-final-cta h2 {
+    font-size: 30px;
+  }
+
+  .materials-category-grid,
+  .materials-card-grid,
+  .materials-starter-grid,
+  .materials-popular-grid,
+  .materials-project-grid,
+  .materials-card-grid--compact {
+    grid-template-columns: 1fr;
+  }
+
+  .materials-filter-row {
+    flex-wrap: nowrap;
+    margin-inline: -4px;
+    overflow-x: auto;
+    padding: 0 4px 4px;
+  }
+
+  .materials-filter-row button {
+    flex: 0 0 auto;
+  }
+
+  .materials-select-row {
+    grid-template-columns: 1fr;
+  }
+
+  .materials-practice,
+  .materials-final-cta {
+    padding: 24px;
+  }
+
+  .materials-final-cta__actions,
+  .materials-final-cta__actions .landing-primary,
+  .materials-final-cta__actions .landing-secondary {
+    width: 100%;
+  }
+
+  .materials-final-cta__actions {
+    flex-direction: column;
+  }
+
+  .tutorial-overview-meta,
+  .materi-actions {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .tutorial-overview-content,
+  .tutorial-overview-outline,
+  .materi-filter-panel,
+  .materi-sidebar,
+  .materi-content,
+  .materi-content-grid {
+    padding: 20px;
+  }
+
+  .materi-content-head {
+    grid-template-columns: 42px minmax(0, 1fr);
+  }
+
+  .materi-content-head > span {
+    width: 42px;
+    height: 42px;
+    font-size: 20px;
+  }
+
+  .materi-button {
+    width: 100%;
+  }
+}
+

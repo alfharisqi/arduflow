@@ -1,15 +1,26 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchTutorialArticle, isPublishedTutorial } from '../services/articleApi.js';
-import { TutorialIcon } from './Tutorial.jsx';
 import fallbackTutorialImage from '../assets/images/tutorial-device.png';
 
 function getTutorialIdentifier() {
   const params = new URLSearchParams(window.location.search);
-  return params.get('id') || params.get('slug') || '';
+  const segments = window.location.pathname.split('/').filter(Boolean);
+  const lastSegment = segments.at(-1) || '';
+
+  return params.get('id') || params.get('slug') || (!['tutorial', 'detail'].includes(lastSegment) ? lastSegment : '');
 }
 
 function stripHtml(value) {
-  return String(value || '').replace(/<[^>]*>/g, '').trim();
+  return String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function sanitizeHtml(value) {
+  return String(value || '')
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+    .replace(/\son\w+="[^"]*"/gi, '')
+    .replace(/\son\w+='[^']*'/gi, '')
+    .replace(/\s(href|src)=["']javascript:[^"']*["']/gi, '');
 }
 
 function categoryLabel(value) {
@@ -18,23 +29,28 @@ function categoryLabel(value) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function renderHtml(html) {
-  return { __html: html || '' };
-}
-
 function isPublishedSlide(slide) {
   const status = String(slide.status || '').toLowerCase();
   return status === '' || status === 'published' || status === 'publish';
 }
 
-function slideDescription(slide) {
-  const text = stripHtml(slide.content);
-  return text || slide.estimatedTime || 'Materi tutorial dari data Arduflow.';
+function materialHref(tutorial, slideIndex = 0) {
+  const identifier = tutorial?.slug || tutorial?.id || '';
+  const params = new URLSearchParams();
+
+  if (identifier) {
+    params.set(/^\d+$/.test(String(identifier)) ? 'id' : 'slug', String(identifier));
+  }
+
+  if (slideIndex > 0) {
+    params.set('slide', String(slideIndex + 1));
+  }
+
+  return params.toString() ? `/materi?${params.toString()}` : '/materi';
 }
 
 export function TutorialDetail() {
   const [tutorial, setTutorial] = useState(null);
-  const [activeIndex, setActiveIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -42,32 +58,26 @@ export function TutorialDetail() {
     let isMounted = true;
     const identifier = getTutorialIdentifier();
 
+    setIsLoading(true);
+    setError('');
+
     fetchTutorialArticle(identifier)
       .then((item) => {
-        if (!isMounted) {
-          return;
-        }
+        if (!isMounted) return;
 
         if (!isPublishedTutorial(item)) {
-          throw new Error('Materi tutorial belum dipublish.');
+          throw new Error('Tutorial belum dipublish.');
         }
 
         setTutorial(item);
-        setActiveIndex(0);
-        setError('');
       })
       .catch((fetchError) => {
-        if (!isMounted) {
-          return;
-        }
-
+        if (!isMounted) return;
         setTutorial(null);
         setError(fetchError.message || 'Gagal memuat detail tutorial.');
       })
       .finally(() => {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        if (isMounted) setIsLoading(false);
       });
 
     return () => {
@@ -76,178 +86,95 @@ export function TutorialDetail() {
   }, []);
 
   const slides = useMemo(() => {
-    if (!tutorial) {
-      return [];
-    }
-
-    const tutorialSlides = tutorial.slides.filter(isPublishedSlide);
-
-    if (tutorialSlides.length > 0) {
-      return tutorialSlides;
-    }
-
-    return [
-      {
-        id: `${tutorial.id}-description`,
-        order: 1,
-        title: tutorial.title,
-        contentType: 'text',
-        content: tutorial.fullDescription || tutorial.shortDescription,
-        estimatedTime: tutorial.estimatedTime,
-        status: 'published',
-        imageUrl: tutorial.cardImageUrl,
-        videoUrl: '',
-      },
-    ];
+    if (!tutorial) return [];
+    return tutorial.slides.filter(isPublishedSlide);
   }, [tutorial]);
 
-  const activeSlide = slides[activeIndex] || slides[0] || null;
-
-  const changeSlide = (nextIndex) => {
-    if (nextIndex < 0 || nextIndex >= slides.length) {
-      return;
-    }
-
-    setActiveIndex(nextIndex);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  if (isLoading) {
+  if (isLoading || error || !tutorial) {
     return (
-      <section className="beginner-ebook-section tutorial-detail-section" aria-labelledby="tutorial-detail-title">
-        <div className="beginner-ebook-heading">
-          <h1 id="tutorial-detail-title">Memuat Tutorial</h1>
-          <p>Data materi sedang diambil dari article-api.php.</p>
+      <section className="tutorial-overview-page" aria-labelledby="tutorial-overview-title">
+        <div className="tutorial-overview-shell">
+          <a className="tutorial-overview-back" href="/tutorial">Kembali ke Tutorial</a>
+          <div className="tutorial-overview-state">
+            <h1 id="tutorial-overview-title">{isLoading ? 'Memuat Tutorial' : 'Tutorial Tidak Ditemukan'}</h1>
+            <p>{isLoading ? 'Data tutorial sedang diambil dari article-api.php.' : error || 'Tutorial tidak tersedia.'}</p>
+          </div>
         </div>
-        <article className="beginner-ebook-panel tutorial-detail-panel">
-          <p className="tutorial-data-state">Memuat detail tutorial...</p>
-        </article>
       </section>
     );
   }
 
-  if (error || !tutorial || !activeSlide) {
-    return (
-      <section className="beginner-ebook-section tutorial-detail-section" aria-labelledby="tutorial-detail-title">
-        <div className="beginner-ebook-heading">
-          <h1 id="tutorial-detail-title">Tutorial Tidak Ditemukan</h1>
-          <p>{error || 'Materi tutorial tidak tersedia.'}</p>
-        </div>
-        <article className="beginner-ebook-panel tutorial-detail-panel">
-          <a className="beginner-ebook-button" href="/tutorial">
-            Kembali ke Tutorial
-          </a>
-        </article>
-      </section>
-    );
-  }
-
-  const activeImage = activeSlide.imageUrl || tutorial.cardImageUrl || fallbackTutorialImage;
-  const hasHtmlContent = Boolean(activeSlide.content);
+  const heroImage = tutorial.cardImageUrl || fallbackTutorialImage;
+  const summaryHtml = sanitizeHtml(tutorial.fullDescription);
 
   return (
-    <section className="beginner-ebook-section tutorial-detail-section" aria-labelledby="tutorial-detail-title">
-      <div className="beginner-ebook-heading tutorial-detail-heading">
-        <p className="tutorial-detail-eyebrow">{categoryLabel(tutorial.category)}</p>
-        <h1 id="tutorial-detail-title">{tutorial.title}</h1>
-        <p>{tutorial.shortDescription || stripHtml(tutorial.fullDescription)}</p>
-      </div>
+    <section className="tutorial-overview-page" aria-labelledby="tutorial-overview-title">
+      <div className="tutorial-overview-shell">
+        <a className="tutorial-overview-back" href="/tutorial">Kembali ke Tutorial</a>
 
-      <article className="beginner-ebook-panel tutorial-detail-panel">
-        <div className="beginner-ebook-panel-header tutorial-detail-panel-header">
-          <span className="beginner-ebook-number">{activeIndex + 1}</span>
+        <header className="tutorial-overview-hero">
+          <div className="tutorial-overview-copy">
+            <p className="tutorial-overview-eyebrow">{categoryLabel(tutorial.category)}</p>
+            <h1 id="tutorial-overview-title">{tutorial.title}</h1>
+            <p>{tutorial.shortDescription || stripHtml(tutorial.fullDescription) || 'Ringkasan tutorial Arduflow.'}</p>
+            <div className="tutorial-overview-actions">
+              <a className="tutorial-primary-action" href={materialHref(tutorial)}>Mulai Materi</a>
+              <a className="tutorial-secondary-action" href="#daftar-materi">Lihat Daftar</a>
+            </div>
+          </div>
+          <div className="tutorial-overview-media">
+            <img src={heroImage} alt={tutorial.title} />
+          </div>
+        </header>
+
+        <section className="tutorial-overview-meta" aria-label="Informasi tutorial">
+          <article>
+            <span>Estimasi</span>
+            <strong>{tutorial.estimatedTime || 'Belum diatur'}</strong>
+          </article>
+          <article>
+            <span>Level</span>
+            <strong>{tutorial.difficulty || 'Semua Level'}</strong>
+          </article>
+          <article>
+            <span>Total Materi</span>
+            <strong>{slides.length || tutorial.totalSlides || 0} slide</strong>
+          </article>
+        </section>
+
+        <section className="tutorial-overview-content" aria-labelledby="tutorial-overview-summary-title">
+          <h2 id="tutorial-overview-summary-title">Tentang Tutorial</h2>
+          {summaryHtml ? (
+            <div className="tutorial-rich-content" dangerouslySetInnerHTML={{ __html: summaryHtml }} />
+          ) : (
+            <p>{tutorial.shortDescription || 'Deskripsi lengkap tutorial belum tersedia.'}</p>
+          )}
+        </section>
+
+        <section className="tutorial-overview-outline" id="daftar-materi" aria-labelledby="tutorial-overview-outline-title">
           <div>
-            <h2>{activeSlide.title}</h2>
-            <p>{slideDescription(activeSlide)}</p>
-          </div>
-        </div>
-
-        <div className="tutorial-detail-meta" aria-label="Informasi tutorial">
-          <span>{tutorial.estimatedTime || activeSlide.estimatedTime || 'Estimasi belum diatur'}</span>
-          <span>{tutorial.difficulty || 'Semua Level'}</span>
-          <span>{slides.length} slide</span>
-        </div>
-
-        <div className="beginner-ebook-body tutorial-detail-body">
-          <div className="beginner-ebook-copy tutorial-detail-copy">
-            {hasHtmlContent ? (
-              <div className="tutorial-rich-content" dangerouslySetInnerHTML={renderHtml(activeSlide.content)} />
-            ) : (
-              <p>Konten slide belum tersedia.</p>
-            )}
+            <p className="tutorial-overview-eyebrow">Materi</p>
+            <h2 id="tutorial-overview-outline-title">Daftar Materi</h2>
           </div>
 
-          <div className="tutorial-detail-media">
-            {activeSlide.contentType === 'video' && activeSlide.videoUrl ? (
-              <iframe
-                src={activeSlide.videoUrl}
-                title={activeSlide.title}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            ) : (
-              <img src={activeImage} alt={activeSlide.title} loading="lazy" />
-            )}
-          </div>
-        </div>
-
-        {tutorial.fullDescription && (
-          <div className="beginner-ebook-note tutorial-detail-note">
-            <h3>Ringkasan Materi</h3>
-            <div className="tutorial-rich-content" dangerouslySetInnerHTML={renderHtml(tutorial.fullDescription)} />
-          </div>
-        )}
-
-        <div className="tutorial-detail-outline" aria-label="Daftar slide tutorial">
-          {slides.map((slide, index) => (
-            <button
-              className={index === activeIndex ? 'is-active' : ''}
-              type="button"
-              key={slide.id}
-              onClick={() => changeSlide(index)}
-            >
-              <span>{index + 1}</span>
-              <strong>{slide.title}</strong>
-            </button>
-          ))}
-        </div>
-
-        <div className="beginner-ebook-footer">
-          <div className="beginner-ebook-dots" aria-label="Navigasi slide tutorial">
-            {slides.map((slide, index) => (
-              <button
-                className={index === activeIndex ? 'active' : ''}
-                type="button"
-                key={`${slide.id}-dot`}
-                aria-label={`Buka slide ${index + 1}`}
-                aria-current={index === activeIndex ? 'step' : undefined}
-                onClick={() => changeSlide(index)}
-              />
-            ))}
-          </div>
-
-          <div className="beginner-ebook-actions">
-            {activeIndex > 0 && (
-              <button
-                className="beginner-ebook-button secondary"
-                type="button"
-                onClick={() => changeSlide(activeIndex - 1)}
-              >
-                Materi Sebelumnya
-              </button>
-            )}
-            {activeIndex < slides.length - 1 ? (
-              <button className="beginner-ebook-button" type="button" onClick={() => changeSlide(activeIndex + 1)}>
-                Materi Selanjutnya
-              </button>
-            ) : (
-              <a className="beginner-ebook-button" href="/tutorial">
-                Selesaikan Materi
-              </a>
-            )}
-          </div>
-        </div>
-      </article>
+          {slides.length === 0 ? (
+            <p className="tutorial-data-state">Belum ada materi yang dipublish.</p>
+          ) : (
+            <div className="tutorial-overview-outline-grid">
+              {slides.map((slide, index) => (
+                <article className="tutorial-overview-outline-card" key={slide.id}>
+                  <span>{index + 1}</span>
+                  <div>
+                    <h3>{slide.title}</h3>
+                    <p>{stripHtml(slide.content) || slide.estimatedTime || 'Materi tutorial dari Arduflow.'}</p>
+                  </div>
+                  <a href={materialHref(tutorial, index)}>Buka Materi</a>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
     </section>
   );
 }
