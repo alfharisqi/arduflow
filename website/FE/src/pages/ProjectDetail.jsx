@@ -1,4 +1,4 @@
-import { createElement, useEffect, useMemo, useState } from "react";
+import { createElement, useCallback, useEffect, useMemo, useState } from "react";
 
 import monitorIcon from "../assets/icons/icon-monitor-1.svg";
 import cpuIcon from "../assets/icons/icon-cpu-1.svg";
@@ -12,6 +12,34 @@ import {
   fetchProjectSubmissions,
   isPublicProject,
 } from "../services/projectApi.js";
+
+const IDE_FLOW_BASE_URL = "https://ide.arduflow.com/#flow=";
+
+function openIDE(snippetJson) {
+  const jsonStr = typeof snippetJson === "string" ? snippetJson : JSON.stringify(snippetJson);
+  const encoded = btoa(unescape(encodeURIComponent(jsonStr)));
+
+  const url = IDE_FLOW_BASE_URL + encodeURIComponent(encoded);
+  window.open(url, "_blank");
+}
+
+async function fetchProjectSnippet(fileUrl) {
+  const response = await fetch(fileUrl);
+
+  if (!response.ok) {
+    throw new Error(`Gagal memuat file proyek. HTTP ${response.status}`);
+  }
+
+  const snippet = (await response.text()).trim();
+
+  if (!snippet) {
+    throw new Error("File proyek kosong.");
+  }
+
+  JSON.parse(snippet);
+
+  return snippet;
+}
 
 function getProjectIdFromUrl() {
   return new URLSearchParams(window.location.search).get("id") || "";
@@ -173,6 +201,63 @@ function visibleList(items, limit) {
 
 function getCircuitLabel(tool) {
   return getToolName(tool) || "Komponen";
+}
+
+function PlayIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <polygon points="5 3 19 12 5 21 5 3" />
+    </svg>
+  );
+}
+
+function OpenIdeButton({ project }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleOpenIde = useCallback(async () => {
+    setError("");
+
+    if (!project.projectFileUrl) {
+      setError("File proyek belum tersedia untuk dibuka di IDE.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      openIDE(await fetchProjectSnippet(project.projectFileUrl));
+    } catch (snippetError) {
+      setError(snippetError.message || "File proyek tidak dapat dibuka di IDE.");
+    } finally {
+      setLoading(false);
+    }
+  }, [project.projectFileUrl]);
+
+  return (
+    <>
+      <button
+        className="project-detail__button project-detail__button--primary"
+        type="button"
+        onClick={handleOpenIde}
+        disabled={loading}
+      >
+        <PlayIcon />
+        {loading ? "Menyiapkan Proyek..." : "Buka ArduFlow IDE"}
+      </button>
+      {error ? <p className="project-detail__button-error" role="alert">{error}</p> : null}
+    </>
+  );
 }
 
 function StatCard({ icon, label, value }) {
@@ -358,9 +443,7 @@ function ProjectHero({ project, tools, nodes, tags, description }) {
           </div>
 
           <div className="project-detail__actions">
-            <a className="project-detail__button project-detail__button--primary" href="/ide">
-              Buka ArduFlow IDE <span aria-hidden="true">-&gt;</span>
-            </a>
+            <OpenIdeButton project={project} />
             <a
               className="project-detail__button project-detail__button--secondary"
               href={getProjectFileHref(project)}
