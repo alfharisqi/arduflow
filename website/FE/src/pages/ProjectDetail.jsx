@@ -1,4 +1,5 @@
 import { createElement, useEffect, useMemo, useState } from "react";
+import { compressToEncodedURIComponent } from "lz-string";
 
 import monitorIcon from "../assets/icons/icon-monitor-1.svg";
 import cpuIcon from "../assets/icons/icon-cpu-1.svg";
@@ -17,10 +18,13 @@ function getProjectIdFromUrl() {
   return new URLSearchParams(window.location.search).get("id") || "";
 }
 
-function stripHtml(value) {
-  const wrapper = document.createElement("div");
-  wrapper.innerHTML = String(value || "");
-  return wrapper.textContent || wrapper.innerText || "";
+function sanitizeProjectHtml(value) {
+  return String(value || "")
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "")
+    .replace(/\son\w+="[^"]*"/gi, "")
+    .replace(/\son\w+='[^']*'/gi, "")
+    .replace(/\s(href|src)=["']javascript:[^"']*["']/gi, "");
 }
 
 function formatNumber(value) {
@@ -307,8 +311,8 @@ function ProjectDetailFallbackLink() {
   );
 }
 
-function normalizeDescription(value) {
-  return stripHtml(value).replace(/\s+/g, " ").trim();
+function normalizeDescriptionHtml(value) {
+  return sanitizeProjectHtml(value) || "<p>Belum ada deskripsi proyek.</p>";
 }
 
 function getProjectFileHref(project) {
@@ -331,9 +335,133 @@ function getTags(project) {
   return tags.slice(0, 4);
 }
 
+
+function getFlowJsonFromDescription(descriptionHtml) {
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = String(descriptionHtml || "");
+
+  const codeElement = wrapper.querySelector("code.language-cpp");
+
+  if (!codeElement) {
+    return null;
+  }
+
+  const rawJson = (codeElement.textContent || "").trim();
+
+  if (!rawJson) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(rawJson);
+  } catch (error) {
+    console.error("JSON flow ArduFlow tidak valid:", error);
+    return null;
+  }
+}
+
+function openIDE(descriptionHtml) {
+  const snippetJson = getFlowJsonFromDescription(descriptionHtml);
+
+  if (!snippetJson) {
+    window.alert(
+      'JSON flow tidak ditemukan atau tidak valid pada <code class="language-cpp"> di deskripsi proyek.'
+    );
+    return;
+  }
+
+  const jsonStr = JSON.stringify(snippetJson);
+  const encoded = compressToEncodedURIComponent(jsonStr);
+  const url = `https://ide.arduflow.com/#flow=${encoded}`;
+
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+
+function getPlainTextLengthFromHtml(value) {
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = String(value || "");
+  return (wrapper.textContent || wrapper.innerText || "").trim().length;
+}
+
+function truncateHtmlByTextLength(value, maxLength = 500) {
+  const source = document.createElement("div");
+  source.innerHTML = String(value || "");
+
+  let remaining = maxLength;
+
+  function cloneNode(node) {
+    if (remaining <= 0) return null;
+
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent || "";
+
+      if (!text) {
+        return document.createTextNode("");
+      }
+
+      if (text.length <= remaining) {
+        remaining -= text.length;
+        return document.createTextNode(text);
+      }
+
+      const sliced = text.slice(0, remaining).trimEnd();
+      remaining = 0;
+      return document.createTextNode(`${sliced}...`);
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      return null;
+    }
+
+    const element = node.cloneNode(false);
+
+    for (const child of node.childNodes) {
+      if (remaining <= 0) break;
+
+      const clonedChild = cloneNode(child);
+      if (clonedChild) {
+        element.appendChild(clonedChild);
+      }
+    }
+
+    return element;
+  }
+
+  const output = document.createElement("div");
+
+  for (const child of source.childNodes) {
+    if (remaining <= 0) break;
+
+    const clonedChild = cloneNode(child);
+    if (clonedChild) {
+      output.appendChild(clonedChild);
+    }
+  }
+
+  return output.innerHTML;
+}
+
 function ProjectHero({ project, tools, nodes, tags, description }) {
+  const [showFullDescription, setShowFullDescription] = useState(false);
+
   const platform = getPlatform(project);
   const category = project.category || tags[0] || "-";
+
+  const descriptionLength = useMemo(
+    () => getPlainTextLengthFromHtml(description),
+    [description]
+  );
+
+  const hasLongDescription = descriptionLength > 500;
+
+  const visibleDescription = useMemo(() => {
+    if (!hasLongDescription || showFullDescription) {
+      return description;
+    }
+
+    return truncateHtmlByTextLength(description, 500);
+  }, [description, hasLongDescription, showFullDescription]);
 
   return (
     <section className="project-detail__hero" aria-labelledby="project-detail-title">
@@ -346,7 +474,22 @@ function ProjectHero({ project, tools, nodes, tags, description }) {
           </div>
 
           <h1 id="project-detail-title">{project.title}</h1>
-          <p>{description}</p>
+          <div className="project-detail__description-wrapper">
+            <div
+              className="project-detail__description mce-content-body"
+              dangerouslySetInnerHTML={{ __html: visibleDescription }}
+            />
+
+            {hasLongDescription && (
+              <button
+                type="button"
+                className="project-detail__description-more"
+                onClick={() => setShowFullDescription((current) => !current)}
+              >
+                {showFullDescription ? "Less" : "More"}
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="project-detail__side-panel">
@@ -358,9 +501,13 @@ function ProjectHero({ project, tools, nodes, tags, description }) {
           </div>
 
           <div className="project-detail__actions">
-            <a className="project-detail__button project-detail__button--primary" href="/ide">
+            <button
+              className="project-detail__button project-detail__button--primary"
+              type="button"
+              onClick={() => openIDE(description)}
+            >
               Buka ArduFlow IDE <span aria-hidden="true">-&gt;</span>
-            </a>
+            </button>
             <a
               className="project-detail__button project-detail__button--secondary"
               href={getProjectFileHref(project)}
@@ -519,7 +666,9 @@ export function ProjectDetail() {
   const tags = Array.isArray(project.tags) && project.tags.length
     ? getTags(project)
     : [project.category].filter(Boolean);
-  const description = normalizeDescription(project.description);
+  const description = normalizeDescriptionHtml(
+    project.descriptionHtml || project.description
+  );
   return (
     <main className="project-detail">
       <div className="project-detail__shell">
