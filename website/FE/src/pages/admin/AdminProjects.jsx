@@ -237,6 +237,36 @@ function getProjectFileUrl(project) {
   return `${API_BASE_URL}/${normalizedPath}`;
 }
 
+function getProjectFileName(project) {
+  const file = project?.projectFile || project?.payload?.projectFile || {};
+
+  return file.file_name || file.fileName || file.name || '';
+}
+
+async function readProjectFileInput(file) {
+  const extension = file.name.split('.').pop()?.toLowerCase() || '';
+
+  if (!['json', 'flow'].includes(extension)) {
+    throw new Error('Format file proyek harus .json atau .flow.');
+  }
+
+  if (file.size > 10 * 1024 * 1024) {
+    throw new Error('Ukuran file proyek maksimal 10 MB.');
+  }
+
+  const content = (await file.text()).trim();
+
+  if (!content) {
+    throw new Error('File proyek kosong.');
+  }
+
+  try {
+    JSON.parse(content);
+  } catch {
+    throw new Error('File proyek tidak valid (bukan JSON).');
+  }
+}
+
 function resolveProjectCoverUrl(project) {
   const cover = project?.coverImage || {};
   const rawUrl = (
@@ -323,6 +353,54 @@ function getProjectCircuitImageUrl(project) {
   if (/^(https?:\/\/|data:|blob:)/i.test(rawUrl)) return rawUrl;
 
   return `${API_BASE_URL}${rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`}`;
+}
+
+function AdminProjectJsonFileField({ project, busy, onUpload }) {
+  const [error, setError] = useState('');
+  const fileName = getProjectFileName(project);
+  const fileUrl = getProjectFileUrl(project);
+
+  const handleChange = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) return;
+
+    setError('');
+
+    try {
+      await readProjectFileInput(file);
+    } catch (validationError) {
+      setError(validationError.message);
+      return;
+    }
+
+    await onUpload(project, file);
+  };
+
+  return (
+    <section className="admin-projects-wire-card admin-projects-json-field">
+      <h3>File JSON Proyek (ArduFlow IDE)</h3>
+      <p className="admin-projects-json-field__current">
+        {fileName || fileUrl ? (
+          <>
+            <b>{fileName || 'File proyek'}</b>
+            {fileUrl ? (
+              <a href={fileUrl} target="_blank" rel="noopener noreferrer">Lihat file</a>
+            ) : null}
+          </>
+        ) : (
+          <b>Belum ada file JSON. Tombol "Buka ArduFlow IDE" tidak akan aktif.</b>
+        )}
+      </p>
+      <label className="admin-projects-json-field__input">
+        <input type="file" accept=".json,.flow" disabled={busy} onChange={handleChange} />
+        <span>{busy ? 'Mengunggah...' : 'Pilih file .json atau .flow'}</span>
+      </label>
+      {error ? <em className="admin-projects-json-field__error">{error}</em> : null}
+      <small>Maksimal 10 MB. File ini yang dikirim ke ArduFlow IDE lewat tombol di halaman detail proyek.</small>
+    </section>
+  );
 }
 
 function AdminProjectImagePlaceholder() {
@@ -772,6 +850,45 @@ export function AdminProjects() {
     } catch (error) {
       console.error('Gagal memperbarui proyek:', error);
       setActionError(error.message || 'Gagal memperbarui proyek.');
+    } finally {
+      setBusyProjectId(null);
+    }
+  };
+
+  const handleUploadProjectFile = async (project, file) => {
+    if (!project?.id) {
+      setActionError('ID proyek tidak tersedia.');
+      return;
+    }
+
+    try {
+      setBusyProjectId(project.id);
+      setActionError('');
+      setActionMessage('');
+
+      const body = new FormData();
+      body.append('_method', 'PUT');
+      body.append('payload', JSON.stringify({ updatedAt: new Date().toISOString() }));
+      body.append('project_file', file);
+
+      const response = await fetch(`${PROJECT_API_URL}?id=${encodeURIComponent(project.id)}`, {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+        body,
+      });
+      const result = await parseApiResponse(response);
+      const updatedProject = result.data || project;
+
+      setProjects((currentProjects) =>
+        currentProjects.map((item) => (item.id === project.id ? updatedProject : item))
+      );
+      setSelectedProject((currentProject) =>
+        currentProject?.id === project.id ? updatedProject : currentProject
+      );
+      setActionMessage('File JSON proyek berhasil diperbarui.');
+    } catch (error) {
+      console.error('Gagal mengunggah file JSON proyek:', error);
+      setActionError(error.message || 'Gagal mengunggah file JSON proyek.');
     } finally {
       setBusyProjectId(null);
     }
@@ -1540,6 +1657,12 @@ export function AdminProjects() {
                     </div>
                   </article>
                 </section>
+
+                <AdminProjectJsonFileField
+                  project={selectedProject}
+                  busy={busyProjectId === selectedProject.id}
+                  onUpload={handleUploadProjectFile}
+                />
 
                 <section className="admin-projects-wire-card">
                   <h3>Gambar Rangkaian</h3>
