@@ -1179,6 +1179,54 @@
   line-height: 1.35;
 }
 
+.admin-projects-json-field__current {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px;
+  color: #374151;
+  font-size: 13px;
+}
+
+.admin-projects-json-field__current a {
+  color: #0284c7;
+  font-weight: 700;
+}
+
+.admin-projects-json-field__input {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px dashed #b7c3d4;
+  border-radius: 8px;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-projects-json-field__input input {
+  max-width: 220px;
+  font-size: 12px;
+}
+
+.admin-projects-json-field__error {
+  display: block;
+  margin-top: 8px;
+  color: #dc2626;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.admin-projects-json-field small {
+  display: block;
+  margin-top: 8px;
+  color: #6b7280;
+  font-size: 12px;
+}
+
 .admin-projects-wire-list {
   display: grid;
   gap: 8px;
