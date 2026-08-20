@@ -749,6 +749,12 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
   }
 
   async function addStep() {
+    const title = await showPromptAlert({
+      title: 'Judul Langkah',
+      text: 'Masukkan judul singkat langkah pengerjaan.',
+      requiredMessage: 'Judul langkah wajib diisi.',
+    });
+    if (!title?.trim()) return;
     const description = await showPromptAlert({
       title: 'Tambah Langkah',
       text: 'Masukkan deskripsi langkah pengerjaan.',
@@ -757,7 +763,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     if (!description?.trim()) return;
     setFormData((current) => ({
       ...current,
-      steps: [...current.steps, { order: current.steps.length + 1, description: description.trim() }],
+      steps: [...current.steps, { order: current.steps.length + 1, title: title.trim(), description: description.trim() }],
     }));
     clearFieldError('steps');
   }
@@ -765,6 +771,13 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
   async function editStep(index) {
     const selected = formData.steps[index];
     if (!selected) return;
+    const title = await showPromptAlert({
+      title: 'Edit Judul Langkah',
+      text: 'Edit judul singkat langkah pengerjaan.',
+      inputValue: selected.title || `Langkah ${selected.order || index + 1}`,
+      requiredMessage: 'Judul langkah wajib diisi.',
+    });
+    if (!title?.trim()) return;
     const description = await showPromptAlert({
       title: 'Edit Langkah',
       text: 'Edit deskripsi langkah pengerjaan.',
@@ -775,7 +788,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     setFormData((current) => ({
       ...current,
       steps: current.steps.map((step, stepIndex) =>
-        stepIndex === index ? { ...step, description: description.trim() } : step
+        stepIndex === index ? { ...step, title: title.trim(), description: description.trim() } : step
       ),
     }));
   }
@@ -1115,10 +1128,11 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
             </div>
             {formData.steps.length ? (
               <div className={`project-upload-table${fieldErrors.steps ? ' has-error' : ''}`}>
-                <div className="project-upload-table__head project-upload-table__head--actions"><span>Langkah</span><span>Deskripsi</span><span>Aksi</span></div>
+                <div className="project-upload-table__head project-upload-table__head--steps"><span>No</span><span>Judul</span><span>Deskripsi</span><span>Aksi</span></div>
                 {formData.steps.map((step, index) => (
-                  <div className="project-upload-table__head project-upload-table__head--actions" key={step.order}>
+                  <div className="project-upload-table__head project-upload-table__head--steps" key={step.order}>
                     <span>{step.order}</span>
+                    <span>{step.title || `Langkah ${step.order || index + 1}`}</span>
                     <span>{step.description}</span>
                     <UploadRowActions onEdit={() => editStep(index)} onDelete={() => deleteStep(index)} />
                   </div>

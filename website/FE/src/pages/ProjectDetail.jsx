@@ -338,35 +338,39 @@ function ProjectHero({ project, tools, nodes, tags, description }) {
   return (
     <section className="project-detail__hero" aria-labelledby="project-detail-title">
       <div className="project-detail__summary">
-        <div className="project-detail__tags" aria-label="Kategori proyek">
-          {tags.map((tag) => (
-            <span key={tag}>{tag}</span>
-          ))}
+        <div className="project-detail__headline">
+          <div className="project-detail__tags" aria-label="Kategori proyek">
+            {tags.map((tag) => (
+              <span key={tag}>{tag}</span>
+            ))}
+          </div>
+
+          <h1 id="project-detail-title">{project.title}</h1>
+          <p>{description}</p>
         </div>
 
-        <h1 id="project-detail-title">{project.title}</h1>
-        <p>{description}</p>
+        <div className="project-detail__side-panel">
+          <div className="project-detail__stats" aria-label="Ringkasan proyek">
+            <StatCard icon={monitorIcon} label="Tingkat" value={project.difficulty || "-"} />
+            <StatCard icon={cpuIcon} label="Node" value={`${formatNumber(nodes.length)}`} />
+            <StatCard icon={fileIcon} label="Platform" value={platform} />
+            <StatCard icon={clockIcon} label="Kategori" value={category} />
+          </div>
 
-        <div className="project-detail__stats" aria-label="Ringkasan proyek">
-          <StatCard icon={monitorIcon} label="Tingkat" value={project.difficulty || "-"} />
-          <StatCard icon={cpuIcon} label="Jumlah Node" value={`${formatNumber(nodes.length)} Node`} />
-          <StatCard icon={fileIcon} label="Platform" value={platform} />
-          <StatCard icon={clockIcon} label="Kategori" value={category} />
-        </div>
-
-        <div className="project-detail__actions">
-          <a className="project-detail__button project-detail__button--primary" href="/ide">
-            Buka ArduFlow IDE <span aria-hidden="true">-&gt;</span>
-          </a>
-          <a
-            className="project-detail__button project-detail__button--secondary"
-            href={getProjectFileHref(project)}
-            target={project.projectFileUrl ? "_blank" : undefined}
-            rel={project.projectFileUrl ? "noreferrer" : undefined}
-          >
-            {getProjectFileLabel(project)}
-            <img src={downloadIcon} alt="" aria-hidden="true" />
-          </a>
+          <div className="project-detail__actions">
+            <a className="project-detail__button project-detail__button--primary" href="/ide">
+              Buka ArduFlow IDE <span aria-hidden="true">-&gt;</span>
+            </a>
+            <a
+              className="project-detail__button project-detail__button--secondary"
+              href={getProjectFileHref(project)}
+              target={project.projectFileUrl ? "_blank" : undefined}
+              rel={project.projectFileUrl ? "noreferrer" : undefined}
+            >
+              {getProjectFileLabel(project)}
+              <img src={downloadIcon} alt="" aria-hidden="true" />
+            </a>
+          </div>
         </div>
       </div>
     </section>
@@ -428,7 +432,7 @@ function StepsSection({ steps }) {
       <h2 id="steps-title">Langkah Pengerjaan</h2>
       {steps.length ? (
         <div className="detail-steps__grid">
-          {visibleList(steps, 5).map((step, index, list) => (
+          {steps.map((step, index, list) => (
             <DetailStep
               step={step}
               index={index}
@@ -535,7 +539,6 @@ export function ProjectDetail() {
         </div>
 
         <CircuitSection project={project} tools={tools} />
-
         <StepsSection steps={steps} />
         <InfoNotice />
       </div>

@@ -749,6 +749,11 @@
   gap: 8px;
 }
 
+.project-upload-table__head--steps {
+  grid-template-columns: 52px minmax(120px, 0.8fr) minmax(180px, 1.2fr) 112px;
+  gap: 8px;
+}
+
 .project-upload-table__head--components {
   grid-template-columns: minmax(96px, 0.75fr) minmax(130px, 1fr) minmax(150px, 1.1fr) minmax(130px, 0.85fr) 112px;
   gap: 8px;
@@ -1288,6 +1293,10 @@
   grid-template-columns: minmax(140px, 1fr) minmax(160px, 1.2fr) 128px;
 }
 
+.project-upload-table__head--steps {
+  grid-template-columns: 56px minmax(140px, 0.8fr) minmax(180px, 1.2fr) 128px;
+}
+
 .project-upload-table__head--components {
   grid-template-columns: minmax(100px, 0.75fr) minmax(140px, 1fr) minmax(160px, 1.1fr) minmax(140px, 0.8fr) 128px;
 }
@@ -1381,6 +1390,10 @@
 
   .project-upload-table__head--actions {
     grid-template-columns: minmax(120px, 1fr) minmax(140px, 1fr) 118px;
+  }
+
+  .project-upload-table__head--steps {
+    grid-template-columns: 48px minmax(120px, 0.9fr) minmax(140px, 1fr) 118px;
   }
 
   .project-upload-table__head--components {
