@@ -36,7 +36,11 @@ async function fetchProjectSnippet(fileUrl) {
     throw new Error("File proyek kosong.");
   }
 
-  JSON.parse(snippet);
+  try {
+    JSON.parse(snippet);
+  } catch {
+    throw new Error("File proyek tidak valid (bukan JSON).");
+  }
 
   return snippet;
 }
