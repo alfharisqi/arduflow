@@ -106,7 +106,7 @@ function statusLabel(status) {
   const labels = {
     pending: 'Menunggu Pembayaran',
     proof_uploaded: 'Bukti Terkirim, Menunggu Review Admin',
-    paid: 'Lunas, Akses Workshop Aktif',
+    paid: 'Lunas, Akses Aktif',
     rejected: 'Ditolak, Upload Bukti Baru',
     failed: 'Gagal',
     cancelled: 'Dibatalkan',
@@ -213,7 +213,7 @@ export function UserTransactions() {
       if (user.id || user.userId) params.userId = user.id || user.userId;
       if (user.email) params.email = user.email;
       setTransactions(await fetchTransactions(params));
-      setMessage('Bukti pembayaran berhasil dikirim. Admin akan memverifikasi pembayaran. Workshop aktif setelah disetujui.');
+      setMessage('Bukti pembayaran berhasil dikirim. Admin akan memverifikasi pembayaran. Akses aktif setelah disetujui.');
     } catch (uploadError) {
       setMessage(uploadError.message || 'Bukti pembayaran gagal diupload.');
     }
@@ -326,7 +326,7 @@ export function UserTransactions() {
             <div className="user-payment-instructions__head">
               <div>
                 <h2 id="payment-instructions-title">Butuh Aksi Kamu</h2>
-                <p>Selesaikan pembayaran dan upload bukti agar akses workshop bisa diaktifkan.</p>
+                <p>Selesaikan pembayaran dan upload bukti agar akses item bisa diaktifkan.</p>
               </div>
             </div>
 
@@ -437,7 +437,7 @@ export function UserTransactions() {
             <div className="user-transactions-header">
               <div>
                 <h2 id="transactions-title">Riwayat Transaksi</h2>
-                <p>Pembayaran workshop, program, atau materi yang terhubung dengan akun kamu.</p>
+                <p>Pembayaran workshop, program, proyek, atau materi yang terhubung dengan akun kamu.</p>
               </div>
               <label>
                 <span className="sr-only">Cari transaksi</span>

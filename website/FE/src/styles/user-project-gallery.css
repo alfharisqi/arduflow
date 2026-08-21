@@ -171,7 +171,7 @@
 .user-project-card {
   box-sizing: border-box;
   width: 298px;
-  height: 310px;
+  min-height: 348px;
   padding: 16px;
   border: 1px solid #e2e8f0;
   border-radius: 16px;
@@ -193,8 +193,24 @@
   align-items: flex-start;
   gap: 8px;
   width: 258px;
-  min-height: 123px;
+  min-height: 158px;
   margin-top: 16px;
+}
+
+.user-project-card__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  margin-top: auto;
+  padding: 0 14px;
+  border-radius: 6px;
+  background: #2563eb;
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
 }
 
 .user-project-card h3 {
