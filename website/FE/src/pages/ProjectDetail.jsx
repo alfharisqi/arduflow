@@ -3,8 +3,6 @@ import { compressToEncodedURIComponent } from "lz-string";
 
 import monitorIcon from "../assets/icons/icon-monitor-1.svg";
 import cpuIcon from "../assets/icons/icon-cpu-1.svg";
-import zapIcon from "../assets/icons/icon-zap-1.svg";
-import workflowIcon from "../assets/icons/icon-workflow-1.svg";
 import clockIcon from "../assets/icons/icon-clock-1.svg";
 import fileIcon from "../assets/icons/icon-file-text-1.svg";
 import downloadIcon from "../assets/icons/icon-downloadsim-1.svg";
@@ -13,6 +11,8 @@ import {
   fetchProjectSubmissions,
   isPublicProject,
 } from "../services/projectApi.js";
+import { NodeSprite } from "../components/NodeSprite.jsx";
+import { getProjectNodeType } from "../config/projectNodes.js";
 
 function getProjectIdFromUrl() {
   return new URLSearchParams(window.location.search).get("id") || "";
@@ -251,12 +251,23 @@ function StepArrow() {
   return <span className="detail-step-arrow" aria-hidden="true">-&gt;</span>;
 }
 
-function NodeIcon({ index }) {
-  const icon = index % 2 === 0 ? zapIcon : workflowIcon;
+function getNodeName(node, index) {
+  return String(node?.name || node?.title || `Node ${index + 1}`).trim();
+}
+
+function NodeIcon({ node, index }) {
+  const nodeType = getProjectNodeType(node);
+  const nodeName = getNodeName(node, index);
 
   return (
     <span className="detail-node-icon">
-      <img src={icon} alt="" aria-hidden="true" />
+      <NodeSprite
+        name={nodeType}
+        scale={0.34}
+        maxWidth={58}
+        maxHeight={42}
+        title={nodeName}
+      />
     </span>
   );
 }
@@ -557,9 +568,9 @@ function NodesCard({ nodes }) {
         <ul>
           {visibleList(nodes, 4).map((node, index) => (
             <li key={`${node.name || node.title || "node"}-${index}`}>
-              <NodeIcon index={index} />
+              <NodeIcon node={node} index={index} />
               <span>
-                <strong>{node.name || node.title || `Node ${index + 1}`}</strong>
+                <strong>{getNodeName(node, index)}</strong>
                 {getNodeDescription(node)}
               </span>
             </li>
