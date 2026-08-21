@@ -10,23 +10,36 @@ if ($path !== '/' && is_file($file)) {
 }
 
 if (str_starts_with($path, '/uploads/')) {
-    $uploadPath = realpath(__DIR__ . '/../storage' . $path);
-    $uploadRoot = realpath(__DIR__ . '/../storage/uploads');
+    $uploadCandidates = [
+        [
+            'path' => realpath(__DIR__ . '/../storage' . $path),
+            'root' => realpath(__DIR__ . '/../storage/uploads'),
+        ],
+        [
+            'path' => realpath(__DIR__ . '/..' . $path),
+            'root' => realpath(__DIR__ . '/../uploads'),
+        ],
+    ];
 
-    if (
-        $uploadPath !== false
-        && $uploadRoot !== false
-        && str_starts_with($uploadPath, $uploadRoot)
-        && is_file($uploadPath)
-    ) {
-        $mimeType = function_exists('mime_content_type')
-            ? mime_content_type($uploadPath)
-            : 'application/octet-stream';
+    foreach ($uploadCandidates as $candidate) {
+        $uploadPath = $candidate['path'];
+        $uploadRoot = $candidate['root'];
 
-        header('Content-Type: ' . ($mimeType ?: 'application/octet-stream'));
-        header('Content-Length: ' . filesize($uploadPath));
-        readfile($uploadPath);
-        return true;
+        if (
+            $uploadPath !== false
+            && $uploadRoot !== false
+            && str_starts_with($uploadPath, $uploadRoot . DIRECTORY_SEPARATOR)
+            && is_file($uploadPath)
+        ) {
+            $mimeType = function_exists('mime_content_type')
+                ? mime_content_type($uploadPath)
+                : 'application/octet-stream';
+
+            header('Content-Type: ' . ($mimeType ?: 'application/octet-stream'));
+            header('Content-Length: ' . filesize($uploadPath));
+            readfile($uploadPath);
+            return true;
+        }
     }
 }
 

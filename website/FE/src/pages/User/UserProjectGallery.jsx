@@ -7,6 +7,12 @@ import projectImage from '../../assets/images/workshop-experience-student.png';
 import { ProfileAvatar } from '../../features/profile-image-crop/ProfileAvatar.jsx';
 import { WorkshopImageCropper } from '../../features/profile-image-crop/WorkshopImageCropper.jsx';
 import { TinyMCEEditor } from '../../components/TinyMCEEditor.jsx';
+import { NodeSprite } from '../../components/NodeSprite.jsx';
+import {
+  PROJECT_NODE_CATALOG,
+  getProjectNodeType,
+  normalizeProjectNode,
+} from '../../config/projectNodes.js';
 import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
 import { showConfirmAlert, showPromptAlert, showSuccessAlert } from '../../utils/alerts.js';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
@@ -26,45 +32,6 @@ const PROJECT_API_URL = apiEndpoint(
   import.meta.env.VITE_PROJECT_API_URL,
   '/api/projects-api.php'
 );
-
-const ARDUFLOW_NODE_CATALOG = [
-  { category: 'Hardware I/O', name: 'Digital Out', description: 'PIN: HIGH / LOW' },
-  { category: 'Hardware I/O', name: 'Digital In', description: 'READ PIN STATUS' },
-  { category: 'Hardware I/O', name: 'PWM / Analog Out', description: '0 - 255 RANGE' },
-  { category: 'Hardware I/O', name: 'Servo Motor', description: '0 - 180° DEGREES' },
-  { category: 'Hardware I/O', name: 'Analog In', description: '0 - 1023 RANGE' },
-  { category: 'Hardware I/O', name: 'Value Monitor', description: 'WATCH VALUES' },
-  { category: 'Hardware I/O', name: 'Serial TX', description: 'SEND DATA' },
-  { category: 'Hardware I/O', name: 'Serial RX Switch', description: 'MATCH COMMANDS' },
-  { category: 'Hardware I/O', name: 'Serial RX (String)', description: 'RAW INCOMING TEXT' },
-  { category: 'Hardware I/O', name: 'SoftwareSerial', description: 'VIRTUAL SERIAL PORT' },
-  { category: 'Hardware I/O', name: 'JSON Parser', description: 'EXTRACT JSON KEYS' },
-  { category: 'Hardware I/O', name: 'JSON Output', description: 'BUILD JSON STRING' },
-  { category: 'Hardware I/O', name: 'EEPROM Store', description: 'PERSIST STATE' },
-  { category: 'Hardware I/O', name: 'EEPROM Read', description: 'READ ON BOOT' },
-  { category: 'Hardware I/O', name: 'Delay', description: 'SIGNAL DELAY MS' },
-  { category: 'Hardware I/O', name: 'Timer', description: 'COUNT UP / DOWN' },
-  { category: 'Hardware I/O', name: 'Schedule', description: 'TIME RECURRING' },
-  { category: 'Hardware I/O', name: 'Push Button', description: 'MANUAL MOMENTARY' },
-  { category: 'Hardware I/O', name: 'Square Wave', description: 'OSCILLATOR SIGNAL' },
-  { category: 'Hardware I/O', name: 'Counter Up/Down', description: 'TRIGGER COUNT' },
-  { category: 'Hardware I/O', name: 'Math Operation', description: 'ARITHMETIC OPERATORS' },
-  { category: 'Indicators', name: 'Light Bulb', description: 'ON/OFF DISPLAY' },
-  { category: 'Indicators', name: 'Gauge Display', description: 'VISUAL ANALOG' },
-  { category: 'Logic & Control', name: 'Boolean (High/Low)', description: 'TOGGLE SIGNAL' },
-  { category: 'Logic & Control', name: 'Numeric Value', description: 'STATIC NUMBER' },
-  { category: 'Logic & Control', name: 'Boolean Value', description: '0 / 1 / TRUE / FALSE' },
-  { category: 'Logic & Control', name: 'String Value', description: 'CUSTOM TEXT / STRING' },
-  { category: 'Logic & Control', name: 'If Then Else', description: 'CONDITIONAL BRANCH' },
-  { category: 'Logic & Control', name: 'Comparator', description: 'A > B?' },
-  { category: 'Logic & Control', name: 'Logic AND', description: 'TRUE IF BOTH' },
-  { category: 'Logic & Control', name: 'Logic NOT', description: 'INVERT SIGNAL' },
-  { category: 'Logic & Control', name: 'Logic OR', description: 'TRUE IF ANY' },
-  { category: 'Logic & Control', name: 'Logic OR +', description: 'ADJUSTABLE INPUTS' },
-  { category: 'Logic & Control', name: 'Pulse Timer', description: 'HIGH FOR X MILLISECONDS' },
-  { category: 'Logic & Control', name: 'Latch (SR / Hold)', description: 'SET / RESET FLIP-FLOP' },
-  { category: 'Logic & Control', name: 'Shift Register 8-Ch', description: '74HC595 / 8-BIT SIPO' },
-];
 
 const WOKWI_COMPONENT_CATALOG = [
   { category: 'Board', name: 'Arduino Uno R3', specification: 'ATmega328P development board', wokwiElement: 'wokwi-arduino-uno' },
@@ -323,7 +290,7 @@ function getInitialProjectForm(project) {
         ? { name: tool, specification: '', image: null, imageFile: null }
         : { ...tool, imageFile: null }
     )),
-    nodes: normalizeProjectList(project?.nodes || payload.nodes),
+    nodes: normalizeProjectList(project?.nodes || payload.nodes).map(normalizeProjectNode),
     steps: normalizeProjectList(project?.steps || payload.steps),
     isPaid: Boolean(payment.isPaid || project?.isPaid || payload.isPaid),
     price: payment.price || project?.price || payload.price || '',
@@ -440,6 +407,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
   const [circuitPreviewUrl, setCircuitPreviewUrl] = useState('');
   const [selectedToolKey, setSelectedToolKey] = useState('');
   const [selectedNodeKey, setSelectedNodeKey] = useState('');
+  const [nodeSearch, setNodeSearch] = useState('');
   const existingProjectFileName = getProjectFileName(initialProject?.projectFile);
   const existingCoverImageName = getProjectFileName(initialProject?.coverImage);
   const existingCircuitImageName = getProjectFileName(initialProject?.circuitImage);
@@ -452,6 +420,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     setNewTag('');
     setSelectedToolKey('');
     setSelectedNodeKey('');
+    setNodeSearch('');
   }, [initialProject, mode, projectId]);
 
   useEffect(() => {
@@ -695,8 +664,23 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     }));
   }
 
+  const filteredNodeCatalog = useMemo(() => {
+    const keyword = nodeSearch.trim().toLowerCase();
+
+    if (!keyword) {
+      return PROJECT_NODE_CATALOG;
+    }
+
+    return PROJECT_NODE_CATALOG.filter((node) =>
+      [node.type, node.name, node.category]
+        .join(' ')
+        .toLowerCase()
+        .includes(keyword)
+    );
+  }, [nodeSearch]);
+
   function addNode() {
-    const selectedNode = ARDUFLOW_NODE_CATALOG[Number(selectedNodeKey)];
+    const selectedNode = PROJECT_NODE_CATALOG.find((node) => node.type === selectedNodeKey);
 
     if (!selectedNode) {
       setFieldErrors((current) => ({
@@ -708,14 +692,14 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
 
     setFormData((current) => ({
       ...current,
-      nodes: [...current.nodes, selectedNode],
+      nodes: [...current.nodes, { ...selectedNode }],
     }));
     setSelectedNodeKey('');
     clearFieldError('nodes');
   }
 
   function editNode(index) {
-    const selectedNode = ARDUFLOW_NODE_CATALOG[Number(selectedNodeKey)];
+    const selectedNode = PROJECT_NODE_CATALOG.find((node) => node.type === selectedNodeKey);
 
     if (!selectedNode) {
       setFieldErrors((current) => ({
@@ -728,7 +712,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     setFormData((current) => ({
       ...current,
       nodes: current.nodes.map((node, nodeIndex) =>
-        nodeIndex === index ? selectedNode : node
+        nodeIndex === index ? { ...selectedNode } : node
       ),
     }));
     setSelectedNodeKey('');
@@ -1087,30 +1071,55 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
             <div className="project-upload-section-head">
               <div><h3>Node ArduFlow yang Digunakan *</h3><p>Pilih node dari katalog ArduFlow yang digunakan dalam proyek ini</p></div>
             </div>
-            <div className="project-upload-node-picker">
-              <select
-                value={selectedNodeKey}
-                onChange={(event) => {
-                  setSelectedNodeKey(event.target.value);
-                  clearFieldError('nodes');
-                }}
-              >
-                <option value="">Pilih node ArduFlow</option>
-                {ARDUFLOW_NODE_CATALOG.map((node, index) => (
-                  <option value={index} key={`${node.category}-${node.name}`}>
-                    {node.category} - {node.name} - {node.description}
-                  </option>
-                ))}
-              </select>
+            <div className="project-upload-node-search">
+              <input
+                type="search"
+                placeholder="Cari node..."
+                value={nodeSearch}
+                onChange={(event) => setNodeSearch(event.target.value)}
+              />
               <button type="button" onClick={addNode}><PlusIcon /> Tambah Node</button>
+            </div>
+            <div className="project-upload-node-grid" role="listbox" aria-label="Pilih node ArduFlow">
+              {filteredNodeCatalog.map((node) => {
+                const isSelected = selectedNodeKey === node.type;
+
+                return (
+                  <button
+                    type="button"
+                    className={`project-upload-node-card${isSelected ? ' is-selected' : ''}`}
+                    key={node.type}
+                    onClick={() => {
+                      setSelectedNodeKey(node.type);
+                      clearFieldError('nodes');
+                    }}
+                    aria-pressed={isSelected}
+                  >
+                    <span className="project-upload-node-card__sprite">
+                      <NodeSprite name={node.type} scale={0.54} maxWidth={128} maxHeight={96} title={node.name} />
+                    </span>
+                    <span>{node.name}</span>
+                    <small>{node.category}</small>
+                  </button>
+                );
+              })}
+              {filteredNodeCatalog.length === 0 ? (
+                <div className="project-upload-node-card project-upload-node-card--empty">
+                  <span>Node tidak ditemukan</span>
+                  <small>Coba kata kunci lain</small>
+                </div>
+              ) : null}
             </div>
             {formData.nodes.length ? (
               <div className={`project-upload-table${fieldErrors.nodes ? ' has-error' : ''}`}>
-                <div className="project-upload-table__head project-upload-table__head--nodes"><span>Kategori</span><span>Node</span><span>Keterangan</span><span>Aksi</span></div>
+                <div className="project-upload-table__head project-upload-table__head--nodes"><span>Node</span><span>Kategori</span><span>Keterangan</span><span>Aksi</span></div>
                 {formData.nodes.map((node, index) => (
                   <div className="project-upload-table__head project-upload-table__head--nodes" key={`${node.name}-${index}`}>
+                    <span className="project-upload-selected-node">
+                      <NodeSprite name={getProjectNodeType(node)} scale={0.34} title={node.name} />
+                      <b>{node.name}</b>
+                    </span>
                     <span>{node.category || '-'}</span>
-                    <span>{node.name}</span>
                     <span>{node.description || '-'}</span>
                     <UploadRowActions onEdit={() => editNode(index)} onDelete={() => deleteNode(index)} />
                   </div>

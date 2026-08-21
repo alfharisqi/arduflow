@@ -828,19 +828,26 @@ function certificateFilePath(array $file): string
 
     $candidate = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $candidate);
     $candidate = ltrim($candidate, DIRECTORY_SEPARATOR);
-    $path = $apiRoot . DIRECTORY_SEPARATOR . $candidate;
-    $realPath = realpath($path);
     $realRoot = realpath($apiRoot);
+    $paths = [
+        $apiRoot . DIRECTORY_SEPARATOR . $candidate,
+        $apiRoot . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . $candidate,
+    ];
 
-    if (
-        $realPath === false ||
-        $realRoot === false ||
-        !str_starts_with($realPath, $realRoot . DIRECTORY_SEPARATOR)
-    ) {
-        return '';
+    foreach (array_unique($paths) as $path) {
+        $realPath = realpath($path);
+
+        if (
+            $realPath !== false &&
+            $realRoot !== false &&
+            str_starts_with($realPath, $realRoot . DIRECTORY_SEPARATOR) &&
+            is_file($realPath)
+        ) {
+            return $realPath;
+        }
     }
 
-    return $realPath;
+    return '';
 }
 
 function certificateEmailHtml(array $certificate, string $fileUrl): string
@@ -1064,6 +1071,7 @@ function handleCertificateUpload(PDO $pdo): void
     }
 
     $uploadDirectory = dirname(__DIR__)
+        . DIRECTORY_SEPARATOR . 'storage'
         . DIRECTORY_SEPARATOR . 'uploads'
         . DIRECTORY_SEPARATOR . 'certificates';
 

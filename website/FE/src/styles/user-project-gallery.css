@@ -760,8 +760,23 @@
 }
 
 .project-upload-table__head--nodes {
-  grid-template-columns: minmax(120px, 0.85fr) minmax(130px, 1fr) minmax(170px, 1.2fr) 112px;
+  grid-template-columns: minmax(190px, 1.1fr) minmax(120px, 0.75fr) minmax(170px, 1.1fr) 112px;
   gap: 8px;
+}
+
+.node-sprite {
+  display: inline-block;
+  flex: 0 0 auto;
+  background-repeat: no-repeat;
+  background-color: transparent;
+}
+
+.node-sprite--missing {
+  width: 64px;
+  height: 44px;
+  border: 1px dashed #93a4b8;
+  border-radius: 6px;
+  background: #f8fafc;
 }
 
 .project-upload-node-picker {
@@ -798,6 +813,112 @@
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.project-upload-node-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.project-upload-node-search input {
+  min-width: 0;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid #dbdbdb;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #111827;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+}
+
+.project-upload-node-search button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 132px;
+  height: 42px;
+  border: 0;
+  border-radius: 6px;
+  background: #2563eb;
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.project-upload-node-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.project-upload-node-card {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 7px;
+  min-height: 154px;
+  padding: 12px 8px 10px;
+  border: 1px solid #dce4ee;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  font-family: 'Inter', sans-serif;
+  text-align: center;
+  cursor: pointer;
+}
+
+.project-upload-node-card.is-selected {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.16);
+}
+
+.project-upload-node-card__sprite {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 128px;
+  height: 96px;
+  overflow: hidden;
+}
+
+.project-upload-node-card span:not(.project-upload-node-card__sprite) {
+  color: #111827;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.project-upload-node-card small {
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.project-upload-node-card--empty {
+  min-height: 96px;
+  cursor: default;
+}
+
+.project-upload-selected-node {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.project-upload-selected-node b {
+  overflow: hidden;
+  color: #111827;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .project-upload-table__head > span {
@@ -1302,7 +1423,7 @@
 }
 
 .project-upload-table__head--nodes {
-  grid-template-columns: minmax(130px, 0.85fr) minmax(140px, 1fr) minmax(170px, 1.15fr) 128px;
+  grid-template-columns: minmax(200px, 1.1fr) minmax(130px, 0.75fr) minmax(170px, 1.1fr) 128px;
 }
 
 .project-upload-empty {
@@ -1366,6 +1487,10 @@
   .project-upload-actions {
     position: static;
   }
+
+  .project-upload-node-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
@@ -1401,14 +1526,30 @@
   }
 
   .project-upload-table__head--nodes {
-    grid-template-columns: minmax(120px, 0.85fr) minmax(130px, 1fr) minmax(150px, 1.1fr) 118px;
+    grid-template-columns: minmax(180px, 1.1fr) minmax(120px, 0.75fr) minmax(150px, 1.1fr) 118px;
   }
 
-  .project-upload-node-picker {
+  .project-upload-node-picker,
+  .project-upload-node-search {
     grid-template-columns: 1fr;
   }
 
-  .project-upload-node-picker button {
+  .project-upload-node-picker button,
+  .project-upload-node-search button {
     width: max-content;
+  }
+
+  .project-upload-node-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .project-upload-node-card {
+    min-height: 138px;
+    padding-inline: 6px;
+  }
+
+  .project-upload-node-card__sprite {
+    width: 112px;
+    height: 84px;
   }
 }
