@@ -762,7 +762,7 @@ try {
         $incoming = readProjectBody();
         $existingPayload = json_decode((string) $existingRow['payload_json'], true);
         $existingPayload = is_array($existingPayload) ? $existingPayload : [];
-        $project = array_replace_recursive($existingPayload, $incoming);
+        $project = array_replace($existingPayload, $incoming);
 
         $title = trim((string) ($incoming['title'] ?? $existingRow['title']));
         $category = trim((string) ($incoming['category'] ?? $existingRow['category']));

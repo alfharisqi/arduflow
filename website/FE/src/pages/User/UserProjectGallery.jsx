@@ -12,6 +12,7 @@ import {
   PROJECT_NODE_CATALOG,
   getProjectNodeType,
   normalizeProjectNode,
+  normalizeNodeType,
 } from '../../config/projectNodes.js';
 import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
 import { showConfirmAlert, showPromptAlert, showSuccessAlert } from '../../utils/alerts.js';
@@ -69,6 +70,8 @@ const SUPPORTED_WOKWI_ELEMENTS = new Set(
     .map((component) => component.wokwiElement)
     .filter(Boolean)
 );
+
+const MANUAL_PICKER_VALUE = '__manual__';
 
 function getStoredUser() {
   try {
@@ -307,6 +310,22 @@ function getInitialProjectForm(project) {
   };
 }
 
+function getEmptyManualTool() {
+  return {
+    category: '',
+    name: '',
+    specification: '',
+  };
+}
+
+function getEmptyManualNode() {
+  return {
+    name: '',
+    category: '',
+    description: '',
+  };
+}
+
 function RichTextEditor({ value, onChange, error }) {
   return (
     <div className={`project-upload-editor${error ? ' has-error' : ''}`}>
@@ -408,6 +427,10 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
   const [selectedToolKey, setSelectedToolKey] = useState('');
   const [selectedNodeKey, setSelectedNodeKey] = useState('');
   const [nodeSearch, setNodeSearch] = useState('');
+  const [isNodePickerOpen, setIsNodePickerOpen] = useState(false);
+  const [manualTool, setManualTool] = useState(() => getEmptyManualTool());
+  const [manualNode, setManualNode] = useState(() => getEmptyManualNode());
+  const [projectFilePreview, setProjectFilePreview] = useState('');
   const existingProjectFileName = getProjectFileName(initialProject?.projectFile);
   const existingCoverImageName = getProjectFileName(initialProject?.coverImage);
   const existingCircuitImageName = getProjectFileName(initialProject?.circuitImage);
@@ -421,6 +444,10 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     setSelectedToolKey('');
     setSelectedNodeKey('');
     setNodeSearch('');
+    setIsNodePickerOpen(false);
+    setManualTool(getEmptyManualTool());
+    setManualNode(getEmptyManualNode());
+    setProjectFilePreview('');
   }, [initialProject, mode, projectId]);
 
   useEffect(() => {
@@ -477,7 +504,19 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     }
   }
 
-  function handleFileChange(event) {
+  function handleManualToolChange(event) {
+    const { name, value } = event.target;
+    setManualTool((current) => ({ ...current, [name]: value }));
+    clearFieldError('tools');
+  }
+
+  function handleManualNodeChange(event) {
+    const { name, value } = event.target;
+    setManualNode((current) => ({ ...current, [name]: value }));
+    clearFieldError('nodes');
+  }
+
+  async function handleFileChange(event) {
     const { name, files } = event.target;
     const file = files?.[0] || null;
     event.target.value = '';
@@ -508,7 +547,11 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
       return;
     }
 
-    if (name === 'projectFile' && file) {
+    if (name === 'projectFile') {
+      setProjectFilePreview('');
+
+      if (!file) return;
+
       const extension = file.name.split('.').pop()?.toLowerCase() || '';
 
       if (!['json', 'flow'].includes(extension)) {
@@ -525,6 +568,16 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
           projectFile: 'Ukuran file proyek maksimal 10 MB.',
         }));
         return;
+      }
+
+      try {
+        setProjectFilePreview(await file.text());
+      } catch (error) {
+        console.error('File proyek tidak dapat dibaca:', error);
+        setFieldErrors((current) => ({
+          ...current,
+          projectFile: 'File proyek berhasil dipilih, tetapi isi file tidak dapat ditampilkan.',
+        }));
       }
     }
 
@@ -579,6 +632,37 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
   }
 
   function addTool() {
+    if (selectedToolKey === MANUAL_PICKER_VALUE) {
+      const name = manualTool.name.trim();
+
+      if (!name) {
+        setFieldErrors((current) => ({
+          ...current,
+          tools: 'Nama alat atau komponen manual wajib diisi.',
+        }));
+        return;
+      }
+
+      setFormData((current) => ({
+        ...current,
+        tools: [
+          ...current.tools,
+          {
+            category: manualTool.category.trim() || 'Manual',
+            name,
+            specification: manualTool.specification.trim(),
+            wokwiElement: '',
+            image: null,
+            imageFile: null,
+            source: 'manual',
+          },
+        ],
+      }));
+      setManualTool(getEmptyManualTool());
+      clearFieldError('tools');
+      return;
+    }
+
     const selectedTool = WOKWI_COMPONENT_CATALOG[Number(selectedToolKey)];
 
     if (!selectedTool) {
@@ -598,6 +682,37 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
   }
 
   function editTool(index) {
+    if (selectedToolKey === MANUAL_PICKER_VALUE) {
+      const name = manualTool.name.trim();
+
+      if (!name) {
+        setFieldErrors((current) => ({
+          ...current,
+          tools: 'Isi data manual, lalu klik Edit pada baris komponen.',
+        }));
+        return;
+      }
+
+      setFormData((current) => ({
+        ...current,
+        tools: current.tools.map((tool, toolIndex) =>
+          toolIndex === index
+            ? {
+                ...tool,
+                category: manualTool.category.trim() || 'Manual',
+                name,
+                specification: manualTool.specification.trim(),
+                wokwiElement: '',
+                source: 'manual',
+              }
+            : tool
+        ),
+      }));
+      setManualTool(getEmptyManualTool());
+      clearFieldError('tools');
+      return;
+    }
+
     const selectedTool = WOKWI_COMPONENT_CATALOG[Number(selectedToolKey)];
 
     if (!selectedTool) {
@@ -680,6 +795,35 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
   }, [nodeSearch]);
 
   function addNode() {
+    if (selectedNodeKey === MANUAL_PICKER_VALUE) {
+      const name = manualNode.name.trim();
+
+      if (!name) {
+        setFieldErrors((current) => ({
+          ...current,
+          nodes: 'Nama node manual wajib diisi.',
+        }));
+        return;
+      }
+
+      setFormData((current) => ({
+        ...current,
+        nodes: [
+          ...current.nodes,
+          {
+            type: `manual-${normalizeNodeType(name) || crypto.randomUUID().slice(0, 8)}`,
+            name,
+            category: manualNode.category.trim() || 'Manual',
+            description: manualNode.description.trim(),
+            source: 'manual',
+          },
+        ],
+      }));
+      setManualNode(getEmptyManualNode());
+      clearFieldError('nodes');
+      return;
+    }
+
     const selectedNode = PROJECT_NODE_CATALOG.find((node) => node.type === selectedNodeKey);
 
     if (!selectedNode) {
@@ -699,6 +843,37 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
   }
 
   function editNode(index) {
+    if (selectedNodeKey === MANUAL_PICKER_VALUE) {
+      const name = manualNode.name.trim();
+
+      if (!name) {
+        setFieldErrors((current) => ({
+          ...current,
+          nodes: 'Isi data manual, lalu klik Edit pada baris node.',
+        }));
+        return;
+      }
+
+      setFormData((current) => ({
+        ...current,
+        nodes: current.nodes.map((node, nodeIndex) =>
+          nodeIndex === index
+            ? {
+                ...node,
+                type: `manual-${normalizeNodeType(name) || crypto.randomUUID().slice(0, 8)}`,
+                name,
+                category: manualNode.category.trim() || 'Manual',
+                description: manualNode.description.trim(),
+                source: 'manual',
+              }
+            : node
+        ),
+      }));
+      setManualNode(getEmptyManualNode());
+      clearFieldError('nodes');
+      return;
+    }
+
     const selectedNode = PROJECT_NODE_CATALOG.find((node) => node.type === selectedNodeKey);
 
     if (!selectedNode) {
@@ -1048,8 +1223,25 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
                   </option>
                 ))}
               </select>
+              <button
+                type="button"
+                className={selectedToolKey === MANUAL_PICKER_VALUE ? 'is-active' : ''}
+                onClick={() => {
+                  setSelectedToolKey(MANUAL_PICKER_VALUE);
+                  clearFieldError('tools');
+                }}
+              >
+                <PlusIcon /> Add Manual Item
+              </button>
               <button type="button" onClick={addTool}><PlusIcon /> Tambah Item</button>
             </div>
+            {selectedToolKey === MANUAL_PICKER_VALUE ? (
+              <div className="project-upload-manual-grid" aria-label="Tambah alat atau komponen manual">
+                <input name="category" type="text" value={manualTool.category} onChange={handleManualToolChange} placeholder="Kategori manual" />
+                <input name="name" type="text" value={manualTool.name} onChange={handleManualToolChange} placeholder="Nama alat/komponen *" />
+                <input name="specification" type="text" value={manualTool.specification} onChange={handleManualToolChange} placeholder="Keterangan/spesifikasi" />
+              </div>
+            ) : null}
             <div className={`project-upload-table${fieldErrors.tools ? ' has-error' : ''}`}>
               <div className="project-upload-table__head project-upload-table__head--components"><span>Kategori</span><span>Nama Alat/Komponen</span><span>Keterangan/Spesifikasi</span><span>Gambar</span><span>Aksi</span></div>
               {formData.tools.length ? formData.tools.map((tool, index) => (
@@ -1070,46 +1262,73 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
           <section className="project-upload-list-section">
             <div className="project-upload-section-head">
               <div><h3>Node ArduFlow yang Digunakan *</h3><p>Pilih node dari katalog ArduFlow yang digunakan dalam proyek ini</p></div>
+              <button
+                type="button"
+                onClick={() => setIsNodePickerOpen((current) => !current)}
+              >
+                <PlusIcon /> {isNodePickerOpen ? 'Tutup Node' : 'Tambah Node'}
+              </button>
             </div>
-            <div className="project-upload-node-search">
-              <input
-                type="search"
-                placeholder="Cari node..."
-                value={nodeSearch}
-                onChange={(event) => setNodeSearch(event.target.value)}
-              />
-              <button type="button" onClick={addNode}><PlusIcon /> Tambah Node</button>
-            </div>
-            <div className="project-upload-node-grid" role="listbox" aria-label="Pilih node ArduFlow">
-              {filteredNodeCatalog.map((node) => {
-                const isSelected = selectedNodeKey === node.type;
-
-                return (
+            {isNodePickerOpen ? (
+              <div className="project-upload-node-picker-panel">
+                <div className="project-upload-node-search">
+                  <input
+                    type="search"
+                    placeholder="Cari node..."
+                    value={nodeSearch}
+                    onChange={(event) => setNodeSearch(event.target.value)}
+                  />
                   <button
                     type="button"
-                    className={`project-upload-node-card${isSelected ? ' is-selected' : ''}`}
-                    key={node.type}
+                    className={selectedNodeKey === MANUAL_PICKER_VALUE ? 'is-active' : ''}
                     onClick={() => {
-                      setSelectedNodeKey(node.type);
+                      setSelectedNodeKey(MANUAL_PICKER_VALUE);
                       clearFieldError('nodes');
                     }}
-                    aria-pressed={isSelected}
                   >
-                    <span className="project-upload-node-card__sprite">
-                      <NodeSprite name={node.type} scale={0.54} maxWidth={128} maxHeight={96} title={node.name} />
-                    </span>
-                    <span>{node.name}</span>
-                    <small>{node.category}</small>
+                    <PlusIcon /> Manual
                   </button>
-                );
-              })}
-              {filteredNodeCatalog.length === 0 ? (
-                <div className="project-upload-node-card project-upload-node-card--empty">
-                  <span>Node tidak ditemukan</span>
-                  <small>Coba kata kunci lain</small>
+                  <button type="button" onClick={addNode}><PlusIcon /> Tambah Node</button>
                 </div>
-              ) : null}
-            </div>
+                {selectedNodeKey === MANUAL_PICKER_VALUE ? (
+                  <div className="project-upload-manual-grid" aria-label="Tambah node ArduFlow manual">
+                    <input name="category" type="text" value={manualNode.category} onChange={handleManualNodeChange} placeholder="Kategori manual" />
+                    <input name="name" type="text" value={manualNode.name} onChange={handleManualNodeChange} placeholder="Nama node *" />
+                    <input name="description" type="text" value={manualNode.description} onChange={handleManualNodeChange} placeholder="Keterangan node" />
+                  </div>
+                ) : null}
+                <div className="project-upload-node-grid" role="listbox" aria-label="Pilih node ArduFlow">
+                  {filteredNodeCatalog.map((node) => {
+                    const isSelected = selectedNodeKey === node.type;
+
+                    return (
+                      <button
+                        type="button"
+                        className={`project-upload-node-card${isSelected ? ' is-selected' : ''}`}
+                        key={node.type}
+                        onClick={() => {
+                          setSelectedNodeKey(node.type);
+                          clearFieldError('nodes');
+                        }}
+                        aria-pressed={isSelected}
+                      >
+                        <span className="project-upload-node-card__sprite">
+                          <NodeSprite name={node.type} scale={0.54} maxWidth={128} maxHeight={96} title={node.name} />
+                        </span>
+                        <span>{node.name}</span>
+                        <small>{node.category}</small>
+                      </button>
+                    );
+                  })}
+                  {filteredNodeCatalog.length === 0 ? (
+                    <div className="project-upload-node-card project-upload-node-card--empty">
+                      <span>Node tidak ditemukan</span>
+                      <small>Coba kata kunci lain</small>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
             {formData.nodes.length ? (
               <div className={`project-upload-table${fieldErrors.nodes ? ' has-error' : ''}`}>
                 <div className="project-upload-table__head project-upload-table__head--nodes"><span>Node</span><span>Kategori</span><span>Keterangan</span><span>Aksi</span></div>
@@ -1181,6 +1400,15 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
               <small>{existingProjectFileName && !formData.projectFile ? 'File lama tetap digunakan jika tidak diganti' : 'Format : json, flow | Maksimal 10 MB'}</small>
             </label>
             {fieldErrors.projectFile ? <em className="project-upload-error">{fieldErrors.projectFile}</em> : null}
+            {projectFilePreview ? (
+              <div className="project-upload-file-preview" aria-label="Preview isi file proyek">
+                <div>
+                  <strong>Code File Proyek</strong>
+                  <span>{formData.projectFile?.name}</span>
+                </div>
+                <pre>{projectFilePreview}</pre>
+              </div>
+            ) : null}
             <p>Pastikan file yang diupload sudah berfungsi dengan baik</p>
           </div>
         </form>
@@ -1407,6 +1635,14 @@ export function UserProjectGallery() {
     });
   }, [projects, searchQuery, sortBy]);
 
+  const editingInitialProject = useMemo(() => {
+    if (projectFormMode !== 'edit' || !editProjectId) {
+      return null;
+    }
+
+    return projects.find((project) => String(project.id) === String(editProjectId)) || null;
+  }, [editProjectId, projectFormMode, projects]);
+
   function handleLogout() {
     window.localStorage.removeItem('arduflow_user');
     window.localStorage.removeItem('arduflow_user_token');
@@ -1484,6 +1720,7 @@ export function UserProjectGallery() {
             <ProjectUploadForm
               mode={projectFormMode}
               projectId={editProjectId}
+              initialProject={editingInitialProject}
               onSuccess={() => {
                 loadProjects();
                 if (!isAdminProjectEditRoute) {

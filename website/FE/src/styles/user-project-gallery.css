@@ -786,6 +786,10 @@
   margin-bottom: 10px;
 }
 
+.project-upload-component-picker {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
 .project-upload-node-picker select {
   min-width: 0;
   height: 38px;
@@ -815,9 +819,13 @@
   cursor: pointer;
 }
 
+.project-upload-node-picker button.is-active {
+  background: #0f172a;
+}
+
 .project-upload-node-search {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 10px;
   margin-bottom: 12px;
 }
@@ -849,6 +857,41 @@
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.project-upload-node-search button.is-active {
+  background: #0f172a;
+}
+
+.project-upload-node-picker-panel {
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.project-upload-manual-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 6px;
+  background: #eff6ff;
+}
+
+.project-upload-manual-grid input {
+  min-width: 0;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #111827;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
 }
 
 .project-upload-node-grid {
@@ -1100,6 +1143,49 @@
   font-size: 9px;
   font-weight: 500;
   line-height: 12px;
+}
+
+.project-upload-file-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: -10px;
+  border: 1px solid #dbe4ef;
+  border-radius: 6px;
+  background: #0f172a;
+  overflow: hidden;
+}
+
+.project-upload-file-preview > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e5edf7;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+}
+
+.project-upload-file-preview > div span {
+  min-width: 0;
+  overflow: hidden;
+  color: #93c5fd;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-upload-file-preview pre {
+  max-height: 320px;
+  margin: 0;
+  padding: 14px;
+  overflow: auto;
+  color: #e5edf7;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
 }
 
 .project-upload-side {
