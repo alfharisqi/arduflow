@@ -14,6 +14,8 @@ import { AdminTambahWorkshop } from './pages/admin/AdminTambahWorkshop.jsx';
 
 import { Tutorial } from './pages/Tutorial.jsx';
 import { TutorialDetail } from './pages/TutorialDetail.jsx';
+import { Article } from './pages/Article.jsx';
+import { ArticleDetail } from './pages/ArticleDetail.jsx';
 import { Materi } from './pages/Materi.jsx';
 import { BeginnerEbook } from './pages/BeginnerEbook.jsx';
 import { IdeEbook } from './pages/IdeEbook.jsx';
@@ -83,6 +85,9 @@ const AdminTransactions = lazyNamed(() => import('./pages/admin/AdminTransaction
 const AdminTutorial = lazyNamed(() => import('./pages/admin/AdminTutorial.jsx'), 'AdminTutorial');
 const AdminTutorialCreate = lazyNamed(() => import('./pages/admin/AdminTutorialForm.jsx'), 'AdminTutorialCreate');
 const AdminTutorialEdit = lazyNamed(() => import('./pages/admin/AdminTutorialForm.jsx'), 'AdminTutorialEdit');
+const AdminArticle = lazyNamed(() => import('./pages/admin/AdminArticle.jsx'), 'AdminArticle');
+const AdminArticleCreate = lazyNamed(() => import('./pages/admin/AdminArticleForm.jsx'), 'AdminArticleCreate');
+const AdminArticleEdit = lazyNamed(() => import('./pages/admin/AdminArticleForm.jsx'), 'AdminArticleEdit');
 const AdminProjects = lazyNamed(() => import('./pages/admin/AdminProjects.jsx'), 'AdminProjects');
 const AdminGallery = lazyNamed(() => import('./pages/admin/AdminGallery.jsx'), 'AdminGallery');
 const AdminPartners = lazyNamed(() => import('./pages/admin/AdminPartners.jsx'), 'AdminPartners');
@@ -106,6 +111,8 @@ const routes = {
 
   '/tutorial': Tutorial,
   '/tutorial/detail': TutorialDetail,
+  '/artikel': Article,
+  '/artikel/detail': ArticleDetail,
   '/materi': Materi,
   '/tutorial/panduan-pemula': BeginnerEbook,
   '/tutorial/penggunaan-ide': IdeEbook,
@@ -176,6 +183,9 @@ const routes = {
   '/admin/tutorial': AdminTutorial,
   '/admin/tutorial/tambah': AdminTutorialCreate,
   '/admin/tutorial/edit': AdminTutorialEdit,
+  '/admin/artikel': AdminArticle,
+  '/admin/artikel/tambah': AdminArticleCreate,
+  '/admin/artikel/edit': AdminArticleEdit,
 
   '/admin/projects': AdminProjects,
   '/admin/gallery': AdminGallery,
@@ -232,6 +242,9 @@ const standaloneRoutes = new Set([
   '/admin/tutorial',
   '/admin/tutorial/tambah',
   '/admin/tutorial/edit',
+  '/admin/artikel',
+  '/admin/artikel/tambah',
+  '/admin/artikel/edit',
 
   '/admin/projects',
   '/admin/gallery',
@@ -591,7 +604,9 @@ export default function App() {
           ? '/materi'
           : path.startsWith('/tutorial/detail/')
             ? '/tutorial/detail'
-            : path;
+            : path.startsWith('/artikel/detail/')
+              ? '/artikel/detail'
+              : path;
 
   const Page =
     routes[routePath] || NotFound;

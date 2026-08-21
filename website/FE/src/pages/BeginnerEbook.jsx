@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fetchTutorialArticle, isPublishedTutorial } from '../services/articleApi.js';
+import { fetchTutorialArticle, isPublishedTutorial } from '../services/materiApi.js';
 import fallbackTutorialImage from '../assets/images/tutorial-device.png';
 
 const DEFAULT_TUTORIAL_SLUG = 'panduan-pemula';

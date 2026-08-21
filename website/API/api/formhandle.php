@@ -391,6 +391,7 @@ if (!in_array($method, ['GET', 'POST'], true)) {
 $projectRoot = dirname(__DIR__);
 
 $autoloadPath = $projectRoot . '/vendor/autoload.php';
+// $configPath = $projectRoot . '/config/database.php';
 $configPath = $projectRoot . '/config/database.php';
 
 if (!file_exists($autoloadPath)) {

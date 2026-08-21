@@ -3,7 +3,7 @@ import usersIcon from '../../assets/icons/icon-users-1.svg';
 import userIcon from '../../assets/icons/icon-user-2.svg';
 import workshopIcon from '../../assets/icons/icon-workshop-1.svg';
 import graduationIcon from '../../assets/icons/icon-graduation-cap-1.svg';
-import certificateIcon from '../../assets/icons/icon-file-text-1.svg';
+import fileIcon from '../../assets/icons/icon-file-text-1.svg';
 import contactIcon from '../../assets/icons/icon-kontak-1.svg';
 import mediaIcon from '../../assets/icons/icon-media.svg';
 import projectIcon from '../../assets/icons/icon-proyek.svg';
@@ -26,7 +26,7 @@ const adminItems = [
       { label: 'Verifikasi Akun', href: '/admin/verification', icon: mailIcon, count: 12 },
       { label: 'Workshop / Program', href: '/admin/program', icon: workshopIcon },
       { label: 'Lead / Kontak', href: '/admin/leads', icon: contactIcon },
-      { label: 'Sertifikat', href: '/admin/certificates', icon: certificateIcon },
+      { label: 'Sertifikat', href: '/admin/certificates', icon: fileIcon },
       { label: 'Transaksi', href: '/admin/transactions', icon: dollarIcon },
     ],
   },
@@ -34,6 +34,7 @@ const adminItems = [
     title: 'Konten',
     items: [
       { label: 'Tutorial', href: '/admin/tutorial', icon: graduationIcon },
+      { label: 'Artikel', href: '/admin/artikel', icon: fileIcon },
       { label: 'Proyek', href: '/admin/projects', icon: projectIcon },
       { label: 'Galeri Kegiatan', href: '/admin/gallery', icon: mediaIcon },
       { label: 'Partner / Kolaborator', href: '/admin/partners', icon: globeIcon },

@@ -651,7 +651,8 @@
   gap: 10px;
 }
 
-.admin-program-registrants p {
+.admin-program-registrants p,
+.admin-program-registrant-card {
   display: grid;
   gap: 3px;
   padding: 10px 12px;
@@ -660,13 +661,82 @@
   background: #f9fafb;
 }
 
-.admin-program-registrants b {
+.admin-program-registrants b,
+.admin-program-registrant-card b {
   color: #111827;
 }
 
 .admin-program-registrants span,
-.admin-program-registrants small {
+.admin-program-registrants small,
+.admin-program-registrant-card span,
+.admin-program-registrant-card small {
   color: #4b5563;
+}
+
+.admin-program-registrant-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-program-registrant-head span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.admin-program-detail .admin-program-registrant-meta {
+  display: grid;
+  grid-template-columns: minmax(96px, 0.42fr) minmax(0, 1fr);
+  gap: 6px 10px;
+  padding: 10px 0;
+  margin: 0;
+  border: 0;
+  font-family: 'Inter', sans-serif;
+}
+
+.admin-program-detail .admin-program-registrant-meta dt,
+.admin-program-detail .admin-program-registrant-meta dd {
+  display: block;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.admin-program-detail .admin-program-registrant-meta dt {
+  color: #6b7280;
+}
+
+.admin-program-detail .admin-program-registrant-meta dd {
+  min-width: 0;
+  color: #111827;
+  overflow-wrap: anywhere;
+}
+
+.admin-program-member-list {
+  display: grid;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.admin-program-member-list strong {
+  font-size: 12px;
+}
+
+.admin-program-member-list ol {
+  display: grid;
+  gap: 6px;
+  padding-left: 18px;
+  margin: 0;
+}
+
+.admin-program-member-list li,
+.admin-program-member-list span {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #374151;
 }
 
 .admin-program-detail-actions {

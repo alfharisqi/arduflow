@@ -33,10 +33,14 @@ function parseParticipantCount(value) {
 }
 
 function countMemberRows(value) {
+  return parseMemberNames(value).length;
+}
+
+function parseMemberNames(value) {
   return String(value || '')
-    .split(/\r?\n/)
+    .split(/\r?\n|[,;]/)
     .map((line) => line.trim())
-    .filter(Boolean).length;
+    .filter(Boolean);
 }
 
 function participantCountFromRegistration(registration) {
@@ -47,15 +51,30 @@ function participantCountFromRegistration(registration) {
   return memberRows > 0 ? memberRows : 1;
 }
 
+function getRegistrationMemberRows(registration) {
+  const memberNames = parseMemberNames(registration.memberNames);
+
+  if (memberNames.length > 0) {
+    return memberNames;
+  }
+
+  return registration.participantName && registration.participantName !== '-'
+    ? [registration.participantName]
+    : [];
+}
+
 function normalizeWorkshopRegistration(item) {
   const meta = item?.meta && typeof item.meta === 'object' ? item.meta : {};
 
   return {
     id: item?.id || `workshop-${item?.numeric_id || Math.random()}`,
+    numericId: item?.numeric_id ?? null,
     workshopId: meta.workshop_id ?? null,
     workshopChoice: meta.workshop_choice || item?.message || '-',
     participantName: item?.name || '-',
     participantEmail: item?.email || '-',
+    participantWhatsapp: item?.whatsapp || '-',
+    institutionName: meta.institution_name || '-',
     participantEstimate: meta.participant_estimate || '',
     memberNames: meta.member_names || '',
     status: item?.status || 'Baru',
@@ -69,18 +88,22 @@ function isRegisteredWorkshopParticipant(registration) {
 }
 
 function summarizeRegistrations(registrations) {
-  return registrations.filter(isRegisteredWorkshopParticipant).reduce((summary, registration) => {
+  return registrations.filter((registration) => registration.status !== 'Ditolak').reduce((summary, registration) => {
     const key = String(registration.workshopId || '');
     if (!key) return summary;
 
     const current = summary[key] || {
       registrationCount: 0,
       participantCount: 0,
+      registeredParticipantCount: 0,
       registrations: [],
     };
 
     current.registrationCount += 1;
     current.participantCount += participantCountFromRegistration(registration);
+    if (isRegisteredWorkshopParticipant(registration)) {
+      current.registeredParticipantCount += participantCountFromRegistration(registration);
+    }
     current.registrations.push(registration);
     summary[key] = current;
 
@@ -312,6 +335,7 @@ export function AdminProgram() {
   const [page, setPage] = useState(1);
   const [deletingId, setDeletingId] = useState(null);
   const [isDetailModalOpen, setDetailModalOpen] = useState(false);
+  const [isMemberListVisible, setMemberListVisible] = useState(false);
 
   const handleToggleSidebar = () => {
     setSidebarCollapsed((value) => {
@@ -429,6 +453,7 @@ export function AdminProgram() {
     function closeWithEscape(event) {
       if (event.key === 'Escape') {
         setDetailModalOpen(false);
+        setMemberListVisible(false);
       }
     }
 
@@ -443,6 +468,12 @@ export function AdminProgram() {
     if (!workshop?.id) return;
 
     window.location.href = `/admin/tambah-workshop?id=${encodeURIComponent(workshop.id)}`;
+  }
+
+  function openDetailModal(workshop) {
+    setSelectedWorkshopId(workshop.id);
+    setMemberListVisible(false);
+    setDetailModalOpen(true);
   }
 
   async function handleDeleteWorkshop(workshop) {
@@ -608,11 +639,13 @@ export function AdminProgram() {
     ? registrationSummaryByWorkshop[String(selectedWorkshop.id)] || {
         registrationCount: 0,
         participantCount: 0,
+        registeredParticipantCount: 0,
         registrations: [],
       }
     : {
         registrationCount: 0,
         participantCount: 0,
+        registeredParticipantCount: 0,
         registrations: [],
       };
 
@@ -892,6 +925,7 @@ export function AdminProgram() {
                       const registrationSummary = registrationSummaryByWorkshop[String(workshop.id)] || {
                         registrationCount: 0,
                         participantCount: 0,
+                        registeredParticipantCount: 0,
                       };
 
                       return (
@@ -941,10 +975,7 @@ export function AdminProgram() {
                             <div className="admin-program-actions">
                               <ProgramAction
                                 label={`Lihat ${workshop.title}`}
-                                onClick={() => {
-                                  setSelectedWorkshopId(workshop.id);
-                                  setDetailModalOpen(true);
-                                }}
+                                onClick={() => openDetailModal(workshop)}
                               >
                                 <img src={eyeIcon} alt="" />
                               </ProgramAction>
@@ -1133,7 +1164,10 @@ export function AdminProgram() {
               className="admin-program-detail-backdrop"
               type="button"
               aria-label="Tutup detail program"
-              onClick={() => setDetailModalOpen(false)}
+              onClick={() => {
+                setDetailModalOpen(false);
+                setMemberListVisible(false);
+              }}
             />
 
             <article className="admin-program-detail" aria-label="Detail program">
@@ -1143,7 +1177,10 @@ export function AdminProgram() {
                 <button
                   type="button"
                   aria-label="Tutup detail"
-                  onClick={() => setDetailModalOpen(false)}
+                  onClick={() => {
+                    setDetailModalOpen(false);
+                    setMemberListVisible(false);
+                  }}
                 >
                   x
                 </button>
@@ -1231,26 +1268,74 @@ export function AdminProgram() {
                 <p>{selectedWorkshop.about || '-'}</p>
               </section>
 
-              <section className="admin-program-description">
-                <h3>Peserta Terdaftar</h3>
-                {selectedWorkshopRegistrationSummary.registrations.length === 0 ? (
-                  <p>Belum ada peserta yang mendaftar workshop ini.</p>
-                ) : (
-                  <div className="admin-program-registrants">
-                    {selectedWorkshopRegistrationSummary.registrations.map((registration) => (
-                      <p key={registration.id}>
-                        <b>{registration.participantName}</b>
-                        <span>{registration.participantEmail}</span>
-                        <small>
-                          {participantCountFromRegistration(registration)} peserta · {registration.createdAtLabel}
-                        </small>
-                      </p>
-                    ))}
-                  </div>
-                )}
-              </section>
+              {isMemberListVisible && (
+                <section className="admin-program-description">
+                  <h3>Peserta Terdaftar</h3>
+                  {selectedWorkshopRegistrationSummary.registrations.length === 0 ? (
+                    <p>Belum ada peserta yang mendaftar workshop ini.</p>
+                  ) : (
+                    <div className="admin-program-registrants">
+                      {selectedWorkshopRegistrationSummary.registrations.map((registration) => {
+                        const memberRows = getRegistrationMemberRows(registration);
+
+                        return (
+                          <article className="admin-program-registrant-card" key={registration.id}>
+                            <div className="admin-program-registrant-head">
+                              <span>
+                                <b>{registration.participantName}</b>
+                                <small>{registration.participantEmail}</small>
+                              </span>
+
+                              <ProgramBadge>{registration.status}</ProgramBadge>
+                            </div>
+
+                            <dl className="admin-program-registrant-meta">
+                              <dt>No. Pendaftaran</dt>
+                              <dd>{registration.numericId || registration.id}</dd>
+
+                              <dt>WhatsApp</dt>
+                              <dd>{registration.participantWhatsapp}</dd>
+
+                              <dt>Instansi</dt>
+                              <dd>{registration.institutionName}</dd>
+
+                              <dt>Tanggal Daftar</dt>
+                              <dd>{registration.createdAtLabel}</dd>
+                            </dl>
+
+                            <div className="admin-program-member-list">
+                              <strong>
+                                {participantCountFromRegistration(registration)} member
+                              </strong>
+
+                              {memberRows.length === 0 ? (
+                                <span>Nama member belum diisi.</span>
+                              ) : (
+                                <ol>
+                                  {memberRows.map((memberName, index) => (
+                                    <li key={`${registration.id}-${memberName}-${index}`}>
+                                      {memberName}
+                                    </li>
+                                  ))}
+                                </ol>
+                              )}
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+              )}
 
               <div className="admin-program-detail-actions">
+                <button
+                  type="button"
+                  onClick={() => setMemberListVisible((value) => !value)}
+                >
+                  {isMemberListVisible ? 'Sembunyikan Member' : 'Lihat Member'}
+                </button>
+
                 <button
                   type="button"
                   className="is-blue"

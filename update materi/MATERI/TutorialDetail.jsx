@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchTutorialArticle, isPublishedTutorial } from '../services/materiApi.js';
 import fallbackTutorialImage from '../assets/images/tutorial-device.png';
-import '../styles/tutorial.css';
+import '../styles/tutorial-detail.css';
 
 function getTutorialIdentifier() {
   const params = new URLSearchParams(window.location.search);

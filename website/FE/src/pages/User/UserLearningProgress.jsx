@@ -5,7 +5,7 @@ import certificateIcon from '../../assets/icons/icon-downloadsim-1.svg';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import courseImage from '../../assets/images/workshop-experience-student.png';
 import { ProfileAvatar } from '../../features/profile-image-crop/ProfileAvatar.jsx';
-import { fetchTutorialArticles, isPublishedTutorial } from '../../services/articleApi.js';
+import { fetchTutorialArticles, isPublishedTutorial } from '../../services/materiApi.js';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 
 const menuItems = [
