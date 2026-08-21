@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+use Arduflow\Api\Support\Env;
+use PHPMailer\PHPMailer\PHPMailer;
+
 /**
  * Arduflow Certificate API - SQLite CRUD
  * Sertifikat terhubung langsung dengan pendaftaran workshop.
@@ -12,7 +15,17 @@ declare(strict_types=1);
  * PUT    /api/certificate-api.php?id=1
  * DELETE /api/certificate-api.php?id=1
  * POST   /api/certificate-api.php?action=upload-certificate&id=1
+ * POST   /api/certificate-api.php?action=send-certificate&id=1
  */
+
+$autoload = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
+
+if (is_file($autoload)) {
+    require_once $autoload;
+    if (class_exists(Env::class)) {
+        Env::load(dirname(__DIR__) . DIRECTORY_SEPARATOR . '.env');
+    }
+}
 
 date_default_timezone_set('Asia/Jakarta');
 
@@ -206,6 +219,8 @@ function decodeCertificateRow(array $row): array
         'registrationId' => isset($row['registration_id']) && $row['registration_id'] !== null
             ? (int) $row['registration_id']
             : null,
+        'memberKey' => $row['member_key'] ?? ($payload['memberKey'] ?? null),
+        'memberName' => $payload['memberName'] ?? $payload['member_name'] ?? null,
         'userId' => isset($row['user_id']) && $row['user_id'] !== null
             ? (int) $row['user_id']
             : null,
@@ -476,7 +491,7 @@ function getWorkshopParticipants(PDO $registrationPdo, PDO $workshopPdo): array
 {
     $sourceTable = null;
 
-    foreach (['leads', 'workshop_registrations', 'workshop_participants'] as $table) {
+    foreach (['workshop_registrations', 'workshop_participants', 'leads'] as $table) {
         if (tableExists($registrationPdo, $table)) {
             $sourceTable = $table;
             break;
@@ -554,6 +569,8 @@ function validateCertificatePayload(
     }
 
     $userName = firstFilled($data, ['userName', 'user_name']);
+    $memberName = firstFilled($data, ['memberName', 'member_name'], '');
+    $memberKey = firstFilled($data, ['memberKey', 'member_key'], '');
     $userId = positiveIntOrNull(firstValue($data, ['userId', 'user_id'], null));
     $email = firstFilled($data, ['email']);
     $workshopId = $providedWorkshopId;
@@ -582,6 +599,10 @@ function validateCertificatePayload(
         if ($workshopTitle === '') {
             $workshopTitle = trim((string) ($participant['workshopChoice'] ?? ''));
         }
+    }
+
+    if ($memberName !== '') {
+        $userName = $memberName;
     }
 
     $databaseWorkshopTitle = getWorkshopTitleById($pdo, $workshopId);
@@ -664,6 +685,8 @@ function validateCertificatePayload(
     // bukan nama/email yang mungkin dimanipulasi dari frontend.
     $normalizedPayload = $data;
     $normalizedPayload['registrationId'] = $registrationId;
+    $normalizedPayload['memberKey'] = $memberKey;
+    $normalizedPayload['memberName'] = $memberName !== '' ? $memberName : $userName;
     $normalizedPayload['userId'] = $userId;
     $normalizedPayload['userName'] = $userName;
     $normalizedPayload['email'] = $email;
@@ -678,6 +701,7 @@ function validateCertificatePayload(
 
     return [
         'registration_id' => $registrationId,
+        'member_key' => $memberKey !== '' ? $memberKey : null,
         'user_name' => $userName,
         'user_id' => $userId,
         'email' => $email,
@@ -700,6 +724,7 @@ function findCertificateByRegistration(
     PDO $pdo,
     ?int $registrationId,
     ?int $workshopId,
+    ?string $memberKey = null,
     ?int $excludeCertificateId = null
 ): ?array {
     if (!$registrationId) {
@@ -714,6 +739,15 @@ function findCertificateByRegistration(
         $params[':workshop_id'] = $workshopId;
     }
 
+    $cleanMemberKey = trim((string) $memberKey);
+
+    if ($cleanMemberKey !== '') {
+        $sql .= ' AND member_key = :member_key';
+        $params[':member_key'] = $cleanMemberKey;
+    } else {
+        $sql .= ' AND (member_key IS NULL OR member_key = "")';
+    }
+
     if ($excludeCertificateId) {
         $sql .= ' AND id <> :exclude_id';
         $params[':exclude_id'] = $excludeCertificateId;
@@ -726,6 +760,259 @@ function findCertificateByRegistration(
     $row = $statement->fetch();
 
     return $row ?: null;
+}
+
+function envString(string $key, string $fallback = ''): string
+{
+    if (class_exists(Env::class)) {
+        return (string) Env::get($key, $fallback);
+    }
+
+    $value = getenv($key);
+
+    return $value === false ? $fallback : (string) $value;
+}
+
+function envBool(string $key, bool $fallback = false): bool
+{
+    if (class_exists(Env::class)) {
+        return Env::bool($key, $fallback);
+    }
+
+    $value = getenv($key);
+
+    return $value === false
+        ? $fallback
+        : (filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? $fallback);
+}
+
+function envInt(string $key, int $fallback): int
+{
+    if (class_exists(Env::class)) {
+        return Env::int($key, $fallback);
+    }
+
+    $value = getenv($key);
+
+    return $value !== false && is_numeric($value) ? (int) $value : $fallback;
+}
+
+function parseMailFrom(string $from): array
+{
+    if (preg_match('/^\s*(.*?)\s*<([^>]+)>\s*$/', $from, $match) === 1) {
+        return [trim($match[1]) ?: 'Arduflow', trim($match[2])];
+    }
+
+    return ['Arduflow', trim($from)];
+}
+
+function certificateFilePath(array $file): string
+{
+    $apiRoot = dirname(__DIR__);
+    $candidate = '';
+
+    if (isset($file['relativeUrl']) && is_string($file['relativeUrl'])) {
+        $candidate = $file['relativeUrl'];
+    } elseif (isset($file['relative_url']) && is_string($file['relative_url'])) {
+        $candidate = $file['relative_url'];
+    } elseif (isset($file['name']) && is_string($file['name'])) {
+        $candidate = '/uploads/certificates/' . basename($file['name']);
+    } elseif (isset($file['url']) && is_string($file['url'])) {
+        $path = parse_url($file['url'], PHP_URL_PATH);
+        $candidate = is_string($path) ? $path : '';
+    }
+
+    if ($candidate === '') {
+        return '';
+    }
+
+    $candidate = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $candidate);
+    $candidate = ltrim($candidate, DIRECTORY_SEPARATOR);
+    $path = $apiRoot . DIRECTORY_SEPARATOR . $candidate;
+    $realPath = realpath($path);
+    $realRoot = realpath($apiRoot);
+
+    if (
+        $realPath === false ||
+        $realRoot === false ||
+        !str_starts_with($realPath, $realRoot . DIRECTORY_SEPARATOR)
+    ) {
+        return '';
+    }
+
+    return $realPath;
+}
+
+function certificateEmailHtml(array $certificate, string $fileUrl): string
+{
+    $name = htmlspecialchars((string) $certificate['userName'], ENT_QUOTES, 'UTF-8');
+    $title = htmlspecialchars((string) $certificate['certificateTitle'], ENT_QUOTES, 'UTF-8');
+    $workshop = htmlspecialchars((string) $certificate['workshopTitle'], ENT_QUOTES, 'UTF-8');
+    $number = htmlspecialchars((string) $certificate['certificateNumber'], ENT_QUOTES, 'UTF-8');
+    $safeUrl = htmlspecialchars($fileUrl, ENT_QUOTES, 'UTF-8');
+
+    return '<div style="font-family:Arial,sans-serif;background:#f6f8fb;color:#172b45;padding:28px">' .
+        '<div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;padding:28px">' .
+        '<h2 style="margin:0 0 16px;color:#0b1b30">ArduFlow</h2>' .
+        '<p>Halo ' . $name . ',</p>' .
+        '<p>Sertifikat Anda untuk <b>' . $workshop . '</b> sudah tersedia.</p>' .
+        '<p><b>' . $title . '</b><br>No. Sertifikat: ' . $number . '</p>' .
+        '<p style="margin:24px 0"><a href="' . $safeUrl . '" style="background:#ff6a00;color:#ffffff;padding:12px 18px;text-decoration:none;border-radius:6px;font-weight:bold">Buka Sertifikat</a></p>' .
+        '<p style="color:#64748b;font-size:13px">File sertifikat juga terlampir pada email ini.</p>' .
+        '</div></div>';
+}
+
+function sendCertificateEmail(array $certificate): void
+{
+    if (!class_exists(PHPMailer::class)) {
+        respond(500, [
+            'success' => false,
+            'message' => 'PHPMailer belum tersedia. Jalankan composer install pada folder website/API.',
+        ]);
+    }
+
+    if (!envBool('MAIL_ENABLED', true)) {
+        respond(503, [
+            'success' => false,
+            'message' => 'SMTP sedang nonaktif. Aktifkan MAIL_ENABLED pada konfigurasi.',
+        ]);
+    }
+
+    $email = trim((string) ($certificate['email'] ?? ''));
+
+    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        respond(422, [
+            'success' => false,
+            'message' => 'Email member tidak valid.',
+        ]);
+    }
+
+    $file = is_array($certificate['file'] ?? null) ? $certificate['file'] : [];
+    $filePath = certificateFilePath($file);
+    $fileUrl = getCertificateFileUrlForEmail($file);
+
+    if ($filePath === '' || !is_file($filePath)) {
+        respond(422, [
+            'success' => false,
+            'message' => 'File sertifikat belum tersedia. Generate atau upload sertifikat terlebih dahulu.',
+        ]);
+    }
+
+    $mail = new PHPMailer(true);
+    $mail->isSMTP();
+    $mail->Host = envString('MAIL_HOST', '127.0.0.1');
+    $mail->Port = envInt('MAIL_PORT', 1025);
+    $username = envString('MAIL_USERNAME', '');
+
+    if ($username !== '') {
+        $mail->SMTPAuth = true;
+        $mail->Username = $username;
+        $mail->Password = envString('MAIL_PASSWORD', '');
+    }
+
+    if (envBool('MAIL_SECURE', false)) {
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+    }
+
+    $mail->Timeout = 10;
+    $mail->CharSet = 'UTF-8';
+
+    [$fromName, $fromAddress] = parseMailFrom(envString('MAIL_FROM', 'Arduflow <no-reply@arduflow.local>'));
+    $mail->setFrom($fromAddress, $fromName);
+    $mail->addAddress($email, (string) ($certificate['userName'] ?? 'Member'));
+    $mail->isHTML(true);
+    $mail->Subject = 'Sertifikat ArduFlow - ' . (string) ($certificate['workshopTitle'] ?? 'Workshop');
+    $mail->Body = certificateEmailHtml($certificate, $fileUrl);
+    $mail->AltBody = sprintf(
+        "Halo %s,\n\nSertifikat Anda untuk %s sudah tersedia.\nNo. Sertifikat: %s\n\nFile sertifikat terlampir.",
+        (string) ($certificate['userName'] ?? 'Member'),
+        (string) ($certificate['workshopTitle'] ?? 'Workshop'),
+        (string) ($certificate['certificateNumber'] ?? '-')
+    );
+    $mail->addAttachment(
+        $filePath,
+        basename((string) ($file['originalName'] ?? $file['name'] ?? 'sertifikat.pdf'))
+    );
+    $mail->send();
+}
+
+function getCertificateFileUrlForEmail(array $file): string
+{
+    if (isset($file['url']) && is_string($file['url']) && trim($file['url']) !== '') {
+        return trim($file['url']);
+    }
+
+    if (isset($file['relativeUrl']) && is_string($file['relativeUrl'])) {
+        $scheme = (
+            !empty($_SERVER['HTTPS']) &&
+            strtolower((string) $_SERVER['HTTPS']) !== 'off'
+        ) ? 'https' : 'http';
+        $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
+
+        return $scheme . '://' . $host . $file['relativeUrl'];
+    }
+
+    return '';
+}
+
+function handleCertificateEmail(PDO $pdo): void
+{
+    $id = getRequestId();
+
+    $statement = $pdo->prepare(
+        'SELECT * FROM certificates WHERE id = :id LIMIT 1'
+    );
+    $statement->execute([':id' => $id]);
+    $row = $statement->fetch();
+
+    if (!$row) {
+        respond(404, [
+            'success' => false,
+            'message' => 'Sertifikat tidak ditemukan.',
+        ]);
+    }
+
+    $certificate = decodeCertificateRow($row);
+
+    try {
+        sendCertificateEmail($certificate);
+
+        $payload = is_array($certificate['payload'] ?? null) ? $certificate['payload'] : [];
+        $payload['emailSentAt'] = date('Y-m-d H:i:s');
+
+        $update = $pdo->prepare(
+            'UPDATE certificates
+             SET payload_json = :payload_json,
+                 updated_at = :updated_at
+             WHERE id = :id'
+        );
+        $update->execute([
+            ':payload_json' => json_encode(
+                $payload,
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            ),
+            ':updated_at' => date('Y-m-d H:i:s'),
+            ':id' => $id,
+        ]);
+
+        respond(200, [
+            'success' => true,
+            'message' => 'Sertifikat berhasil dikirim melalui email.',
+            'data' => [
+                'certificateId' => $id,
+                'email' => $certificate['email'],
+                'sentAt' => $payload['emailSentAt'],
+            ],
+        ]);
+    } catch (Throwable $exception) {
+        respond(503, [
+            'success' => false,
+            'message' => 'Sertifikat gagal dikirim melalui email. Pastikan SMTP berjalan dan konfigurasi benar.',
+            'debug' => [
+                'error' => $exception->getMessage(),
+            ],
+        ]);
+    }
 }
 
 function handleCertificateUpload(PDO $pdo): void
@@ -894,16 +1181,20 @@ function resolveRegistrationDatabaseFile(string $certificateDatabaseFile): strin
 {
     $apiRoot = dirname(__DIR__);
     $candidates = [
-        $certificateDatabaseFile,
         $apiRoot . DIRECTORY_SEPARATOR . 'storage'
             . DIRECTORY_SEPARATOR . 'database'
             . DIRECTORY_SEPARATOR . 'arduflow.sqlite',
         $apiRoot . DIRECTORY_SEPARATOR . 'storage'
             . DIRECTORY_SEPARATOR . 'arduflow.sqlite',
+        $certificateDatabaseFile,
     ];
 
     foreach (array_unique($candidates) as $candidate) {
-        if (sqliteHasTable($candidate, 'leads')) {
+        if (
+            sqliteHasTable($candidate, 'workshop_registrations') ||
+            sqliteHasTable($candidate, 'workshop_participants') ||
+            sqliteHasTable($candidate, 'leads')
+        ) {
             return $candidate;
         }
     }
@@ -930,6 +1221,7 @@ try {
         'CREATE TABLE IF NOT EXISTS certificates (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             registration_id INTEGER NULL,
+            member_key TEXT NULL,
             user_id INTEGER NULL,
             user_name TEXT NOT NULL,
             email TEXT NOT NULL,
@@ -957,12 +1249,19 @@ try {
         );
     }
 
+    if (!in_array('member_key', $certificateColumns, true)) {
+        $pdo->exec('ALTER TABLE certificates ADD COLUMN member_key TEXT NULL');
+    }
+
     if (!in_array('user_id', $certificateColumns, true)) {
         $pdo->exec('ALTER TABLE certificates ADD COLUMN user_id INTEGER NULL');
     }
 
     $pdo->exec(
         'CREATE INDEX IF NOT EXISTS idx_certificates_registration ON certificates(registration_id)'
+    );
+    $pdo->exec(
+        'CREATE INDEX IF NOT EXISTS idx_certificates_registration_member ON certificates(registration_id, workshop_id, member_key)'
     );
     $pdo->exec(
         'CREATE INDEX IF NOT EXISTS idx_certificates_email ON certificates(email)'
@@ -1010,6 +1309,10 @@ try {
     ]);
 }
 
+$contentPdo = tableExists($registrationPdo, 'workshops')
+    ? $registrationPdo
+    : $pdo;
+
 if ($action === 'upload-certificate') {
     if ($method !== 'POST') {
         header('Allow: POST, OPTIONS');
@@ -1020,6 +1323,18 @@ if ($action === 'upload-certificate') {
     }
 
     handleCertificateUpload($pdo);
+}
+
+if ($action === 'send-certificate') {
+    if ($method !== 'POST') {
+        header('Allow: POST, OPTIONS');
+        respond(405, [
+            'success' => false,
+            'message' => 'Kirim sertifikat hanya menerima method POST.',
+        ]);
+    }
+
+    handleCertificateEmail($pdo);
 }
 
 if ($method === 'GET') {
@@ -1055,8 +1370,8 @@ if ($method === 'GET') {
         $certificates = array_map('decodeCertificateRow', $certificateRows);
 
         $workshops = [];
-        if (tableExists($pdo, 'workshops')) {
-            $workshopRows = $pdo
+        if (tableExists($contentPdo, 'workshops')) {
+            $workshopRows = $contentPdo
                 ->query(
                     'SELECT id, title, status, category, payload_json
                      FROM workshops
@@ -1066,7 +1381,7 @@ if ($method === 'GET') {
             $workshops = array_map('decodeWorkshopOption', $workshopRows);
         }
 
-        $participants = getWorkshopParticipants($registrationPdo, $pdo);
+        $participants = getWorkshopParticipants($registrationPdo, $contentPdo);
 
         respond(200, [
             'success' => true,
@@ -1082,6 +1397,9 @@ if ($method === 'GET') {
                 'total' => count($certificates),
                 'totalParticipants' => count($participants),
                 'registrationDatabase' => basename(dirname($registrationDatabaseFile)) . '/' . basename($registrationDatabaseFile),
+                'contentDatabase' => $contentPdo === $registrationPdo
+                    ? basename(dirname($registrationDatabaseFile)) . '/' . basename($registrationDatabaseFile)
+                    : basename(dirname($databaseFile)) . '/' . basename($databaseFile),
             ],
         ]);
     } catch (Throwable $exception) {
@@ -1097,13 +1415,14 @@ if ($method === 'GET') {
 
 if ($method === 'POST') {
     $data = readJsonBody();
-    $payload = validateCertificatePayload($data, $pdo, $registrationPdo, true);
+    $payload = validateCertificatePayload($data, $contentPdo, $registrationPdo, true);
     $now = date('Y-m-d H:i:s');
 
     $existing = findCertificateByRegistration(
         $pdo,
         $payload['registration_id'],
-        $payload['workshop_id']
+        $payload['workshop_id'],
+        $payload['member_key']
     );
 
     if ($existing !== null) {
@@ -1120,6 +1439,7 @@ if ($method === 'POST') {
         $statement = $pdo->prepare(
             'INSERT INTO certificates (
                 registration_id,
+                member_key,
                 user_id,
                 user_name,
                 email,
@@ -1137,6 +1457,7 @@ if ($method === 'POST') {
                 updated_at
             ) VALUES (
                 :registration_id,
+                :member_key,
                 :user_id,
                 :user_name,
                 :email,
@@ -1157,6 +1478,7 @@ if ($method === 'POST') {
 
         $statement->execute([
             ':registration_id' => $payload['registration_id'],
+            ':member_key' => $payload['member_key'],
             ':user_id' => $payload['user_id'],
             ':user_name' => $payload['user_name'],
             ':email' => $payload['email'],
@@ -1228,13 +1550,14 @@ if ($method === 'PUT') {
         $mergedData['certificateNumber'] = $existingRow['certificate_number'];
     }
 
-    $payload = validateCertificatePayload($mergedData, $pdo, $registrationPdo, true);
+    $payload = validateCertificatePayload($mergedData, $contentPdo, $registrationPdo, true);
     $now = date('Y-m-d H:i:s');
 
     $duplicate = findCertificateByRegistration(
         $pdo,
         $payload['registration_id'],
         $payload['workshop_id'],
+        $payload['member_key'],
         $id
     );
 
@@ -1252,6 +1575,7 @@ if ($method === 'PUT') {
         $statement = $pdo->prepare(
             'UPDATE certificates
              SET registration_id = :registration_id,
+                 member_key = :member_key,
                  user_id = :user_id,
                  user_name = :user_name,
                  email = :email,
@@ -1270,6 +1594,7 @@ if ($method === 'PUT') {
 
         $statement->execute([
             ':registration_id' => $payload['registration_id'],
+            ':member_key' => $payload['member_key'],
             ':user_id' => $payload['user_id'],
             ':user_name' => $payload['user_name'],
             ':email' => $payload['email'],

@@ -405,12 +405,52 @@
   opacity: 0.45;
 }
 
+.admin-certificates-secondary {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #d7dee8;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #172b45;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.admin-certificates-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .admin-certificates-upload-action input {
   position: absolute;
   width: 1px;
   height: 1px;
   opacity: 0;
   pointer-events: none;
+}
+
+.admin-certificates-workshop-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 240px;
+}
+
+.admin-certificates-workshop-title span:last-child {
+  display: grid;
+  gap: 3px;
+}
+
+.admin-certificates-workshop-title b {
+  color: #111827;
+  font-weight: 800;
+}
+
+.admin-certificates-workshop-title small {
+  color: #64748b;
+  font-size: 12px;
 }
 
 .admin-certificates-pagination {
@@ -549,6 +589,10 @@
   width: min(560px, 100%);
 }
 
+.admin-certificates-modal.detail.admin-certificates-modal--wide {
+  width: min(1080px, 100%);
+}
+
 .admin-certificates-modal-head {
   display: flex;
   align-items: center;
@@ -563,6 +607,13 @@
   font-family: 'Inter', sans-serif;
   font-size: 20px;
   color: #111827;
+}
+
+.admin-certificates-modal-subtitle {
+  margin: 5px 0 0;
+  color: #64748b;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
 }
 
 .admin-certificates-modal-head button {
@@ -594,6 +645,41 @@
 .admin-certificates-modal-actions button {
   min-width: 130px;
   padding: 0 18px;
+}
+
+.admin-certificates-member-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  font-family: 'Inter', sans-serif;
+}
+
+.admin-certificates-member-summary span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  color: #475569;
+  font-size: 13px;
+}
+
+.admin-certificates-member-summary b {
+  color: #111827;
+}
+
+.admin-certificates-member-scroll {
+  max-height: min(58vh, 560px);
+}
+
+.admin-certificates-member-table th,
+.admin-certificates-member-table td {
+  white-space: nowrap;
 }
 
 .admin-certificates-preview-label {
