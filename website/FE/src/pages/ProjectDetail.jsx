@@ -11,6 +11,7 @@ import {
   fetchProjectSubmissions,
   isPublicProject,
 } from "../services/projectApi.js";
+import { createTransaction, fetchTransactions } from "../services/transactionApi.js";
 import { NodeSprite } from "../components/NodeSprite.jsx";
 import { getProjectNodeType } from "../config/projectNodes.js";
 
@@ -29,6 +30,23 @@ function sanitizeProjectHtml(value) {
 
 function formatNumber(value) {
   return new Intl.NumberFormat("id-ID").format(Number(value) || 0);
+}
+
+function formatCurrency(value, currency = "IDR") {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(Number(value) || 0);
+}
+
+function getStoredUser() {
+  try {
+    const raw = window.localStorage.getItem("arduflow_user");
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
 }
 
 function getToolName(tool) {
@@ -334,6 +352,36 @@ function getProjectFileLabel(project) {
   return project.projectFileUrl ? "Unduh File Proyek" : "Lihat Rangkaian";
 }
 
+function getProjectPayment(project) {
+  return project?.payment && typeof project.payment === "object" ? project.payment : {};
+}
+
+function getProjectPrice(project) {
+  const payment = getProjectPayment(project);
+  return Number(payment.price || project?.price || 0);
+}
+
+function isPaidProject(project) {
+  const payment = getProjectPayment(project);
+  return Boolean(payment.isPaid || project?.isPaid || getProjectPrice(project) > 0);
+}
+
+function isPaidProjectTransaction(transaction, project) {
+  return (
+    transaction?.itemType === "project" &&
+    String(transaction.itemId || "") === String(project?.id || "") &&
+    transaction.status === "paid"
+  );
+}
+
+function isPendingProjectTransaction(transaction, project) {
+  return (
+    transaction?.itemType === "project" &&
+    String(transaction.itemId || "") === String(project?.id || "") &&
+    ["pending", "proof_uploaded", "rejected"].includes(transaction.status)
+  );
+}
+
 function getPlatform(project) {
   return project.programmingLanguage || project.tags?.[0] || project.category || "-";
 }
@@ -455,9 +503,23 @@ function truncateHtmlByTextLength(value, maxLength = 500) {
 
 function ProjectHero({ project, tools, nodes, tags, description }) {
   const [showFullDescription, setShowFullDescription] = useState(false);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [purchaseMessage, setPurchaseMessage] = useState("");
+  const [projectTransactions, setProjectTransactions] = useState([]);
 
   const platform = getPlatform(project);
   const category = project.category || tags[0] || "-";
+  const payment = getProjectPayment(project);
+  const paidProject = isPaidProject(project);
+  const projectPrice = getProjectPrice(project);
+  const projectCurrency = payment.currency || "IDR";
+  const paidTransaction = projectTransactions.find((transaction) =>
+    isPaidProjectTransaction(transaction, project)
+  );
+  const pendingTransaction = projectTransactions.find((transaction) =>
+    isPendingProjectTransaction(transaction, project)
+  );
+  const hasProjectAccess = !paidProject || Boolean(paidTransaction);
 
   const descriptionLength = useMemo(
     () => getPlainTextLengthFromHtml(description),
@@ -473,6 +535,86 @@ function ProjectHero({ project, tools, nodes, tags, description }) {
 
     return truncateHtmlByTextLength(description, 500);
   }, [description, hasLongDescription, showFullDescription]);
+
+  useEffect(() => {
+    const user = getStoredUser();
+    const params = {};
+    if (user.id || user.userId) params.userId = user.id || user.userId;
+    if (user.email) params.email = user.email;
+
+    if (!paidProject || (!params.userId && !params.email)) {
+      setProjectTransactions([]);
+      return undefined;
+    }
+
+    let isActive = true;
+    fetchTransactions(params)
+      .then((records) => {
+        if (isActive) {
+          setProjectTransactions(records.filter((transaction) => transaction.itemType === "project"));
+        }
+      })
+      .catch((error) => {
+        console.error("Gagal memuat transaksi proyek:", error);
+        if (isActive) {
+          setProjectTransactions([]);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [paidProject, project.id]);
+
+  async function handleBuyProject() {
+    const user = getStoredUser();
+    const userId = user.id || user.userId || null;
+    const email = user.email || "";
+
+    if (!userId && !email) {
+      window.location.href = `/signin?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+      return;
+    }
+
+    if (pendingTransaction) {
+      window.location.href = `/transaksi?transactionId=${encodeURIComponent(pendingTransaction.id)}`;
+      return;
+    }
+
+    setIsPurchasing(true);
+    setPurchaseMessage("Membuat transaksi proyek...");
+
+    try {
+      const transaction = await createTransaction({
+        userId,
+        userName: user.name || user.fullName || user.username || "User",
+        email,
+        itemType: "project",
+        itemId: project.id,
+        itemTitle: project.title,
+        amount: projectPrice,
+        currency: projectCurrency,
+        paymentMethod: "Pembelian Proyek",
+        paymentChannel: "ArduFlow",
+        paymentCode: payment.paymentCode || project.paymentCode || "",
+        status: "pending",
+        notes: `Pembelian proyek ${project.title}`,
+        payload: {
+          projectId: project.id,
+          projectTitle: project.title,
+          projectFile: project.projectFile || null,
+          projectFileUrl: project.projectFileUrl || "",
+          source: "project-detail",
+        },
+      });
+
+      const transactionQuery = transaction?.id ? `?transactionId=${encodeURIComponent(transaction.id)}` : "";
+      window.location.href = `/transaksi${transactionQuery}`;
+    } catch (error) {
+      setPurchaseMessage(error.message || "Transaksi proyek gagal dibuat.");
+      setIsPurchasing(false);
+    }
+  }
 
   return (
     <section className="project-detail__hero" aria-labelledby="project-detail-title">
@@ -512,22 +654,54 @@ function ProjectHero({ project, tools, nodes, tags, description }) {
           </div>
 
           <div className="project-detail__actions">
-            <button
-              className="project-detail__button project-detail__button--primary"
-              type="button"
-              onClick={() => openIDE(description)}
-            >
-              Buka ArduFlow IDE <span aria-hidden="true">-&gt;</span>
-            </button>
-            <a
-              className="project-detail__button project-detail__button--secondary"
-              href={getProjectFileHref(project)}
-              target={project.projectFileUrl ? "_blank" : undefined}
-              rel={project.projectFileUrl ? "noreferrer" : undefined}
-            >
-              {getProjectFileLabel(project)}
-              <img src={downloadIcon} alt="" aria-hidden="true" />
-            </a>
+            {paidProject && !hasProjectAccess ? (
+              <>
+                <button
+                  className="project-detail__button project-detail__button--primary project-detail__button--price"
+                  type="button"
+                >
+                  Harga Proyek <strong>{formatCurrency(projectPrice, projectCurrency)}</strong>
+                </button>
+                <button
+                  className="project-detail__button project-detail__button--secondary"
+                  type="button"
+                  onClick={pendingTransaction ? () => {
+                    window.location.href = `/transaksi?transactionId=${encodeURIComponent(pendingTransaction.id)}`;
+                  } : handleBuyProject}
+                  disabled={isPurchasing}
+                >
+                  {isPurchasing ? "Memproses..." : pendingTransaction ? "Lihat Transaksi" : "Beli Proyek"}
+                  <img src={downloadIcon} alt="" aria-hidden="true" />
+                </button>
+                {pendingTransaction ? (
+                  <p className="project-detail__purchase-message" role="status">
+                    Transaksi proyek sedang menunggu pembayaran atau verifikasi admin.
+                  </p>
+                ) : null}
+                {purchaseMessage ? (
+                  <p className="project-detail__purchase-message" role="status">{purchaseMessage}</p>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <button
+                  className="project-detail__button project-detail__button--primary"
+                  type="button"
+                  onClick={() => openIDE(description)}
+                >
+                  Buka ArduFlow IDE <span aria-hidden="true">-&gt;</span>
+                </button>
+                <a
+                  className="project-detail__button project-detail__button--secondary"
+                  href={getProjectFileHref(project)}
+                  target={project.projectFileUrl ? "_blank" : undefined}
+                  rel={project.projectFileUrl ? "noreferrer" : undefined}
+                >
+                  {getProjectFileLabel(project)}
+                  <img src={downloadIcon} alt="" aria-hidden="true" />
+                </a>
+              </>
+            )}
           </div>
         </div>
       </div>

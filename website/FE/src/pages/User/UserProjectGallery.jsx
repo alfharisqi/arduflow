@@ -15,6 +15,7 @@ import {
   normalizeNodeType,
 } from '../../config/projectNodes.js';
 import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
+import { fetchTransactions } from '../../services/transactionApi.js';
 import { showConfirmAlert, showPromptAlert, showSuccessAlert } from '../../utils/alerts.js';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 
@@ -1588,8 +1589,32 @@ export function UserProjectGallery() {
       }
 
       const rows = Array.isArray(result.data) ? result.data : [];
+      const transactionParams = {};
+      if (currentUserId) transactionParams.userId = currentUserId;
+      if (user.email) transactionParams.email = user.email;
+      const paidProjectIds = new Set();
+
+      if (transactionParams.userId || transactionParams.email) {
+        try {
+          const transactions = await fetchTransactions(transactionParams);
+          transactions
+            .filter((transaction) => transaction.itemType === 'project' && transaction.status === 'paid')
+            .forEach((transaction) => {
+              if (transaction.itemId !== null && transaction.itemId !== undefined) {
+                paidProjectIds.add(String(transaction.itemId));
+              }
+            });
+        } catch (transactionError) {
+          console.error('Gagal mengambil transaksi proyek user:', transactionError);
+        }
+      }
+
       const ownedProjects = currentUserId
-        ? rows.filter((project) => String(project.userId || project.payload?.userId || '') === String(currentUserId))
+        ? rows.filter((project) => {
+            const isOwner = String(project.userId || project.payload?.userId || '') === String(currentUserId);
+            const isPurchased = paidProjectIds.has(String(project.id || ''));
+            return isOwner || isPurchased;
+          })
         : rows;
 
       setProjects(ownedProjects);
@@ -1786,6 +1811,9 @@ export function UserProjectGallery() {
                         <p>{project.category || '-'}</p>
                         <time>{formatProjectDate(project)}</time>
                         <strong>{formatProjectPrice(project)}</strong>
+                        <a className="user-project-card__action" href={`/project/detail?id=${encodeURIComponent(project.id)}`}>
+                          Buka Proyek
+                        </a>
                       </div>
                     </article>
                   );
