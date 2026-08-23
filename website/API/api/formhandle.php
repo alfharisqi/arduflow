@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 header('Content-Type: application/json; charset=utf-8');
 
+$syncOutboxPath = __DIR__ . '/support/sync-outbox.php';
+
+if (is_file($syncOutboxPath)) {
+    require_once $syncOutboxPath;
+}
+
 /*
 |--------------------------------------------------------------------------
 | Fungsi umum
@@ -1140,6 +1146,9 @@ if ($formType === 'lead') {
         ]);
 
         $id = (int) $pdo->lastInsertId();
+        if (function_exists('afwSyncEnqueue')) {
+            afwSyncEnqueue($pdo, 'leads', $id, 'insert', false);
+        }
 
         $pdo->commit();
 

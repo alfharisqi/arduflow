@@ -35,6 +35,40 @@ final class SyncEventValidator
             'id', 'user_id', 'title', 'description', 'category', 'level', 'status', 'deleted_at',
             'version', 'created_at', 'updated_at',
         ],
+        'project_submissions' => [
+            'id', 'title', 'category', 'description', 'status', 'visibility',
+            'cover_image_name', 'cover_image_type', 'cover_image_size', 'cover_image_path',
+            'cover_image_url', 'project_file_name', 'project_file_type', 'project_file_size',
+            'project_file_path', 'project_file_url', 'circuit_image_name', 'circuit_image_type',
+            'circuit_image_size', 'circuit_image_path', 'circuit_image_url',
+            'component_images_json', 'payload_json', 'deleted_at', 'version',
+            'created_at', 'updated_at',
+        ],
+        'transactions' => [
+            'id', 'user_id', 'user_name', 'email', 'item_type', 'item_id', 'item_title',
+            'amount', 'currency', 'payment_method', 'payment_channel', 'payment_code',
+            'recipient_name', 'qris_file_name', 'qris_file_type', 'qris_file_size',
+            'qris_file_path', 'qris_file_url', 'invoice_number', 'reference_number',
+            'status', 'paid_at', 'due_at', 'notes', 'proof_file_name', 'proof_file_type',
+            'proof_file_size', 'proof_file_path', 'proof_file_url', 'proof_uploaded_at',
+            'reviewed_at', 'reviewed_by', 'rejection_reason', 'payload_json',
+            'deleted_at', 'version', 'created_at', 'updated_at',
+        ],
+        'payment_methods' => [
+            'id', 'name', 'method_type', 'channel', 'recipient_name', 'payment_code',
+            'qris_file_name', 'qris_file_type', 'qris_file_size', 'qris_file_path',
+            'qris_file_url', 'is_active', 'deleted_at', 'version', 'created_at', 'updated_at',
+        ],
+        'user_entitlements' => [
+            'id', 'transaction_id', 'user_id', 'email', 'product_type', 'product_id',
+            'product_title', 'status', 'granted_at', 'deleted_at', 'version',
+            'created_at', 'updated_at',
+        ],
+        'workshop_registrations' => [
+            'id', 'workshop_id', 'transaction_id', 'user_id', 'name', 'email', 'whatsapp',
+            'institution', 'occupation', 'status', 'notes', 'payload_json', 'deleted_at',
+            'version', 'created_at', 'updated_at',
+        ],
     ];
 
     public function validate(array $event): void

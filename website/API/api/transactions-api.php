@@ -29,6 +29,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
 }
 
 $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
+$syncOutboxPath = __DIR__ . '/support/sync-outbox.php';
+$mqttEventsPath = __DIR__ . '/support/mqtt-events.php';
+
+if (is_file($syncOutboxPath)) {
+    require_once $syncOutboxPath;
+}
+if (is_file($mqttEventsPath)) {
+    require_once $mqttEventsPath;
+}
 
 if ($method === 'POST' && (isset($_POST['_method']) || isset($_GET['_method']))) {
     $methodOverride = strtoupper((string) ($_POST['_method'] ?? $_GET['_method']));
@@ -132,6 +141,8 @@ function ensureTransactionTables(PDO $pdo): void
             reviewed_by TEXT,
             rejection_reason TEXT,
             payload_json TEXT NOT NULL DEFAULT "{}",
+            deleted_at TEXT,
+            version INTEGER NOT NULL DEFAULT 1,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )'
@@ -152,6 +163,8 @@ function ensureTransactionTables(PDO $pdo): void
     addColumnIfMissing($pdo, 'transactions', 'reviewed_at', 'TEXT');
     addColumnIfMissing($pdo, 'transactions', 'reviewed_by', 'TEXT');
     addColumnIfMissing($pdo, 'transactions', 'rejection_reason', 'TEXT');
+    addColumnIfMissing($pdo, 'transactions', 'deleted_at', 'TEXT');
+    addColumnIfMissing($pdo, 'transactions', 'version', 'INTEGER NOT NULL DEFAULT 1');
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_transactions_email ON transactions(email)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status)');
@@ -168,6 +181,8 @@ function ensureTransactionTables(PDO $pdo): void
             product_title TEXT NOT NULL,
             status TEXT NOT NULL DEFAULT "active",
             granted_at TEXT NOT NULL,
+            deleted_at TEXT,
+            version INTEGER NOT NULL DEFAULT 1,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )'
@@ -175,6 +190,8 @@ function ensureTransactionTables(PDO $pdo): void
     $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_user_entitlements_transaction ON user_entitlements(transaction_id)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_user_entitlements_user_id ON user_entitlements(user_id)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_user_entitlements_email ON user_entitlements(email)');
+    addColumnIfMissing($pdo, 'user_entitlements', 'deleted_at', 'TEXT');
+    addColumnIfMissing($pdo, 'user_entitlements', 'version', 'INTEGER NOT NULL DEFAULT 1');
 
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS payment_methods (
@@ -190,6 +207,8 @@ function ensureTransactionTables(PDO $pdo): void
             qris_file_path TEXT,
             qris_file_url TEXT,
             is_active INTEGER NOT NULL DEFAULT 1,
+            deleted_at TEXT,
+            version INTEGER NOT NULL DEFAULT 1,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )'
@@ -204,6 +223,8 @@ function ensureTransactionTables(PDO $pdo): void
     addColumnIfMissing($pdo, 'payment_methods', 'qris_file_path', 'TEXT');
     addColumnIfMissing($pdo, 'payment_methods', 'qris_file_url', 'TEXT');
     addColumnIfMissing($pdo, 'payment_methods', 'is_active', 'INTEGER NOT NULL DEFAULT 1');
+    addColumnIfMissing($pdo, 'payment_methods', 'deleted_at', 'TEXT');
+    addColumnIfMissing($pdo, 'payment_methods', 'version', 'INTEGER NOT NULL DEFAULT 1');
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_payment_methods_active ON payment_methods(is_active)');
 
     $workshopRegistrationTable = $pdo->query(
@@ -306,6 +327,39 @@ function rowToTransaction(array $row): array
         'createdAt' => $row['created_at'] ?? '',
         'updatedAt' => $row['updated_at'] ?? '',
     ];
+}
+
+function publishTransactionEvent(string $projectRoot, string $action, array $transaction): void
+{
+    if (!function_exists('afwPublishAdminEvent')) {
+        return;
+    }
+
+    afwPublishAdminEvent($projectRoot, 'admin/transactions', [
+        'type' => 'transaction.' . $action,
+        'action' => $action,
+        'id' => (int) ($transaction['id'] ?? 0),
+        'invoiceNumber' => (string) ($transaction['invoice_number'] ?? ''),
+        'status' => (string) ($transaction['status'] ?? ''),
+        'amount' => (float) ($transaction['amount'] ?? 0),
+        'itemType' => (string) ($transaction['item_type'] ?? ''),
+        'itemId' => (string) ($transaction['item_id'] ?? ''),
+    ]);
+}
+
+function publishPaymentMethodEvent(string $projectRoot, string $action, array $paymentMethod): void
+{
+    if (!function_exists('afwPublishAdminEvent')) {
+        return;
+    }
+
+    afwPublishAdminEvent($projectRoot, 'admin/transactions', [
+        'type' => 'payment_method.' . $action,
+        'action' => $action,
+        'id' => (int) ($paymentMethod['id'] ?? 0),
+        'name' => (string) ($paymentMethod['name'] ?? ''),
+        'isActive' => (bool) ($paymentMethod['is_active'] ?? false),
+    ]);
 }
 
 function readTransactionBody(): array
@@ -494,6 +548,12 @@ function grantProductAccess(PDO $pdo, array $transaction, string $now): void
         ':created_at' => $now,
         ':updated_at' => $now,
     ]);
+    $lookup = $pdo->prepare('SELECT id FROM user_entitlements WHERE transaction_id = :transaction_id LIMIT 1');
+    $lookup->execute([':transaction_id' => (int) $transaction['id']]);
+    $entitlementId = (int) ($lookup->fetchColumn() ?: 0);
+    if ($entitlementId > 0 && function_exists('afwSyncEnqueue')) {
+        afwSyncEnqueue($pdo, 'user_entitlements', $entitlementId, 'update');
+    }
 
     if (($transaction['item_type'] ?? '') !== 'workshop') {
         return;
@@ -545,7 +605,7 @@ function grantProductAccess(PDO $pdo, array $transaction, string $now): void
 
 function findTransaction(PDO $pdo, int $id): ?array
 {
-    $statement = $pdo->prepare('SELECT * FROM transactions WHERE id = :id LIMIT 1');
+    $statement = $pdo->prepare('SELECT * FROM transactions WHERE id = :id AND deleted_at IS NULL LIMIT 1');
     $statement->execute([':id' => $id]);
     $row = $statement->fetch(PDO::FETCH_ASSOC);
     return is_array($row) ? $row : null;
@@ -553,7 +613,7 @@ function findTransaction(PDO $pdo, int $id): ?array
 
 function findPaymentMethod(PDO $pdo, int $id): ?array
 {
-    $statement = $pdo->prepare('SELECT * FROM payment_methods WHERE id = :id LIMIT 1');
+    $statement = $pdo->prepare('SELECT * FROM payment_methods WHERE id = :id AND deleted_at IS NULL LIMIT 1');
     $statement->execute([':id' => $id]);
     $row = $statement->fetch(PDO::FETCH_ASSOC);
     return is_array($row) ? $row : null;
@@ -696,6 +756,12 @@ try {
     $pdo->exec('PRAGMA busy_timeout = ' . max(1000, $busyTimeout));
     $pdo->exec('PRAGMA foreign_keys = ON');
     ensureTransactionTables($pdo);
+    if (function_exists('afwSyncEnsureInfrastructure')) {
+        afwSyncEnsureInfrastructure($pdo);
+        foreach (['transactions', 'payment_methods', 'user_entitlements'] as $syncTable) {
+            afwSyncEnsureTable($pdo, $syncTable);
+        }
+    }
 
     $transactionId = getTransactionId();
     $action = strtolower(trim((string) ($_GET['action'] ?? '')));
@@ -720,9 +786,9 @@ try {
             }
 
             $onlyActive = isset($_GET['active']) && $_GET['active'] !== '';
-            $sql = 'SELECT * FROM payment_methods';
+            $sql = 'SELECT * FROM payment_methods WHERE deleted_at IS NULL';
             if ($onlyActive) {
-                $sql .= ' WHERE is_active = :is_active';
+                $sql .= ' AND is_active = :is_active';
             }
             $sql .= ' ORDER BY id DESC';
 
@@ -795,12 +861,17 @@ try {
                     ':id' => $createdId,
                 ]);
             }
+            if (function_exists('afwSyncEnqueue')) {
+                afwSyncEnqueue($pdo, 'payment_methods', $createdId, 'insert', false);
+            }
+            $createdPaymentMethod = findPaymentMethod($pdo, $createdId) ?? [];
+            publishPaymentMethodEvent($projectRoot, 'created', $createdPaymentMethod);
 
             respond(201, [
                 'success' => true,
                 'message' => 'Metode pembayaran berhasil dibuat.',
                 'data' => [
-                    'paymentMethod' => rowToPaymentMethod(findPaymentMethod($pdo, $createdId) ?? []),
+                    'paymentMethod' => rowToPaymentMethod($createdPaymentMethod),
                 ],
             ]);
         }
@@ -873,12 +944,17 @@ try {
                     ':id' => $transactionId,
                 ]);
             }
+            if (function_exists('afwSyncEnqueue')) {
+                afwSyncEnqueue($pdo, 'payment_methods', $transactionId, 'update');
+            }
+            $updatedPaymentMethod = findPaymentMethod($pdo, $transactionId) ?? [];
+            publishPaymentMethodEvent($projectRoot, 'updated', $updatedPaymentMethod);
 
             respond(200, [
                 'success' => true,
                 'message' => 'Metode pembayaran berhasil diperbarui.',
                 'data' => [
-                    'paymentMethod' => rowToPaymentMethod(findPaymentMethod($pdo, $transactionId) ?? []),
+                    'paymentMethod' => rowToPaymentMethod($updatedPaymentMethod),
                 ],
             ]);
         }
@@ -896,8 +972,14 @@ try {
                 ]);
             }
 
-            $statement = $pdo->prepare('DELETE FROM payment_methods WHERE id = :id');
-            $statement->execute([':id' => $transactionId]);
+            if (function_exists('afwSyncEnqueue')) {
+                afwSyncEnqueue($pdo, 'payment_methods', $transactionId, 'delete');
+            } else {
+                $statement = $pdo->prepare('UPDATE payment_methods SET deleted_at = :deleted_at, updated_at = :updated_at WHERE id = :id');
+                $now = jakartaNow();
+                $statement->execute([':deleted_at' => $now, ':updated_at' => $now, ':id' => $transactionId]);
+            }
+            publishPaymentMethodEvent($projectRoot, 'deleted', $existingRow);
 
             respond(200, [
                 'success' => true,
@@ -953,12 +1035,17 @@ try {
             ':updated_at' => $now,
             ':id' => $transactionId,
         ]);
+        if (function_exists('afwSyncEnqueue')) {
+            afwSyncEnqueue($pdo, 'transactions', $transactionId, 'update');
+        }
+        $updatedTransaction = findTransaction($pdo, $transactionId) ?? [];
+        publishTransactionEvent($projectRoot, 'proof_uploaded', $updatedTransaction);
 
         respond(200, [
             'success' => true,
             'message' => 'Bukti pembayaran berhasil diupload. Menunggu review admin.',
             'data' => [
-                'transaction' => rowToTransaction(findTransaction($pdo, $transactionId) ?? []),
+                'transaction' => rowToTransaction($updatedTransaction),
             ],
         ]);
     }
@@ -1003,12 +1090,17 @@ try {
                 ':id' => $transactionId,
             ]);
             grantProductAccess($pdo, findTransaction($pdo, $transactionId) ?? $existingRow, $now);
+            if (function_exists('afwSyncEnqueue')) {
+                afwSyncEnqueue($pdo, 'transactions', $transactionId, 'update');
+            }
+            $approvedTransaction = findTransaction($pdo, $transactionId) ?? [];
+            publishTransactionEvent($projectRoot, 'approved', $approvedTransaction);
 
             respond(200, [
                 'success' => true,
                 'message' => 'Transaksi disetujui dan produk sudah diberikan ke user.',
                 'data' => [
-                    'transaction' => rowToTransaction(findTransaction($pdo, $transactionId) ?? []),
+                    'transaction' => rowToTransaction($approvedTransaction),
                 ],
             ]);
         }
@@ -1030,12 +1122,17 @@ try {
             ':updated_at' => $now,
             ':id' => $transactionId,
         ]);
+        if (function_exists('afwSyncEnqueue')) {
+            afwSyncEnqueue($pdo, 'transactions', $transactionId, 'update');
+        }
+        $rejectedTransaction = findTransaction($pdo, $transactionId) ?? [];
+        publishTransactionEvent($projectRoot, 'rejected', $rejectedTransaction);
 
         respond(200, [
             'success' => true,
             'message' => 'Transaksi ditolak. User dapat upload ulang bukti pembayaran.',
             'data' => [
-                'transaction' => rowToTransaction(findTransaction($pdo, $transactionId) ?? []),
+                'transaction' => rowToTransaction($rejectedTransaction),
             ],
         ]);
     }
@@ -1079,9 +1176,9 @@ try {
             $params[':status'] = normalizeStatus((string) $_GET['status']);
         }
 
-        $sql = 'SELECT * FROM transactions';
+        $sql = 'SELECT * FROM transactions WHERE deleted_at IS NULL';
         if ($where !== []) {
-            $sql .= ' WHERE ' . implode(' AND ', $where);
+            $sql .= ' AND ' . implode(' AND ', $where);
         }
         $sql .= ' ORDER BY created_at DESC, id DESC';
 
@@ -1171,12 +1268,17 @@ try {
                 ':id' => $createdId,
             ]);
         }
+        if (function_exists('afwSyncEnqueue')) {
+            afwSyncEnqueue($pdo, 'transactions', $createdId, 'insert', false);
+        }
+        $createdTransaction = findTransaction($pdo, $createdId) ?? [];
+        publishTransactionEvent($projectRoot, 'created', $createdTransaction);
 
         respond(201, [
             'success' => true,
             'message' => 'Transaksi berhasil dibuat.',
             'data' => [
-                'transaction' => rowToTransaction(findTransaction($pdo, $createdId) ?? []),
+                'transaction' => rowToTransaction($createdTransaction),
             ],
         ]);
     }
@@ -1276,12 +1378,17 @@ try {
                 ':id' => $transactionId,
             ]);
         }
+        if (function_exists('afwSyncEnqueue')) {
+            afwSyncEnqueue($pdo, 'transactions', $transactionId, 'update');
+        }
+        $updatedTransaction = findTransaction($pdo, $transactionId) ?? [];
+        publishTransactionEvent($projectRoot, 'updated', $updatedTransaction);
 
         respond(200, [
             'success' => true,
             'message' => 'Transaksi berhasil diperbarui.',
             'data' => [
-                'transaction' => rowToTransaction(findTransaction($pdo, $transactionId) ?? []),
+                'transaction' => rowToTransaction($updatedTransaction),
             ],
         ]);
     }
@@ -1299,8 +1406,14 @@ try {
             ]);
         }
 
-        $statement = $pdo->prepare('DELETE FROM transactions WHERE id = :id');
-        $statement->execute([':id' => $transactionId]);
+        if (function_exists('afwSyncEnqueue')) {
+            afwSyncEnqueue($pdo, 'transactions', $transactionId, 'delete');
+        } else {
+            $statement = $pdo->prepare('UPDATE transactions SET deleted_at = :deleted_at, updated_at = :updated_at WHERE id = :id');
+            $now = jakartaNow();
+            $statement->execute([':deleted_at' => $now, ':updated_at' => $now, ':id' => $transactionId]);
+        }
+        publishTransactionEvent($projectRoot, 'deleted', $existingRow);
 
         respond(200, [
             'success' => true,

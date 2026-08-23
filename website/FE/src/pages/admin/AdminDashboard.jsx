@@ -81,6 +81,13 @@ function StatusBadge({ children }) {
   return <span className={`admin-badge admin-badge--${createSlug(children)}`}>{children}</span>;
 }
 
+function isSystemOnline(item) {
+  if (typeof item.online === 'boolean') {
+    return item.online;
+  }
+  return String(item.status || '').toLowerCase() === 'online';
+}
+
 function EmptyState({ children }) {
   return <p className="admin-empty-state">{children}</p>;
 }
@@ -310,7 +317,7 @@ export function AdminDashboard() {
                     <div className="admin-system-card" key={item.title}>
                       <img src={item.title.includes('SMTP') ? mailIcon : databaseIcon} alt="" />
                       <strong>{item.title}</strong>
-                      <span><i className={item.status === 'Online' ? '' : 'is-offline'} /> {item.status}</span>
+                      <span><i className={isSystemOnline(item) ? '' : 'is-offline'} /> {item.status}</span>
                       <small>{item.detail}</small>
                     </div>
                   ))

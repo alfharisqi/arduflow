@@ -91,6 +91,8 @@ const AdminArticleEdit = lazyNamed(() => import('./pages/admin/AdminArticleForm.
 const AdminProjects = lazyNamed(() => import('./pages/admin/AdminProjects.jsx'), 'AdminProjects');
 const AdminGallery = lazyNamed(() => import('./pages/admin/AdminGallery.jsx'), 'AdminGallery');
 const AdminPartners = lazyNamed(() => import('./pages/admin/AdminPartners.jsx'), 'AdminPartners');
+const AdminSettings = lazyNamed(() => import('./pages/admin/AdminSettings.jsx'), 'AdminSettings');
+const AdminDatabase = lazyNamed(() => import('./pages/admin/AdminDatabase.jsx'), 'AdminDatabase');
 
 const routes = {
   '/': Home,
@@ -190,6 +192,8 @@ const routes = {
   '/admin/projects': AdminProjects,
   '/admin/gallery': AdminGallery,
   '/admin/partners': AdminPartners,
+  '/admin/settings': AdminSettings,
+  '/admin/database': AdminDatabase,
 };
 
 
@@ -249,6 +253,8 @@ const standaloneRoutes = new Set([
   '/admin/projects',
   '/admin/gallery',
   '/admin/partners',
+  '/admin/settings',
+  '/admin/database',
 
   '/admin/tambah-workshop',
   '/admin/workshop/tambah',

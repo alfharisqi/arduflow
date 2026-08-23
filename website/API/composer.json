@@ -22,6 +22,7 @@
     "db:backup": "php scripts/backup-sqlite.php",
     "db:seed-admin": "php scripts/seed-admin.php",
     "sync:run": "php scripts/sync-sqlite-to-mysql.php",
+    "sync:schedule:windows": "powershell -ExecutionPolicy Bypass -File scripts/install-windows-sync-scheduler.ps1",
     "test:auth": "php tests/auth-integration.php",
     "test:sync": "php tests/sync-integration.php",
     "test:content": "php tests/content-integration.php",

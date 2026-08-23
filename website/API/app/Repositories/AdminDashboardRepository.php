@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Arduflow\Api\Repositories;
 
+use Arduflow\Api\Database\ConnectionFactory;
+use Arduflow\Api\Database\Transaction;
 use Arduflow\Api\Support\Clock;
 use Arduflow\Api\Support\Config;
 use Arduflow\Api\Services\AuthSessionService;
@@ -16,6 +18,7 @@ final class AdminDashboardRepository
         private readonly SyncStatusRepository $syncStatus,
         private readonly Config $config,
         private readonly string $sqlitePath,
+        private readonly ?ConnectionFactory $connections = null,
     ) {
     }
 
@@ -255,19 +258,140 @@ final class AdminDashboardRepository
 
     private function system(): array
     {
-        $lastMysqlStatus = $this->pdo->query('SELECT mysql_status FROM sync_logs ORDER BY id DESC LIMIT 1')->fetchColumn();
-        $mysqlStatus = $lastMysqlStatus === 'reachable' ? 'Online' : ($lastMysqlStatus === 'unreachable' ? 'Offline' : 'Belum diperiksa');
+        $sqlite = $this->sqliteHealth();
+        $mysql = $this->mysqlHealth();
+        $mail = $this->mailHealth();
         $size = $this->sqlitePath !== ':memory:' && is_file($this->sqlitePath)
             ? number_format((float) filesize($this->sqlitePath) / 1048576, 2) . ' MB'
             : '-';
+        $sync = $this->syncStatus->summary();
+
         return [
-            ['title' => 'MySQL', 'status' => $mysqlStatus, 'detail' => 'Status dari worker terakhir; tidak wajib untuk request user'],
-            ['title' => 'SQLite (Operasional)', 'status' => 'Online', 'detail' => 'Size: ' . $size],
+            [
+                'title' => 'MySQL',
+                'status' => $mysql['online'] ? 'Online' : 'Offline',
+                'online' => $mysql['online'],
+                'detail' => $mysql['online']
+                    ? 'Koneksi aktif; pending sync: ' . (int) ($sync['pending'] ?? 0) . ', failed: ' . (int) ($sync['failed'] ?? 0)
+                    : $mysql['detail'],
+            ],
+            [
+                'title' => 'SQLite (Operasional)',
+                'status' => $sqlite['online'] ? 'Online' : 'Offline',
+                'online' => $sqlite['online'],
+                'detail' => 'Size: ' . $size . '; ' . $sqlite['detail'],
+            ],
             [
                 'title' => 'SMTP / Mailpit',
-                'status' => $this->config->get('mail.enabled', true) ? 'Online' : 'Disabled',
-                'detail' => (string) $this->config->get('mail.mailpit_url', 'http://localhost:8025/'),
+                'status' => $mail['status'],
+                'online' => $mail['online'],
+                'detail' => $mail['detail'],
             ],
+        ];
+    }
+
+    private function sqliteHealth(): array
+    {
+        try {
+            $integrity = (string) $this->pdo->query('PRAGMA quick_check')->fetchColumn();
+            $writable = false;
+
+            try {
+                Transaction::immediate($this->pdo, static fn (): bool => true);
+                $writable = true;
+            } catch (\Throwable) {
+                $writable = false;
+            }
+
+            return [
+                'online' => $integrity === 'ok' && $writable,
+                'detail' => $integrity === 'ok'
+                    ? ($writable ? 'integrity ok, writable' : 'integrity ok, read-only')
+                    : 'integrity check: ' . $integrity,
+            ];
+        } catch (\Throwable $exception) {
+            return [
+                'online' => false,
+                'detail' => 'SQLite error: ' . substr($exception->getMessage(), 0, 120),
+            ];
+        }
+    }
+
+    private function mysqlHealth(): array
+    {
+        try {
+            $mysql = $this->connections instanceof ConnectionFactory
+                ? $this->connections->mysql()
+                : $this->standaloneMysqlConnection();
+            $reachable = (int) $mysql->query('SELECT 1')->fetchColumn() === 1;
+
+            return [
+                'online' => $reachable,
+                'detail' => $reachable ? 'Koneksi MySQL berhasil.' : 'MySQL tidak merespons SELECT 1.',
+            ];
+        } catch (\Throwable $exception) {
+            return [
+                'online' => false,
+                'detail' => 'MySQL error: ' . substr($exception->getMessage(), 0, 120),
+            ];
+        }
+    }
+
+    private function standaloneMysqlConnection(): PDO
+    {
+        $host = (string) $this->config->get('database.mysql.host', '127.0.0.1');
+        $port = (int) $this->config->get('database.mysql.port', 3306);
+        $database = (string) $this->config->get('database.mysql.database', 'db_arduflow');
+        $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $port, $database);
+
+        return new PDO(
+            $dsn,
+            (string) $this->config->get('database.mysql.username', 'root'),
+            (string) $this->config->get('database.mysql.password', ''),
+            [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+                PDO::ATTR_TIMEOUT => (int) $this->config->get('database.mysql.connect_timeout_seconds', 3),
+            ],
+        );
+    }
+
+    private function mailHealth(): array
+    {
+        if (!(bool) $this->config->get('mail.enabled', true)) {
+            return [
+                'online' => false,
+                'status' => 'Disabled',
+                'detail' => 'MAIL_ENABLED=false',
+            ];
+        }
+
+        $host = (string) $this->config->get('mail.host', '127.0.0.1');
+        $port = (int) $this->config->get('mail.port', 1025);
+        $target = $host . ':' . $port;
+        $errorCode = 0;
+        $errorMessage = '';
+        try {
+            $socket = @fsockopen($host, $port, $errorCode, $errorMessage, 2.0);
+        } catch (\Throwable $exception) {
+            $socket = false;
+            $errorMessage = $exception->getMessage();
+        }
+
+        if (is_resource($socket)) {
+            fclose($socket);
+            return [
+                'online' => true,
+                'status' => 'Online',
+                'detail' => 'SMTP reachable di ' . $target . '; Mailpit: ' . (string) $this->config->get('mail.mailpit_url', '-'),
+            ];
+        }
+
+        return [
+            'online' => false,
+            'status' => 'Offline',
+            'detail' => 'SMTP tidak terhubung di ' . $target . ($errorMessage !== '' ? '; ' . $errorMessage : ''),
         ];
     }
 

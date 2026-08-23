@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Arduflow\Api\Database\SqliteMigrator;
 use Arduflow\Api\Repositories\SyncOutboxRepository;
 use Arduflow\Api\Security\SyncSecurity;
+use Arduflow\Api\Services\MqttService;
 use Arduflow\Api\Services\SqliteToMysqlSyncService;
 
 $context = require dirname(__DIR__) . '/bootstrap/context.php';
@@ -16,6 +17,8 @@ $worker = new SqliteToMysqlSyncService(
     $context['config'],
     $outbox,
     new SyncSecurity($context['config'], $sqlite),
+    null,
+    new MqttService($context['config']),
 );
 
 try {

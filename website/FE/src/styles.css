@@ -34,6 +34,8 @@
 @import './styles/admin-projects.css';
 @import './styles/admin-gallery.css';
 @import './styles/admin-partners.css';
+@import './styles/admin-settings.css';
+@import './styles/admin-database.css';
 @import './styles/sweetalert.css';
 @import './styles/not-found.css';
 @import './styles/responsive.css';
