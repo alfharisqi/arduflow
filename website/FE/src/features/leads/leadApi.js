@@ -15,16 +15,19 @@ async function postJson(
   console.log("Mengirim request ke:", endpoint);
   console.log("Payload request:", payload);
 
+  const isFormData = payload instanceof FormData;
   let response;
 
   try {
     response = await fetch(endpoint, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         Accept: "application/json",
+        ...(isFormData
+          ? {}
+          : { "Content-Type": "application/json" }),
       },
-      body: JSON.stringify(payload),
+      body: isFormData ? payload : JSON.stringify(payload),
     });
   } catch (fetchError) {
     console.error("Fetch gagal:", fetchError);
@@ -104,6 +107,15 @@ export function submitLead(payload) {
 }
 
 export function submitCollaboration(payload) {
+  if (payload instanceof FormData) {
+    payload.set("form_type", "collaboration");
+
+    return postJson(
+      payload,
+      "Permintaan kolaborasi gagal dikirim."
+    );
+  }
+
   return postJson(
     {
       ...payload,

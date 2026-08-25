@@ -28,7 +28,7 @@ import { Documentation } from './pages/Documentation.jsx';
 import { Gallery } from './pages/Gallery.jsx';
 import { GalleryDetail } from './pages/GalleryDetail.jsx';
 
-import { Partner } from './pages/Partner.jsx';
+import { About } from './pages/About.jsx';
 import { Contact } from './pages/Contact.jsx';
 
 import { SignIn } from './pages/auth/signin.jsx';
@@ -128,7 +128,8 @@ const routes = {
   '/galeri': Gallery,
   '/galeri/detail': GalleryDetail,
 
-  '/partner': Partner,
+  '/about': About,
+  '/partner': About,
   '/kontak': Contact,
 
   /* =========================

@@ -121,6 +121,138 @@ function partnersEnsureTables(PDO $pdo): void
     }
 }
 
+function partnersTableExists(PDO $pdo, string $table): bool
+{
+    $statement = $pdo->prepare(
+        "SELECT name
+         FROM sqlite_master
+         WHERE type = 'table'
+         AND name = :table
+         LIMIT 1"
+    );
+    $statement->execute([':table' => $table]);
+    return $statement->fetchColumn() !== false;
+}
+
+function partnersColumnExists(PDO $pdo, string $table, string $column): bool
+{
+    $statement = $pdo->query('PRAGMA table_info(' . $table . ')');
+    $columns = array_map(
+        static fn (array $row): string => (string) ($row['name'] ?? ''),
+        $statement->fetchAll()
+    );
+    return in_array($column, $columns, true);
+}
+
+function partnersAddColumnIfMissing(PDO $pdo, string $table, string $column, string $definition): void
+{
+    if (!partnersColumnExists($pdo, $table, $column)) {
+        $pdo->exec('ALTER TABLE ' . $table . ' ADD COLUMN ' . $column . ' ' . $definition);
+    }
+}
+
+function partnersEnsureCollaborationColumns(PDO $pdo): void
+{
+    if (!partnersTableExists($pdo, 'collaborations')) {
+        return;
+    }
+
+    partnersAddColumnIfMissing($pdo, 'collaborations', 'description', 'TEXT NULL');
+    partnersAddColumnIfMissing($pdo, 'collaborations', 'proposal_file_url', 'TEXT NULL');
+}
+
+function partnersSyncCollaborations(PDO $pdo): void
+{
+    if (!partnersTableExists($pdo, 'collaborations')) {
+        return;
+    }
+
+    partnersEnsureCollaborationColumns($pdo);
+
+    $statement = $pdo->query(
+        'SELECT
+            id,
+            pic_name,
+            pic_email,
+            pic_whatsapp,
+            institution_name,
+            institution_type,
+            goal,
+            participant_estimate,
+            demo_schedule,
+            description,
+            proposal_file_url,
+            created_at,
+            updated_at
+         FROM collaborations
+         WHERE deleted_at IS NULL'
+    );
+
+    $findPartner = $pdo->prepare(
+        'SELECT id
+         FROM partners
+         WHERE deleted_at IS NULL
+         AND (
+            (email <> "" AND LOWER(email) = LOWER(:email))
+            OR LOWER(name) = LOWER(:name)
+         )
+         LIMIT 1'
+    );
+    $insertPartner = $pdo->prepare(
+        'INSERT INTO partners (
+            name, type, pic_name, pic_role, email, whatsapp, city, province, website, social_media,
+            description, programs_json, status, show_homepage, featured, follow_up_note,
+            start_date, last_contact_at, created_at, updated_at
+        ) VALUES (
+            :name, :type, :pic_name, "", :email, :whatsapp, "", "", "", "",
+            :description, :programs_json, "Menunggu", 0, 0, :follow_up_note,
+            NULL, :last_contact_at, :created_at, :updated_at
+        )'
+    );
+
+    foreach ($statement->fetchAll() as $row) {
+        $institutionName = trim((string) ($row['institution_name'] ?? ''));
+
+        if ($institutionName === '') {
+            continue;
+        }
+
+        $findPartner->execute([
+            ':email' => (string) ($row['pic_email'] ?? ''),
+            ':name' => $institutionName,
+        ]);
+
+        if ($findPartner->fetchColumn() !== false) {
+            continue;
+        }
+
+        $notes = array_values(array_filter([
+            ($row['participant_estimate'] ?? '') ? 'Peserta/User: ' . $row['participant_estimate'] : '',
+            ($row['demo_schedule'] ?? '') ? 'Jadwal demo: ' . $row['demo_schedule'] : '',
+            ($row['proposal_file_url'] ?? '') ? 'Proposal: ' . $row['proposal_file_url'] : '',
+        ]));
+        $description = trim((string) ($row['description'] ?? ''));
+
+        if ($description === '') {
+            $description = 'Lead kolaborasi dari form kontak ArduFlow.';
+        }
+
+        $insertPartner->execute([
+            ':name' => $institutionName,
+            ':type' => trim((string) ($row['institution_type'] ?? '')) ?: 'Institusi',
+            ':pic_name' => trim((string) ($row['pic_name'] ?? '')),
+            ':email' => trim((string) ($row['pic_email'] ?? '')),
+            ':whatsapp' => trim((string) ($row['pic_whatsapp'] ?? '')),
+            ':description' => $description,
+            ':programs_json' => json_encode(array_values(array_filter([(string) ($row['goal'] ?? '')])), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            ':follow_up_note' => implode(' | ', $notes),
+            ':last_contact_at' => $row['demo_schedule'] ?? null,
+            ':created_at' => $row['created_at'] ?: partnersNow(),
+            ':updated_at' => $row['updated_at'] ?: partnersNow(),
+        ]);
+    }
+}
+
 function partnerFromRow(array $row): array
 {
     $programs = json_decode((string) ($row['programs_json'] ?? '[]'), true);
@@ -219,6 +351,7 @@ function publishPartnerEvent(string $action, array $partner): void
 try {
     $pdo = afwPdo();
     partnersEnsureTables($pdo);
+    partnersSyncCollaborations($pdo);
     $id = isset($_GET['id']) && $_GET['id'] !== '' ? (int) $_GET['id'] : null;
 
     if ($method === 'GET') {

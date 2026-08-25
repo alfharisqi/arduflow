@@ -8,10 +8,24 @@ import { submitCollaboration } from "./leadApi";
 function CollaborationForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
+  const [proposalFileName, setProposalFileName] = useState("");
   const [notification, setNotification] = useState({
     type: "",
     message: "",
   });
+
+  function handleDateFocus(event) {
+    try {
+      event.currentTarget.showPicker?.();
+    } catch {
+      // Browser tetap menampilkan input date native jika showPicker ditolak.
+    }
+  }
+
+  function handleProposalChange(event) {
+    const file = event.target.files?.[0] || null;
+    setProposalFileName(file?.name || "");
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -19,46 +33,77 @@ function CollaborationForm() {
     const form = event.currentTarget;
     const formData = new FormData(form);
 
-    const payload = {
-      form_type: "collaboration",
+    const proposalFile = formData.get("proposal_file");
 
-      nama_pic: String(
-        formData.get("nama_pic") || ""
-      ).trim(),
+    if (
+      proposalFile instanceof File &&
+      proposalFile.size > 0
+    ) {
+      const isPdf =
+        proposalFile.type === "application/pdf" ||
+        proposalFile.name.toLowerCase().endsWith(".pdf");
 
-      email_pic: String(
-        formData.get("email_pic") || ""
-      ).trim(),
+      if (!isPdf) {
+        setErrors({
+          proposal_file:
+            "Proposal harus berupa file PDF.",
+        });
+        return;
+      }
 
-      whatsapp_pic: String(
-        formData.get("whatsapp_pic") || ""
-      ).trim(),
+      if (proposalFile.size > 10 * 1024 * 1024) {
+        setErrors({
+          proposal_file:
+            "Ukuran proposal maksimal 10 MB.",
+        });
+        return;
+      }
+    }
 
-      institusi: String(
-        formData.get("institusi") || ""
-      ).trim(),
+    formData.set(
+      "nama_pic",
+      String(formData.get("nama_pic") || "").trim()
+    );
+    formData.set(
+      "email_pic",
+      String(formData.get("email_pic") || "").trim()
+    );
+    formData.set(
+      "whatsapp_pic",
+      String(formData.get("whatsapp_pic") || "").trim()
+    );
+    formData.set(
+      "institusi",
+      String(formData.get("institusi") || "").trim()
+    );
+    formData.set(
+      "jenis_institusi",
+      String(formData.get("jenis_institusi") || "").trim()
+    );
+    formData.set(
+      "tujuan",
+      String(formData.get("tujuan") || "").trim()
+    );
+    formData.set(
+      "jumlah_peserta",
+      String(formData.get("jumlah_peserta") || "").trim()
+    );
+    formData.set(
+      "jadwal_demo",
+      String(formData.get("jadwal_demo") || "").trim()
+    );
+    formData.set(
+      "deskripsi_kolaborasi",
+      String(formData.get("deskripsi_kolaborasi") || "").trim()
+    );
+    formData.set(
+      "persetujuan_kolaborasi",
+      formData.get("persetujuan_kolaborasi") === "on"
+        ? "true"
+        : "false"
+    );
 
-      jenis_institusi: String(
-        formData.get("jenis_institusi") || ""
-      ).trim(),
-
-      tujuan: String(
-        formData.get("tujuan") || ""
-      ).trim(),
-
-      jumlah_peserta: String(
-        formData.get("jumlah_peserta") || ""
-      ).trim(),
-
-      jadwal_demo: String(
-        formData.get("jadwal_demo") || ""
-      ).trim(),
-
-      persetujuan_kolaborasi:
-        formData.get("persetujuan_kolaborasi") === "on",
-    };
-
-    console.log("Payload kolaborasi:", payload);
+    console.log("Payload kolaborasi:", formData);
 
     setIsSubmitting(true);
     setErrors({});
@@ -68,7 +113,7 @@ function CollaborationForm() {
     });
 
     try {
-      const result = await submitCollaboration(payload);
+      const result = await submitCollaboration(formData);
 
       console.log("Response kolaborasi:", result);
 
@@ -80,6 +125,7 @@ function CollaborationForm() {
       });
 
       form.reset();
+      setProposalFileName("");
     } catch (error) {
       console.error(
         "Gagal mengirim formulir kolaborasi:",
@@ -271,7 +317,9 @@ function CollaborationForm() {
 
             <input
               name="jadwal_demo"
-              type="datetime-local"
+              type="date"
+              onClick={handleDateFocus}
+              onFocus={handleDateFocus}
             />
 
             {errors.jadwal_demo && (
@@ -280,6 +328,49 @@ function CollaborationForm() {
               </small>
             )}
           </label>
+
+          <label className="lead-field lead-field--compact lead-field--full">
+            <span>Deskripsi Kebutuhan</span>
+
+            <textarea
+              name="deskripsi_kolaborasi"
+              placeholder="Ceritakan kebutuhan demo, kerja sama, pelatihan, target peserta, atau konteks proposal."
+              maxLength={2000}
+              rows={4}
+            />
+
+            {errors.deskripsi_kolaborasi && (
+              <small className="lead-field-error">
+                {errors.deskripsi_kolaborasi}
+              </small>
+            )}
+          </label>
+
+          <div className="lead-field lead-field--compact lead-field--full">
+            <span>Upload Proposal PDF</span>
+
+            <label className="lead-file-upload lead-file-upload--compact">
+              <input
+                name="proposal_file"
+                type="file"
+                accept="application/pdf,.pdf"
+                onChange={handleProposalChange}
+              />
+              <strong>
+                {proposalFileName ||
+                  "Klik untuk memilih proposal PDF"}
+              </strong>
+              <small>
+                Opsional. Format PDF, maksimal 10 MB.
+              </small>
+            </label>
+
+            {errors.proposal_file && (
+              <small className="lead-field-error">
+                {errors.proposal_file}
+              </small>
+            )}
+          </div>
 
           <label className="lead-consent lead-consent--compact">
             <input

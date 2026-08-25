@@ -172,7 +172,7 @@ export function Navbar() {
                     ))}
                   </div>
                 </div>
-                <a className="menu-dropdown__item" href="/partner">Tentang Kami</a>
+                <a className="menu-dropdown__item" href="/about">Tentang Kami</a>
                 <a className="menu-dropdown__item" href="/bantuan">Bantuan</a>
                 <button className="menu-dropdown__item menu-dropdown__logout" type="button" onClick={handleLogout}>
                   Log Out

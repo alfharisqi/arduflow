@@ -233,7 +233,7 @@
 }
 
 .lead-form-card--collab {
-  min-height: 835px;
+  min-height: 1010px;
   padding-top: 32px;
 }
 
@@ -289,6 +289,10 @@
 .lead-field--compact {
   margin-bottom: 9px;
   font-family: "Inter", sans-serif;
+}
+
+.lead-field--full {
+  width: 100%;
 }
 
 .lead-field span {
@@ -357,7 +361,7 @@
 }
 
 .lead-field--compact textarea {
-  min-height: 42px;
+  min-height: 96px;
   padding-top: 14px;
 }
 
@@ -405,6 +409,21 @@
   font-size: 12px;
   font-weight: 600;
   line-height: 1.35;
+}
+
+.lead-file-upload--compact {
+  min-height: 78px;
+  padding: 14px 16px;
+  font-family: "Inter", sans-serif;
+}
+
+.lead-file-upload--compact strong {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+
+.lead-file-upload--compact small {
+  font-size: 11px;
 }
 
 .lead-file-name {
