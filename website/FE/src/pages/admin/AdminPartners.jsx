@@ -131,7 +131,7 @@ function PartnerFormModal({ mode, form, setForm, onSubmit, onClose, busy }) {
   );
 }
 
-function PartnerDetailModal({ partner, busy, onClose, onEdit, onEmail, onQuickUpdate }) {
+function PartnerDetailModal({ partner, busy, onClose, onEdit, onEmail, onAccept, onFollowUp, onArchive }) {
   if (!partner) return null;
 
   return (
@@ -171,11 +171,11 @@ function PartnerDetailModal({ partner, busy, onClose, onEdit, onEmail, onQuickUp
           <p><span className="admin-partners-dot is-gray" />{formatDate(partner.updatedAt)} <b>Data partner diperbarui</b></p>
         </section>
         <div className="admin-partners-detail-actions">
-          <button type="button" className="is-blue" onClick={() => onEdit(partner)}>Edit Partner</button>
-          <button type="button" className="is-green" disabled={busy} onClick={() => onQuickUpdate(partner, { showHomepage: !partner.showHomepage }, partner.showHomepage ? 'Partner disembunyikan dari homepage.' : 'Partner ditampilkan di homepage.')}>{partner.showHomepage ? 'Sembunyikan dari Homepage' : 'Tampilkan di Homepage'}</button>
+          <button type="button" className="is-green" disabled={busy} onClick={() => onAccept(partner)}>Terima Partner</button>
+          <button type="button" className="is-orange" disabled={busy} onClick={() => onFollowUp(partner)}>Perlu Follow-up</button>
           <button type="button" className="is-purple" onClick={() => onEmail(partner)}>Kirim Email</button>
-          <button type="button" className="is-orange" disabled={busy} onClick={() => onQuickUpdate(partner, { featured: !partner.featured }, partner.featured ? 'Featured partner dinonaktifkan.' : 'Partner ditandai featured.')}>{partner.featured ? 'Nonaktifkan Featured' : 'Tandai Featured'}</button>
-          <button type="button" className="is-danger" disabled={busy} onClick={() => onQuickUpdate(partner, { status: 'Archived', showHomepage: false, featured: false }, 'Partner berhasil diarsipkan.')}>Arsipkan Partner</button>
+          <button type="button" className="is-blue" onClick={() => onEdit(partner)}>Edit Data</button>
+          <button type="button" className="is-danger" disabled={busy} onClick={() => onArchive(partner)}>Arsipkan</button>
         </div>
       </aside>
     </div>
@@ -249,6 +249,8 @@ export function AdminPartners() {
     { label: 'Lead Kerja Sama Baru', value: stats.newLeads || 0, note: '30 hari terakhir', icon: usersIcon, tone: 'purple' },
   ];
 
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const waitingPartners = partners.filter((partner) => partner.status === 'Menunggu');
   const newPartners = partners.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5);
   const activePartners = partners.filter((partner) => partner.status === 'Aktif').slice(0, 5);
   const followUpPartners = partners.filter((partner) => partner.followUpNote).slice(0, 5);
@@ -309,6 +311,33 @@ export function AdminPartners() {
       setBusy(false);
     }
   };
+
+  const acceptPartner = (partner) => quickUpdate(
+    partner,
+    {
+      status: 'Aktif',
+      startDate: partner.startDate || todayIso,
+      lastContactAt: todayIso,
+      followUpNote: '',
+    },
+    'Partner diterima dan status diubah menjadi Aktif.',
+  );
+
+  const markFollowUp = (partner) => quickUpdate(
+    partner,
+    {
+      status: 'Menunggu',
+      lastContactAt: todayIso,
+      followUpNote: partner.followUpNote || 'Perlu follow-up dari admin.',
+    },
+    'Partner ditandai perlu follow-up.',
+  );
+
+  const archivePartner = (partner) => quickUpdate(
+    partner,
+    { status: 'Archived', showHomepage: false, featured: false },
+    'Partner berhasil diarsipkan.',
+  );
 
   const removePartner = async (partner) => {
     if (!partner || !window.confirm(`Hapus partner "${partner.name}"?`)) return;
@@ -417,13 +446,47 @@ export function AdminPartners() {
             <button type="button" className="admin-partners-primary" onClick={openCreate}>+ Tambah Partner</button>
           </section>
 
+          <section className="admin-partners-review" aria-labelledby="admin-partners-review-title">
+            <div className="admin-partners-review-head">
+              <div>
+                <h2 id="admin-partners-review-title">Antrian Review Partner</h2>
+                <p>Partner dari form kolaborasi cukup diputuskan dari sini.</p>
+              </div>
+              <button type="button" onClick={() => setFilters((current) => ({ ...current, status: 'Menunggu' }))}>
+                Lihat Semua Menunggu
+              </button>
+            </div>
+
+            <div className="admin-partners-review-list">
+              {waitingPartners.length ? waitingPartners.slice(0, 4).map((partner) => (
+                <article className="admin-partners-review-card" key={partner.id}>
+                  <div>
+                    <PartnerLogo index={partner.id} />
+                    <div>
+                      <h3>{partner.name}</h3>
+                      <p>{partner.picName || '-'} · {partner.email || partner.whatsapp || '-'}</p>
+                    </div>
+                  </div>
+                  <p>{partner.description || partner.followUpNote || 'Belum ada deskripsi.'}</p>
+                  <div>
+                    <button type="button" className="is-green" disabled={busy} onClick={() => acceptPartner(partner)}>Terima</button>
+                    <button type="button" className="is-orange" disabled={busy} onClick={() => markFollowUp(partner)}>Follow-up</button>
+                    <button type="button" onClick={() => openDetail(partner)}>Detail</button>
+                    <button type="button" className="is-danger" disabled={busy} onClick={() => archivePartner(partner)}>Arsipkan</button>
+                  </div>
+                </article>
+              )) : (
+                <p className="admin-partners-review-empty">Tidak ada partner yang menunggu approval.</p>
+              )}
+            </div>
+          </section>
+
           <section className="admin-partners-table-card">
             {selectedIds.length > 0 ? (
               <div className="admin-partners-bulkbar">
                 <strong>{selectedIds.length} partner dipilih</strong>
-                <button type="button" disabled={busy} onClick={() => runBulkUpdate({ status: 'Aktif' }, 'Partner terpilih diubah menjadi aktif.')}>Set Aktif</button>
-                <button type="button" disabled={busy} onClick={() => runBulkUpdate({ showHomepage: true }, 'Partner terpilih ditampilkan di homepage.')}>Tampil Homepage</button>
-                <button type="button" disabled={busy} onClick={() => runBulkUpdate({ featured: true }, 'Partner terpilih ditandai featured.')}>Featured</button>
+                <button type="button" disabled={busy} onClick={() => runBulkUpdate({ status: 'Aktif', startDate: todayIso, followUpNote: '' }, 'Partner terpilih diterima.')}>Terima</button>
+                <button type="button" disabled={busy} onClick={() => runBulkUpdate({ status: 'Menunggu', lastContactAt: todayIso, followUpNote: 'Perlu follow-up dari admin.' }, 'Partner terpilih ditandai follow-up.')}>Follow-up</button>
                 <button type="button" disabled={busy} onClick={() => runBulkUpdate({ status: 'Archived', showHomepage: false, featured: false }, 'Partner terpilih diarsipkan.')}>Arsipkan</button>
                 <button type="button" className="is-danger" disabled={busy} onClick={runBulkDelete}>Hapus</button>
                 <button type="button" onClick={() => setSelectedIds([])}>Batal Pilih</button>
@@ -463,9 +526,11 @@ export function AdminPartners() {
                     <td>
                       <div className="admin-partners-actions">
                         <PartnerAction label={`Preview ${partner.name}`} onClick={() => openDetail(partner)}><img src={eyeIcon} alt="" /></PartnerAction>
-                        <PartnerAction label={`Edit ${partner.name}`} onClick={() => { setSelectedId(partner.id); openEdit(partner); }}>Edit</PartnerAction>
+                        {partner.status === 'Menunggu' ? (
+                          <PartnerAction label={`Terima ${partner.name}`} tone="is-accept" onClick={() => acceptPartner(partner)}>Terima</PartnerAction>
+                        ) : null}
+                        <PartnerAction label={`Follow-up ${partner.name}`} onClick={() => markFollowUp(partner)}>Follow</PartnerAction>
                         <PartnerAction label={`Email ${partner.name}`} onClick={() => emailPartner(partner)}><img src={mailIcon} alt="" /></PartnerAction>
-                        <PartnerAction label={`Hapus ${partner.name}`} tone="is-danger" onClick={() => removePartner(partner)}>Del</PartnerAction>
                       </div>
                     </td>
                   </tr>
@@ -496,9 +561,9 @@ export function AdminPartners() {
               <div>
                 <button type="button" onClick={openCreate}>Tambah Partner Baru</button>
                 <button type="button" onClick={() => loadPartners(filters)}>Refresh Data Partner</button>
-                <button type="button" onClick={() => setFilters((current) => ({ ...current, status: 'Menunggu' }))}>Cek Menunggu</button>
-                <button type="button" onClick={() => setFilters((current) => ({ ...current, status: 'Inactive' }))}>Cek Partner Inactive</button>
-                <button type="button" onClick={() => setFilters((current) => ({ ...current, status: 'Archived' }))}>Cek Arsip</button>
+                <button type="button" onClick={() => setFilters((current) => ({ ...current, status: 'Menunggu' }))}>Review Menunggu</button>
+                <button type="button" onClick={() => setFilters((current) => ({ ...current, status: 'Aktif' }))}>Partner Aktif</button>
+                <button type="button" onClick={() => setFilters((current) => ({ ...current, status: 'Archived' }))}>Arsip</button>
                 <button type="button" onClick={resetFilters}>Tampilkan Semua</button>
               </div>
             </section>
@@ -517,7 +582,9 @@ export function AdminPartners() {
             openEdit(partner);
           }}
           onEmail={emailPartner}
-          onQuickUpdate={quickUpdate}
+          onAccept={acceptPartner}
+          onFollowUp={markFollowUp}
+          onArchive={archivePartner}
         />
       ) : null}
     </AdminPage>
