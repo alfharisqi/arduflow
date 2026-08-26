@@ -269,180 +269,198 @@ function TransactionSummaryPanel({ summary }) {
 }
 
 const chartMetrics = [
-  { id: 'users', label: 'User', className: 'is-users' },
-  { id: 'logins', label: 'Login', className: 'is-logins' },
-  { id: 'leads', label: 'Lead', className: 'is-leads' },
-  { id: 'transactions', label: 'Transaksi', className: 'is-transactions' },
+  {
+    id: 'users',
+    label: 'User',
+    className: 'is-users',
+    color: '#7f56d9',
+  },
+  {
+    id: 'logins',
+    label: 'Login',
+    className: 'is-logins',
+    color: '#12b76a',
+  },
+  {
+    id: 'leads',
+    label: 'Lead',
+    className: 'is-leads',
+    color: '#f79009',
+  },
+  {
+    id: 'transactions',
+    label: 'Transaksi',
+    className: 'is-transactions',
+    color: '#2e90fa',
+  },
 ];
 
-function getChartPoint(item, metricId, maxValue) {
-  const value = Number(item?.[metricId] || 0);
-  return Math.max(0, Math.min(100, 92 - (value / maxValue) * 84));
+function reportChartValues(chart, metricId) {
+  return chart.map((item) => Number(item?.[metricId] || 0));
 }
 
-function ActivityChartPanel({ chart }) {
-  const [chartType, setChartType] = useState('bar');
-  const [activeMetrics, setActiveMetrics] = useState(() => chartMetrics.map((metric) => metric.id));
-  const [showValues, setShowValues] = useState(true);
-  const [selectedDay, setSelectedDay] = useState(null);
+function formatCompactNumber(value) {
+  return new Intl.NumberFormat('id-ID', {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(Number(value) || 0);
+}
 
-  const visibleMetrics = chartMetrics.filter((metric) => activeMetrics.includes(metric.id));
-  const detailDay = selectedDay || chart.at(-1) || null;
+function getChartScaleMax(chart) {
   const maxValue = Math.max(
     1,
-    ...chart.flatMap((item) => visibleMetrics.map((metric) => Number(item[metric.id] || 0)))
+    ...chart.flatMap((item) => chartMetrics.map((metric) => Number(item?.[metric.id] || 0)))
   );
 
-  const toggleMetric = (metricId) => {
-    setActiveMetrics((current) => {
-      if (current.includes(metricId)) {
-        return current.length === 1 ? current : current.filter((item) => item !== metricId);
-      }
+  return Math.max(4, Math.ceil(maxValue / 4) * 4);
+}
 
-      return [...current, metricId];
-    });
+function getChartPoint(value, index, total, maxValue) {
+  const x = total <= 1 ? 50 : 7 + (index / (total - 1)) * 88;
+  const y = 88 - (Number(value || 0) / maxValue) * 76;
+  return {
+    x,
+    y: Math.max(12, Math.min(88, y)),
   };
+}
 
-  const linePoints = (metricId) => chart
-    .map((item, index) => {
-      const x = chart.length <= 1 ? 50 : 5 + (index / (chart.length - 1)) * 90;
-      const y = getChartPoint(item, metricId, maxValue);
-      return `${x},${y}`;
-    })
-    .join(' ');
+function reportLinePath(values, maxValue) {
+  const points = values.map((value, index) => getChartPoint(value, index, values.length, maxValue));
+
+  if (points.length === 0) return '';
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+
+  return points.reduce((path, point, index) => {
+    if (index === 0) return `M ${point.x} ${point.y}`;
+
+    const previous = points[index - 1];
+    const middleX = (previous.x + point.x) / 2;
+    const middleY = (previous.y + point.y) / 2;
+    const segment = ` Q ${previous.x} ${previous.y} ${middleX} ${middleY}`;
+
+    return index === points.length - 1
+      ? `${path}${segment} T ${point.x} ${point.y}`
+      : `${path}${segment}`;
+  }, '');
+}
+
+function UntitledActivityChart({ chart }) {
+  const [chartMode, setChartMode] = useState('bar');
+  const labels = chart.map((item) => item.label);
+  const maxValue = getChartScaleMax(chart);
+  const axisTicks = [maxValue, maxValue * 0.75, maxValue * 0.5, maxValue * 0.25, 0];
+  const latest = chart.at(-1) || {};
 
   return (
-    <article className="admin-panel admin-chart-panel admin-chart-panel--wide">
-      <div className="admin-chart-visual">
-        <div className="admin-chart-visual-head">
+    <article className="admin-ui-chart-card">
+      <header className="admin-ui-chart-header">
+        <div>
           <span>Analytics</span>
-          <div className="admin-chart-controls" aria-label="Pengaturan chart">
-            <div className="admin-chart-control-group" role="group" aria-label="Tipe chart">
-              <button type="button" className={chartType === 'bar' ? 'is-active' : ''} onClick={() => setChartType('bar')}>Bar</button>
-              <button type="button" className={chartType === 'line' ? 'is-active' : ''} onClick={() => setChartType('line')}>Line</button>
-            </div>
-            <label className="admin-chart-toggle">
-              <input type="checkbox" checked={showValues} onChange={(event) => setShowValues(event.target.checked)} />
-              <span>Nilai</span>
-            </label>
-          </div>
+          <h2>Chart Aktivitas 7 Hari</h2>
+          <p>Ringkasan user, login, lead, dan transaksi dalam satu chart.</p>
+        </div>
+        <div className="admin-ui-chart-switch" role="group" aria-label="Tipe chart">
+          <button
+            type="button"
+            className={chartMode === 'bar' ? 'is-active' : ''}
+            onClick={() => setChartMode('bar')}
+          >
+            Bar chart 01
+          </button>
+          <button
+            type="button"
+            className={chartMode === 'line' ? 'is-active' : ''}
+            onClick={() => setChartMode('line')}
+          >
+            Line chart 03
+          </button>
+        </div>
+      </header>
+
+      <div className="admin-ui-chart-legend" aria-label="Legenda chart">
+        {chartMetrics.map((metric) => (
+          <span className={metric.className} key={metric.id}>
+            <i aria-hidden="true" />
+            {metric.label}
+            <b>{latest?.[metric.id] || 0}</b>
+          </span>
+        ))}
+      </div>
+
+      <div className={`admin-ui-chart-area is-${chartMode}`}>
+        <div className="admin-ui-chart-axis" aria-hidden="true">
+          {axisTicks.map((tick) => (
+            <span key={tick}>{formatCompactNumber(tick)}</span>
+          ))}
         </div>
 
-        <div className={`admin-activity-chart is-${chartType}`}>
-          {chartType === 'line' ? (
-            <div className="admin-chart-line-wrap">
-              <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Grafik garis aktivitas 7 hari">
-                <g className="admin-chart-grid-lines">
-                  <line x1="0" y1="8" x2="100" y2="8" />
-                  <line x1="0" y1="36" x2="100" y2="36" />
-                  <line x1="0" y1="64" x2="100" y2="64" />
-                  <line x1="0" y1="92" x2="100" y2="92" />
-                </g>
-                {visibleMetrics.map((metric) => (
-                  <polyline
-                    key={metric.id}
-                    className={metric.className}
-                    points={linePoints(metric.id)}
-                    fill="none"
-                    vectorEffect="non-scaling-stroke"
-                  />
-                ))}
-                {chart.map((item, index) => {
-                  const x = chart.length <= 1 ? 50 : 5 + (index / (chart.length - 1)) * 90;
-                  return visibleMetrics.map((metric) => (
-                    <circle
-                      key={`${item.date}-${metric.id}`}
-                      className={metric.className}
-                      cx={x}
-                      cy={getChartPoint(item, metric.id, maxValue)}
-                      r="1.5"
-                      vectorEffect="non-scaling-stroke"
-                    />
-                  ));
-                })}
-              </svg>
-              <div className="admin-chart-hit-area">
-                {chart.map((item) => (
-                  <button
-                    type="button"
-                    key={item.date}
-                    onMouseEnter={() => setSelectedDay(item)}
-                    onFocus={() => setSelectedDay(item)}
-                    onClick={() => setSelectedDay(item)}
-                  >
-                    <span>{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            chart.map((item) => (
-              <button
-                type="button"
-                className="admin-chart-day"
-                key={item.date}
-                onMouseEnter={() => setSelectedDay(item)}
-                onFocus={() => setSelectedDay(item)}
-                onClick={() => setSelectedDay(item)}
-              >
-                <div className="admin-chart-bars">
-                  {visibleMetrics.map((metric) => (
+        {chartMode === 'bar' ? (
+          <div className="admin-ui-bar-chart" role="img" aria-label="Bar chart aktivitas 7 hari">
+            {chart.map((item) => (
+              <div className="admin-ui-bar-group" key={item.date}>
+                <div className="admin-ui-bars">
+                  {chartMetrics.map((metric) => (
                     <i
                       className={metric.className}
-                      style={{ height: `${Math.max(10, ((item[metric.id] || 0) / maxValue) * 100)}%` }}
-                      title={`${metric.label}: ${item[metric.id] || 0}`}
                       key={metric.id}
-                    >
-                      {showValues ? <b>{item[metric.id] || 0}</b> : null}
-                    </i>
+                      style={{ height: `${Math.max(4, (Number(item?.[metric.id] || 0) / maxValue) * 100)}%` }}
+                      title={`${metric.label}: ${item?.[metric.id] || 0}`}
+                    />
                   ))}
                 </div>
                 <span>{item.label}</span>
-              </button>
-            ))
-          )}
-        </div>
-      </div>
-
-      <div className="admin-chart-body">
-        <div className="admin-chart-copy">
-          <h2>Chart Aktivitas 7 Hari</h2>
-          <p>
-            {visibleMetrics.map((metric) => metric.label).join(', ')}
-            {' '}aktif ditampilkan. Hover atau klik tanggal untuk melihat detail.
-          </p>
-          <small><span aria-hidden="true">schedule</span> diperbarui dari data dashboard real-time</small>
-        </div>
-
-        <aside className="admin-chart-settings" aria-label="Metrik chart">
-          <strong>Metrik</strong>
-          <div className="admin-chart-metric-list">
-            {chartMetrics.map((metric) => (
-              <label className={`admin-chart-metric ${metric.className}`} key={metric.id}>
-                <input
-                  type="checkbox"
-                  checked={activeMetrics.includes(metric.id)}
-                  onChange={() => toggleMetric(metric.id)}
-                />
-                <span>{metric.label}</span>
-              </label>
+              </div>
             ))}
           </div>
-          <div className="admin-chart-detail">
-            <span>Detail hari</span>
-            <strong>{detailDay?.label || '-'}</strong>
-            {visibleMetrics.map((metric) => (
-              <p key={metric.id}>
-                <i className={metric.className} />
-                <span>{metric.label}</span>
-                <b>{detailDay ? detailDay[metric.id] || 0 : 0}</b>
-              </p>
-            ))}
+        ) : (
+          <div className="admin-ui-line-chart">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Line chart aktivitas 7 hari">
+              <g className="admin-ui-chart-grid">
+                <line x1="0" y1="12" x2="100" y2="12" />
+                <line x1="0" y1="31" x2="100" y2="31" />
+                <line x1="0" y1="50" x2="100" y2="50" />
+                <line x1="0" y1="69" x2="100" y2="69" />
+                <line x1="0" y1="88" x2="100" y2="88" />
+              </g>
+              {chartMetrics.map((metric) => {
+                const values = reportChartValues(chart, metric.id);
+
+                return (
+                  <g className={metric.className} key={metric.id}>
+                    <path d={reportLinePath(values, maxValue)} />
+                    {values.map((value, index) => {
+                      const point = getChartPoint(value, index, values.length, maxValue);
+
+                      return (
+                        <circle
+                          key={`${metric.id}-${labels[index]}`}
+                          cx={point.x}
+                          cy={point.y}
+                          r="1.5"
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      );
+                    })}
+                  </g>
+                );
+              })}
+            </svg>
+            <div className="admin-ui-line-labels" aria-hidden="true">
+              {labels.map((label) => <span key={label}>{label}</span>)}
+            </div>
           </div>
-        </aside>
+        )}
       </div>
+
+      <footer className="admin-ui-chart-footer">
+        <small><img src={clockIcon} alt="" aria-hidden="true" />diperbarui dari data dashboard real-time</small>
+      </footer>
     </article>
   );
+}
+
+function ActivityChartPanel({ chart }) {
+  return <UntitledActivityChart chart={chart} />;
 }
 
 export function AdminDashboard() {
@@ -523,14 +541,14 @@ export function AdminDashboard() {
             )}
           </section>
 
+          <section className="admin-chart-section" aria-label="Chart aktivitas admin">
+            <ActivityChartPanel chart={activityChart} />
+          </section>
+
           <section className="admin-ops-grid" aria-label="Aksi dan ringkasan operasional">
             <QuickActionsPanel actions={quickActions} />
             <ActionQueuePanel items={actionQueue} />
             <TransactionSummaryPanel summary={transactionSummary} />
-          </section>
-
-          <section className="admin-chart-section" aria-label="Chart aktivitas admin">
-            <ActivityChartPanel chart={activityChart} />
           </section>
 
           <section className="admin-dashboard-grid">
