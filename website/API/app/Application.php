@@ -8,6 +8,7 @@ use Arduflow\Api\Controllers\HealthController;
 use Arduflow\Api\Controllers\AdminAuthController;
 use Arduflow\Api\Controllers\AdminDatabaseSyncController;
 use Arduflow\Api\Controllers\AdminDashboardController;
+use Arduflow\Api\Controllers\AdminRealtimeController;
 use Arduflow\Api\Controllers\AdminUsersController;
 use Arduflow\Api\Controllers\InternalSyncController;
 use Arduflow\Api\Controllers\ProgramController;
@@ -36,6 +37,7 @@ use Arduflow\Api\Services\DatabaseHealthService;
 use Arduflow\Api\Services\MailService;
 use Arduflow\Api\Services\MqttService;
 use Arduflow\Api\Services\MysqlSyncReceiverService;
+use Arduflow\Api\Services\SqliteBackupService;
 use Arduflow\Api\Services\SqliteToMysqlSyncService;
 use Arduflow\Api\Support\Config;
 use Arduflow\Api\Validation\SyncEventValidator;
@@ -76,7 +78,7 @@ final class Application
         $adminAuth = new AdminAuthController($admins, $passwords, $tokens, $sessions, $sessionHours);
         $syncOutbox = new SyncOutboxRepository($sqlite);
         $syncSecurity = new SyncSecurity($config, $sqlite);
-        $syncWorker = new SqliteToMysqlSyncService($config, $syncOutbox, $syncSecurity);
+        $syncWorker = new SqliteToMysqlSyncService($config, $syncOutbox, $syncSecurity, null, $mqtt);
         $internalSync = new InternalSyncController(
             $syncSecurity,
             new MysqlSyncReceiverService($connections, $config, new SyncEventValidator()),
@@ -88,14 +90,16 @@ final class Application
             $syncStatus,
             $syncOutbox,
             $syncWorker,
+            new SqliteBackupService($sqlite, $config, $root, $connections->sqlitePath()),
         );
         $workshopController = new WorkshopController(new WorkshopRepository($sqlite, $outbox), $sessions, $mqtt);
         $programController = new ProgramController(new ProgramRepository($sqlite, $outbox), $sessions, $mqtt);
         $adminDashboard = new AdminDashboardController(
             $sessions,
-            new AdminDashboardRepository($sqlite, $syncStatus, $config, $connections->sqlitePath()),
+            new AdminDashboardRepository($sqlite, $syncStatus, $config, $connections->sqlitePath(), $connections),
         );
         $adminUsers = new AdminUsersController($sessions, $users, $tokens, new MailService($config));
+        $adminRealtime = new AdminRealtimeController($sessions, $config);
 
         $this->router = new Router();
         $this->router->get('/api/health', [$health, 'basic']);
@@ -115,6 +119,7 @@ final class Application
         $this->router->get('/api/admin/session', [$adminAuth, 'session']);
         $this->router->post('/api/admin/logout', [$adminAuth, 'logout']);
         $this->router->get('/api/admin/dashboard', [$adminDashboard, 'show']);
+        $this->router->get('/api/admin/realtime/mqtt', [$adminRealtime, 'mqtt']);
         $this->router->get('/api/admin/users', [$adminUsers, 'index']);
         $this->router->post('/api/admin/users/verification/clear-tokens', [$adminUsers, 'clearVerificationTokens']);
         $this->router->put('/api/admin/users/{id}/status', [$adminUsers, 'updateStatus']);
@@ -124,6 +129,8 @@ final class Application
         $this->router->get('/api/admin/database-sync/status', [$adminSync, 'status']);
         $this->router->post('/api/admin/database-sync/run', [$adminSync, 'run']);
         $this->router->post('/api/admin/database-sync/retry-failed', [$adminSync, 'retryFailed']);
+        $this->router->post('/api/admin/database-sync/backup', [$adminSync, 'backup']);
+        $this->router->get('/api/admin/database-sync/backups', [$adminSync, 'backups']);
         $this->router->post('/api/internal/sync/sqlite-to-mysql', [$internalSync, 'receive']);
         $this->router->get('/api/workshops', [$workshopController, 'index']);
         $this->router->get('/api/workshops/{id}', [$workshopController, 'show']);

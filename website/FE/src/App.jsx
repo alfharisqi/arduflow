@@ -3,7 +3,6 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { Layout } from './components/Layout.jsx';
 
 import { Home } from './pages/Home.jsx';
-import { Ide } from './pages/Ide.jsx';
 import { Access } from './pages/Access.jsx';
 import { Program } from './pages/Program.jsx';
 
@@ -28,7 +27,7 @@ import { Documentation } from './pages/Documentation.jsx';
 import { Gallery } from './pages/Gallery.jsx';
 import { GalleryDetail } from './pages/GalleryDetail.jsx';
 
-import { Partner } from './pages/Partner.jsx';
+import { About } from './pages/About.jsx';
 import { Contact } from './pages/Contact.jsx';
 
 import { SignIn } from './pages/auth/signin.jsx';
@@ -44,6 +43,8 @@ import { UserProjectGallery } from './pages/User/UserProjectGallery.jsx';
 import { UserWorkshopSchedule } from './pages/User/UserWorkshopSchedule.jsx';
 import { UserTransactions } from './pages/User/UserTransactions.jsx';
 import { UserCertificates } from './pages/User/UserCertificates.jsx';
+import { UserLeadDashboard } from './pages/User/UserLeadDashboard.jsx';
+import { UserIdeAccess } from './pages/User/UserIdeAccess.jsx';
 
 /* =========================
    ADMIN
@@ -91,11 +92,14 @@ const AdminArticleEdit = lazyNamed(() => import('./pages/admin/AdminArticleForm.
 const AdminProjects = lazyNamed(() => import('./pages/admin/AdminProjects.jsx'), 'AdminProjects');
 const AdminGallery = lazyNamed(() => import('./pages/admin/AdminGallery.jsx'), 'AdminGallery');
 const AdminPartners = lazyNamed(() => import('./pages/admin/AdminPartners.jsx'), 'AdminPartners');
+const AdminIde = lazyNamed(() => import('./pages/admin/AdminIde.jsx'), 'AdminIde');
+const AdminSettings = lazyNamed(() => import('./pages/admin/AdminSettings.jsx'), 'AdminSettings');
+const AdminDatabase = lazyNamed(() => import('./pages/admin/AdminDatabase.jsx'), 'AdminDatabase');
 
 const routes = {
   '/': Home,
 
-  '/ide': Ide,
+  '/ide': Access,
   '/akses': Access,
   '/program': Program,
 
@@ -126,7 +130,8 @@ const routes = {
   '/galeri': Gallery,
   '/galeri/detail': GalleryDetail,
 
-  '/partner': Partner,
+  '/about': About,
+  '/partner': About,
   '/kontak': Contact,
 
   /* =========================
@@ -162,6 +167,8 @@ const routes = {
   '/progress-belajar': UserLearningProgress,
   '/proyek-saya': UserProjectGallery,
   '/workshop-program': UserWorkshopSchedule,
+  '/lead-saya': UserLeadDashboard,
+  '/ide-saya': UserIdeAccess,
   '/transaksi': UserTransactions,
   '/sertifikat': UserCertificates,
 
@@ -190,6 +197,9 @@ const routes = {
   '/admin/projects': AdminProjects,
   '/admin/gallery': AdminGallery,
   '/admin/partners': AdminPartners,
+  '/admin/ide': AdminIde,
+  '/admin/settings': AdminSettings,
+  '/admin/database': AdminDatabase,
 };
 
 
@@ -224,6 +234,8 @@ const standaloneRoutes = new Set([
   '/progress-belajar',
   '/proyek-saya',
   '/workshop-program',
+  '/lead-saya',
+  '/ide-saya',
   '/transaksi',
   '/sertifikat',
 
@@ -249,6 +261,9 @@ const standaloneRoutes = new Set([
   '/admin/projects',
   '/admin/gallery',
   '/admin/partners',
+  '/admin/ide',
+  '/admin/settings',
+  '/admin/database',
 
   '/admin/tambah-workshop',
   '/admin/workshop/tambah',
@@ -264,6 +279,8 @@ const userProtectedRoutes = new Set([
   '/progress-belajar',
   '/proyek-saya',
   '/workshop-program',
+  '/lead-saya',
+  '/ide-saya',
   '/transaksi',
   '/sertifikat',
 ]);

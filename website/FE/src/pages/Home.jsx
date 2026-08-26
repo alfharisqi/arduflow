@@ -1131,7 +1131,7 @@ export function Home() {
               </article>
             ))}
           </div>
-          <a className="partners-button" href="/partner">Jadi Partner Arduflow</a>
+          <a className="partners-button" href="/about">Tentang Arduflow</a>
         </div>
       </section>
     </>

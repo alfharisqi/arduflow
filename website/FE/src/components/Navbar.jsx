@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { navigation } from '../features/content/arduflowContent.js';
 import { ProfileAvatar } from '../features/profile-image-crop/ProfileAvatar.jsx';
 import { logoutUser } from '../services/authApi.js';
+import { fetchTransactions } from '../services/transactionApi.js';
+
+const IDE_APP_URL = 'https://ide.arduflow.com/';
 
 function getStoredUser() {
   if (typeof window === 'undefined') {
@@ -18,6 +21,7 @@ function getStoredUser() {
 export function Navbar() {
   const current = window.location.pathname.replace(/\/$/, '') || '/';
   const [storedUser, setStoredUser] = useState(getStoredUser);
+  const [hasIdeAccess, setHasIdeAccess] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -56,6 +60,61 @@ export function Navbar() {
   const displayName = storedUser?.name || storedUser?.username || 'Nama Lengkap';
   const username = storedUser?.username || storedUser?.email || 'USERNAME';
   const profileImage = storedUser?.profileImage || storedUser?.avatar || '';
+  const ideHref = isSignedIn ? (hasIdeAccess ? IDE_APP_URL : '/ide-saya') : '/ide';
+  const ideLinkProps = hasIdeAccess
+    ? { target: '_blank', rel: 'noreferrer' }
+    : {};
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadIdeAccess() {
+      if (!storedUser) {
+        setHasIdeAccess(false);
+        return;
+      }
+
+      const params = {};
+
+      if (storedUser.id || storedUser.userId) {
+        params.userId = storedUser.id || storedUser.userId;
+      }
+
+      if (storedUser.email) {
+        params.email = storedUser.email;
+      }
+
+      if (!params.userId && !params.email) {
+        setHasIdeAccess(false);
+        return;
+      }
+
+      try {
+        const records = await fetchTransactions(params);
+
+        if (!active) {
+          return;
+        }
+
+        setHasIdeAccess(
+          records.some((transaction) =>
+            transaction.itemType === 'ide' &&
+            transaction.status === 'paid'
+          )
+        );
+      } catch {
+        if (active) {
+          setHasIdeAccess(false);
+        }
+      }
+    }
+
+    loadIdeAccess();
+
+    return () => {
+      active = false;
+    };
+  }, [storedUser]);
 
   const handleLogout = async () => {
     const token = window.localStorage.getItem('arduflow_user_token');
@@ -73,7 +132,7 @@ export function Navbar() {
   const dashboardLinks = [
     { label: 'Profil', href: '/dashboard' },
     { label: 'Project Saya', href: '/proyek-saya' },
-    { label: 'Masuk IDE', href: '/ide' },
+    { label: 'Masuk IDE', href: ideHref, external: hasIdeAccess },
     { label: 'Program yang Diikuti', href: '/workshop-program' },
     { label: 'Sertifikat', href: '/sertifikat' },
   ];
@@ -116,7 +175,7 @@ export function Navbar() {
       </nav>
       {isSignedIn ? (
         <div className="navbar-user-actions" aria-label="Aksi pengguna" ref={menuRef}>
-          <a className="nav-ide" href="/ide">Masuk IDE</a>
+          <a className="nav-ide" href={ideHref} {...ideLinkProps}>Masuk IDE</a>
           <a className="navbar-user-avatar" href="/dashboard" aria-label="Profil pengguna">
             <ProfileAvatar image={profileImage} name={displayName} />
           </a>
@@ -153,7 +212,12 @@ export function Navbar() {
                   </div>
                   <div className="menu-dropdown__details">
                     {dashboardLinks.map((item) => (
-                      <a href={item.href} key={item.href}>
+                      <a
+                        href={item.href}
+                        key={`${item.label}-${item.href}`}
+                        target={item.external ? '_blank' : undefined}
+                        rel={item.external ? 'noreferrer' : undefined}
+                      >
                         {item.label}
                       </a>
                     ))}
@@ -172,7 +236,7 @@ export function Navbar() {
                     ))}
                   </div>
                 </div>
-                <a className="menu-dropdown__item" href="/partner">Tentang Kami</a>
+                <a className="menu-dropdown__item" href="/about">Tentang Kami</a>
                 <a className="menu-dropdown__item" href="/bantuan">Bantuan</a>
                 <button className="menu-dropdown__item menu-dropdown__logout" type="button" onClick={handleLogout}>
                   Log Out

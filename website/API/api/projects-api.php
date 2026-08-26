@@ -30,6 +30,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
 }
 
 $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
+$syncOutboxPath = __DIR__ . '/support/sync-outbox.php';
+$mqttEventsPath = __DIR__ . '/support/mqtt-events.php';
+
+if (is_file($syncOutboxPath)) {
+    require_once $syncOutboxPath;
+}
+if (is_file($mqttEventsPath)) {
+    require_once $mqttEventsPath;
+}
 
 if ($method === 'POST' && isset($_POST['_method'])) {
     $methodOverride = strtoupper((string) $_POST['_method']);
@@ -184,6 +193,8 @@ function ensureProjectTables(PDO $pdo): void
             circuit_image_url TEXT,
             component_images_json TEXT,
             payload_json TEXT NOT NULL,
+            deleted_at TEXT,
+            version INTEGER NOT NULL DEFAULT 1,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )'
@@ -206,6 +217,8 @@ function ensureProjectTables(PDO $pdo): void
         addColumnIfMissing($pdo, 'project_submissions', 'circuit_image_path', 'TEXT');
         addColumnIfMissing($pdo, 'project_submissions', 'circuit_image_url', 'TEXT');
         addColumnIfMissing($pdo, 'project_submissions', 'component_images_json', 'TEXT');
+        addColumnIfMissing($pdo, 'project_submissions', 'deleted_at', 'TEXT');
+        addColumnIfMissing($pdo, 'project_submissions', 'version', 'INTEGER NOT NULL DEFAULT 1');
     }
 }
 
@@ -286,7 +299,7 @@ function rowToProject(array $row): array
 function findProject(PDO $pdo, int $id): ?array
 {
     $statement = $pdo->prepare(
-        'SELECT * FROM project_submissions WHERE id = :id LIMIT 1'
+        'SELECT * FROM project_submissions WHERE id = :id AND deleted_at IS NULL LIMIT 1'
     );
     $statement->execute([':id' => $id]);
     $row = $statement->fetch();
@@ -510,8 +523,17 @@ function applyComponentImagesToTools(array $tools, array $componentImages): arra
 
 try {
     $projectRoot = dirname(__DIR__);
+    $autoloadPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
     $configPath = $projectRoot . '/config/database.php';
     $imageStoragePath = $projectRoot . '/api/support/image-storage.php';
+
+    if (is_file($autoloadPath)) {
+        require_once $autoloadPath;
+    }
+
+    if (class_exists(\Arduflow\Api\Support\Env::class)) {
+        \Arduflow\Api\Support\Env::load($projectRoot . DIRECTORY_SEPARATOR . '.env');
+    }
 
     if (file_exists($imageStoragePath)) {
         require_once $imageStoragePath;
@@ -564,6 +586,10 @@ try {
     $pdo->exec('PRAGMA foreign_keys = ON');
     $pdo->exec('PRAGMA busy_timeout = ' . max(15000, $busyTimeout));
     ensureProjectTables($pdo);
+    if (function_exists('afwSyncEnsureInfrastructure')) {
+        afwSyncEnsureInfrastructure($pdo);
+        afwSyncEnsureTable($pdo, 'project_submissions');
+    }
 
     $projectId = getProjectId();
 
@@ -586,7 +612,7 @@ try {
         }
 
         $statement = $pdo->query(
-            'SELECT * FROM project_submissions ORDER BY id DESC'
+            'SELECT * FROM project_submissions WHERE deleted_at IS NULL ORDER BY id DESC'
         );
         $projects = array_map('rowToProject', $statement->fetchAll());
 
@@ -736,7 +762,19 @@ try {
         ]);
 
         $newId = (int) $pdo->lastInsertId();
+        if (function_exists('afwSyncEnqueue')) {
+            afwSyncEnqueue($pdo, 'project_submissions', $newId, 'insert', false);
+        }
         $row = findProject($pdo, $newId);
+        if (function_exists('afwPublishAdminEvent') && $row !== null) {
+            afwPublishAdminEvent($projectRoot, 'admin/projects', [
+                'type' => 'project.created',
+                'action' => 'created',
+                'id' => $newId,
+                'title' => (string) ($row['title'] ?? ''),
+                'status' => (string) ($row['status'] ?? ''),
+            ]);
+        }
 
         sendJson(201, [
             'success' => true,
@@ -905,7 +943,19 @@ try {
             ':id' => $projectId,
         ]);
 
+        if (function_exists('afwSyncEnqueue')) {
+            afwSyncEnqueue($pdo, 'project_submissions', $projectId, 'update');
+        }
         $updatedRow = findProject($pdo, $projectId);
+        if (function_exists('afwPublishAdminEvent') && $updatedRow !== null) {
+            afwPublishAdminEvent($projectRoot, 'admin/projects', [
+                'type' => 'project.updated',
+                'action' => 'updated',
+                'id' => $projectId,
+                'title' => (string) ($updatedRow['title'] ?? ''),
+                'status' => (string) ($updatedRow['status'] ?? ''),
+            ]);
+        }
 
         sendJson(200, [
             'success' => true,
@@ -928,10 +978,23 @@ try {
             ]);
         }
 
-        $statement = $pdo->prepare(
-            'DELETE FROM project_submissions WHERE id = :id'
-        );
-        $statement->execute([':id' => $projectId]);
+        if (function_exists('afwSyncEnqueue')) {
+            afwSyncEnqueue($pdo, 'project_submissions', $projectId, 'delete');
+        } else {
+            $statement = $pdo->prepare(
+                'UPDATE project_submissions SET deleted_at = :deleted_at, updated_at = :updated_at WHERE id = :id'
+            );
+            $now = jakartaNow();
+            $statement->execute([':deleted_at' => $now, ':updated_at' => $now, ':id' => $projectId]);
+        }
+        if (function_exists('afwPublishAdminEvent')) {
+            afwPublishAdminEvent($projectRoot, 'admin/projects', [
+                'type' => 'project.deleted',
+                'action' => 'deleted',
+                'id' => $projectId,
+                'title' => (string) ($existingRow['title'] ?? ''),
+            ]);
+        }
 
         sendJson(200, [
             'success' => true,

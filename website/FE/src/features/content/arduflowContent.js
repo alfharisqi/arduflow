@@ -4,7 +4,7 @@ export const navigation = [
   { label: 'Materi', path: '/materi' },
   { label: 'Proyek', path: '/project' },
   { label: 'Workshop', path: '/workshop' },
-  { label: 'Tentang Kami', path: '/partner' },
+  { label: 'Tentang Kami', path: '/about' },
   { label: 'Kontak', path: '/kontak' },
 ];
 

@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 header('Content-Type: application/json; charset=utf-8');
 
+$syncOutboxPath = __DIR__ . '/support/sync-outbox.php';
+
+if (is_file($syncOutboxPath)) {
+    require_once $syncOutboxPath;
+}
+
 /*
 |--------------------------------------------------------------------------
 | Fungsi umum
@@ -185,6 +191,93 @@ function ensureWorkshopRegistrationColumns(PDO $pdo): void
     );
 }
 
+function ensureCollaborationColumns(PDO $pdo): void
+{
+    if (!tableExists($pdo, 'collaborations')) {
+        return;
+    }
+
+    addColumnIfMissing($pdo, 'collaborations', 'description', 'TEXT NULL');
+    addColumnIfMissing($pdo, 'collaborations', 'proposal_file_name', 'TEXT NULL');
+    addColumnIfMissing($pdo, 'collaborations', 'proposal_file_type', 'TEXT NULL');
+    addColumnIfMissing($pdo, 'collaborations', 'proposal_file_size', 'INTEGER NULL');
+    addColumnIfMissing($pdo, 'collaborations', 'proposal_file_path', 'TEXT NULL');
+    addColumnIfMissing($pdo, 'collaborations', 'proposal_file_url', 'TEXT NULL');
+}
+
+function saveUploadedProposal(array $uploadedFile, string $projectRoot): ?array
+{
+    $uploadError = (int) ($uploadedFile['error'] ?? UPLOAD_ERR_NO_FILE);
+
+    if ($uploadError === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+
+    if ($uploadError !== UPLOAD_ERR_OK) {
+        throw new RuntimeException('Upload proposal gagal. Kode: ' . $uploadError);
+    }
+
+    $temporaryPath = (string) ($uploadedFile['tmp_name'] ?? '');
+
+    if ($temporaryPath === '' || !is_uploaded_file($temporaryPath)) {
+        throw new RuntimeException('Temporary file proposal tidak valid.');
+    }
+
+    $size = (int) ($uploadedFile['size'] ?? 0);
+
+    if ($size <= 0) {
+        throw new RuntimeException('Ukuran file proposal tidak valid.');
+    }
+
+    if ($size > 10 * 1024 * 1024) {
+        throw new RuntimeException('Ukuran proposal maksimal 10 MB.');
+    }
+
+    if (!class_exists('finfo')) {
+        throw new RuntimeException('Ekstensi PHP fileinfo belum aktif.');
+    }
+
+    $originalName = basename((string) ($uploadedFile['name'] ?? 'proposal.pdf'));
+    $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+    $detectedMime = (string) (new finfo(FILEINFO_MIME_TYPE))->file($temporaryPath);
+
+    if ($extension !== 'pdf' || $detectedMime !== 'application/pdf') {
+        throw new RuntimeException('Proposal harus berupa file PDF.');
+    }
+
+    $directory = $projectRoot
+        . DIRECTORY_SEPARATOR
+        . 'storage'
+        . DIRECTORY_SEPARATOR
+        . 'uploads'
+        . DIRECTORY_SEPARATOR
+        . 'proposals';
+
+    if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
+        throw new RuntimeException('Folder upload proposal gagal dibuat.');
+    }
+
+    if (!is_writable($directory)) {
+        throw new RuntimeException('Folder upload proposal tidak dapat ditulis.');
+    }
+
+    $fileName = 'proposal_' . date('Ymd_His') . '_' . bin2hex(random_bytes(8)) . '.pdf';
+    $destination = $directory . DIRECTORY_SEPARATOR . $fileName;
+
+    if (!move_uploaded_file($temporaryPath, $destination)) {
+        throw new RuntimeException('Proposal gagal disimpan.');
+    }
+
+    return [
+        'file_name' => $fileName,
+        'original_name' => $originalName,
+        'file_type' => $detectedMime,
+        'file_size' => $size,
+        'file_path' => 'storage/uploads/proposals/' . $fileName,
+        'file_url' => '/uploads/proposals/' . $fileName,
+    ];
+}
+
 function ensureTransactionTablesForWorkshop(PDO $pdo): void
 {
     $pdo->exec(
@@ -249,6 +342,140 @@ function ensureTransactionTablesForWorkshop(PDO $pdo): void
 
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_transactions_email ON transactions(email)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status)');
+}
+
+function ensurePartnersTableForCollaboration(PDO $pdo): void
+{
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS partners (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            type TEXT NOT NULL DEFAULT "Institusi",
+            pic_name TEXT NOT NULL DEFAULT "",
+            pic_role TEXT NOT NULL DEFAULT "",
+            email TEXT NOT NULL DEFAULT "",
+            whatsapp TEXT NOT NULL DEFAULT "",
+            city TEXT NOT NULL DEFAULT "",
+            province TEXT NOT NULL DEFAULT "",
+            website TEXT NOT NULL DEFAULT "",
+            social_media TEXT NOT NULL DEFAULT "",
+            description TEXT NOT NULL DEFAULT "",
+            programs_json TEXT NOT NULL DEFAULT "[]",
+            status TEXT NOT NULL DEFAULT "Draft",
+            show_homepage INTEGER NOT NULL DEFAULT 0,
+            featured INTEGER NOT NULL DEFAULT 0,
+            follow_up_note TEXT NOT NULL DEFAULT "",
+            start_date TEXT,
+            last_contact_at TEXT,
+            deleted_at TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )'
+    );
+}
+
+function syncCollaborationToPartner(
+    PDO $pdo,
+    string $institutionName,
+    string $institutionType,
+    string $picName,
+    string $picEmail,
+    string $picWhatsapp,
+    string $goal,
+    ?string $participantEstimate,
+    ?string $demoSchedule,
+    ?string $description,
+    ?array $proposalFile,
+    string $now
+): ?int {
+    ensurePartnersTableForCollaboration($pdo);
+
+    $existingStatement = $pdo->prepare(
+        'SELECT id
+         FROM partners
+         WHERE deleted_at IS NULL
+         AND (
+            (email <> "" AND LOWER(email) = LOWER(:email))
+            OR LOWER(name) = LOWER(:name)
+         )
+         LIMIT 1'
+    );
+    $existingStatement->execute([
+        ':email' => $picEmail,
+        ':name' => $institutionName,
+    ]);
+    $existingId = $existingStatement->fetchColumn();
+
+    $programs = array_values(array_filter([$goal]));
+    $notes = array_values(array_filter([
+        $participantEstimate ? 'Peserta/User: ' . $participantEstimate : '',
+        $demoSchedule ? 'Jadwal demo: ' . $demoSchedule : '',
+        $proposalFile ? 'Proposal: ' . ($proposalFile['file_url'] ?? '') : '',
+    ]));
+    $followUpNote = implode(' | ', $notes);
+    $partnerDescription = trim((string) $description);
+
+    if ($partnerDescription === '') {
+        $partnerDescription = 'Lead kolaborasi dari form kontak ArduFlow.';
+    }
+
+    if ($existingId !== false) {
+        $statement = $pdo->prepare(
+            'UPDATE partners
+             SET type = :type,
+                 pic_name = :pic_name,
+                 email = :email,
+                 whatsapp = :whatsapp,
+                 description = :description,
+                 programs_json = :programs_json,
+                 status = CASE WHEN status = "Draft" THEN "Menunggu" ELSE status END,
+                 follow_up_note = :follow_up_note,
+                 last_contact_at = :last_contact_at,
+                 updated_at = :updated_at
+             WHERE id = :id'
+        );
+        $statement->execute([
+            ':type' => $institutionType !== '' ? $institutionType : 'Institusi',
+            ':pic_name' => $picName,
+            ':email' => $picEmail,
+            ':whatsapp' => $picWhatsapp,
+            ':description' => $partnerDescription,
+            ':programs_json' => json_encode($programs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            ':follow_up_note' => $followUpNote,
+            ':last_contact_at' => $demoSchedule,
+            ':updated_at' => $now,
+            ':id' => (int) $existingId,
+        ]);
+
+        return (int) $existingId;
+    }
+
+    $statement = $pdo->prepare(
+        'INSERT INTO partners (
+            name, type, pic_name, pic_role, email, whatsapp, city, province, website, social_media,
+            description, programs_json, status, show_homepage, featured, follow_up_note,
+            start_date, last_contact_at, created_at, updated_at
+        ) VALUES (
+            :name, :type, :pic_name, "", :email, :whatsapp, "", "", "", "",
+            :description, :programs_json, "Menunggu", 0, 0, :follow_up_note,
+            NULL, :last_contact_at, :created_at, :updated_at
+        )'
+    );
+    $statement->execute([
+        ':name' => $institutionName,
+        ':type' => $institutionType !== '' ? $institutionType : 'Institusi',
+        ':pic_name' => $picName,
+        ':email' => $picEmail,
+        ':whatsapp' => $picWhatsapp,
+        ':description' => $partnerDescription,
+        ':programs_json' => json_encode($programs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        ':follow_up_note' => $followUpNote,
+        ':last_contact_at' => $demoSchedule,
+        ':created_at' => $now,
+        ':updated_at' => $now,
+    ]);
+
+    return (int) $pdo->lastInsertId();
 }
 
 function generateWorkshopInvoiceNumber(): string
@@ -539,6 +766,27 @@ function normalizeAdminStatus(?string $status): string
     };
 }
 
+function databaseStatusValue(string $status): string
+{
+    return match (normalizeAdminStatus($status)) {
+        'Selesai' => 'done',
+        'Diproses' => 'in_progress',
+        'Menunggu Balasan' => 'waiting',
+        'Ditolak' => 'rejected',
+        default => 'new',
+    };
+}
+
+function tableForFormType(string $formType): ?string
+{
+    return match ($formType) {
+        'lead' => 'leads',
+        'collaboration' => 'collaborations',
+        'workshop' => 'workshop_registrations',
+        default => null,
+    };
+}
+
 function formatAdminDate(?string $value): string
 {
     if (!$value) {
@@ -638,6 +886,8 @@ function fetchAdminLeads(PDO $pdo): array
     }
 
     if (tableExists($pdo, 'collaborations')) {
+        ensureCollaborationColumns($pdo);
+
         $statement = $pdo->query(
             "SELECT
                 id,
@@ -649,6 +899,11 @@ function fetchAdminLeads(PDO $pdo): array
                 goal,
                 participant_estimate,
                 demo_schedule,
+                description,
+                proposal_file_name,
+                proposal_file_type,
+                proposal_file_size,
+                proposal_file_url,
                 source,
                 status,
                 created_at,
@@ -688,6 +943,13 @@ function fetchAdminLeads(PDO $pdo): array
                     'institution_type' => $row['institution_type'] ?? null,
                     'participant_estimate' => $row['participant_estimate'] ?? null,
                     'demo_schedule' => $row['demo_schedule'] ?? null,
+                    'description' => $row['description'] ?? null,
+                    'proposal_file_name' => $row['proposal_file_name'] ?? null,
+                    'proposal_file_type' => $row['proposal_file_type'] ?? null,
+                    'proposal_file_size' => isset($row['proposal_file_size'])
+                        ? (string) $row['proposal_file_size']
+                        : null,
+                    'proposal_file_url' => $row['proposal_file_url'] ?? null,
                 ],
             ];
         }
@@ -765,6 +1027,53 @@ function fetchAdminLeads(PDO $pdo): array
     return $items;
 }
 
+function summarizeLeadItems(array $items): array
+{
+    $statusCounts = [];
+    $topicCounts = [];
+    $formTypeCounts = [
+        'lead' => 0,
+        'collaboration' => 0,
+        'workshop' => 0,
+    ];
+
+    foreach ($items as $item) {
+        $status = (string) ($item['status'] ?? 'Baru');
+        $topic = (string) ($item['topic'] ?? '-');
+        $formType = (string) ($item['form_type'] ?? '');
+
+        $statusCounts[$status] = ($statusCounts[$status] ?? 0) + 1;
+        $topicCounts[$topic] = ($topicCounts[$topic] ?? 0) + 1;
+
+        if (array_key_exists($formType, $formTypeCounts)) {
+            $formTypeCounts[$formType] += 1;
+        }
+    }
+
+    return [
+        'status_counts' => $statusCounts,
+        'topic_counts' => $topicCounts,
+        'form_type_counts' => $formTypeCounts,
+    ];
+}
+
+function fetchUserLeadHistory(PDO $pdo, string $email): array
+{
+    $normalizedEmail = strtolower(trim($email));
+
+    if ($normalizedEmail === '') {
+        return [];
+    }
+
+    return array_values(
+        array_filter(
+            fetchAdminLeads($pdo),
+            static fn (array $item): bool =>
+                strtolower(trim((string) ($item['email'] ?? ''))) === $normalizedEmail
+        )
+    );
+}
+
 if ($method === 'GET') {
     $databaseConfig = require $configPath;
     $sqliteConfig = $databaseConfig['sqlite'] ?? null;
@@ -778,14 +1087,28 @@ if ($method === 'GET') {
     }
 
     $pdo = openSqliteConnection($sqliteConfig, $projectRoot);
-    $items = fetchAdminLeads($pdo);
-    $statusCounts = [];
-    $topicCounts = [];
+    $scope = strtolower(trim((string) ($_GET['scope'] ?? 'admin')));
 
-    foreach ($items as $item) {
-        $statusCounts[$item['status']] = ($statusCounts[$item['status']] ?? 0) + 1;
-        $topicCounts[$item['topic']] = ($topicCounts[$item['topic']] ?? 0) + 1;
+    if ($scope === 'user') {
+        $email = (string) ($_GET['email'] ?? '');
+        $items = fetchUserLeadHistory($pdo, $email);
+        $summary = summarizeLeadItems($items);
+
+        sendJson(
+            200,
+            true,
+            'History lead user berhasil diambil.',
+            [
+                'leads' => $items,
+                'total' => count($items),
+                ...$summary,
+                'generated_at' => gmdate('Y-m-d\TH:i:s\Z'),
+            ]
+        );
     }
+
+    $items = fetchAdminLeads($pdo);
+    $summary = summarizeLeadItems($items);
 
     sendJson(
         200,
@@ -794,8 +1117,7 @@ if ($method === 'GET') {
         [
             'leads' => $items,
             'total' => count($items),
-            'status_counts' => $statusCounts,
-            'topic_counts' => $topicCounts,
+            ...$summary,
             'generated_at' => gmdate('Y-m-d\TH:i:s\Z'),
         ]
     );
@@ -808,50 +1130,60 @@ if ($method === 'GET') {
 */
 
 $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+$isMultipart = stripos($contentType, 'multipart/form-data') !== false;
 
 if (
     $contentType !== ''
     && stripos($contentType, 'application/json') === false
+    && !$isMultipart
 ) {
     sendJson(
         415,
         false,
-        'Content-Type harus application/json.'
+        'Content-Type harus application/json atau multipart/form-data.'
     );
 }
 
-$rawBody = file_get_contents('php://input');
+if ($isMultipart) {
+    $payload = $_POST;
+} else {
+    $rawBody = file_get_contents('php://input');
 
-if ($rawBody === false || trim($rawBody) === '') {
-    sendJson(
-        400,
-        false,
-        'Request body tidak boleh kosong.'
-    );
-}
+    if ($rawBody === false || trim($rawBody) === '') {
+        sendJson(
+            400,
+            false,
+            'Request body tidak boleh kosong.'
+        );
+    }
 
-try {
-    $payload = json_decode(
-        $rawBody,
-        true,
-        512,
-        JSON_THROW_ON_ERROR
-    );
-} catch (JsonException) {
-    sendJson(
-        400,
-        false,
-        'Format JSON tidak valid.'
-    );
+    try {
+        $payload = json_decode(
+            $rawBody,
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+    } catch (JsonException) {
+        sendJson(
+            400,
+            false,
+            'Format JSON tidak valid.'
+        );
+    }
 }
 
 if (!is_array($payload)) {
     sendJson(
         400,
         false,
-        'Data harus berupa object JSON.'
+        'Data harus berupa object.'
     );
 }
+
+$action = strtolower(
+    trim((string) ($payload['action'] ?? ''))
+);
 
 /*
 |--------------------------------------------------------------------------
@@ -1014,6 +1346,77 @@ try {
 
 $now = gmdate('Y-m-d\TH:i:s\Z');
 
+if ($action === 'update-status') {
+    $numericId = (int) ($payload['id'] ?? 0);
+    $table = tableForFormType($formType);
+    $status = trim((string) ($payload['status'] ?? ''));
+
+    $errors = [];
+
+    if ($numericId <= 0) {
+        $errors['id'] = 'ID lead tidak valid.';
+    }
+
+    if ($table === null) {
+        $errors['form_type'] = 'Jenis form tidak valid.';
+    }
+
+    if ($status === '') {
+        $errors['status'] = 'Status wajib diisi.';
+    }
+
+    if ($errors !== []) {
+        sendJson(422, false, 'Data update status belum valid.', [], $errors);
+    }
+
+    if (!tableExists($pdo, (string) $table)) {
+        sendJson(500, false, 'Tabel lead belum tersedia.');
+    }
+
+    $databaseStatus = databaseStatusValue($status);
+
+    try {
+        $statement = $pdo->prepare(
+            'UPDATE ' . $table . '
+             SET status = :status,
+                 updated_at = :updated_at,
+                 version = version + 1
+             WHERE id = :id
+             AND deleted_at IS NULL'
+        );
+
+        $statement->execute([
+            ':status' => $databaseStatus,
+            ':updated_at' => $now,
+            ':id' => $numericId,
+        ]);
+
+        if ($statement->rowCount() < 1) {
+            sendJson(404, false, 'Lead tidak ditemukan.');
+        }
+
+        if (function_exists('afwSyncEnqueue')) {
+            afwSyncEnqueue($pdo, (string) $table, $numericId, 'update', false);
+        }
+
+        sendJson(
+            200,
+            true,
+            'Status lead berhasil diperbarui.',
+            [
+                'id' => $numericId,
+                'form_type' => $formType,
+                'status' => normalizeAdminStatus($databaseStatus),
+                'updated_at' => $now,
+                'updated_at_label' => formatAdminDate($now),
+            ]
+        );
+    } catch (Throwable $exception) {
+        error_log('Gagal update status lead: ' . $exception->getMessage());
+        sendJson(500, false, 'Status lead gagal diperbarui.');
+    }
+}
+
 /*
 |--------------------------------------------------------------------------
 | Form 1: Leads
@@ -1140,6 +1543,9 @@ if ($formType === 'lead') {
         ]);
 
         $id = (int) $pdo->lastInsertId();
+        if (function_exists('afwSyncEnqueue')) {
+            afwSyncEnqueue($pdo, 'leads', $id, 'insert', false);
+        }
 
         $pdo->commit();
 
@@ -1221,6 +1627,10 @@ if ($formType === 'collaboration') {
         (string) ($payload['jadwal_demo'] ?? '')
     );
 
+    $description = trim(
+        (string) ($payload['deskripsi_kolaborasi'] ?? '')
+    );
+
     $consent = filter_var(
         $payload['persetujuan_kolaborasi'] ?? false,
         FILTER_VALIDATE_BOOLEAN
@@ -1286,6 +1696,25 @@ if ($formType === 'collaboration') {
             'Jadwal demo maksimal 100 karakter.';
     }
 
+    if (textLength($description) > 2000) {
+        $errors['deskripsi_kolaborasi'] =
+            'Deskripsi kebutuhan maksimal 2000 karakter.';
+    }
+
+    $proposalFile = null;
+
+    if (
+        isset($_FILES['proposal_file'])
+        && is_array($_FILES['proposal_file'])
+        && (int) ($_FILES['proposal_file']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE
+    ) {
+        try {
+            $proposalFile = saveUploadedProposal($_FILES['proposal_file'], $projectRoot);
+        } catch (Throwable $exception) {
+            $errors['proposal_file'] = $exception->getMessage();
+        }
+    }
+
     if ($errors !== []) {
         sendJson(
             422,
@@ -1308,6 +1737,8 @@ if ($formType === 'collaboration') {
         );
     }
 
+    ensureCollaborationColumns($pdo);
+
     $participantEstimateValue =
         $participantEstimate !== ''
             ? $participantEstimate
@@ -1316,6 +1747,11 @@ if ($formType === 'collaboration') {
     $demoScheduleValue =
         $demoSchedule !== ''
             ? $demoSchedule
+            : null;
+
+    $descriptionValue =
+        $description !== ''
+            ? $description
             : null;
 
     try {
@@ -1331,6 +1767,12 @@ if ($formType === 'collaboration') {
                 goal,
                 participant_estimate,
                 demo_schedule,
+                description,
+                proposal_file_name,
+                proposal_file_type,
+                proposal_file_size,
+                proposal_file_path,
+                proposal_file_url,
                 source,
                 status,
                 deleted_at,
@@ -1346,6 +1788,12 @@ if ($formType === 'collaboration') {
                 :goal,
                 :participant_estimate,
                 :demo_schedule,
+                :description,
+                :proposal_file_name,
+                :proposal_file_type,
+                :proposal_file_size,
+                :proposal_file_path,
+                :proposal_file_url,
                 :source,
                 :status,
                 NULL,
@@ -1365,6 +1813,12 @@ if ($formType === 'collaboration') {
             ':participant_estimate' =>
                 $participantEstimateValue,
             ':demo_schedule' => $demoScheduleValue,
+            ':description' => $descriptionValue,
+            ':proposal_file_name' => $proposalFile['file_name'] ?? null,
+            ':proposal_file_type' => $proposalFile['file_type'] ?? null,
+            ':proposal_file_size' => $proposalFile['file_size'] ?? null,
+            ':proposal_file_path' => $proposalFile['file_path'] ?? null,
+            ':proposal_file_url' => $proposalFile['file_url'] ?? null,
             ':source' => 'website',
             ':status' => 'new',
             ':created_at' => $now,
@@ -1372,6 +1826,28 @@ if ($formType === 'collaboration') {
         ]);
 
         $id = (int) $pdo->lastInsertId();
+        $partnerId = syncCollaborationToPartner(
+            $pdo,
+            $institutionName,
+            $institutionType,
+            $picName,
+            $picEmail,
+            $picWhatsapp,
+            $goal,
+            $participantEstimateValue,
+            $demoScheduleValue,
+            $descriptionValue,
+            $proposalFile,
+            $now
+        );
+
+        if (function_exists('afwSyncEnqueue')) {
+            afwSyncEnqueue($pdo, 'collaborations', $id, 'insert', false);
+
+            if ($partnerId !== null) {
+                afwSyncEnqueue($pdo, 'partners', $partnerId, 'update', false);
+            }
+        }
 
         $pdo->commit();
 
@@ -1393,6 +1869,10 @@ if ($formType === 'collaboration') {
                         $participantEstimateValue,
                     'demo_schedule' =>
                         $demoScheduleValue,
+                    'description' =>
+                        $descriptionValue,
+                    'proposal_file' => $proposalFile,
+                    'partner_id' => $partnerId,
                     'source' => 'website',
                     'status' => 'new',
                     'version' => 1,
@@ -1404,6 +1884,23 @@ if ($formType === 'collaboration') {
     } catch (Throwable $exception) {
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
+        }
+
+        if (
+            is_array($proposalFile)
+            && isset($proposalFile['file_path'])
+        ) {
+            $proposalPath = $projectRoot
+                . DIRECTORY_SEPARATOR
+                . str_replace(
+                    ['/', '\\'],
+                    DIRECTORY_SEPARATOR,
+                    (string) $proposalFile['file_path']
+                );
+
+            if (is_file($proposalPath)) {
+                unlink($proposalPath);
+            }
         }
 
         error_log(

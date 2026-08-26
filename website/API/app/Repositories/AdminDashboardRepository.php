@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Arduflow\Api\Repositories;
 
+use Arduflow\Api\Database\ConnectionFactory;
+use Arduflow\Api\Database\Transaction;
 use Arduflow\Api\Support\Clock;
 use Arduflow\Api\Support\Config;
 use Arduflow\Api\Services\AuthSessionService;
@@ -16,6 +18,7 @@ final class AdminDashboardRepository
         private readonly SyncStatusRepository $syncStatus,
         private readonly Config $config,
         private readonly string $sqlitePath,
+        private readonly ?ConnectionFactory $connections = null,
     ) {
     }
 
@@ -28,7 +31,9 @@ final class AdminDashboardRepository
         $unverified = $this->count('SELECT COUNT(*) FROM users WHERE deleted_at IS NULL AND email_verified_at IS NULL');
         $workshops = $this->countActiveRows('workshops');
         $programs = $this->countActiveRows('programs');
-        $projects = $this->countActiveRows('projects');
+        $projects = $this->tableExists('project_submissions')
+            ? $this->countActiveRows('project_submissions')
+            : $this->countActiveRows('projects');
         $leads = $this->countActiveRows('leads');
         $sync = $this->syncStatus->summary();
 
@@ -41,8 +46,11 @@ final class AdminDashboardRepository
                 ['id' => 'workshopsPrograms', 'label' => 'Total Workshop/Program', 'value' => $workshops + $programs, 'trend' => "{$workshops} workshop / {$programs} program", 'positive' => true],
                 ['id' => 'projects', 'label' => 'Total Proyek User', 'value' => $projects, 'trend' => 'Data dari SQLite', 'positive' => true],
                 ['id' => 'leads', 'label' => 'Lead / Kontak Masuk', 'value' => $leads, 'trend' => 'Semua lead tersimpan', 'positive' => true],
-                ['id' => 'certificates', 'label' => 'Sertifikat', 'value' => '0 / 0', 'trend' => 'Tabel sertifikat belum tersedia'],
             ],
+            'quickActions' => $this->quickActions(),
+            'actionQueue' => $this->actionQueue(),
+            'transactionSummary' => $this->transactionSummary(),
+            'activityChart' => $this->activityChart(),
             'activities' => $this->activities(),
             'verificationRows' => $this->verificationRows(),
             'workshopRows' => $this->workshopRows(),
@@ -66,8 +74,8 @@ final class AdminDashboardRepository
     {
         $leadWhere = $this->activeWhere('leads');
         $rows = $this->pdo->query(
-            "SELECT event_type, actor_id, created_at FROM auth_logs " .
-            "UNION ALL SELECT 'lead_created', id, created_at FROM leads WHERE {$leadWhere} " .
+            "SELECT event_type, actor_id, created_at, 'auth' AS source FROM auth_logs " .
+            "UNION ALL SELECT 'lead_created', id, created_at, 'lead' AS source FROM leads WHERE {$leadWhere} " .
             'ORDER BY created_at DESC LIMIT 7'
         )->fetchAll();
         $labels = [
@@ -77,17 +85,63 @@ final class AdminDashboardRepository
         ];
         return array_map(function (array $row) use ($labels): array {
             $detail = '-';
-            if ($row['event_type'] === 'lead_created') {
-                $statement = $this->pdo->prepare('SELECT name || :separator || email FROM leads WHERE id = :id');
-                $statement->execute(['separator' => ' - ', 'id' => $row['actor_id']]);
-                $detail = (string) ($statement->fetchColumn() ?: '-');
-            } elseif ($row['actor_id']) {
-                $statement = $this->pdo->prepare('SELECT email FROM users WHERE id = :id');
+            $avatarUrl = null;
+            $actorName = null;
+
+            if ($row['source'] === 'lead') {
+                $statement = $this->pdo->prepare('SELECT name, email FROM leads WHERE id = :id');
                 $statement->execute(['id' => $row['actor_id']]);
-                $detail = (string) ($statement->fetchColumn() ?: '-');
+                $lead = $statement->fetch() ?: null;
+                if (is_array($lead)) {
+                    $actorName = (string) ($lead['name'] ?? '');
+                    $detail = trim((string) ($lead['name'] ?? '') . ' - ' . (string) ($lead['email'] ?? ''), ' -') ?: '-';
+                    $avatarUrl = $this->userAvatarByEmail((string) ($lead['email'] ?? ''));
+                }
+            } elseif ($row['actor_id']) {
+                $statement = $this->pdo->prepare('SELECT name, email, profile_image, avatar_path FROM users WHERE id = :id');
+                $statement->execute(['id' => $row['actor_id']]);
+                $user = $statement->fetch() ?: null;
+                if (is_array($user)) {
+                    $actorName = (string) ($user['name'] ?? '');
+                    $detail = (string) ($user['email'] ?? '-');
+                    $avatarUrl = $this->resolveUserAvatar($user);
+                }
             }
-            return ['title' => $labels[$row['event_type']] ?? $row['event_type'], 'detail' => $detail, 'time' => $row['created_at']];
+            return [
+                'title' => $labels[$row['event_type']] ?? $row['event_type'],
+                'detail' => $detail,
+                'actorName' => $actorName,
+                'avatarUrl' => $avatarUrl,
+                'time' => $row['created_at'],
+            ];
         }, $rows);
+    }
+
+    private function userAvatarByEmail(string $email): ?string
+    {
+        $email = trim($email);
+        if ($email === '') {
+            return null;
+        }
+
+        $statement = $this->pdo->prepare(
+            'SELECT profile_image, avatar_path FROM users WHERE LOWER(email) = LOWER(:email) AND deleted_at IS NULL LIMIT 1'
+        );
+        $statement->execute(['email' => $email]);
+        $user = $statement->fetch() ?: null;
+
+        return is_array($user) ? $this->resolveUserAvatar($user) : null;
+    }
+
+    private function resolveUserAvatar(array $user): ?string
+    {
+        $profileImage = trim((string) ($user['profile_image'] ?? ''));
+        if ($profileImage !== '') {
+            return $profileImage;
+        }
+
+        $avatarPath = trim((string) ($user['avatar_path'] ?? ''));
+        return $avatarPath !== '' ? $avatarPath : null;
     }
 
     private function verificationRows(): array
@@ -155,8 +209,11 @@ final class AdminDashboardRepository
             return [];
         }
 
-        $where = $this->activeWhere($table);
-        $hasStatus = $this->hasColumn($table, 'status');
+        $sourceTable = $table === 'projects' && $this->tableExists('project_submissions')
+            ? 'project_submissions'
+            : $table;
+        $where = $this->activeWhere($sourceTable);
+        $hasStatus = $this->hasColumn($sourceTable, 'status');
         if ($draftOnly && !$hasStatus) {
             return [];
         }
@@ -164,24 +221,74 @@ final class AdminDashboardRepository
             $where .= " AND LOWER(COALESCE(status, '')) IN ('draft', 'pending_review')";
         }
 
-        $select = ['title', 'created_at'];
+        $select = ['id', 'title', 'created_at'];
+        if ($this->hasColumn($sourceTable, 'slug')) {
+            $select[] = 'slug';
+        }
         if ($hasStatus) {
             $select[] = 'status';
         }
+        foreach ($this->contentImageColumns($sourceTable) as $column) {
+            if ($this->hasColumn($sourceTable, $column)) {
+                $select[] = $column;
+            }
+        }
 
         $rows = $this->pdo->query(
-            'SELECT ' . implode(', ', $select) . " FROM {$table} WHERE {$where} ORDER BY created_at DESC LIMIT 3"
+            'SELECT ' . implode(', ', $select) . " FROM {$sourceTable} WHERE {$where} ORDER BY created_at DESC LIMIT 3"
         )->fetchAll();
         $type = $table === 'projects' ? 'Proyek' : 'Tutorial';
 
         return array_map(fn (array $row): array => [
+            'id' => isset($row['id']) ? (int) $row['id'] : null,
+            'slug' => $row['slug'] ?? null,
             'title' => $row['title'],
             'type' => $type,
+            'route' => $table === 'projects'
+                ? '/admin/projects'
+                : '/admin/tutorial/edit?id=' . rawurlencode((string) ($row['id'] ?? '')),
             'status' => $row['status'] ?? null,
             'statusLabel' => isset($row['status']) ? $this->contentStatusLabel((string) $row['status']) : null,
+            'imageUrl' => $this->contentImageUrl($sourceTable, $row),
             'createdAt' => $row['created_at'],
             'date' => $this->formatDate($row['created_at']),
         ], $rows);
+    }
+
+    private function contentImageColumns(string $table): array
+    {
+        return match ($table) {
+            'tutorials' => ['card_image_url', 'card_image_name'],
+            'projects', 'project_submissions' => ['cover_image_url', 'cover_image_name'],
+            default => [],
+        };
+    }
+
+    private function contentImageUrl(string $table, array $row): ?string
+    {
+        if ($table === 'tutorials') {
+            $url = trim((string) ($row['card_image_url'] ?? ''));
+            if ($url !== '') {
+                return $url;
+            }
+
+            $fileName = trim((string) ($row['card_image_name'] ?? ''));
+            return $fileName === ''
+                ? null
+                : '/api/materi-api.php?action=image&scope=card&file=' . rawurlencode(basename($fileName));
+        }
+
+        if ($table === 'projects' || $table === 'project_submissions') {
+            $url = trim((string) ($row['cover_image_url'] ?? ''));
+            if ($url !== '') {
+                return $url;
+            }
+
+            $fileName = trim((string) ($row['cover_image_name'] ?? ''));
+            return $fileName === '' ? null : '/uploads/projects/' . rawurlencode(basename($fileName));
+        }
+
+        return null;
     }
 
     private function draftContentRows(): array
@@ -255,19 +362,269 @@ final class AdminDashboardRepository
 
     private function system(): array
     {
-        $lastMysqlStatus = $this->pdo->query('SELECT mysql_status FROM sync_logs ORDER BY id DESC LIMIT 1')->fetchColumn();
-        $mysqlStatus = $lastMysqlStatus === 'reachable' ? 'Online' : ($lastMysqlStatus === 'unreachable' ? 'Offline' : 'Belum diperiksa');
+        $sqlite = $this->sqliteHealth();
+        $mysql = $this->mysqlHealth();
+        $mail = $this->mailHealth();
         $size = $this->sqlitePath !== ':memory:' && is_file($this->sqlitePath)
             ? number_format((float) filesize($this->sqlitePath) / 1048576, 2) . ' MB'
             : '-';
+        $sync = $this->syncStatus->summary();
+
         return [
-            ['title' => 'MySQL', 'status' => $mysqlStatus, 'detail' => 'Status dari worker terakhir; tidak wajib untuk request user'],
-            ['title' => 'SQLite (Operasional)', 'status' => 'Online', 'detail' => 'Size: ' . $size],
+            [
+                'title' => 'MySQL',
+                'status' => $mysql['online'] ? 'Online' : 'Offline',
+                'online' => $mysql['online'],
+                'detail' => $mysql['online']
+                    ? 'Koneksi aktif; pending sync: ' . (int) ($sync['pending'] ?? 0) . ', failed: ' . (int) ($sync['failed'] ?? 0)
+                    : $mysql['detail'],
+            ],
+            [
+                'title' => 'SQLite (Operasional)',
+                'status' => $sqlite['online'] ? 'Online' : 'Offline',
+                'online' => $sqlite['online'],
+                'detail' => 'Size: ' . $size . '; ' . $sqlite['detail'],
+            ],
             [
                 'title' => 'SMTP / Mailpit',
-                'status' => $this->config->get('mail.enabled', true) ? 'Online' : 'Disabled',
-                'detail' => (string) $this->config->get('mail.mailpit_url', 'http://localhost:8025/'),
+                'status' => $mail['status'],
+                'online' => $mail['online'],
+                'detail' => $mail['detail'],
             ],
+        ];
+    }
+
+    private function quickActions(): array
+    {
+        return [
+            ['label' => 'Tambah Tutorial', 'route' => '/admin/tutorial/tambah', 'kind' => 'primary'],
+            ['label' => 'Tambah Artikel', 'route' => '/admin/artikel/tambah', 'kind' => 'default'],
+            ['label' => 'Tambah Workshop', 'route' => '/admin/tambah-workshop', 'kind' => 'default'],
+            ['label' => 'Tambah Proyek', 'route' => '/admin/projects?create=1', 'kind' => 'default'],
+        ];
+    }
+
+    private function actionQueue(): array
+    {
+        $unverified = $this->count('SELECT COUNT(*) FROM users WHERE deleted_at IS NULL AND email_verified_at IS NULL');
+        $newLeads = $this->count(
+            "SELECT COUNT(*) FROM leads WHERE {$this->activeWhere('leads')} AND LOWER(COALESCE(status, 'new')) IN ('new', 'baru', 'open', 'pending')"
+        );
+        $pendingTransactions = $this->tableExists('transactions')
+            ? $this->count(
+                "SELECT COUNT(*) FROM transactions WHERE {$this->activeWhere('transactions')} AND status IN ('pending', 'proof_uploaded')"
+            )
+            : 0;
+        $draftProjects = $this->tableExists('project_submissions')
+            ? $this->count(
+                "SELECT COUNT(*) FROM project_submissions WHERE {$this->activeWhere('project_submissions')} AND LOWER(COALESCE(status, '')) IN ('draft', 'pending_review')"
+            )
+            : 0;
+        $failedSync = $this->tableExists('sync_outbox')
+            ? $this->count("SELECT COUNT(*) FROM sync_outbox WHERE status = 'failed'")
+            : 0;
+
+        return [
+            [
+                'label' => 'Akun belum verifikasi',
+                'count' => $unverified,
+                'detail' => $unverified > 0 ? 'Butuh follow-up email verifikasi.' : 'Tidak ada akun tertunda.',
+                'route' => '/admin/verification',
+                'priority' => $unverified > 0 ? 'warning' : 'normal',
+            ],
+            [
+                'label' => 'Lead baru',
+                'count' => $newLeads,
+                'detail' => $newLeads > 0 ? 'Perlu diproses tim admin.' : 'Tidak ada lead baru.',
+                'route' => '/admin/leads',
+                'priority' => $newLeads > 0 ? 'info' : 'normal',
+            ],
+            [
+                'label' => 'Transaksi perlu review',
+                'count' => $pendingTransactions,
+                'detail' => $pendingTransactions > 0 ? 'Cek bukti pembayaran masuk.' : 'Tidak ada transaksi tertunda.',
+                'route' => '/admin/transactions',
+                'priority' => $pendingTransactions > 0 ? 'warning' : 'normal',
+            ],
+            [
+                'label' => 'Proyek draft / pending',
+                'count' => $draftProjects,
+                'detail' => $draftProjects > 0 ? 'Perlu review sebelum publish.' : 'Tidak ada proyek pending.',
+                'route' => '/admin/projects',
+                'priority' => $draftProjects > 0 ? 'info' : 'normal',
+            ],
+            [
+                'label' => 'Sync gagal',
+                'count' => $failedSync,
+                'detail' => $failedSync > 0 ? 'Periksa database sync.' : 'Tidak ada sync gagal.',
+                'route' => '/admin/database',
+                'priority' => $failedSync > 0 ? 'danger' : 'normal',
+            ],
+        ];
+    }
+
+    private function transactionSummary(): array
+    {
+        if (!$this->tableExists('transactions')) {
+            return [
+                'pending' => 0,
+                'paid' => 0,
+                'rejected' => 0,
+                'expired' => 0,
+                'revenue' => 0.0,
+                'reviewNeeded' => 0,
+            ];
+        }
+
+        $where = $this->activeWhere('transactions');
+
+        return [
+            'pending' => $this->count("SELECT COUNT(*) FROM transactions WHERE {$where} AND status = 'pending'"),
+            'paid' => $this->count("SELECT COUNT(*) FROM transactions WHERE {$where} AND status = 'paid'"),
+            'rejected' => $this->count("SELECT COUNT(*) FROM transactions WHERE {$where} AND status = 'rejected'"),
+            'expired' => $this->count("SELECT COUNT(*) FROM transactions WHERE {$where} AND status = 'expired'"),
+            'revenue' => (float) $this->scalar("SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE {$where} AND status = 'paid'"),
+            'reviewNeeded' => $this->count("SELECT COUNT(*) FROM transactions WHERE {$where} AND status IN ('pending', 'proof_uploaded')"),
+        ];
+    }
+
+    private function activityChart(): array
+    {
+        $days = [];
+        for ($offset = 6; $offset >= 0; $offset--) {
+            $date = (new \DateTimeImmutable('today', new \DateTimeZone('Asia/Jakarta')))
+                ->modify('-' . $offset . ' days');
+            $isoDate = $date->format('Y-m-d');
+            $label = $date->format('d/m');
+
+            $days[] = [
+                'date' => $isoDate,
+                'label' => $label,
+                'users' => $this->countByDate('users', $isoDate),
+                'leads' => $this->countByDate('leads', $isoDate),
+                'transactions' => $this->countByDate('transactions', $isoDate),
+                'logins' => $this->count(
+                    "SELECT COUNT(*) FROM auth_logs WHERE event_type = 'login_success' AND date(created_at) = :date",
+                    ['date' => $isoDate]
+                ),
+            ];
+        }
+
+        return $days;
+    }
+
+    private function countByDate(string $table, string $date): int
+    {
+        if (!$this->tableExists($table)) {
+            return 0;
+        }
+
+        $where = $this->activeWhere($table);
+        return $this->count("SELECT COUNT(*) FROM {$table} WHERE {$where} AND date(created_at) = :date", ['date' => $date]);
+    }
+
+    private function sqliteHealth(): array
+    {
+        try {
+            $integrity = (string) $this->pdo->query('PRAGMA quick_check')->fetchColumn();
+            $writable = false;
+
+            try {
+                Transaction::immediate($this->pdo, static fn (): bool => true);
+                $writable = true;
+            } catch (\Throwable) {
+                $writable = false;
+            }
+
+            return [
+                'online' => $integrity === 'ok' && $writable,
+                'detail' => $integrity === 'ok'
+                    ? ($writable ? 'integrity ok, writable' : 'integrity ok, read-only')
+                    : 'integrity check: ' . $integrity,
+            ];
+        } catch (\Throwable $exception) {
+            return [
+                'online' => false,
+                'detail' => 'SQLite error: ' . substr($exception->getMessage(), 0, 120),
+            ];
+        }
+    }
+
+    private function mysqlHealth(): array
+    {
+        try {
+            $mysql = $this->connections instanceof ConnectionFactory
+                ? $this->connections->mysql()
+                : $this->standaloneMysqlConnection();
+            $reachable = (int) $mysql->query('SELECT 1')->fetchColumn() === 1;
+
+            return [
+                'online' => $reachable,
+                'detail' => $reachable ? 'Koneksi MySQL berhasil.' : 'MySQL tidak merespons SELECT 1.',
+            ];
+        } catch (\Throwable $exception) {
+            return [
+                'online' => false,
+                'detail' => 'MySQL error: ' . substr($exception->getMessage(), 0, 120),
+            ];
+        }
+    }
+
+    private function standaloneMysqlConnection(): PDO
+    {
+        $host = (string) $this->config->get('database.mysql.host', '127.0.0.1');
+        $port = (int) $this->config->get('database.mysql.port', 3306);
+        $database = (string) $this->config->get('database.mysql.database', 'db_arduflow');
+        $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $port, $database);
+
+        return new PDO(
+            $dsn,
+            (string) $this->config->get('database.mysql.username', 'root'),
+            (string) $this->config->get('database.mysql.password', ''),
+            [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+                PDO::ATTR_TIMEOUT => (int) $this->config->get('database.mysql.connect_timeout_seconds', 3),
+            ],
+        );
+    }
+
+    private function mailHealth(): array
+    {
+        if (!(bool) $this->config->get('mail.enabled', true)) {
+            return [
+                'online' => false,
+                'status' => 'Disabled',
+                'detail' => 'MAIL_ENABLED=false',
+            ];
+        }
+
+        $host = (string) $this->config->get('mail.host', '127.0.0.1');
+        $port = (int) $this->config->get('mail.port', 1025);
+        $target = $host . ':' . $port;
+        $errorCode = 0;
+        $errorMessage = '';
+        try {
+            $socket = @fsockopen($host, $port, $errorCode, $errorMessage, 2.0);
+        } catch (\Throwable $exception) {
+            $socket = false;
+            $errorMessage = $exception->getMessage();
+        }
+
+        if (is_resource($socket)) {
+            fclose($socket);
+            return [
+                'online' => true,
+                'status' => 'Online',
+                'detail' => 'SMTP reachable di ' . $target . '; Mailpit: ' . (string) $this->config->get('mail.mailpit_url', '-'),
+            ];
+        }
+
+        return [
+            'online' => false,
+            'status' => 'Offline',
+            'detail' => 'SMTP tidak terhubung di ' . $target . ($errorMessage !== '' ? '; ' . $errorMessage : ''),
         ];
     }
 
@@ -276,6 +633,13 @@ final class AdminDashboardRepository
         $statement = $this->pdo->prepare($sql);
         $statement->execute($params);
         return (int) $statement->fetchColumn();
+    }
+
+    private function scalar(string $sql, array $params = []): mixed
+    {
+        $statement = $this->pdo->prepare($sql);
+        $statement->execute($params);
+        return $statement->fetchColumn();
     }
 
     private function countActiveRows(string $table): int

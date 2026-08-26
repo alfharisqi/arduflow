@@ -18,6 +18,7 @@ final class SqliteToMysqlSyncService
         private readonly SyncOutboxRepository $outbox,
         private readonly SyncSecurity $security,
         ?callable $transport = null,
+        private readonly ?MqttService $mqtt = null,
     ) {
         $client = new SyncHttpClient();
         $this->transport = $transport !== null
@@ -40,17 +41,28 @@ final class SqliteToMysqlSyncService
         }
 
         $workerId = Uuid::v4();
+        $batchId = Uuid::v4();
+        $startedAt = microtime(true);
         $events = $this->outbox->claim(
             $workerId,
             (int) $this->config->get('sync.batch_size', 250),
             (int) $this->config->get('sync.processing_timeout_minutes', 15),
         );
         if ($events === []) {
-            return ['skipped' => false, 'total' => 0, 'success' => 0, 'failed' => 0];
+            $this->outbox->createLog($batchId, 0);
+            $this->outbox->finishLog(
+                $batchId,
+                0,
+                0,
+                (int) round((microtime(true) - $startedAt) * 1000),
+                'not_attempted',
+                'Tidak ada event pending.',
+            );
+            $result = compact('batchId', 'workerId') + ['skipped' => false, 'total' => 0, 'success' => 0, 'failed' => 0];
+            $this->publishSyncEvent('completed', $result, 'not_attempted');
+            return $result;
         }
 
-        $batchId = Uuid::v4();
-        $startedAt = microtime(true);
         $this->outbox->createLog($batchId, count($events));
         $payloadEvents = [];
         $processableEvents = [];
@@ -123,12 +135,14 @@ final class SqliteToMysqlSyncService
                 'unreachable',
                 $error,
             );
-            return compact('batchId', 'workerId') + [
+            $result = compact('batchId', 'workerId') + [
                 'total' => count($events),
                 'success' => 0,
                 'failed' => $totalFailed,
                 'error' => $error,
             ];
+            $this->publishSyncEvent('failed', $result, 'unreachable');
+            return $result;
         }
 
         $results = [];
@@ -160,11 +174,24 @@ final class SqliteToMysqlSyncService
             'reachable',
             $failed > 0 ? 'Sebagian event gagal disinkronkan.' : null,
         );
-        return compact('batchId', 'workerId', 'success', 'failed') + ['total' => count($events)];
+        $result = compact('batchId', 'workerId', 'success', 'failed') + ['total' => count($events)];
+        $this->publishSyncEvent($failed > 0 ? 'partial_failed' : 'completed', $result, 'reachable');
+        return $result;
     }
 
     private function conciseError(\Throwable $exception): string
     {
         return substr(trim($exception->getMessage()) ?: 'Sinkronisasi gagal.', 0, 500);
+    }
+
+    private function publishSyncEvent(string $status, array $result, string $mysqlStatus): void
+    {
+        $this->mqtt?->publish('admin/database/sync', [
+            'type' => 'database.sync.' . $status,
+            'status' => $status,
+            'mysqlStatus' => $mysqlStatus,
+            'result' => $result,
+            'publishedAt' => gmdate('c'),
+        ]);
     }
 }

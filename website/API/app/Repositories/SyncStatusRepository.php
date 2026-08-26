@@ -41,4 +41,25 @@ final class SyncStatusRepository
             'last_success_at' => $lastSuccess ?: null,
         ];
     }
+
+    public function logs(int $limit = 10): array
+    {
+        $limit = max(1, min(50, $limit));
+        $statement = $this->sqlite->query(
+            'SELECT id, batch_id, total_events, success_events, failed_events, started_at, finished_at, ' .
+            'duration_ms, mysql_status FROM sync_logs ORDER BY id DESC LIMIT ' . $limit
+        );
+
+        return array_map(static fn (array $row): array => [
+            'id' => (int) $row['id'],
+            'batch_id' => (string) ($row['batch_id'] ?? ''),
+            'total_events' => (int) ($row['total_events'] ?? 0),
+            'success_events' => (int) ($row['success_events'] ?? 0),
+            'failed_events' => (int) ($row['failed_events'] ?? 0),
+            'started_at' => $row['started_at'] ?? null,
+            'finished_at' => $row['finished_at'] ?? null,
+            'duration_ms' => $row['duration_ms'] === null ? null : (int) $row['duration_ms'],
+            'mysql_status' => $row['mysql_status'] ?? null,
+        ], $statement->fetchAll());
+    }
 }

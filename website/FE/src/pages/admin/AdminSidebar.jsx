@@ -71,7 +71,7 @@ export function AdminSidebar({ isCollapsed = false, onToggleCollapse = () => {} 
   }
 
   return (
-    <aside className="admin-sidebar" aria-label="Admin sidebar">
+    <aside className={`admin-sidebar${isCollapsed ? ' is-collapsed' : ''}`} aria-label="Admin sidebar">
       <a className="admin-sidebar-brand" href="/admin/dashboard" aria-label="Arduflow Admin">
         <span>Admin Panel</span>
       </a>

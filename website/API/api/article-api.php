@@ -2,6 +2,19 @@
 
 declare(strict_types=1);
 
+use Arduflow\Api\Support\Env;
+
+$projectRoot = dirname(__DIR__);
+$autoloadPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
+
+if (is_file($autoloadPath)) {
+    require_once $autoloadPath;
+}
+
+if (class_exists(Env::class)) {
+    Env::load($projectRoot . DIRECTORY_SEPARATOR . '.env');
+}
+
 header('Content-Type: application/json; charset=utf-8');
 
 $origin = isset($_SERVER['HTTP_ORIGIN']) ? trim((string) $_SERVER['HTTP_ORIGIN']) : '';

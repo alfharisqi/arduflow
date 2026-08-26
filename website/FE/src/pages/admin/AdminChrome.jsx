@@ -1,6 +1,7 @@
 import { useId, useState } from 'react';
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import { AdminSidebar } from './AdminSidebar.jsx';
+import { AdminRealtimeBridge } from './AdminRealtimeBridge.jsx';
 import {
   getInitialAdminSidebarCollapsed,
   persistAdminSidebarCollapsed,
@@ -89,6 +90,7 @@ export function AdminPage({ pageClassName = '', ariaLabel, children }) {
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={handleToggleSidebar}
       />
+      <AdminRealtimeBridge />
       <section className="admin-dashboard-main" aria-label={ariaLabel}>
         {children}
       </section>

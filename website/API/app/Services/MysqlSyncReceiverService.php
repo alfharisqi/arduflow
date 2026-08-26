@@ -16,6 +16,7 @@ final class MysqlSyncReceiverService
     private const DATE_COLUMNS = [
         'email_verified_at', 'verification_sent_at', 'password_reset_sent_at', 'password_reset_expires_at',
         'last_login_at', 'deleted_at', 'created_at', 'updated_at', 'start_at', 'end_at',
+        'paid_at', 'due_at', 'proof_uploaded_at', 'reviewed_at', 'granted_at',
     ];
 
     public function __construct(

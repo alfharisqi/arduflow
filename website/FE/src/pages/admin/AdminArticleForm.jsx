@@ -1,9 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AdminSidebar } from './AdminSidebar.jsx';
-import {
-  getInitialAdminSidebarCollapsed,
-  persistAdminSidebarCollapsed,
-} from './adminSidebarState.js';
 import { TinyMCEEditor } from '../../components/TinyMCEEditor.jsx';
 import {
   fetchArticle,
@@ -46,10 +41,6 @@ export function AdminArticleForm() {
   const articleId = params.get('id');
   const isEdit = Boolean(articleId);
 
-  const [isSidebarCollapsed, setSidebarCollapsed] = useState(
-    getInitialAdminSidebarCollapsed
-  );
-
   const [form, setForm] = useState(initialForm);
   const [coverFile, setCoverFile] = useState(null);
   const [coverPreview, setCoverPreview] = useState('');
@@ -58,14 +49,6 @@ export function AdminArticleForm() {
   const [isLoading, setIsLoading] = useState(isEdit);
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState('');
-
-  const handleToggleSidebar = () => {
-    setSidebarCollapsed((current) => {
-      const next = !current;
-      persistAdminSidebarCollapsed(next);
-      return next;
-    });
-  };
 
   useEffect(() => {
     if (!coverFile) {
@@ -233,16 +216,7 @@ export function AdminArticleForm() {
     : coverPreview || existingCoverUrl;
 
   return (
-    <main
-      className={`admin-dashboard-page admin-article-page${
-        isSidebarCollapsed ? ' admin-dashboard-page--collapsed' : ''
-      }`}
-    >
-      <AdminSidebar
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={handleToggleSidebar}
-      />
-
+    <main className="admin-dashboard-page admin-article-page admin-article-form-page">
       <section className="admin-dashboard-main">
         <header className="admin-article-topbar">
           <div>
@@ -276,18 +250,22 @@ export function AdminArticleForm() {
               </label>
 
               <label>
-                <span>Slug *</span>
-                <input
-                  type="text"
-                  value={form.slug}
-                  onChange={(event) =>
-                    updateField(
-                      'slug',
-                      slugifyClient(event.target.value)
-                    )
-                  }
-                  placeholder="mengenal-internet-of-things"
-                />
+                <span>URL Slug *</span>
+                <div className="admin-article-slug-field">
+                  <span>/artikel/</span>
+                  <input
+                    type="text"
+                    value={form.slug}
+                    onChange={(event) =>
+                      updateField(
+                        'slug',
+                        slugifyClient(event.target.value)
+                      )
+                    }
+                    placeholder="mengenal-internet-of-things"
+                  />
+                </div>
+                <small>URL artikel akan menjadi /artikel/{form.slug || 'slug-artikel'}</small>
               </label>
 
               <label>
@@ -402,7 +380,7 @@ export function AdminArticleForm() {
             </section>
 
             <section className="admin-article-side-card">
-              <h2>Publikasi</h2>
+              {/* <h2>Publikasi</h2>
 
               <label className="admin-article-check">
                 <input
@@ -413,29 +391,29 @@ export function AdminArticleForm() {
                   }
                 />
                 <span>Jadikan artikel pilihan</span>
+              </label> */}
+
+              <label className="admin-article-status-select">
+                <span>Status</span>
+                <select
+                  value={form.status}
+                  onChange={(event) =>
+                    updateField('status', event.target.value)
+                  }
+                >
+                  <option value="draft">Draft</option>
+                  <option value="published">Published</option>
+                  <option value="pending_review">Pending Review</option>
+                </select>
               </label>
-
-              <div className="admin-article-status-row">
-                <span>Status saat ini</span>
-                <strong>{form.status}</strong>
-              </div>
-
-              <button
-                type="button"
-                className="admin-article-secondary"
-                disabled={isSaving}
-                onClick={() => handleSubmit('draft')}
-              >
-                {isSaving ? 'Menyimpan...' : 'Simpan Draft'}
-              </button>
 
               <button
                 type="button"
                 className="admin-article-primary"
                 disabled={isSaving}
-                onClick={() => handleSubmit('published')}
+                onClick={() => handleSubmit(form.status)}
               >
-                {isSaving ? 'Memproses...' : 'Publikasikan Artikel'}
+                {isSaving ? 'Memproses...' : 'Publikasi Artikel'}
               </button>
             </section>
           </aside>
@@ -444,5 +422,8 @@ export function AdminArticleForm() {
     </main>
   );
 }
+
+export const AdminArticleCreate = AdminArticleForm;
+export const AdminArticleEdit = AdminArticleForm;
 
 export default AdminArticleForm;

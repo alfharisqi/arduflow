@@ -164,6 +164,19 @@ export function getAdminDashboard(
   });
 }
 
+export function getAdminRealtimeMqttConfig(
+  token = window.localStorage.getItem(
+    "arduflow_admin_token"
+  )
+) {
+  return request("/api/admin/realtime/mqtt", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token || ""}`,
+    },
+  });
+}
+
 export function getAdminUsers(
   filters = {},
   token = window.localStorage.getItem(
@@ -253,6 +266,71 @@ export function clearAdminVerificationTokens(
 ) {
   return request("/api/admin/users/verification/clear-tokens", {
     method: "POST",
+    headers: {
+      Authorization: `Bearer ${token || ""}`,
+    },
+  });
+}
+
+export function getAdminDatabaseStatus(
+  token = window.localStorage.getItem(
+    "arduflow_admin_token"
+  )
+) {
+  return request("/api/admin/database-sync/status", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token || ""}`,
+    },
+  });
+}
+
+export function runAdminDatabaseSync(
+  token = window.localStorage.getItem(
+    "arduflow_admin_token"
+  )
+) {
+  return request("/api/admin/database-sync/run", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token || ""}`,
+    },
+  });
+}
+
+export function retryAdminDatabaseSync(
+  token = window.localStorage.getItem(
+    "arduflow_admin_token"
+  )
+) {
+  return request("/api/admin/database-sync/retry-failed", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token || ""}`,
+    },
+  });
+}
+
+export function createAdminDatabaseBackup(
+  token = window.localStorage.getItem(
+    "arduflow_admin_token"
+  )
+) {
+  return request("/api/admin/database-sync/backup", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token || ""}`,
+    },
+  });
+}
+
+export function getAdminDatabaseBackups(
+  token = window.localStorage.getItem(
+    "arduflow_admin_token"
+  )
+) {
+  return request("/api/admin/database-sync/backups", {
+    method: "GET",
     headers: {
       Authorization: `Bearer ${token || ""}`,
     },
