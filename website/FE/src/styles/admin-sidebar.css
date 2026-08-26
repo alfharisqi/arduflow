@@ -1,21 +1,24 @@
 .admin-sidebar {
   --admin-sidebar-width: 216px;
+  position: fixed;
+  top: 16px;
+  bottom: 16px;
+  left: 16px;
+  z-index: 30;
   display: flex;
   flex: none;
   flex-direction: column;
   width: var(--admin-sidebar-width);
   min-width: var(--admin-sidebar-width);
-  height: calc(100vh - 32px);
-  min-height: 720px;
-  margin: 16px 0 16px 16px;
+  height: auto;
+  min-height: 0;
+  margin: 0;
   border: 0;
   border-radius: 12px;
   background: linear-gradient(195deg, #42424a, #191919);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.22);
   overflow: visible;
-  position: sticky;
-  top: 16px;
-  transition: width 180ms ease, min-width 180ms ease, margin 180ms ease;
+  transition: width 180ms ease, min-width 180ms ease;
 }
 
 .admin-sidebar-brand {

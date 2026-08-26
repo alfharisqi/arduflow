@@ -317,10 +317,10 @@ function getChartScaleMax(chart) {
 
 function getChartPoint(value, index, total, maxValue) {
   const x = total <= 1 ? 50 : 7 + (index / (total - 1)) * 88;
-  const y = 84 - (Number(value || 0) / maxValue) * 66;
+  const y = 100 - (Number(value || 0) / maxValue) * 100;
   return {
     x,
-    y: Math.max(14, Math.min(84, y)),
+    y: Math.max(2, Math.min(98, y)),
   };
 }
 
@@ -365,14 +365,14 @@ function UntitledActivityChart({ chart }) {
             className={chartMode === 'bar' ? 'is-active' : ''}
             onClick={() => setChartMode('bar')}
           >
-            Bar chart 01
+            Bar Chart
           </button>
           <button
             type="button"
             className={chartMode === 'line' ? 'is-active' : ''}
             onClick={() => setChartMode('line')}
           >
-            Line chart 03
+            Line Chart
           </button>
         </div>
       </header>
@@ -396,17 +396,30 @@ function UntitledActivityChart({ chart }) {
 
         {chartMode === 'bar' ? (
           <div className="admin-ui-bar-chart" role="img" aria-label="Bar chart aktivitas 7 hari">
+            <div className="admin-ui-bar-grid" aria-hidden="true">
+              {axisTicks.map((tick) => (
+                <span key={tick} />
+              ))}
+            </div>
             {chart.map((item) => (
               <div className="admin-ui-bar-group" key={item.date}>
                 <div className="admin-ui-bars">
-                  {chartMetrics.map((metric) => (
-                    <i
-                      className={metric.className}
-                      key={metric.id}
-                      style={{ height: `${Math.max(4, (Number(item?.[metric.id] || 0) / maxValue) * 100)}%` }}
-                      title={`${metric.label}: ${item?.[metric.id] || 0}`}
-                    />
-                  ))}
+                  {chartMetrics.map((metric) => {
+                    const value = Number(item?.[metric.id] || 0);
+                    const tooltip = `${item.label} - ${metric.label}: ${formatCompactNumber(value)}`;
+
+                    return (
+                      <i
+                        aria-label={tooltip}
+                        className={metric.className}
+                        key={metric.id}
+                        style={{ height: `${(value / maxValue) * 100}%` }}
+                        title={tooltip}
+                      >
+                        <span>{tooltip}</span>
+                      </i>
+                    );
+                  })}
                 </div>
                 <span>{item.label}</span>
               </div>
@@ -416,11 +429,11 @@ function UntitledActivityChart({ chart }) {
           <div className="admin-ui-line-chart">
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Line chart aktivitas 7 hari">
               <g className="admin-ui-chart-grid">
-                <line x1="0" y1="12" x2="100" y2="12" />
-                <line x1="0" y1="31" x2="100" y2="31" />
+                <line x1="0" y1="0" x2="100" y2="0" />
+                <line x1="0" y1="25" x2="100" y2="25" />
                 <line x1="0" y1="50" x2="100" y2="50" />
-                <line x1="0" y1="69" x2="100" y2="69" />
-                <line x1="0" y1="88" x2="100" y2="88" />
+                <line x1="0" y1="75" x2="100" y2="75" />
+                <line x1="0" y1="100" x2="100" y2="100" />
               </g>
               {chartMetrics.map((metric) => {
                 const values = reportChartValues(chart, metric.id);
