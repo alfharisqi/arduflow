@@ -1,11 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
-import { deleteAdminUser, getAdminUsers, updateAdminUserStatus } from '../../services/authApi.js';
+import {
+  deleteAdminUser,
+  getAdminUsers,
+  resendAdminUserVerification,
+  updateAdminUserStatus,
+  verifyAdminUserEmail,
+} from '../../services/authApi.js';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
 import userIcon from '../../assets/icons/icon-user-2.svg';
 import mailIcon from '../../assets/icons/icon-mail-1.svg';
 import settingsIcon from '../../assets/icons/icon-settings-1.svg';
-import { showConfirmAlert } from '../../utils/alerts.js';
+import { showConfirmAlert, showErrorAlert, showSuccessAlert } from '../../utils/alerts.js';
 
 const summaryIcons = {
   total: usersIcon,
@@ -230,6 +236,7 @@ export function AdminUsers() {
       user.whatsapp,
       user.workplace,
     ].join('\n'));
+    showSuccessAlert('Data Disalin', `Data "${user.name}" berhasil disalin ke clipboard.`);
   }
 
   function exportSelectedUsers() {
@@ -259,6 +266,32 @@ export function AdminUsers() {
     }
   }
 
+  async function setSelectedAccountStatus(isActive) {
+    const selectedUsers = users.filter((user) => selectedIds.includes(user.id));
+    if (!selectedUsers.length) return;
+
+    const confirmed = await showConfirmAlert({
+      title: isActive ? 'Aktifkan User Terpilih?' : 'Nonaktifkan User Terpilih?',
+      text: `${selectedUsers.length} akun akan ${isActive ? 'diaktifkan' : 'dinonaktifkan'}.`,
+      confirmButtonText: isActive ? 'Aktifkan' : 'Nonaktifkan',
+    });
+    if (!confirmed) return;
+
+    setProcessingUserId('bulk-status');
+    setError('');
+    try {
+      await Promise.all(selectedUsers.map((user) => updateAdminUserStatus(user.id, isActive)));
+      setSelectedIds([]);
+      refreshUsers();
+      showSuccessAlert('Berhasil', `${selectedUsers.length} akun berhasil ${isActive ? 'diaktifkan' : 'dinonaktifkan'}.`);
+    } catch (requestError) {
+      setError(requestError.message || 'Gagal mengubah status user terpilih.');
+      showErrorAlert('Gagal', requestError.message || 'Gagal mengubah status user terpilih.');
+    } finally {
+      setProcessingUserId(null);
+    }
+  }
+
   async function deleteUserAccount(user) {
     const confirmed = await showConfirmAlert({
       title: 'Hapus Akun?',
@@ -280,9 +313,94 @@ export function AdminUsers() {
     }
   }
 
+  async function deleteSelectedUsers() {
+    const selectedUsers = users.filter((user) => selectedIds.includes(user.id));
+    if (!selectedUsers.length) return;
+
+    const confirmed = await showConfirmAlert({
+      title: 'Hapus User Terpilih?',
+      text: `${selectedUsers.length} akun akan dihapus dari daftar user dan sesi aktifnya diputus.`,
+      confirmButtonText: 'Hapus',
+    });
+    if (!confirmed) return;
+
+    setProcessingUserId('bulk-delete');
+    setError('');
+    try {
+      await Promise.all(selectedUsers.map((user) => deleteAdminUser(user.id)));
+      setSelectedIds([]);
+      if (selectedUser && selectedIds.includes(selectedUser.id)) {
+        setSelectedUserId(null);
+        setDetailOpen(false);
+      }
+      refreshUsers();
+      showSuccessAlert('Berhasil', `${selectedUsers.length} akun berhasil dihapus.`);
+    } catch (requestError) {
+      setError(requestError.message || 'Gagal menghapus user terpilih.');
+      showErrorAlert('Gagal', requestError.message || 'Gagal menghapus user terpilih.');
+    } finally {
+      setProcessingUserId(null);
+    }
+  }
+
+  async function verifyUserEmail(user) {
+    const confirmed = await showConfirmAlert({
+      title: 'Verifikasi Email Manual?',
+      text: `Email "${user.email}" akan ditandai terverifikasi.`,
+      confirmButtonText: 'Verifikasi',
+      icon: 'question',
+    });
+    if (!confirmed) return;
+
+    setProcessingUserId(user.id);
+    setError('');
+    try {
+      await verifyAdminUserEmail(user.id);
+      refreshUsers();
+      showSuccessAlert('Email Terverifikasi', `Email "${user.email}" berhasil diverifikasi.`);
+    } catch (requestError) {
+      setError(requestError.message || 'Gagal memverifikasi email user.');
+      showErrorAlert('Gagal', requestError.message || 'Gagal memverifikasi email user.');
+    } finally {
+      setProcessingUserId(null);
+    }
+  }
+
+  async function resendVerificationEmail(user) {
+    const confirmed = await showConfirmAlert({
+      title: 'Kirim Ulang Verifikasi?',
+      text: `Email verifikasi akan dikirim ulang ke "${user.email}".`,
+      confirmButtonText: 'Kirim',
+      icon: 'question',
+    });
+    if (!confirmed) return;
+
+    setProcessingUserId(user.id);
+    setError('');
+    try {
+      const response = await resendAdminUserVerification(user.id);
+      refreshUsers();
+      if (response.emailSent) {
+        showSuccessAlert('Email Terkirim', `Email verifikasi berhasil dikirim ke "${user.email}".`);
+      } else {
+        showSuccessAlert('Token Dibuat', response.verifyUrl || 'Token verifikasi baru berhasil dibuat.');
+      }
+    } catch (requestError) {
+      setError(requestError.message || 'Gagal mengirim ulang verifikasi.');
+      showErrorAlert('Gagal', requestError.message || 'Gagal mengirim ulang verifikasi.');
+    } finally {
+      setProcessingUserId(null);
+    }
+  }
+
   return (
     <AdminPage pageClassName="admin-users-page" ariaLabel="Manajemen user admin">
-      <AdminTopbar searchPlaceholder="Cari data user" searchLabel="Cari data user" />
+      <AdminTopbar
+        searchPlaceholder="Cari data user"
+        searchLabel="Cari data user"
+        searchValue={filters.search}
+        onSearchChange={(value) => updateFilter('search', value)}
+      />
 
       <div className="admin-users-layout">
         <section className="admin-users-content">
@@ -374,6 +492,9 @@ export function AdminUsers() {
           <section className="admin-users-toolbar">
             <span>{selectedIds.length} dipilih</span>
             <button type="button" className="admin-users-primary" disabled={!selectedIds.length} onClick={exportSelectedUsers}>Export Terpilih</button>
+            <button type="button" disabled={!selectedIds.length || processingUserId === 'bulk-status'} onClick={() => setSelectedAccountStatus(true)}>Aktifkan Terpilih</button>
+            <button type="button" disabled={!selectedIds.length || processingUserId === 'bulk-status'} onClick={() => setSelectedAccountStatus(false)}>Nonaktifkan Terpilih</button>
+            <button type="button" className="admin-users-action-danger" disabled={!selectedIds.length || processingUserId === 'bulk-delete'} onClick={deleteSelectedUsers}>Hapus Terpilih</button>
             <button type="button" disabled={!users.length} onClick={() => exportUsersCsv(users)}>Export CSV</button>
             <button type="button" onClick={refreshUsers}>Refresh</button>
           </section>
@@ -426,6 +547,26 @@ export function AdminUsers() {
                       <div className="admin-users-actions">
                         <button type="button" aria-label={`Lihat ${user.name}`} onClick={() => openUserDetail(user)}>Detail</button>
                         <button type="button" aria-label={`Salin ${user.name}`} onClick={() => copyUser(user)}>Copy</button>
+                        {user.emailStatus !== 'Terverifikasi' ? (
+                          <>
+                            <button
+                              type="button"
+                              disabled={processingUserId === user.id}
+                              aria-label={`Verifikasi email ${user.name}`}
+                              onClick={() => verifyUserEmail(user)}
+                            >
+                              Verifikasi
+                            </button>
+                            <button
+                              type="button"
+                              disabled={processingUserId === user.id}
+                              aria-label={`Kirim ulang verifikasi ${user.name}`}
+                              onClick={() => resendVerificationEmail(user)}
+                            >
+                              Kirim Ulang
+                            </button>
+                          </>
+                        ) : null}
                         <button
                           type="button"
                           disabled={processingUserId === user.id}
@@ -509,6 +650,9 @@ export function AdminUsers() {
             <article className="admin-users-panel">
               <h2>Aksi Cepat</h2>
               <button type="button" disabled={!selectedIds.length} onClick={exportSelectedUsers}>Export User Terpilih</button>
+              <button type="button" disabled={!selectedIds.length || processingUserId === 'bulk-status'} onClick={() => setSelectedAccountStatus(true)}>Aktifkan User Terpilih</button>
+              <button type="button" disabled={!selectedIds.length || processingUserId === 'bulk-status'} onClick={() => setSelectedAccountStatus(false)}>Nonaktifkan User Terpilih</button>
+              <button type="button" className="admin-users-action-danger" disabled={!selectedIds.length || processingUserId === 'bulk-delete'} onClick={deleteSelectedUsers}>Hapus User Terpilih</button>
               <button type="button" disabled={!users.length} onClick={() => exportUsersCsv(users)}>Export Semua User</button>
               <button type="button" onClick={refreshUsers}>Muat Ulang Data</button>
             </article>
@@ -563,6 +707,24 @@ export function AdminUsers() {
                 <a href={`https://wa.me/${String(selectedUser.whatsapp).replace(/\D/g, '')}`} target="_blank" rel="noreferrer">Hubungi WhatsApp</a>
               ) : null}
               <button type="button" onClick={() => copyUser(selectedUser)}>Salin Data</button>
+              {selectedUser.emailStatus !== 'Terverifikasi' ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={processingUserId === selectedUser.id}
+                    onClick={() => verifyUserEmail(selectedUser)}
+                  >
+                    Verifikasi Email
+                  </button>
+                  <button
+                    type="button"
+                    disabled={processingUserId === selectedUser.id}
+                    onClick={() => resendVerificationEmail(selectedUser)}
+                  >
+                    Kirim Ulang Verifikasi
+                  </button>
+                </>
+              ) : null}
               <button
                 type="button"
                 disabled={processingUserId === selectedUser.id}

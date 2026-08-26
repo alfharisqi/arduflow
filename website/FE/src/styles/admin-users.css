@@ -193,6 +193,8 @@
 }
 
 .admin-users-actions .admin-users-action-danger,
+.admin-users-toolbar .admin-users-action-danger,
+.admin-users-panel .admin-users-action-danger,
 .admin-users-detail-actions .admin-users-action-danger {
   border-color: #fecaca;
   background: #fff1f2;

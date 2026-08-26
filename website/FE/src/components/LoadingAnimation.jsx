@@ -4,6 +4,7 @@ const LOADING_TEXT = 'Loading.....';
 const LOADING_WORD = 'Loading';
 const MAX_LOADING_DOTS = 5;
 const DONE_TEXT = 'Done!';
+const DONE_HOLD_MS = 2000;
 
 function getReducedMotionPreference() {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -114,7 +115,7 @@ export function LoadingAnimation({
 
       hasCalledDone.current = true;
       latestOnDone.current?.();
-    }, prefersReducedMotion ? 120 : 2000);
+    }, DONE_HOLD_MS);
 
     return () => window.clearTimeout(timer);
   }, [phase, prefersReducedMotion, visibleLength]);

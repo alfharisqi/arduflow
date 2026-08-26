@@ -1,6 +1,7 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useRef, useState } from 'react';
 
 import { Layout } from './components/Layout.jsx';
+import LoadingAnimation from './components/LoadingAnimation.jsx';
 
 import { Home } from './pages/Home.jsx';
 import { Access } from './pages/Access.jsx';
@@ -69,11 +70,19 @@ import { showAuthRequiredAlert } from './utils/alerts.js';
 ========================================================= */
 
 function lazyNamed(loader, exportName) {
-  return lazy(() =>
-    loader().then((module) => ({
+  let loadPromise;
+  const load = () => {
+    loadPromise ||= loader().then((module) => ({
       default: module[exportName],
-    }))
-  );
+    }));
+
+    return loadPromise;
+  };
+  const Component = lazy(load);
+
+  Component.preload = load;
+
+  return Component;
 }
 
 const AdminDashboard = lazyNamed(() => import('./pages/admin/AdminDashboard.jsx'), 'AdminDashboard');
@@ -298,12 +307,17 @@ const adminPublicRoutes = new Set([
 
 const DEBUG_AUTH = import.meta.env.DEV && import.meta.env.VITE_DEBUG_API === 'true';
 
+const RouteLoadingContext = createContext({
+  markRouteReady: () => {},
+});
+
 /* =========================================================
    USER PROTECTED ROUTE
 ========================================================= */
 
 function UserProtectedRoute({ children }) {
   const [status, setStatus] = useState('checking');
+  const { markRouteReady } = useContext(RouteLoadingContext);
 
   useEffect(() => {
     let isActive = true;
@@ -418,6 +432,8 @@ function UserProtectedRoute({ children }) {
       return;
     }
 
+    markRouteReady();
+
     showAuthRequiredAlert(
       'Silakan login sebagai user untuk membuka dashboard.'
     ).finally(() => {
@@ -425,7 +441,13 @@ function UserProtectedRoute({ children }) {
         '/signin'
       );
     });
-  }, [status]);
+  }, [markRouteReady, status]);
+
+  useEffect(() => {
+    if (status === 'allowed') {
+      markRouteReady();
+    }
+  }, [markRouteReady, status]);
 
   if (status === 'checking') {
     return null;
@@ -445,6 +467,7 @@ function UserProtectedRoute({ children }) {
 
 function AdminProtectedRoute({ children }) {
   const [status, setStatus] = useState('checking');
+  const { markRouteReady } = useContext(RouteLoadingContext);
 
   useEffect(() => {
     let isActive = true;
@@ -580,6 +603,8 @@ function AdminProtectedRoute({ children }) {
       return;
     }
 
+    markRouteReady();
+
     showAuthRequiredAlert(
       'Sesi admin tidak valid. Silakan login ulang.'
     ).finally(() => {
@@ -587,7 +612,13 @@ function AdminProtectedRoute({ children }) {
         '/admin/login'
       );
     });
-  }, [status]);
+  }, [markRouteReady, status]);
+
+  useEffect(() => {
+    if (status === 'allowed') {
+      markRouteReady();
+    }
+  }, [markRouteReady, status]);
 
   if (status === 'checking') {
     return null;
@@ -604,6 +635,112 @@ function AdminProtectedRoute({ children }) {
 /* =========================================================
    APP
 ========================================================= */
+
+function routePrompt(path) {
+  if (path.startsWith('/admin')) {
+    return 'arduflow-admin';
+  }
+
+  return 'arduflow-user';
+}
+
+function AppPageLoader({ path, pageComponent, requiresAuthGate, children }) {
+  const [isLoading, setLoading] = useState(true);
+  const [showLoading, setShowLoading] = useState(true);
+  const [isPagePreloaded, setPagePreloaded] = useState(false);
+  const [isRouteGateReady, setRouteGateReady] = useState(false);
+  const [isNetworkSettled, setNetworkSettled] = useState(false);
+  const pendingFetchesRef = useRef(0);
+  const markRouteReady = useCallback(() => setRouteGateReady(true), []);
+
+  useEffect(() => {
+    let isActive = true;
+    let quietTimer = 0;
+    const originalFetch = window.fetch.bind(window);
+
+    function clearQuietTimer() {
+      if (quietTimer) {
+        window.clearTimeout(quietTimer);
+        quietTimer = 0;
+      }
+    }
+
+    function scheduleNetworkSettled() {
+      clearQuietTimer();
+      quietTimer = window.setTimeout(() => {
+        if (isActive && pendingFetchesRef.current === 0) {
+          setNetworkSettled(true);
+        }
+      }, 450);
+    }
+
+    setLoading(true);
+    setShowLoading(true);
+    setPagePreloaded(false);
+    setRouteGateReady(!requiresAuthGate);
+    setNetworkSettled(false);
+    pendingFetchesRef.current = 0;
+
+    window.fetch = (...args) => {
+      pendingFetchesRef.current += 1;
+      setNetworkSettled(false);
+      clearQuietTimer();
+
+      return originalFetch(...args).finally(() => {
+        pendingFetchesRef.current = Math.max(0, pendingFetchesRef.current - 1);
+
+        if (pendingFetchesRef.current === 0) {
+          scheduleNetworkSettled();
+        }
+      });
+    };
+
+    const preload = typeof pageComponent?.preload === 'function'
+      ? pageComponent.preload()
+      : Promise.resolve();
+
+    preload
+      .catch(() => undefined)
+      .finally(() => {
+        if (!isActive) return;
+        setPagePreloaded(true);
+      });
+
+    scheduleNetworkSettled();
+
+    return () => {
+      isActive = false;
+      clearQuietTimer();
+      window.fetch = originalFetch;
+    };
+  }, [pageComponent, path, requiresAuthGate]);
+
+  useEffect(() => {
+    if (!isPagePreloaded || !isRouteGateReady || !isNetworkSettled) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      setLoading(false);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [isNetworkSettled, isPagePreloaded, isRouteGateReady]);
+
+  return (
+    <RouteLoadingContext.Provider value={{ markRouteReady }}>
+      {children}
+      {showLoading ? (
+      <LoadingAnimation
+        isLoading={isLoading}
+        onDone={() => setShowLoading(false)}
+        prompt={routePrompt(path)}
+        pagePath={`/arduflow.com${path}`}
+      />
+      ) : null}
+    </RouteLoadingContext.Provider>
+  );
+}
 
 export default function App() {
   const path =
@@ -627,6 +764,10 @@ export default function App() {
 
   const Page =
     routes[routePath] || NotFound;
+  const requiresAuthGate = userProtectedRoutes.has(path) || (
+    path.startsWith('/admin') &&
+    !adminPublicRoutes.has(path)
+  );
 
   let page =
     <Page />;
@@ -666,33 +807,28 @@ export default function App() {
     </Suspense>
   );
 
+  let content;
+
   /* =======================================================
      STANDALONE
   ======================================================= */
 
   if (
-    standaloneRoutes.has(path)
-  ) {
-    return page;
-  }
-
-  /* =======================================================
-     NOT FOUND
-  ======================================================= */
-
-  if (
+    standaloneRoutes.has(path) ||
     Page === NotFound
   ) {
-    return page;
+    content = page;
+  } else {
+    content = (
+      <Layout>
+        {page}
+      </Layout>
+    );
   }
 
-  /* =======================================================
-     PUBLIC PAGE + LAYOUT
-  ======================================================= */
-
   return (
-    <Layout>
-      {page}
-    </Layout>
+    <AppPageLoader path={path} pageComponent={Page} requiresAuthGate={requiresAuthGate}>
+      {content}
+    </AppPageLoader>
   );
 }
