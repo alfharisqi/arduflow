@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
+import { AdminNotificationButton } from './AdminChrome.jsx';
 import { AdminSidebar } from './AdminSidebar.jsx';
 import {
   getInitialAdminSidebarCollapsed,
   persistAdminSidebarCollapsed,
 } from './adminSidebarState.js';
-import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import bookIcon from '../../assets/icons/icon-book-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
@@ -64,13 +64,7 @@ function AdminTutorialTopbar() {
       </label>
 
       <div className="admin-dashboard-account">
-        <button
-          className="admin-dashboard-notif"
-          type="button"
-          aria-label="Notifikasi"
-        >
-          <img src={bellIcon} alt="" />
-        </button>
+        <AdminNotificationButton />
 
         <span className="admin-dashboard-avatar" aria-hidden="true" />
 

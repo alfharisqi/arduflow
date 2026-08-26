@@ -23,7 +23,7 @@ const adminItems = [
     items: [
       { label: 'Dashboard', href: '/admin/dashboard', icon: dashboardIcon },
       { label: 'User', href: '/admin/users', icon: userIcon },
-      { label: 'Verifikasi Akun', href: '/admin/verification', icon: mailIcon, count: 12 },
+      { label: 'Verifikasi Akun', href: '/admin/verification', icon: mailIcon },
       { label: 'Workshop / Program', href: '/admin/program', icon: workshopIcon },
       { label: 'Lead / Kontak', href: '/admin/leads', icon: contactIcon },
       { label: 'Sertifikat', href: '/admin/certificates', icon: fileIcon },

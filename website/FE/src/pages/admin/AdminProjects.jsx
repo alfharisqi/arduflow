@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { AdminNotificationButton } from './AdminChrome.jsx';
 import { AdminSidebar } from './AdminSidebar.jsx';
 import { ProjectUploadForm } from '../User/UserProjectGallery.jsx';
 import {
@@ -6,7 +7,6 @@ import {
   persistAdminSidebarCollapsed,
 } from './adminSidebarState.js';
 import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
-import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
 import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
@@ -33,18 +33,7 @@ function AdminProjectsTopbar({ searchValue, onSearchChange }) {
         />
       </label>
       <div className="admin-dashboard-account">
-        <button
-          className="admin-dashboard-notif"
-          type="button"
-          aria-label="Notifikasi"
-          onClick={() => showArduflowAlert({
-            icon: 'info',
-            title: 'Notifikasi',
-            text: 'Belum ada notifikasi proyek baru.',
-          })}
-        >
-          <img src={bellIcon} alt="" />
-        </button>
+        <AdminNotificationButton />
         <span className="admin-dashboard-avatar" aria-hidden="true" />
         <span>
           <strong>Admin</strong>

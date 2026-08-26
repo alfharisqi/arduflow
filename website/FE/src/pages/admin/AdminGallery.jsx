@@ -2,13 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
 import { WorkshopImageCropper } from '../../features/profile-image-crop/WorkshopImageCropper.jsx';
 import { GalleryRichTextEditor } from '../../components/GalleryRichTextEditor.jsx';
+import { AdminNotificationButton } from './AdminChrome.jsx';
 import { AdminSidebar } from './AdminSidebar.jsx';
 import {
   getInitialAdminSidebarCollapsed,
   persistAdminSidebarCollapsed,
 } from './adminSidebarState.js';
 import { showConfirmAlert, showPromptAlert, showSuccessAlert } from '../../utils/alerts.js';
-import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import cameraIcon from '../../assets/icons/icon-image-placeholder-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
@@ -87,10 +87,7 @@ function AdminGalleryTopbar() {
     <header className="admin-dashboard-topbar">
       <div className="admin-dashboard-topbar-spacer" />
       <div className="admin-dashboard-account">
-        <button className="admin-dashboard-notif" type="button" aria-label="Notifikasi">
-          <img src={bellIcon} alt="" />
-          <em>5</em>
-        </button>
+        <AdminNotificationButton />
         <span className="admin-dashboard-avatar" aria-hidden="true" />
         <span>
           <strong>Admin</strong>

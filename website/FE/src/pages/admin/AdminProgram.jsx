@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { AdminNotificationButton } from './AdminChrome.jsx';
 import { AdminSidebar } from './AdminSidebar.jsx';
 import {
   getInitialAdminSidebarCollapsed,
@@ -7,7 +8,6 @@ import {
 import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
 import { showConfirmAlert, showSuccessAlert } from '../../utils/alerts.js';
 
-import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
@@ -272,9 +272,7 @@ function AdminProgramTopbar({ searchTerm, onSearchChange }) {
       </label>
 
       <div className="admin-dashboard-account">
-        <button className="admin-dashboard-notif" type="button" aria-label="Notifikasi">
-          <img src={bellIcon} alt="" />
-        </button>
+        <AdminNotificationButton />
 
         <span className="admin-dashboard-avatar" aria-hidden="true" />
 

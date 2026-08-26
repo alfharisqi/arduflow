@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import LoadingAnimation from '../../components/LoadingAnimation.jsx';
 import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
 import { getAdminDashboard } from '../../services/authApi.js';
 import { apiUrl } from '../../services/apiEndpoints.js';
@@ -466,10 +467,13 @@ function ActivityChartPanel({ chart }) {
 export function AdminDashboard() {
   const [dashboardData, setDashboardData] = useState(null);
   const [dashboardError, setDashboardError] = useState('');
+  const [isDashboardLoading, setDashboardLoading] = useState(true);
+  const [showLoading, setShowLoading] = useState(true);
   const [activeContentTab, setActiveContentTab] = useState('tutorials');
 
   useEffect(() => {
     let isMounted = true;
+    setDashboardLoading(true);
 
     getAdminDashboard()
       .then((data) => {
@@ -480,6 +484,10 @@ export function AdminDashboard() {
       .catch((error) => {
         if (!isMounted) return;
         setDashboardError(error.message || 'Gagal memuat data dashboard admin.');
+      })
+      .finally(() => {
+        if (!isMounted) return;
+        setDashboardLoading(false);
       });
 
     return () => {
@@ -511,6 +519,16 @@ export function AdminDashboard() {
   const activityChart = dashboardData?.activityChart || [];
   const systemItems = dashboardData?.system || [];
   const logItems = dashboardData?.logs || [];
+
+  if (showLoading) {
+    return (
+      <LoadingAnimation
+        isLoading={isDashboardLoading}
+        onDone={() => setShowLoading(false)}
+        prompt="arduflow-user"
+      />
+    );
+  }
 
   return (
     <AdminPage ariaLabel="Admin dashboard">
