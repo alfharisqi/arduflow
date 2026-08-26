@@ -382,6 +382,10 @@ function AdminProjectStepCard({ step, index }) {
 }
 
 export function AdminProjects() {
+  const params = useMemo(
+    () => new URLSearchParams(window.location.search),
+    []
+  );
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialAdminSidebarCollapsed);
   const [projects, setProjects] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -389,7 +393,9 @@ export function AdminProjects() {
   const [selectedProject, setSelectedProject] = useState(null);
   const [checkedProjectKeys, setCheckedProjectKeys] = useState([]);
   const [editingProject, setEditingProject] = useState(null);
-  const [isUploadFormOpen, setUploadFormOpen] = useState(false);
+  const [isUploadFormOpen, setUploadFormOpen] = useState(
+    params.get('create') === '1' || params.get('mode') === 'create'
+  );
   const [actionMessage, setActionMessage] = useState('');
   const [actionError, setActionError] = useState('');
   const [busyProjectId, setBusyProjectId] = useState(null);

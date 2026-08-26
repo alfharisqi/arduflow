@@ -19,6 +19,20 @@ const metricIcons = {
   leads: messageIcon,
 };
 
+const metricRoutes = {
+  users: '/admin/users',
+  activeUsers: '/admin/users',
+  unverifiedUsers: '/admin/verification',
+  workshopsPrograms: '/admin/program',
+  projects: '/admin/projects',
+  leads: '/admin/leads',
+};
+
+function goTo(path) {
+  if (!path) return;
+  window.location.href = path;
+}
+
 function getStoredAdmin() {
   try {
     return JSON.parse(window.localStorage.getItem('arduflow_admin') || 'null');
@@ -32,6 +46,14 @@ function formatMetricValue(value) {
     return new Intl.NumberFormat('id-ID').format(value);
   }
   return value || '0';
+}
+
+function formatCurrency(value) {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0,
+  }).format(Number(value) || 0);
 }
 
 function timeAgo(value) {
@@ -59,8 +81,21 @@ function timeAgo(value) {
 }
 
 function AdminMetricCard({ item }) {
+  const route = metricRoutes[item.id];
+
   return (
-    <article className="admin-metric-card">
+    <article
+      className={`admin-metric-card is-${item.id}${route ? ' admin-metric-card--clickable' : ''}`}
+      role={route ? 'button' : undefined}
+      tabIndex={route ? 0 : undefined}
+      onClick={route ? () => goTo(route) : undefined}
+      onKeyDown={route ? (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          goTo(route);
+        }
+      } : undefined}
+    >
       <div className="admin-metric-head">
         <span className="admin-metric-icon">
           <img src={item.icon} alt="" />
@@ -114,6 +149,11 @@ function ContentThumbnail({ item }) {
   );
 }
 
+function contentManageRoute(tabId) {
+  if (tabId === 'projects') return '/admin/projects';
+  return '/admin/tutorial';
+}
+
 function getInitials(value) {
   const words = String(value || '')
     .trim()
@@ -144,6 +184,264 @@ function ActivityAvatar({ item }) {
     <span className="admin-activity-avatar admin-activity-avatar--initials" aria-hidden="true">
       {getInitials(label)}
     </span>
+  );
+}
+
+function QuickActionsPanel({ actions }) {
+  return (
+    <article className="admin-panel admin-quick-actions-panel">
+      <div className="admin-panel-head">
+        <h2>Quick Actions</h2>
+      </div>
+      <div className="admin-quick-actions">
+        {actions.map((action) => (
+          <button
+            type="button"
+            className={action.kind === 'primary' ? 'is-primary' : ''}
+            onClick={() => goTo(action.route)}
+            key={`${action.label}-${action.route}`}
+          >
+            {action.label}
+          </button>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function ActionQueuePanel({ items }) {
+  return (
+    <article className="admin-panel admin-action-queue-panel">
+      <div className="admin-panel-head">
+        <h2>Antrian Perlu Tindakan</h2>
+      </div>
+      <div className="admin-action-queue">
+        {items.map((item) => (
+          <button
+            type="button"
+            className={`admin-action-row is-${item.priority || 'normal'}`}
+            onClick={() => goTo(item.route)}
+            key={`${item.label}-${item.route}`}
+          >
+            <strong>{item.count}</strong>
+            <span>
+              <b>{item.label}</b>
+              <small>{item.detail}</small>
+            </span>
+          </button>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function TransactionSummaryPanel({ summary }) {
+  const items = [
+    { label: 'Pending', value: summary.pending || 0 },
+    { label: 'Berhasil', value: summary.paid || 0 },
+    { label: 'Ditolak', value: summary.rejected || 0 },
+    { label: 'Expired', value: summary.expired || 0 },
+  ];
+
+  return (
+    <article className="admin-panel admin-transaction-summary-panel">
+      <div className="admin-panel-head">
+        <h2>Ringkasan Transaksi</h2>
+        <button type="button" onClick={() => goTo('/admin/transactions')}>Kelola</button>
+      </div>
+      <div className="admin-transaction-summary">
+        <div className="admin-transaction-revenue">
+          <span>Total pendapatan</span>
+          <strong>{formatCurrency(summary.revenue)}</strong>
+          <small>{summary.reviewNeeded || 0} transaksi perlu review</small>
+        </div>
+        <div className="admin-transaction-stats">
+          {items.map((item) => (
+            <span key={item.label}>
+              <b>{item.value}</b>
+              <small>{item.label}</small>
+            </span>
+          ))}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+const chartMetrics = [
+  { id: 'users', label: 'User', className: 'is-users' },
+  { id: 'logins', label: 'Login', className: 'is-logins' },
+  { id: 'leads', label: 'Lead', className: 'is-leads' },
+  { id: 'transactions', label: 'Transaksi', className: 'is-transactions' },
+];
+
+function getChartPoint(item, metricId, maxValue) {
+  const value = Number(item?.[metricId] || 0);
+  return Math.max(0, Math.min(100, 92 - (value / maxValue) * 84));
+}
+
+function ActivityChartPanel({ chart }) {
+  const [chartType, setChartType] = useState('bar');
+  const [activeMetrics, setActiveMetrics] = useState(() => chartMetrics.map((metric) => metric.id));
+  const [showValues, setShowValues] = useState(true);
+  const [selectedDay, setSelectedDay] = useState(null);
+
+  const visibleMetrics = chartMetrics.filter((metric) => activeMetrics.includes(metric.id));
+  const detailDay = selectedDay || chart.at(-1) || null;
+  const maxValue = Math.max(
+    1,
+    ...chart.flatMap((item) => visibleMetrics.map((metric) => Number(item[metric.id] || 0)))
+  );
+
+  const toggleMetric = (metricId) => {
+    setActiveMetrics((current) => {
+      if (current.includes(metricId)) {
+        return current.length === 1 ? current : current.filter((item) => item !== metricId);
+      }
+
+      return [...current, metricId];
+    });
+  };
+
+  const linePoints = (metricId) => chart
+    .map((item, index) => {
+      const x = chart.length <= 1 ? 50 : 5 + (index / (chart.length - 1)) * 90;
+      const y = getChartPoint(item, metricId, maxValue);
+      return `${x},${y}`;
+    })
+    .join(' ');
+
+  return (
+    <article className="admin-panel admin-chart-panel admin-chart-panel--wide">
+      <div className="admin-chart-visual">
+        <div className="admin-chart-visual-head">
+          <span>Analytics</span>
+          <div className="admin-chart-controls" aria-label="Pengaturan chart">
+            <div className="admin-chart-control-group" role="group" aria-label="Tipe chart">
+              <button type="button" className={chartType === 'bar' ? 'is-active' : ''} onClick={() => setChartType('bar')}>Bar</button>
+              <button type="button" className={chartType === 'line' ? 'is-active' : ''} onClick={() => setChartType('line')}>Line</button>
+            </div>
+            <label className="admin-chart-toggle">
+              <input type="checkbox" checked={showValues} onChange={(event) => setShowValues(event.target.checked)} />
+              <span>Nilai</span>
+            </label>
+          </div>
+        </div>
+
+        <div className={`admin-activity-chart is-${chartType}`}>
+          {chartType === 'line' ? (
+            <div className="admin-chart-line-wrap">
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Grafik garis aktivitas 7 hari">
+                <g className="admin-chart-grid-lines">
+                  <line x1="0" y1="8" x2="100" y2="8" />
+                  <line x1="0" y1="36" x2="100" y2="36" />
+                  <line x1="0" y1="64" x2="100" y2="64" />
+                  <line x1="0" y1="92" x2="100" y2="92" />
+                </g>
+                {visibleMetrics.map((metric) => (
+                  <polyline
+                    key={metric.id}
+                    className={metric.className}
+                    points={linePoints(metric.id)}
+                    fill="none"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                ))}
+                {chart.map((item, index) => {
+                  const x = chart.length <= 1 ? 50 : 5 + (index / (chart.length - 1)) * 90;
+                  return visibleMetrics.map((metric) => (
+                    <circle
+                      key={`${item.date}-${metric.id}`}
+                      className={metric.className}
+                      cx={x}
+                      cy={getChartPoint(item, metric.id, maxValue)}
+                      r="1.5"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  ));
+                })}
+              </svg>
+              <div className="admin-chart-hit-area">
+                {chart.map((item) => (
+                  <button
+                    type="button"
+                    key={item.date}
+                    onMouseEnter={() => setSelectedDay(item)}
+                    onFocus={() => setSelectedDay(item)}
+                    onClick={() => setSelectedDay(item)}
+                  >
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            chart.map((item) => (
+              <button
+                type="button"
+                className="admin-chart-day"
+                key={item.date}
+                onMouseEnter={() => setSelectedDay(item)}
+                onFocus={() => setSelectedDay(item)}
+                onClick={() => setSelectedDay(item)}
+              >
+                <div className="admin-chart-bars">
+                  {visibleMetrics.map((metric) => (
+                    <i
+                      className={metric.className}
+                      style={{ height: `${Math.max(10, ((item[metric.id] || 0) / maxValue) * 100)}%` }}
+                      title={`${metric.label}: ${item[metric.id] || 0}`}
+                      key={metric.id}
+                    >
+                      {showValues ? <b>{item[metric.id] || 0}</b> : null}
+                    </i>
+                  ))}
+                </div>
+                <span>{item.label}</span>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="admin-chart-body">
+        <div className="admin-chart-copy">
+          <h2>Chart Aktivitas 7 Hari</h2>
+          <p>
+            {visibleMetrics.map((metric) => metric.label).join(', ')}
+            {' '}aktif ditampilkan. Hover atau klik tanggal untuk melihat detail.
+          </p>
+          <small><span aria-hidden="true">schedule</span> diperbarui dari data dashboard real-time</small>
+        </div>
+
+        <aside className="admin-chart-settings" aria-label="Metrik chart">
+          <strong>Metrik</strong>
+          <div className="admin-chart-metric-list">
+            {chartMetrics.map((metric) => (
+              <label className={`admin-chart-metric ${metric.className}`} key={metric.id}>
+                <input
+                  type="checkbox"
+                  checked={activeMetrics.includes(metric.id)}
+                  onChange={() => toggleMetric(metric.id)}
+                />
+                <span>{metric.label}</span>
+              </label>
+            ))}
+          </div>
+          <div className="admin-chart-detail">
+            <span>Detail hari</span>
+            <strong>{detailDay?.label || '-'}</strong>
+            {visibleMetrics.map((metric) => (
+              <p key={metric.id}>
+                <i className={metric.className} />
+                <span>{metric.label}</span>
+                <b>{detailDay ? detailDay[metric.id] || 0 : 0}</b>
+              </p>
+            ))}
+          </div>
+        </aside>
+      </div>
+    </article>
   );
 }
 
@@ -189,6 +487,10 @@ export function AdminDashboard() {
   ];
   const activeContent = contentTabs.find((tab) => tab.id === activeContentTab) || contentTabs[0];
   const contentItems = dashboardData?.content?.[activeContent.id] || [];
+  const quickActions = dashboardData?.quickActions || [];
+  const actionQueue = dashboardData?.actionQueue || [];
+  const transactionSummary = dashboardData?.transactionSummary || {};
+  const activityChart = dashboardData?.activityChart || [];
   const systemItems = dashboardData?.system || [];
   const logItems = dashboardData?.logs || [];
 
@@ -204,10 +506,11 @@ export function AdminDashboard() {
         <div className="admin-dashboard-content">
           <div className="admin-dashboard-titlebar">
             <div>
+              <p className="admin-dashboard-breadcrumb">Pages / Dashboard</p>
               <h1>Dashboard</h1>
               {dashboardError ? <p className="admin-dashboard-error">{dashboardError}</p> : null}
             </div>
-            <button type="button">Data real-time</button>
+            <button type="button" onClick={() => goTo('/admin/database')}>Data real-time</button>
           </div>
 
           <section className="admin-metrics" aria-label="Ringkasan dashboard">
@@ -218,6 +521,16 @@ export function AdminDashboard() {
             ) : (
               <p className="admin-empty-state admin-empty-state--wide">Memuat ringkasan dashboard...</p>
             )}
+          </section>
+
+          <section className="admin-ops-grid" aria-label="Aksi dan ringkasan operasional">
+            <QuickActionsPanel actions={quickActions} />
+            <ActionQueuePanel items={actionQueue} />
+            <TransactionSummaryPanel summary={transactionSummary} />
+          </section>
+
+          <section className="admin-chart-section" aria-label="Chart aktivitas admin">
+            <ActivityChartPanel chart={activityChart} />
           </section>
 
           <section className="admin-dashboard-grid">
@@ -241,13 +554,13 @@ export function AdminDashboard() {
                   <EmptyState>Belum ada aktivitas terbaru.</EmptyState>
                 )}
               </div>
-              <button className="admin-panel-button" type="button">Lihat semua aktivitas</button>
+              <button className="admin-panel-button" type="button" onClick={() => goTo('/admin/users')}>Lihat semua aktivitas</button>
             </article>
 
             <article className="admin-panel">
               <div className="admin-panel-head">
                 <h2>Workshop / Program Mendatang</h2>
-                <button type="button">Lihat semua</button>
+                <button type="button" onClick={() => goTo('/admin/program')}>Lihat semua</button>
               </div>
               <table className="admin-table">
                 <thead>
@@ -267,13 +580,13 @@ export function AdminDashboard() {
                   )}
                 </tbody>
               </table>
-              <button className="admin-panel-button" type="button">Kelola workshop / program</button>
+              <button className="admin-panel-button" type="button" onClick={() => goTo('/admin/program')}>Kelola workshop / program</button>
             </article>
 
             <article className="admin-panel">
               <div className="admin-panel-head">
                 <h2>Verifikasi Akun</h2>
-                <button type="button">Lihat semua</button>
+                <button type="button" onClick={() => goTo('/admin/verification')}>Lihat semua</button>
               </div>
               <table className="admin-table">
                 <thead>
@@ -294,7 +607,7 @@ export function AdminDashboard() {
                   )}
                 </tbody>
               </table>
-              <button className="admin-panel-button" type="button">Kelola verifikasi akun</button>
+              <button className="admin-panel-button" type="button" onClick={() => goTo('/admin/verification')}>Kelola verifikasi akun</button>
             </article>
 
             <article className="admin-panel">
@@ -325,19 +638,19 @@ export function AdminDashboard() {
                         {item.date}
                       </small>
                     </span>
-                    <button type="button">Lihat</button>
+                    <button type="button" onClick={() => goTo(item.route || contentManageRoute(activeContent.id))}>Lihat</button>
                   </div>
                 ))
               ) : (
                 <EmptyState>{activeContent.empty}</EmptyState>
               )}
-              <button className="admin-panel-button" type="button">Kelola konten</button>
+              <button className="admin-panel-button" type="button" onClick={() => goTo(contentManageRoute(activeContent.id))}>Kelola konten</button>
             </article>
 
             <article className="admin-panel">
               <div className="admin-panel-head">
                 <h2>Lead / Kontak Terbaru</h2>
-                <button type="button">Lihat semua</button>
+                <button type="button" onClick={() => goTo('/admin/leads')}>Lihat semua</button>
               </div>
               <table className="admin-table">
                 <thead>
@@ -357,7 +670,7 @@ export function AdminDashboard() {
                   )}
                 </tbody>
               </table>
-              <button className="admin-panel-button" type="button">Kelola lead / kontak</button>
+              <button className="admin-panel-button" type="button" onClick={() => goTo('/admin/leads')}>Kelola lead / kontak</button>
             </article>
           </section>
 
@@ -385,7 +698,7 @@ export function AdminDashboard() {
             <article className="admin-panel admin-log-panel">
               <div className="admin-panel-head">
                 <h2>Log Error Terbaru</h2>
-                <button type="button">Lihat semua log</button>
+                <button type="button" onClick={() => goTo('/admin/database')}>Lihat semua log</button>
               </div>
               {logItems.length ? (
                 logItems.map((item) => (

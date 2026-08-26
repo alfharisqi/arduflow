@@ -47,6 +47,10 @@ final class AdminDashboardRepository
                 ['id' => 'projects', 'label' => 'Total Proyek User', 'value' => $projects, 'trend' => 'Data dari SQLite', 'positive' => true],
                 ['id' => 'leads', 'label' => 'Lead / Kontak Masuk', 'value' => $leads, 'trend' => 'Semua lead tersimpan', 'positive' => true],
             ],
+            'quickActions' => $this->quickActions(),
+            'actionQueue' => $this->actionQueue(),
+            'transactionSummary' => $this->transactionSummary(),
+            'activityChart' => $this->activityChart(),
             'activities' => $this->activities(),
             'verificationRows' => $this->verificationRows(),
             'workshopRows' => $this->workshopRows(),
@@ -217,7 +221,10 @@ final class AdminDashboardRepository
             $where .= " AND LOWER(COALESCE(status, '')) IN ('draft', 'pending_review')";
         }
 
-        $select = ['title', 'created_at'];
+        $select = ['id', 'title', 'created_at'];
+        if ($this->hasColumn($sourceTable, 'slug')) {
+            $select[] = 'slug';
+        }
         if ($hasStatus) {
             $select[] = 'status';
         }
@@ -233,8 +240,13 @@ final class AdminDashboardRepository
         $type = $table === 'projects' ? 'Proyek' : 'Tutorial';
 
         return array_map(fn (array $row): array => [
+            'id' => isset($row['id']) ? (int) $row['id'] : null,
+            'slug' => $row['slug'] ?? null,
             'title' => $row['title'],
             'type' => $type,
+            'route' => $table === 'projects'
+                ? '/admin/projects'
+                : '/admin/tutorial/edit?id=' . rawurlencode((string) ($row['id'] ?? '')),
             'status' => $row['status'] ?? null,
             'statusLabel' => isset($row['status']) ? $this->contentStatusLabel((string) $row['status']) : null,
             'imageUrl' => $this->contentImageUrl($sourceTable, $row),
@@ -382,6 +394,135 @@ final class AdminDashboardRepository
         ];
     }
 
+    private function quickActions(): array
+    {
+        return [
+            ['label' => 'Tambah Tutorial', 'route' => '/admin/tutorial/tambah', 'kind' => 'primary'],
+            ['label' => 'Tambah Artikel', 'route' => '/admin/artikel/tambah', 'kind' => 'default'],
+            ['label' => 'Tambah Workshop', 'route' => '/admin/tambah-workshop', 'kind' => 'default'],
+            ['label' => 'Tambah Proyek', 'route' => '/admin/projects?create=1', 'kind' => 'default'],
+        ];
+    }
+
+    private function actionQueue(): array
+    {
+        $unverified = $this->count('SELECT COUNT(*) FROM users WHERE deleted_at IS NULL AND email_verified_at IS NULL');
+        $newLeads = $this->count(
+            "SELECT COUNT(*) FROM leads WHERE {$this->activeWhere('leads')} AND LOWER(COALESCE(status, 'new')) IN ('new', 'baru', 'open', 'pending')"
+        );
+        $pendingTransactions = $this->tableExists('transactions')
+            ? $this->count(
+                "SELECT COUNT(*) FROM transactions WHERE {$this->activeWhere('transactions')} AND status IN ('pending', 'proof_uploaded')"
+            )
+            : 0;
+        $draftProjects = $this->tableExists('project_submissions')
+            ? $this->count(
+                "SELECT COUNT(*) FROM project_submissions WHERE {$this->activeWhere('project_submissions')} AND LOWER(COALESCE(status, '')) IN ('draft', 'pending_review')"
+            )
+            : 0;
+        $failedSync = $this->tableExists('sync_outbox')
+            ? $this->count("SELECT COUNT(*) FROM sync_outbox WHERE status = 'failed'")
+            : 0;
+
+        return [
+            [
+                'label' => 'Akun belum verifikasi',
+                'count' => $unverified,
+                'detail' => $unverified > 0 ? 'Butuh follow-up email verifikasi.' : 'Tidak ada akun tertunda.',
+                'route' => '/admin/verification',
+                'priority' => $unverified > 0 ? 'warning' : 'normal',
+            ],
+            [
+                'label' => 'Lead baru',
+                'count' => $newLeads,
+                'detail' => $newLeads > 0 ? 'Perlu diproses tim admin.' : 'Tidak ada lead baru.',
+                'route' => '/admin/leads',
+                'priority' => $newLeads > 0 ? 'info' : 'normal',
+            ],
+            [
+                'label' => 'Transaksi perlu review',
+                'count' => $pendingTransactions,
+                'detail' => $pendingTransactions > 0 ? 'Cek bukti pembayaran masuk.' : 'Tidak ada transaksi tertunda.',
+                'route' => '/admin/transactions',
+                'priority' => $pendingTransactions > 0 ? 'warning' : 'normal',
+            ],
+            [
+                'label' => 'Proyek draft / pending',
+                'count' => $draftProjects,
+                'detail' => $draftProjects > 0 ? 'Perlu review sebelum publish.' : 'Tidak ada proyek pending.',
+                'route' => '/admin/projects',
+                'priority' => $draftProjects > 0 ? 'info' : 'normal',
+            ],
+            [
+                'label' => 'Sync gagal',
+                'count' => $failedSync,
+                'detail' => $failedSync > 0 ? 'Periksa database sync.' : 'Tidak ada sync gagal.',
+                'route' => '/admin/database',
+                'priority' => $failedSync > 0 ? 'danger' : 'normal',
+            ],
+        ];
+    }
+
+    private function transactionSummary(): array
+    {
+        if (!$this->tableExists('transactions')) {
+            return [
+                'pending' => 0,
+                'paid' => 0,
+                'rejected' => 0,
+                'expired' => 0,
+                'revenue' => 0.0,
+                'reviewNeeded' => 0,
+            ];
+        }
+
+        $where = $this->activeWhere('transactions');
+
+        return [
+            'pending' => $this->count("SELECT COUNT(*) FROM transactions WHERE {$where} AND status = 'pending'"),
+            'paid' => $this->count("SELECT COUNT(*) FROM transactions WHERE {$where} AND status = 'paid'"),
+            'rejected' => $this->count("SELECT COUNT(*) FROM transactions WHERE {$where} AND status = 'rejected'"),
+            'expired' => $this->count("SELECT COUNT(*) FROM transactions WHERE {$where} AND status = 'expired'"),
+            'revenue' => (float) $this->scalar("SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE {$where} AND status = 'paid'"),
+            'reviewNeeded' => $this->count("SELECT COUNT(*) FROM transactions WHERE {$where} AND status IN ('pending', 'proof_uploaded')"),
+        ];
+    }
+
+    private function activityChart(): array
+    {
+        $days = [];
+        for ($offset = 6; $offset >= 0; $offset--) {
+            $date = (new \DateTimeImmutable('today', new \DateTimeZone('Asia/Jakarta')))
+                ->modify('-' . $offset . ' days');
+            $isoDate = $date->format('Y-m-d');
+            $label = $date->format('d/m');
+
+            $days[] = [
+                'date' => $isoDate,
+                'label' => $label,
+                'users' => $this->countByDate('users', $isoDate),
+                'leads' => $this->countByDate('leads', $isoDate),
+                'transactions' => $this->countByDate('transactions', $isoDate),
+                'logins' => $this->count(
+                    "SELECT COUNT(*) FROM auth_logs WHERE event_type = 'login_success' AND date(created_at) = :date",
+                    ['date' => $isoDate]
+                ),
+            ];
+        }
+
+        return $days;
+    }
+
+    private function countByDate(string $table, string $date): int
+    {
+        if (!$this->tableExists($table)) {
+            return 0;
+        }
+
+        $where = $this->activeWhere($table);
+        return $this->count("SELECT COUNT(*) FROM {$table} WHERE {$where} AND date(created_at) = :date", ['date' => $date]);
+    }
+
     private function sqliteHealth(): array
     {
         try {
@@ -492,6 +633,13 @@ final class AdminDashboardRepository
         $statement = $this->pdo->prepare($sql);
         $statement->execute($params);
         return (int) $statement->fetchColumn();
+    }
+
+    private function scalar(string $sql, array $params = []): mixed
+    {
+        $statement = $this->pdo->prepare($sql);
+        $statement->execute($params);
+        return $statement->fetchColumn();
     }
 
     private function countActiveRows(string $table): int

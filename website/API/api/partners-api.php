@@ -192,10 +192,7 @@ function partnersSyncCollaborations(PDO $pdo): void
         'SELECT id
          FROM partners
          WHERE deleted_at IS NULL
-         AND (
-            (email <> "" AND LOWER(email) = LOWER(:email))
-            OR LOWER(name) = LOWER(:name)
-         )
+         AND LOWER(name) = LOWER(:name)
          LIMIT 1'
     );
     $insertPartner = $pdo->prepare(
@@ -218,7 +215,6 @@ function partnersSyncCollaborations(PDO $pdo): void
         }
 
         $findPartner->execute([
-            ':email' => (string) ($row['pic_email'] ?? ''),
             ':name' => $institutionName,
         ]);
 
@@ -247,6 +243,99 @@ function partnersSyncCollaborations(PDO $pdo): void
             ':programs_json' => json_encode(array_values(array_filter([(string) ($row['goal'] ?? '')])), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             ':follow_up_note' => implode(' | ', $notes),
             ':last_contact_at' => $row['demo_schedule'] ?? null,
+            ':created_at' => $row['created_at'] ?: partnersNow(),
+            ':updated_at' => $row['updated_at'] ?: partnersNow(),
+        ]);
+    }
+}
+
+function partnersIsPartnerLeadTopic(string $topic, string $message = ''): bool
+{
+    $text = strtolower($topic . ' ' . $message);
+
+    return str_contains($text, 'partner')
+        || str_contains($text, 'patner')
+        || str_contains($text, 'kolaborasi')
+        || str_contains($text, 'kerja sama')
+        || str_contains($text, 'kerjasama');
+}
+
+function partnersSyncLeads(PDO $pdo): void
+{
+    if (!partnersTableExists($pdo, 'leads')) {
+        return;
+    }
+
+    $statement = $pdo->query(
+        'SELECT
+            id,
+            name,
+            email,
+            whatsapp,
+            topic,
+            message,
+            status,
+            created_at,
+            updated_at
+         FROM leads
+         WHERE deleted_at IS NULL
+         ORDER BY created_at DESC'
+    );
+
+    $findPartner = $pdo->prepare(
+        'SELECT id
+         FROM partners
+         WHERE deleted_at IS NULL
+         AND LOWER(name) = LOWER(:name)
+         LIMIT 1'
+    );
+    $insertPartner = $pdo->prepare(
+        'INSERT INTO partners (
+            name, type, pic_name, pic_role, email, whatsapp, city, province, website, social_media,
+            description, programs_json, status, show_homepage, featured, follow_up_note,
+            start_date, last_contact_at, created_at, updated_at
+        ) VALUES (
+            :name, "Lead Partner", :pic_name, "", :email, :whatsapp, "", "", "", "",
+            :description, :programs_json, "Menunggu", 0, 0, :follow_up_note,
+            NULL, NULL, :created_at, :updated_at
+        )'
+    );
+
+    foreach ($statement->fetchAll() as $row) {
+        $topic = trim((string) ($row['topic'] ?? ''));
+        $message = trim((string) ($row['message'] ?? ''));
+
+        if (!partnersIsPartnerLeadTopic($topic, $message)) {
+            continue;
+        }
+
+        $name = trim((string) ($row['name'] ?? ''));
+        $email = trim((string) ($row['email'] ?? ''));
+
+        if ($name === '' && $email === '') {
+            continue;
+        }
+
+        $findPartner->execute([
+            ':name' => $name !== '' ? $name : $email,
+        ]);
+
+        if ($findPartner->fetchColumn() !== false) {
+            continue;
+        }
+
+        $description = $message !== ''
+            ? $message
+            : 'Lead partner dari form kontak ArduFlow.';
+
+        $insertPartner->execute([
+            ':name' => $name !== '' ? $name : $email,
+            ':pic_name' => $name,
+            ':email' => $email,
+            ':whatsapp' => trim((string) ($row['whatsapp'] ?? '')),
+            ':description' => $description,
+            ':programs_json' => json_encode(array_values(array_filter([$topic])), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            ':follow_up_note' => 'Dibuat otomatis dari lead #' . (int) ($row['id'] ?? 0) . ($topic !== '' ? ' - ' . $topic : ''),
             ':created_at' => $row['created_at'] ?: partnersNow(),
             ':updated_at' => $row['updated_at'] ?: partnersNow(),
         ]);
@@ -352,6 +441,7 @@ try {
     $pdo = afwPdo();
     partnersEnsureTables($pdo);
     partnersSyncCollaborations($pdo);
+    partnersSyncLeads($pdo);
     $id = isset($_GET['id']) && $_GET['id'] !== '' ? (int) $_GET['id'] : null;
 
     if ($method === 'GET') {
