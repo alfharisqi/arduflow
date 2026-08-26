@@ -523,8 +523,17 @@ function applyComponentImagesToTools(array $tools, array $componentImages): arra
 
 try {
     $projectRoot = dirname(__DIR__);
+    $autoloadPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
     $configPath = $projectRoot . '/config/database.php';
     $imageStoragePath = $projectRoot . '/api/support/image-storage.php';
+
+    if (is_file($autoloadPath)) {
+        require_once $autoloadPath;
+    }
+
+    if (class_exists(\Arduflow\Api\Support\Env::class)) {
+        \Arduflow\Api\Support\Env::load($projectRoot . DIRECTORY_SEPARATOR . '.env');
+    }
 
     if (file_exists($imageStoragePath)) {
         require_once $imageStoragePath;

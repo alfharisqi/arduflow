@@ -738,7 +738,17 @@ function validateTransaction(array $transaction): array
 
 try {
     $projectRoot = dirname(__DIR__);
+    $autoloadPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
     $configPath = $projectRoot . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'database.php';
+
+    if (is_file($autoloadPath)) {
+        require_once $autoloadPath;
+    }
+
+    if (class_exists(\Arduflow\Api\Support\Env::class)) {
+        \Arduflow\Api\Support\Env::load($projectRoot . DIRECTORY_SEPARATOR . '.env');
+    }
+
     if (!is_file($configPath)) {
         throw new RuntimeException('File konfigurasi database tidak ditemukan.');
     }

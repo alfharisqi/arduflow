@@ -121,6 +121,7 @@ function itemTypeLabel(type) {
     program: 'Workshop',
     course: 'Workshop',
     project: 'Proyek',
+    ide: 'ArduFlow IDE',
     certificate: 'Sertifikat',
   };
   return labels[type] || type || 'Produk';
@@ -344,8 +345,9 @@ export function AdminTransactions() {
       .reduce((total, transaction) => total + Number(transaction.amount || 0), 0);
     return {
       total: transactions.length,
-      workshop: transactions.filter((transaction) => transaction.itemType !== 'project').length,
+      workshop: transactions.filter((transaction) => ['workshop', 'program', 'course'].includes(transaction.itemType)).length,
       project: transactions.filter((transaction) => transaction.itemType === 'project').length,
+      ide: transactions.filter((transaction) => transaction.itemType === 'ide').length,
       revenue: paidTotal,
     };
   }, [transactions]);
@@ -353,8 +355,9 @@ export function AdminTransactions() {
   const displayedTransactions = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
     return transactions.filter((transaction) => {
-      if (itemTypeFilter === 'workshop' && transaction.itemType === 'project') return false;
+      if (itemTypeFilter === 'workshop' && !['workshop', 'program', 'course'].includes(transaction.itemType)) return false;
       if (itemTypeFilter === 'project' && transaction.itemType !== 'project') return false;
+      if (itemTypeFilter === 'ide' && transaction.itemType !== 'ide') return false;
       if (methodFilter && !getPaymentMethodLabel(transaction).toLowerCase().includes(methodFilter.toLowerCase())) return false;
       if (!query) return true;
 
@@ -572,12 +575,14 @@ export function AdminTransactions() {
         <button className={itemTypeFilter === '' ? 'is-active' : ''} type="button" onClick={() => setItemTypeFilter('')}>Semua Transaksi</button>
         <button className={itemTypeFilter === 'workshop' ? 'is-active' : ''} type="button" onClick={() => setItemTypeFilter('workshop')}>Workshop / Program</button>
         <button className={itemTypeFilter === 'project' ? 'is-active' : ''} type="button" onClick={() => setItemTypeFilter('project')}>Proyek</button>
+        <button className={itemTypeFilter === 'ide' ? 'is-active' : ''} type="button" onClick={() => setItemTypeFilter('ide')}>ArduFlow IDE</button>
       </nav>
 
       <section className="admin-transactions-summary" aria-label="Ringkasan transaksi">
         <article><span>Total Transaksi</span><strong>{summary.total}</strong><small>Semua Waktu</small></article>
         <article><span>Workshop / Program</span><strong>{summary.workshop}</strong><small>Semua Waktu</small></article>
         <article><span>Proyek</span><strong>{summary.project}</strong><small>Semua Waktu</small></article>
+        <article><span>ArduFlow IDE</span><strong>{summary.ide}</strong><small>Semua Waktu</small></article>
         <article><span>Total Pendapatan</span><strong>{formatCurrency(summary.revenue)}</strong><small>Semua Waktu</small></article>
       </section>
 
@@ -596,6 +601,7 @@ export function AdminTransactions() {
                 <option value="workshop">Workshop</option>
                 <option value="program">Program</option>
                 <option value="course">Course</option>
+                <option value="ide">ArduFlow IDE</option>
                 <option value="certificate">Sertifikat</option>
               </select>
             </label>
@@ -646,6 +652,7 @@ export function AdminTransactions() {
               <option value="">Semua Produk</option>
               <option value="workshop">Workshop / Program</option>
               <option value="project">Proyek</option>
+              <option value="ide">ArduFlow IDE</option>
             </select>
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="Filter status transaksi">
               <option value="">Semua Status</option>

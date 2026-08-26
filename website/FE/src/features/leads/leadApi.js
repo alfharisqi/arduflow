@@ -134,3 +134,40 @@ export function submitWorkshop(payload) {
     "Pendaftaran workshop gagal dikirim."
   );
 }
+
+export async function fetchUserLeadHistory(email) {
+  const endpoint = new URL(
+    `${getApiUrl()}/api/formhandle.php`
+  );
+
+  endpoint.searchParams.set("scope", "user");
+  endpoint.searchParams.set("email", email || "");
+
+  const response = await fetch(endpoint.toString(), {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  const responseText = await response.text();
+  let body = {};
+
+  try {
+    body = responseText ? JSON.parse(responseText) : {};
+  } catch {
+    throw new Error(
+      `Response API bukan JSON. HTTP ${response.status}: ` +
+        responseText.slice(0, 300)
+    );
+  }
+
+  if (!response.ok || body.success === false) {
+    throw new Error(
+      body?.message ||
+        `History lead gagal dimuat. HTTP ${response.status}`
+    );
+  }
+
+  return body?.data || {};
+}

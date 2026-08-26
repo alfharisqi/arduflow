@@ -1027,6 +1027,53 @@ function fetchAdminLeads(PDO $pdo): array
     return $items;
 }
 
+function summarizeLeadItems(array $items): array
+{
+    $statusCounts = [];
+    $topicCounts = [];
+    $formTypeCounts = [
+        'lead' => 0,
+        'collaboration' => 0,
+        'workshop' => 0,
+    ];
+
+    foreach ($items as $item) {
+        $status = (string) ($item['status'] ?? 'Baru');
+        $topic = (string) ($item['topic'] ?? '-');
+        $formType = (string) ($item['form_type'] ?? '');
+
+        $statusCounts[$status] = ($statusCounts[$status] ?? 0) + 1;
+        $topicCounts[$topic] = ($topicCounts[$topic] ?? 0) + 1;
+
+        if (array_key_exists($formType, $formTypeCounts)) {
+            $formTypeCounts[$formType] += 1;
+        }
+    }
+
+    return [
+        'status_counts' => $statusCounts,
+        'topic_counts' => $topicCounts,
+        'form_type_counts' => $formTypeCounts,
+    ];
+}
+
+function fetchUserLeadHistory(PDO $pdo, string $email): array
+{
+    $normalizedEmail = strtolower(trim($email));
+
+    if ($normalizedEmail === '') {
+        return [];
+    }
+
+    return array_values(
+        array_filter(
+            fetchAdminLeads($pdo),
+            static fn (array $item): bool =>
+                strtolower(trim((string) ($item['email'] ?? ''))) === $normalizedEmail
+        )
+    );
+}
+
 if ($method === 'GET') {
     $databaseConfig = require $configPath;
     $sqliteConfig = $databaseConfig['sqlite'] ?? null;
@@ -1040,14 +1087,28 @@ if ($method === 'GET') {
     }
 
     $pdo = openSqliteConnection($sqliteConfig, $projectRoot);
-    $items = fetchAdminLeads($pdo);
-    $statusCounts = [];
-    $topicCounts = [];
+    $scope = strtolower(trim((string) ($_GET['scope'] ?? 'admin')));
 
-    foreach ($items as $item) {
-        $statusCounts[$item['status']] = ($statusCounts[$item['status']] ?? 0) + 1;
-        $topicCounts[$item['topic']] = ($topicCounts[$item['topic']] ?? 0) + 1;
+    if ($scope === 'user') {
+        $email = (string) ($_GET['email'] ?? '');
+        $items = fetchUserLeadHistory($pdo, $email);
+        $summary = summarizeLeadItems($items);
+
+        sendJson(
+            200,
+            true,
+            'History lead user berhasil diambil.',
+            [
+                'leads' => $items,
+                'total' => count($items),
+                ...$summary,
+                'generated_at' => gmdate('Y-m-d\TH:i:s\Z'),
+            ]
+        );
     }
+
+    $items = fetchAdminLeads($pdo);
+    $summary = summarizeLeadItems($items);
 
     sendJson(
         200,
@@ -1056,8 +1117,7 @@ if ($method === 'GET') {
         [
             'leads' => $items,
             'total' => count($items),
-            'status_counts' => $statusCounts,
-            'topic_counts' => $topicCounts,
+            ...$summary,
             'generated_at' => gmdate('Y-m-d\TH:i:s\Z'),
         ]
     );

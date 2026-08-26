@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
 import { getAdminDashboard } from '../../services/authApi.js';
+import { apiUrl } from '../../services/apiEndpoints.js';
 import userIcon from '../../assets/icons/icon-user-2.svg';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
 import mailIcon from '../../assets/icons/icon-mail-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
 import cpuIcon from '../../assets/icons/icon-cpu-1.svg';
 import messageIcon from '../../assets/icons/icon-message-square-1.svg';
-import certificateIcon from '../../assets/icons/icon-downloadsim-1.svg';
 import databaseIcon from '../../assets/icons/icons-database-1.svg';
 
 const metricIcons = {
@@ -17,7 +17,6 @@ const metricIcons = {
   workshopsPrograms: clockIcon,
   projects: cpuIcon,
   leads: messageIcon,
-  certificates: certificateIcon,
 };
 
 function getStoredAdmin() {
@@ -90,6 +89,62 @@ function isSystemOnline(item) {
 
 function EmptyState({ children }) {
   return <p className="admin-empty-state">{children}</p>;
+}
+
+function resolveMediaUrl(value) {
+  const url = String(value || '').trim();
+
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url) || url.startsWith('data:')) return url;
+
+  return apiUrl(url);
+}
+
+function ContentThumbnail({ item }) {
+  const imageUrl = resolveMediaUrl(item.imageUrl);
+
+  if (!imageUrl) {
+    return <span className="admin-image-placeholder" aria-hidden="true" />;
+  }
+
+  return (
+    <span className="admin-content-thumb">
+      <img src={imageUrl} alt={item.title ? `Gambar ${item.title}` : ''} loading="lazy" />
+    </span>
+  );
+}
+
+function getInitials(value) {
+  const words = String(value || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (!words.length) return 'NA';
+
+  return words
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase() || '')
+    .join('');
+}
+
+function ActivityAvatar({ item }) {
+  const avatarUrl = resolveMediaUrl(item.avatarUrl);
+  const label = item.actorName || item.detail || item.title;
+
+  if (avatarUrl) {
+    return (
+      <span className="admin-activity-avatar">
+        <img src={avatarUrl} alt="" loading="lazy" />
+      </span>
+    );
+  }
+
+  return (
+    <span className="admin-activity-avatar admin-activity-avatar--initials" aria-hidden="true">
+      {getInitials(label)}
+    </span>
+  );
 }
 
 export function AdminDashboard() {
@@ -174,7 +229,7 @@ export function AdminDashboard() {
                 {activityItems.length ? (
                   activityItems.map((item) => (
                     <div className="admin-activity-item" key={`${item.title}-${item.detail}-${item.time}`}>
-                      <span className="admin-activity-dot" />
+                      <ActivityAvatar item={item} />
                       <span>
                         <strong>{item.title}</strong>
                         <small>{item.detail}</small>
@@ -261,7 +316,7 @@ export function AdminDashboard() {
               {contentItems.length ? (
                 contentItems.map((item) => (
                   <div className="admin-content-item" key={`${item.type}-${item.title}-${item.createdAt || item.date}`}>
-                    <span className="admin-image-placeholder" />
+                    <ContentThumbnail item={item} />
                     <span>
                       <strong>{item.title}</strong>
                       <small>

@@ -31,7 +31,9 @@ final class AdminDashboardRepository
         $unverified = $this->count('SELECT COUNT(*) FROM users WHERE deleted_at IS NULL AND email_verified_at IS NULL');
         $workshops = $this->countActiveRows('workshops');
         $programs = $this->countActiveRows('programs');
-        $projects = $this->countActiveRows('projects');
+        $projects = $this->tableExists('project_submissions')
+            ? $this->countActiveRows('project_submissions')
+            : $this->countActiveRows('projects');
         $leads = $this->countActiveRows('leads');
         $sync = $this->syncStatus->summary();
 
@@ -44,7 +46,6 @@ final class AdminDashboardRepository
                 ['id' => 'workshopsPrograms', 'label' => 'Total Workshop/Program', 'value' => $workshops + $programs, 'trend' => "{$workshops} workshop / {$programs} program", 'positive' => true],
                 ['id' => 'projects', 'label' => 'Total Proyek User', 'value' => $projects, 'trend' => 'Data dari SQLite', 'positive' => true],
                 ['id' => 'leads', 'label' => 'Lead / Kontak Masuk', 'value' => $leads, 'trend' => 'Semua lead tersimpan', 'positive' => true],
-                ['id' => 'certificates', 'label' => 'Sertifikat', 'value' => '0 / 0', 'trend' => 'Tabel sertifikat belum tersedia'],
             ],
             'activities' => $this->activities(),
             'verificationRows' => $this->verificationRows(),
@@ -69,8 +70,8 @@ final class AdminDashboardRepository
     {
         $leadWhere = $this->activeWhere('leads');
         $rows = $this->pdo->query(
-            "SELECT event_type, actor_id, created_at FROM auth_logs " .
-            "UNION ALL SELECT 'lead_created', id, created_at FROM leads WHERE {$leadWhere} " .
+            "SELECT event_type, actor_id, created_at, 'auth' AS source FROM auth_logs " .
+            "UNION ALL SELECT 'lead_created', id, created_at, 'lead' AS source FROM leads WHERE {$leadWhere} " .
             'ORDER BY created_at DESC LIMIT 7'
         )->fetchAll();
         $labels = [
@@ -80,17 +81,63 @@ final class AdminDashboardRepository
         ];
         return array_map(function (array $row) use ($labels): array {
             $detail = '-';
-            if ($row['event_type'] === 'lead_created') {
-                $statement = $this->pdo->prepare('SELECT name || :separator || email FROM leads WHERE id = :id');
-                $statement->execute(['separator' => ' - ', 'id' => $row['actor_id']]);
-                $detail = (string) ($statement->fetchColumn() ?: '-');
-            } elseif ($row['actor_id']) {
-                $statement = $this->pdo->prepare('SELECT email FROM users WHERE id = :id');
+            $avatarUrl = null;
+            $actorName = null;
+
+            if ($row['source'] === 'lead') {
+                $statement = $this->pdo->prepare('SELECT name, email FROM leads WHERE id = :id');
                 $statement->execute(['id' => $row['actor_id']]);
-                $detail = (string) ($statement->fetchColumn() ?: '-');
+                $lead = $statement->fetch() ?: null;
+                if (is_array($lead)) {
+                    $actorName = (string) ($lead['name'] ?? '');
+                    $detail = trim((string) ($lead['name'] ?? '') . ' - ' . (string) ($lead['email'] ?? ''), ' -') ?: '-';
+                    $avatarUrl = $this->userAvatarByEmail((string) ($lead['email'] ?? ''));
+                }
+            } elseif ($row['actor_id']) {
+                $statement = $this->pdo->prepare('SELECT name, email, profile_image, avatar_path FROM users WHERE id = :id');
+                $statement->execute(['id' => $row['actor_id']]);
+                $user = $statement->fetch() ?: null;
+                if (is_array($user)) {
+                    $actorName = (string) ($user['name'] ?? '');
+                    $detail = (string) ($user['email'] ?? '-');
+                    $avatarUrl = $this->resolveUserAvatar($user);
+                }
             }
-            return ['title' => $labels[$row['event_type']] ?? $row['event_type'], 'detail' => $detail, 'time' => $row['created_at']];
+            return [
+                'title' => $labels[$row['event_type']] ?? $row['event_type'],
+                'detail' => $detail,
+                'actorName' => $actorName,
+                'avatarUrl' => $avatarUrl,
+                'time' => $row['created_at'],
+            ];
         }, $rows);
+    }
+
+    private function userAvatarByEmail(string $email): ?string
+    {
+        $email = trim($email);
+        if ($email === '') {
+            return null;
+        }
+
+        $statement = $this->pdo->prepare(
+            'SELECT profile_image, avatar_path FROM users WHERE LOWER(email) = LOWER(:email) AND deleted_at IS NULL LIMIT 1'
+        );
+        $statement->execute(['email' => $email]);
+        $user = $statement->fetch() ?: null;
+
+        return is_array($user) ? $this->resolveUserAvatar($user) : null;
+    }
+
+    private function resolveUserAvatar(array $user): ?string
+    {
+        $profileImage = trim((string) ($user['profile_image'] ?? ''));
+        if ($profileImage !== '') {
+            return $profileImage;
+        }
+
+        $avatarPath = trim((string) ($user['avatar_path'] ?? ''));
+        return $avatarPath !== '' ? $avatarPath : null;
     }
 
     private function verificationRows(): array
@@ -158,8 +205,11 @@ final class AdminDashboardRepository
             return [];
         }
 
-        $where = $this->activeWhere($table);
-        $hasStatus = $this->hasColumn($table, 'status');
+        $sourceTable = $table === 'projects' && $this->tableExists('project_submissions')
+            ? 'project_submissions'
+            : $table;
+        $where = $this->activeWhere($sourceTable);
+        $hasStatus = $this->hasColumn($sourceTable, 'status');
         if ($draftOnly && !$hasStatus) {
             return [];
         }
@@ -171,9 +221,14 @@ final class AdminDashboardRepository
         if ($hasStatus) {
             $select[] = 'status';
         }
+        foreach ($this->contentImageColumns($sourceTable) as $column) {
+            if ($this->hasColumn($sourceTable, $column)) {
+                $select[] = $column;
+            }
+        }
 
         $rows = $this->pdo->query(
-            'SELECT ' . implode(', ', $select) . " FROM {$table} WHERE {$where} ORDER BY created_at DESC LIMIT 3"
+            'SELECT ' . implode(', ', $select) . " FROM {$sourceTable} WHERE {$where} ORDER BY created_at DESC LIMIT 3"
         )->fetchAll();
         $type = $table === 'projects' ? 'Proyek' : 'Tutorial';
 
@@ -182,9 +237,46 @@ final class AdminDashboardRepository
             'type' => $type,
             'status' => $row['status'] ?? null,
             'statusLabel' => isset($row['status']) ? $this->contentStatusLabel((string) $row['status']) : null,
+            'imageUrl' => $this->contentImageUrl($sourceTable, $row),
             'createdAt' => $row['created_at'],
             'date' => $this->formatDate($row['created_at']),
         ], $rows);
+    }
+
+    private function contentImageColumns(string $table): array
+    {
+        return match ($table) {
+            'tutorials' => ['card_image_url', 'card_image_name'],
+            'projects', 'project_submissions' => ['cover_image_url', 'cover_image_name'],
+            default => [],
+        };
+    }
+
+    private function contentImageUrl(string $table, array $row): ?string
+    {
+        if ($table === 'tutorials') {
+            $url = trim((string) ($row['card_image_url'] ?? ''));
+            if ($url !== '') {
+                return $url;
+            }
+
+            $fileName = trim((string) ($row['card_image_name'] ?? ''));
+            return $fileName === ''
+                ? null
+                : '/api/materi-api.php?action=image&scope=card&file=' . rawurlencode(basename($fileName));
+        }
+
+        if ($table === 'projects' || $table === 'project_submissions') {
+            $url = trim((string) ($row['cover_image_url'] ?? ''));
+            if ($url !== '') {
+                return $url;
+            }
+
+            $fileName = trim((string) ($row['cover_image_name'] ?? ''));
+            return $fileName === '' ? null : '/uploads/projects/' . rawurlencode(basename($fileName));
+        }
+
+        return null;
     }
 
     private function draftContentRows(): array

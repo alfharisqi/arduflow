@@ -8,6 +8,7 @@
 @import './styles/project-detail.css';
 @import './styles/documentation.css';
 @import './styles/contact.css';
+@import './styles/access.css';
 @import './styles/tutorial.css';
 @import './styles/workshop.css';
 @import './styles/workshop-list.css';
@@ -19,6 +20,8 @@
 @import './styles/user-progress.css';
 @import './styles/user-project-gallery.css';
 @import './styles/user-workshop-schedule.css';
+@import './styles/user-lead-dashboard.css';
+@import './styles/user-ide-access.css';
 @import './styles/user-transactions.css';
 @import './styles/user-certificates.css';
 @import './styles/admin-login.css';
@@ -34,6 +37,7 @@
 @import './styles/admin-projects.css';
 @import './styles/admin-gallery.css';
 @import './styles/admin-partners.css';
+@import './styles/admin-ide.css';
 @import './styles/admin-settings.css';
 @import './styles/admin-database.css';
 @import './styles/sweetalert.css';
