@@ -649,7 +649,7 @@
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr);
   gap: 12px;
-  height: 300px;
+  height: 280px;
   padding-top: 6px;
   border-top: 1px solid #eaecf0;
 }
@@ -658,7 +658,7 @@
   display: grid;
   grid-template-rows: repeat(5, 1fr);
   padding: 7px 0 32px;
-  color: #667085;
+  color: #98a2b3;
   font-size: 12px;
   text-align: right;
 }
@@ -668,7 +668,7 @@
   position: relative;
   height: 100%;
   background:
-    linear-gradient(to bottom, #f2f4f7 1px, transparent 1px) 0 7px / 100% 64px;
+    linear-gradient(to bottom, #f2f4f7 1px, transparent 1px) 0 7px / 100% 54px;
 }
 
 .admin-ui-bar-chart {
@@ -730,13 +730,14 @@
 
 .admin-ui-line-chart {
   padding: 7px 4px 0;
+  overflow: hidden;
 }
 
 .admin-ui-line-chart svg {
   display: block;
   width: 100%;
   height: calc(100% - 24px);
-  overflow: visible;
+  overflow: hidden;
 }
 
 .admin-ui-chart-grid line {
@@ -748,31 +749,24 @@
 .admin-ui-line-chart path {
   fill: none;
   stroke: #7f56d9;
-  stroke-width: 2.25;
+  stroke-width: 2.5;
   stroke-linecap: round;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
 }
 
-.admin-ui-line-chart circle {
-  fill: #ffffff;
-  stroke: #7f56d9;
-  stroke-width: 1.75;
-}
-
-.admin-ui-line-chart .is-logins path,
-.admin-ui-line-chart .is-logins circle {
+.admin-ui-line-chart .is-logins path {
   stroke: #12b76a;
 }
 
-.admin-ui-line-chart .is-leads path,
-.admin-ui-line-chart .is-leads circle {
+.admin-ui-line-chart .is-leads path {
   stroke: #f79009;
+  opacity: 0.78;
 }
 
-.admin-ui-line-chart .is-transactions path,
-.admin-ui-line-chart .is-transactions circle {
+.admin-ui-line-chart .is-transactions path {
   stroke: #2e90fa;
+  opacity: 0.86;
 }
 
 .admin-ui-line-labels {

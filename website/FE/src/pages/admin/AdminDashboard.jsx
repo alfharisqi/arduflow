@@ -317,10 +317,10 @@ function getChartScaleMax(chart) {
 
 function getChartPoint(value, index, total, maxValue) {
   const x = total <= 1 ? 50 : 7 + (index / (total - 1)) * 88;
-  const y = 88 - (Number(value || 0) / maxValue) * 76;
+  const y = 84 - (Number(value || 0) / maxValue) * 66;
   return {
     x,
-    y: Math.max(12, Math.min(88, y)),
+    y: Math.max(14, Math.min(84, y)),
   };
 }
 
@@ -328,20 +328,20 @@ function reportLinePath(values, maxValue) {
   const points = values.map((value, index) => getChartPoint(value, index, values.length, maxValue));
 
   if (points.length === 0) return '';
+
   if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
 
-  return points.reduce((path, point, index) => {
-    if (index === 0) return `M ${point.x} ${point.y}`;
+  const segments = [`M ${points[0].x} ${points[0].y}`];
 
+  for (let index = 1; index < points.length; index += 1) {
     const previous = points[index - 1];
-    const middleX = (previous.x + point.x) / 2;
-    const middleY = (previous.y + point.y) / 2;
-    const segment = ` Q ${previous.x} ${previous.y} ${middleX} ${middleY}`;
+    const current = points[index];
+    const controlX = previous.x + (current.x - previous.x) * 0.5;
 
-    return index === points.length - 1
-      ? `${path}${segment} T ${point.x} ${point.y}`
-      : `${path}${segment}`;
-  }, '');
+    segments.push(`C ${controlX} ${previous.y}, ${controlX} ${current.y}, ${current.x} ${current.y}`);
+  }
+
+  return segments.join(' ');
 }
 
 function UntitledActivityChart({ chart }) {
@@ -428,19 +428,6 @@ function UntitledActivityChart({ chart }) {
                 return (
                   <g className={metric.className} key={metric.id}>
                     <path d={reportLinePath(values, maxValue)} />
-                    {values.map((value, index) => {
-                      const point = getChartPoint(value, index, values.length, maxValue);
-
-                      return (
-                        <circle
-                          key={`${metric.id}-${labels[index]}`}
-                          cx={point.x}
-                          cy={point.y}
-                          r="1.5"
-                          vectorEffect="non-scaling-stroke"
-                        />
-                      );
-                    })}
                   </g>
                 );
               })}
