@@ -1,9 +1,0 @@
-$kind: collection
-description: 'Set run_mailpit_tests=true dan jalankan Mailpit pada mailpit_url untuk mengaktifkan folder ini.'
-scripts:
-  - type: http:beforeRequest
-    language: text/javascript
-    code: |-
-      if (String(pm.environment.get('run_mailpit_tests')).toLowerCase() !== 'true') {
-        pm.execution.skipRequest();
-      }

@@ -1,8 +1,0 @@
-$kind: collection
-name: 'Arduflow API - SQLite Primary'
-description: 'Collection pengujian API Arduflow. Urutan folder dirancang untuk Collection Runner. SQLite adalah database operasional; MySQL hanya diperiksa melalui health dan API sinkronisasi.'
-scripts:
-  - type: http:beforeRequest
-    language: text/javascript
-    code: |-
-      pm.request.headers.upsert({ key: 'Accept', value: 'application/json' });

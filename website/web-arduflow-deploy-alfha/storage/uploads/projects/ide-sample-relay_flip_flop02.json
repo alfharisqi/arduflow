@@ -1,0 +1,346 @@
+{
+  "name": "Relay_Flip_Flop02",
+  "board": "nano",
+  "nodes": [
+    {
+      "id": "bulb-1781584716548",
+      "type": "bulb",
+      "position": {
+        "x": 526.1785507544118,
+        "y": -22.4199818375737
+      },
+      "data": {
+        "value": 1,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 148
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "squareWave-1781585157257",
+      "type": "squareWave",
+      "position": {
+        "x": 216.1548650842821,
+        "y": -128.0903421622972
+      },
+      "data": {
+        "value": 1,
+        "pin": "0",
+        "frequency": 0.5,
+        "minimized": false
+      },
+      "measured": {
+        "width": 183,
+        "height": 176
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "digitalWrite-1781585365277",
+      "type": "digitalWrite",
+      "position": {
+        "x": 526.7299127622664,
+        "y": -204.45087477836213
+      },
+      "data": {
+        "value": true,
+        "pin": "5",
+        "lastStateKey": "5-false-undefined",
+        "inverted": true
+      },
+      "measured": {
+        "width": 167,
+        "height": 164
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "schedule-1781592500346",
+      "type": "schedule",
+      "position": {
+        "x": 212.61540101208436,
+        "y": 191.77221040729725
+      },
+      "data": {
+        "value": false,
+        "duration": 1,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 188,
+        "height": 180
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "digitalWrite-1781592514478",
+      "type": "digitalWrite",
+      "position": {
+        "x": 526.8471182137587,
+        "y": 147.39584775480836
+      },
+      "data": {
+        "value": false,
+        "pin": "13",
+        "lastStateKey": "13-false-false",
+        "disabled": false
+      },
+      "measured": {
+        "width": 167,
+        "height": 164
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "logicNot-1781592604419",
+      "type": "logicNot",
+      "position": {
+        "x": 703.282011733175,
+        "y": -21.21006646049218
+      },
+      "data": {
+        "value": false,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 129
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "digitalWrite-1781592619532",
+      "type": "digitalWrite",
+      "position": {
+        "x": 874.199655538526,
+        "y": -202.79024278804593
+      },
+      "data": {
+        "value": true,
+        "pin": "2",
+        "lastStateKey": "2-true-undefined",
+        "inverted": false
+      },
+      "measured": {
+        "width": 167,
+        "height": 164
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "bulb-1781592757946",
+      "type": "bulb",
+      "position": {
+        "x": 879.275608022188,
+        "y": -20.090537055078592
+      },
+      "data": {
+        "value": false,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 148
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "timer-1781593344228",
+      "type": "timer",
+      "position": {
+        "x": 822.4844528789814,
+        "y": 153.11204750571233
+      },
+      "data": {
+        "value": 4617,
+        "pin": "0",
+        "currentTime": 4617,
+        "lastTick": 1782827292476,
+        "targetSec": 5,
+        "mode": "up"
+      },
+      "measured": {
+        "width": 318,
+        "height": 201
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "bulb-1781593371398",
+      "type": "bulb",
+      "position": {
+        "x": 1452.359418961571,
+        "y": -31.151799099280495
+      },
+      "data": {
+        "value": false,
+        "pin": "0",
+        "minimized": false
+      },
+      "measured": {
+        "width": 160,
+        "height": 148
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "compare-1781593900220",
+      "type": "compare",
+      "position": {
+        "x": 1176.725868542752,
+        "y": 147.44174390988127
+      },
+      "data": {
+        "value": false,
+        "pin": "0",
+        "mode": ">="
+      },
+      "measured": {
+        "width": 178,
+        "height": 165
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "number-1781593914420",
+      "type": "number",
+      "position": {
+        "x": 1177.6607505446495,
+        "y": -29.973452162329764
+      },
+      "data": {
+        "value": 5000,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 210,
+        "height": 121
+      },
+      "selected": true,
+      "dragging": false
+    },
+    {
+      "id": "digitalWrite-1781594172325",
+      "type": "digitalWrite",
+      "position": {
+        "x": 1445.643194440741,
+        "y": 151.1099655106194
+      },
+      "data": {
+        "value": false,
+        "pin": "13",
+        "lastStateKey": "13-false-undefined"
+      },
+      "measured": {
+        "width": 167,
+        "height": 164
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "bulb-1782827230351",
+      "type": "bulb",
+      "position": {
+        "x": 524.0708571351399,
+        "y": 327.9568066049511
+      },
+      "data": {
+        "value": false,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 148
+      },
+      "selected": false,
+      "dragging": false
+    }
+  ],
+  "edges": [
+    {
+      "source": "squareWave-1781585157257",
+      "target": "bulb-1781584716548",
+      "id": "xy-edge__squareWave-1781585157257-bulb-1781584716548"
+    },
+    {
+      "source": "squareWave-1781585157257",
+      "target": "digitalWrite-1781585365277",
+      "id": "xy-edge__squareWave-1781585157257-digitalWrite-1781585365277"
+    },
+    {
+      "source": "schedule-1781592500346",
+      "target": "digitalWrite-1781592514478",
+      "id": "xy-edge__schedule-1781592500346-digitalWrite-1781592514478"
+    },
+    {
+      "source": "squareWave-1781585157257",
+      "target": "logicNot-1781592604419",
+      "targetHandle": "in1",
+      "id": "xy-edge__squareWave-1781585157257-logicNot-1781592604419in1"
+    },
+    {
+      "source": "logicNot-1781592604419",
+      "target": "bulb-1781592757946",
+      "id": "xy-edge__logicNot-1781592604419-bulb-1781592757946"
+    },
+    {
+      "source": "squareWave-1781585157257",
+      "target": "digitalWrite-1781592619532",
+      "id": "xy-edge__squareWave-1781585157257-digitalWrite-1781592619532"
+    },
+    {
+      "source": "squareWave-1781585157257",
+      "target": "timer-1781593344228",
+      "targetHandle": "run",
+      "id": "xy-edge__squareWave-1781585157257-timer-1781593344228run"
+    },
+    {
+      "source": "timer-1781593344228",
+      "target": "compare-1781593900220",
+      "targetHandle": "a",
+      "id": "xy-edge__timer-1781593344228-compare-1781593900220a"
+    },
+    {
+      "source": "number-1781593914420",
+      "target": "compare-1781593900220",
+      "targetHandle": "b",
+      "id": "xy-edge__number-1781593914420-compare-1781593900220b"
+    },
+    {
+      "source": "compare-1781593900220",
+      "target": "timer-1781593344228",
+      "targetHandle": "reset",
+      "id": "xy-edge__compare-1781593900220-timer-1781593344228reset"
+    },
+    {
+      "source": "compare-1781593900220",
+      "target": "digitalWrite-1781594172325",
+      "id": "xy-edge__compare-1781593900220-digitalWrite-1781594172325"
+    },
+    {
+      "source": "compare-1781593900220",
+      "target": "bulb-1781593371398",
+      "id": "xy-edge__compare-1781593900220-bulb-1781593371398"
+    },
+    {
+      "source": "schedule-1781592500346",
+      "target": "bulb-1782827230351",
+      "id": "xy-edge__schedule-1781592500346-bulb-1782827230351"
+    }
+  ]
+}

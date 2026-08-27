@@ -6,7 +6,7 @@
 Browser / API client
         |
         v
-Arduflow Express API
+Arduflow PHP API
         |
         +--> SQLite (operational source of truth)
                  |
@@ -36,7 +36,7 @@ primarily by the integer `version` field.
 
 The default private database path is `website/BE/storage/database/arduflow.sqlite`.
 It is outside the frontend and is ignored by Git. Every connection opened through
-`server/sqlite.js` applies:
+`app/Database/ConnectionFactory.php` applies:
 
 ```sql
 PRAGMA journal_mode = WAL;
@@ -49,7 +49,7 @@ Initialize or migrate the schema:
 
 ```bash
 cd website/BE
-npm run db:sqlite
+composer db:init
 ```
 
 If the old `storage/sqlite/arduflow.sqlite` exists and the configured database does
@@ -75,7 +75,7 @@ Important variables:
 ```env
 SQLITE_DATABASE_PATH=storage/database/arduflow.sqlite
 SYNC_ENABLED=true
-SYNC_API_URL=http://127.0.0.1:3001/api/internal/sync/sqlite-to-mysql
+SYNC_API_URL=http://127.0.0.1:8000/api/internal/sync/sqlite-to-mysql
 SYNC_API_TOKEN=<long-random-token>
 SYNC_HMAC_SECRET=<different-long-random-secret>
 SYNC_MAX_CLOCK_SKEW_SECONDS=300
@@ -95,7 +95,7 @@ and API. Use HTTPS when sender and receiver run on different hosts. Optionally s
 Initialize the additive MySQL schema after taking a normal MySQL backup:
 
 ```bash
-npm run db:mysql
+php scripts/init-mysql.php
 ```
 
 The receiver stores idempotency keys in `processed_sync_events` and replay
@@ -108,9 +108,9 @@ An older incoming version cannot overwrite a newer central row.
 Stop application writes during the first import, back up both databases, then run:
 
 ```bash
-npm run db:sqlite
-npm run db:import:mysql-to-sqlite
-npm run db:check
+composer db:init
+composer db:import
+composer db:check
 ```
 
 The import preserves IDs, uses upsert so it can be resumed, and intentionally does
@@ -127,7 +127,7 @@ worker first and confirm the pending count is zero before repeating an import.
 One manual batch:
 
 ```bash
-npm run sync:run
+composer sync:run
 ```
 
 The backend receiver configured by `SYNC_API_URL` must be running before the
@@ -135,7 +135,7 @@ worker starts. To retry pending events immediately after the connection recovers
 without waiting for their current backoff time:
 
 ```bash
-npm run sync:retry-now
+Gunakan endpoint admin `POST /api/admin/database-sync/retry-failed`.
 ```
 
 `--retry-now` only clears the retry delay for `pending` events. It does not alter
@@ -144,7 +144,7 @@ events that are already `synced` and should not be added to the normal cron job.
 Production cron every five minutes (use one worker host):
 
 ```cron
-*/5 * * * * cd /path/to/arduflow-code/website/BE && /usr/bin/node server/scripts/sync-sqlite-to-mysql.js >> /var/log/arduflow-sync.log 2>&1
+*/5 * * * * cd /path/to/arduflow-code/website/BE && php scripts/sync-sqlite-to-mysql.php >> /var/log/arduflow-sync.log 2>&1
 ```
 
 Do not run an application `setInterval` in every web instance. Atomic event claims
@@ -182,7 +182,7 @@ filesystem path.
 Create a consistent backup using SQLite `VACUUM INTO`:
 
 ```bash
-npm run db:backup
+composer db:backup
 ```
 
 Backups older than `SQLITE_BACKUP_RETENTION_DAYS` are pruned. To restore:
@@ -190,7 +190,7 @@ Backups older than `SQLITE_BACKUP_RETENTION_DAYS` are pruned. To restore:
 1. Stop the API and worker.
 2. Back up the current database.
 3. Copy the selected backup to the configured `SQLITE_DATABASE_PATH`.
-4. Start the API and run `npm run db:check`.
+4. Start the API and run `composer db:check`.
 5. Run one sync batch and inspect the status endpoint.
 
 ## MySQL Outage Test
@@ -201,9 +201,9 @@ Backups older than `SQLITE_BACKUP_RETENTION_DAYS` are pruned. To restore:
 4. Create or edit a workshop through an authenticated admin request.
 5. Confirm the website request succeeds.
 6. Inspect SQLite: the row and pending outbox event must exist.
-7. Run `npm run sync:run`; the event must remain pending with retry metadata.
-8. Restore MySQL and run `npm run db:mysql` if required.
-9. Run `npm run sync:run` after `next_retry_at`, or clear it through the admin retry
+7. Run `composer sync:run`; the event must remain pending with retry metadata.
+8. Restore MySQL and run `php scripts/init-mysql.php` if required.
+9. Run `composer sync:run` after `next_retry_at`, or clear it through the admin retry
    endpoint for permanently failed events.
 10. Run `npm run db:check` and confirm the event is `synced`.
 
@@ -234,5 +234,5 @@ tokens, HMAC secrets, passwords, or complete sensitive payloads.
 2. Keep the SQLite database and outbox intact for audit/recovery.
 3. Restore the pre-migration SQLite backup if the local schema must be rolled back.
 4. Revert application code to the prior release only after verifying MySQL contains
-   every required event with `npm run db:check`.
+   every required event with `composer db:check`.
 5. Do not switch writes silently between databases while both versions run.

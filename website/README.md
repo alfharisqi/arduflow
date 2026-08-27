@@ -8,22 +8,23 @@ Scaffold website Arduflow berdasarkan halaman Notion "Pengembangan Website Arduf
 - `FE/src/pages`: halaman publik terpisah.
 - `FE/src/components`: komponen UI reusable.
 - `FE/src/features`: fitur/domain website.
-- `BE`: backend Express untuk leads dan koneksi database.
-- `BE/database/sqlite`: schema SQLite.
-- `BE/database/mysql`: schema MySQL.
+- `BE`: backend PHP API.
+- `BE/migrations/sqlite`: schema SQLite.
+- `BE/migrations/mysql`: schema MySQL.
 
 ## Menjalankan Backend
 
 ```bash
 cd website/BE
-npm install
+composer install
 copy .env.example .env
-npm run db:sqlite
-npm run db:mysql
-npm run dev
+php scripts/check-runtime.php
+php scripts/init-sqlite.php
+php scripts/init-mysql.php
+php -S 0.0.0.0:8000 router.php
 ```
 
-API berjalan di `http://127.0.0.1:3001`.
+API berjalan di `http://127.0.0.1:8000`.
 
 ### Auth, Database, dan Mailpit
 
@@ -45,7 +46,7 @@ DB_USERNAME=root
 DB_PASSWORD=
 
 SYNC_ENABLED=true
-SYNC_API_URL=http://127.0.0.1:3001/api/internal/sync/sqlite-to-mysql
+SYNC_API_URL=http://127.0.0.1:8000/api/internal/sync/sqlite-to-mysql
 SYNC_API_TOKEN=<random-token>
 SYNC_HMAC_SECRET=<random-secret>
 ```
@@ -54,22 +55,22 @@ Inisialisasi SQLite:
 
 ```bash
 cd website/BE
-npm run db:sqlite
+composer db:init
 ```
 
 Inisialisasi MySQL:
 
 ```bash
 cd website/BE
-npm run db:mysql
+php scripts/init-mysql.php
 ```
 
 Jalankan satu batch sinkronisasi dan pemeriksaan konsistensi:
 
 ```bash
 cd website/BE
-npm run sync:run
-npm run db:check
+composer sync:run
+composer db:check
 ```
 
 Dokumentasi lengkap tersedia di `docs/sqlite-mysql-sync.md`.
@@ -96,7 +97,7 @@ Import file berikut ke Postman:
 
 Urutan test:
 
-1. Jalankan backend dengan `npm run dev`.
+1. Jalankan backend dengan `php -S 0.0.0.0:8000 router.php`.
 2. Jalankan request `Health`.
 3. Jalankan `Auth / Register`.
 4. Buka Mailpit di `http://127.0.0.1:8025`, salin token dari link verifikasi.
