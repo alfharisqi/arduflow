@@ -4,7 +4,7 @@ import {
   getInitialAdminSidebarCollapsed,
   persistAdminSidebarCollapsed,
 } from './adminSidebarState.js';
-import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
+
 import { showConfirmAlert, showSuccessAlert } from '../../utils/alerts.js';
 
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
@@ -16,12 +16,16 @@ import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
 import arrowIcon from '../../assets/icons/icon-arrow-right-1.svg';
 import mapIcon from '../../assets/icons/icon-map-pin-1.svg';
 
-const WORKSHOP_ENDPOINT =
-  apiEndpoint(import.meta.env.VITE_WORKSHOP_API_URL, '/api/workshop-api.php');
-const FORMHANDLE_ENDPOINT = apiEndpoint(
-  import.meta.env.VITE_FORMHANDLE_API_URL,
-  '/api/formhandle.php',
-);
+const API_ORIGIN = 'https://arduflow.indobilliard.com/apk/uploads/web/api/workshop';
+const WORKSHOP_ENDPOINT = `${API_ORIGIN}/workshop-api.php`;
+const FORMHANDLE_ENDPOINT = `${API_ORIGIN}/formhandle.php`;
+const WORKSHOP_STORAGE_BASE_URL =
+  'https://arduflow.indobilliard.com/apk/uploads/web/storage/workshop';
+
+if (import.meta.env.DEV) {
+  console.log('[AdminProgram] WORKSHOP_ENDPOINT:', WORKSHOP_ENDPOINT);
+  console.log('[AdminProgram] FORMHANDLE_ENDPOINT:', FORMHANDLE_ENDPOINT);
+}
 const PAGE_SIZE = 6;
 
 function parseParticipantCount(value) {
@@ -127,18 +131,53 @@ function normalizeWorkshop(row) {
 
 function getWorkshopImageUrl(workshop) {
   const image = workshop?.coverImage;
-  const url = image?.url || image?.file_url || image?.relativeUrl || image?.relative_url || '';
+  const url =
+    image?.url ||
+    image?.file_url ||
+    image?.relativeUrl ||
+    image?.relative_url ||
+    image?.path ||
+    image?.file_path ||
+    '';
+
   const cleanUrl = typeof url === 'string' ? url.trim() : '';
 
   if (!cleanUrl) {
     return '';
   }
 
-  if (/^https?:\/\//i.test(cleanUrl) || cleanUrl.startsWith('data:')) {
+  if (cleanUrl.startsWith('data:')) {
     return cleanUrl;
   }
 
-  return `${API_BASE_URL}/${cleanUrl.replace(/^\/+/, '')}`;
+  const normalizeWorkshopStorageUrl = (value) => {
+    const withoutQuery = String(value).split('?')[0].split('#')[0];
+    const fileName = withoutQuery.split('/').filter(Boolean).pop() || '';
+
+    if (!fileName) return '';
+
+    return `${WORKSHOP_STORAGE_BASE_URL}/${encodeURIComponent(
+      decodeURIComponent(fileName),
+    )}`;
+  };
+
+  if (/^https?:\/\//i.test(cleanUrl)) {
+    if (cleanUrl.includes('/uploads/web/storage/workshop/')) {
+      return cleanUrl;
+    }
+
+    if (
+      cleanUrl.includes('/uploads/workshops/') ||
+      cleanUrl.includes('/web/storage/workshop/') ||
+      cleanUrl.includes('/api/workshop/uploads/')
+    ) {
+      return normalizeWorkshopStorageUrl(cleanUrl);
+    }
+
+    return cleanUrl;
+  }
+
+  return normalizeWorkshopStorageUrl(cleanUrl);
 }
 
 function WorkshopImage({ workshop, className, compact = false }) {
@@ -377,7 +416,13 @@ export function AdminProgram() {
           const leadsText = await leadsResponse.value.text();
           let leadsResult;
 
-          leadsResult = leadsText ? JSON.parse(leadsText) : {};
+          try {
+            leadsResult = leadsText ? JSON.parse(leadsText) : {};
+          } catch {
+            throw new Error(
+              `Response peserta bukan JSON. Periksa URL ${FORMHANDLE_ENDPOINT}. Awal response: ${leadsText.slice(0, 80)}`,
+            );
+          }
 
           if (!leadsResponse.value.ok || !leadsResult.success) {
             throw new Error(leadsResult.message || `Gagal mengambil peserta. HTTP ${leadsResponse.value.status}.`);
@@ -595,13 +640,18 @@ export function AdminProgram() {
     [workshopRegistrations],
   );
 
+  const registeredWorkshopRegistrations = useMemo(
+    () => workshopRegistrations.filter(isRegisteredWorkshopParticipant),
+    [workshopRegistrations],
+  );
+
   const totalParticipantCount = useMemo(
     () =>
-      workshopRegistrations.reduce(
+      registeredWorkshopRegistrations.reduce(
         (total, registration) => total + participantCountFromRegistration(registration),
         0,
       ),
-    [workshopRegistrations],
+    [registeredWorkshopRegistrations],
   );
 
   const selectedWorkshopRegistrationSummary = selectedWorkshop
@@ -651,7 +701,7 @@ export function AdminProgram() {
       {
         label: 'Peserta Terdaftar',
         value: String(totalParticipantCount),
-        note: `${workshopRegistrations.length} pendaftaran`,
+        note: `${registeredWorkshopRegistrations.length} pendaftaran`,
         icon: usersIcon,
         tone: 'blue',
       },
@@ -670,7 +720,7 @@ export function AdminProgram() {
         tone: 'purple',
       },
     ];
-  }, [totalParticipantCount, workshopRegistrations.length, workshops]);
+  }, [totalParticipantCount, registeredWorkshopRegistrations.length, workshops]);
 
   const upcomingPrograms = useMemo(() => {
     const today = new Date();

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { WorkshopImageCropper } from '../../features/profile-image-crop/WorkshopImageCropper.jsx';
 import { TinyMCEEditor } from '../../components/TinyMCEEditor.jsx';
-import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
 import { showSuccessAlert } from '../../utils/alerts.js';
 
 const levels = ['Pemula', 'Menengah', 'Lanjutan'];
@@ -9,14 +8,21 @@ const categories = ['Arduino', 'IoT', 'Visual Programming', 'Sekolah'];
 const timezones = ['WIB (GMT+7)', 'WITA (GMT+8)', 'WIT (GMT+9)'];
 const workshopTypes = ['Online', 'Offline', 'Hybrid'];
 
-const WORKSHOP_ENDPOINT =
-  apiEndpoint(import.meta.env.VITE_WORKSHOP_API_URL, '/api/workshop-api.php');
+const WORKSHOP_API_ORIGIN =
+  'https://arduflow.indobilliard.com/apk/uploads/web/api/workshop';
+
+const WORKSHOP_ENDPOINT = `${WORKSHOP_API_ORIGIN}/workshop-api.php`;
+const WORKSHOP_IMAGE_UPLOAD_ENDPOINT = `${WORKSHOP_API_ORIGIN}/workshop-upload.php`;
+const WORKSHOP_STORAGE_BASE_URL =
+  'https://arduflow.indobilliard.com/apk/uploads/web/storage/workshop';
+
 const DEBUG_WORKSHOP_FORM =
   import.meta.env.DEV && import.meta.env.VITE_DEBUG_API === 'true';
 
-const WORKSHOP_IMAGE_UPLOAD_ENDPOINT = `${WORKSHOP_ENDPOINT}${
-  WORKSHOP_ENDPOINT.includes('?') ? '&' : '?'
-}action=upload-image`;
+if (import.meta.env.DEV) {
+  console.log('[AdminTambahWorkshop] WORKSHOP_ENDPOINT:', WORKSHOP_ENDPOINT);
+}
+
 const IMAGE_UPLOAD_TIMEOUT_MS = 60000;
 
 const requiredFields = [
@@ -86,7 +92,8 @@ function formatFileMetadata(file) {
 
 async function uploadImageFile(file) {
   const uploadData = new FormData();
-  uploadData.append('image', file);
+  uploadData.append('file', file);
+
   const controller = new AbortController();
   const timeoutId = window.setTimeout(
     () => controller.abort(),
@@ -99,11 +106,16 @@ async function uploadImageFile(file) {
     response = await fetch(WORKSHOP_IMAGE_UPLOAD_ENDPOINT, {
       method: 'POST',
       body: uploadData,
+      headers: {
+        Accept: 'application/json',
+      },
       signal: controller.signal,
     });
   } catch (error) {
     if (error.name === 'AbortError') {
-      throw new Error('Upload gambar terlalu lama. Periksa koneksi VPN gate atau kecilkan ukuran gambar.');
+      throw new Error(
+        'Upload gambar terlalu lama. Periksa koneksi internet/server lalu coba lagi.',
+      );
     }
 
     throw error;
@@ -129,16 +141,41 @@ async function uploadImageFile(file) {
   }
 
   const uploaded = result.data || {};
-  const size = Number(uploaded.size ?? file.size ?? 0);
+  const size = Number(uploaded.size ?? uploaded.file_size ?? file.size ?? 0);
+  const storedName =
+    uploaded.storedName ||
+    uploaded.file_name ||
+    uploaded.name ||
+    '';
+  const originalName = uploaded.originalName || file.name;
+  const url = uploaded.url || uploaded.file_url || '';
+  const relativeUrl =
+    uploaded.relativeUrl ||
+    uploaded.relative_url ||
+    uploaded.path ||
+    uploaded.file_path ||
+    '';
+
+  if (!url) {
+    throw new Error('Server upload tidak mengembalikan URL gambar.');
+  }
 
   return {
-    name: uploaded.originalName || file.name,
-    storedName: uploaded.name || '',
-    originalName: uploaded.originalName || file.name,
-    type: uploaded.type || file.type || 'application/octet-stream',
+    name: originalName,
+    storedName,
+    file_name: storedName,
+    originalName,
+    type: uploaded.type || uploaded.file_type || file.type || 'application/octet-stream',
+    file_type: uploaded.file_type || uploaded.type || file.type || 'application/octet-stream',
     size,
+    file_size: size,
     sizeKB: Number((size / 1024).toFixed(2)),
-    url: uploaded.url || '',
+    url,
+    file_url: url,
+    relativeUrl,
+    relative_url: relativeUrl,
+    path: uploaded.path || relativeUrl,
+    file_path: uploaded.file_path || uploaded.path || relativeUrl,
   };
 }
 
@@ -179,18 +216,53 @@ function formatWorkshopTimeRange(timeStart, timeEnd) {
 }
 
 function resolveImageUrl(image) {
-  const url = image?.url || image?.file_url || image?.relativeUrl || image?.relative_url || '';
+  const url =
+    image?.url ||
+    image?.file_url ||
+    image?.relativeUrl ||
+    image?.relative_url ||
+    image?.path ||
+    image?.file_path ||
+    '';
+
   const cleanUrl = typeof url === 'string' ? url.trim() : '';
 
   if (!cleanUrl) {
     return '';
   }
 
-  if (/^https?:\/\//i.test(cleanUrl) || cleanUrl.startsWith('data:')) {
+  if (cleanUrl.startsWith('data:')) {
     return cleanUrl;
   }
 
-  return `${API_BASE_URL}/${cleanUrl.replace(/^\/+/, '')}`;
+  const normalizeWorkshopStorageUrl = (value) => {
+    const withoutQuery = String(value).split('?')[0].split('#')[0];
+    const fileName = withoutQuery.split('/').filter(Boolean).pop() || '';
+
+    if (!fileName) return '';
+
+    return `${WORKSHOP_STORAGE_BASE_URL}/${encodeURIComponent(
+      decodeURIComponent(fileName),
+    )}`;
+  };
+
+  if (/^https?:\/\//i.test(cleanUrl)) {
+    if (cleanUrl.includes('/uploads/web/storage/workshop/')) {
+      return cleanUrl;
+    }
+
+    if (
+      cleanUrl.includes('/uploads/workshops/') ||
+      cleanUrl.includes('/web/storage/workshop/') ||
+      cleanUrl.includes('/api/workshop/uploads/')
+    ) {
+      return normalizeWorkshopStorageUrl(cleanUrl);
+    }
+
+    return cleanUrl;
+  }
+
+  return normalizeWorkshopStorageUrl(cleanUrl);
 }
 
 function SectionTitle({ number, title }) {

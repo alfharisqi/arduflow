@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 return [
     'sqlite' => [
-        'path' => __DIR__ . '/../storage/database/arduflow.sqlite',
-        'busy_timeout_ms' => 5000,
+        // Satu-satunya database SQLite ArduFlow.
+        // File ini berada di website/API/config/database.php,
+        // jadi ../database/arduflow.sqlite mengarah ke:
+        // website/API/database/arduflow.sqlite
+         'path' => __DIR__ . '/../database/arduflow.sqlite',
+        //'path' => __DIR__ . '../../db/arduflow.sqlite',
+        'busy_timeout_ms' => 15000,
     ],
 
     'mysql' => [

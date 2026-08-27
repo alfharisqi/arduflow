@@ -160,28 +160,98 @@ function addColumnIfMissing(
 function ensureWorkshopRegistrationColumns(PDO $pdo): void
 {
     if (!tableExists($pdo, 'workshop_registrations')) {
-        return;
+        $pdo->exec(
+            'CREATE TABLE workshop_registrations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                workshop_id INTEGER NOT NULL,
+                user_id INTEGER NULL,
+                participant_name TEXT NOT NULL,
+                participant_email TEXT NOT NULL,
+                participant_phone TEXT NULL,
+                participant_whatsapp TEXT NULL,
+                institution_name TEXT NULL,
+                workshop_choice TEXT NULL,
+                participant_estimate INTEGER NOT NULL DEFAULT 1,
+                member_names TEXT NULL,
+                status TEXT NOT NULL DEFAULT "Baru",
+                notes TEXT NULL,
+                source TEXT NOT NULL DEFAULT "website",
+                deleted_at TEXT NULL,
+                version INTEGER NOT NULL DEFAULT 1,
+                transaction_id INTEGER NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )'
+        );
     }
 
-    addColumnIfMissing(
-        $pdo,
-        'workshop_registrations',
-        'workshop_id',
-        'INTEGER NULL'
+    $columns = [
+        'workshop_id' => 'INTEGER NULL',
+        'user_id' => 'INTEGER NULL',
+        'participant_name' => 'TEXT NULL',
+        'participant_email' => 'TEXT NULL',
+        'participant_phone' => 'TEXT NULL',
+        'participant_whatsapp' => 'TEXT NULL',
+        'institution_name' => 'TEXT NULL',
+        'workshop_choice' => 'TEXT NULL',
+        'participant_estimate' => 'INTEGER NOT NULL DEFAULT 1',
+        'member_names' => 'TEXT NULL',
+        'status' => 'TEXT NOT NULL DEFAULT "Baru"',
+        'notes' => 'TEXT NULL',
+        'source' => 'TEXT NOT NULL DEFAULT "website"',
+        'deleted_at' => 'TEXT NULL',
+        'version' => 'INTEGER NOT NULL DEFAULT 1',
+        'transaction_id' => 'INTEGER NULL',
+        'created_at' => 'TEXT NULL',
+        'updated_at' => 'TEXT NULL',
+    ];
+
+    foreach ($columns as $column => $definition) {
+        addColumnIfMissing(
+            $pdo,
+            'workshop_registrations',
+            $column,
+            $definition
+        );
+    }
+
+    $pdo->exec(
+        'UPDATE workshop_registrations
+         SET participant_whatsapp = participant_phone
+         WHERE (participant_whatsapp IS NULL OR participant_whatsapp = "")
+           AND participant_phone IS NOT NULL
+           AND participant_phone <> ""'
     );
 
-    addColumnIfMissing(
-        $pdo,
-        'workshop_registrations',
-        'member_names',
-        'TEXT NULL'
-    );
+    if (tableExists($pdo, 'workshops')) {
+        $pdo->exec(
+            'UPDATE workshop_registrations
+             SET workshop_choice = (
+                 SELECT w.title
+                 FROM workshops w
+                 WHERE w.id = workshop_registrations.workshop_id
+                 LIMIT 1
+             )
+             WHERE (workshop_choice IS NULL OR workshop_choice = "")
+               AND workshop_id IS NOT NULL'
+        );
+    }
 
-    addColumnIfMissing(
-        $pdo,
-        'workshop_registrations',
-        'transaction_id',
-        'INTEGER NULL'
+    $pdo->exec(
+        'CREATE INDEX IF NOT EXISTS idx_workshop_registrations_workshop
+         ON workshop_registrations(workshop_id)'
+    );
+    $pdo->exec(
+        'CREATE INDEX IF NOT EXISTS idx_workshop_registrations_user
+         ON workshop_registrations(user_id)'
+    );
+    $pdo->exec(
+        'CREATE INDEX IF NOT EXISTS idx_workshop_registrations_email
+         ON workshop_registrations(participant_email)'
+    );
+    $pdo->exec(
+        'CREATE INDEX IF NOT EXISTS idx_workshop_registrations_status
+         ON workshop_registrations(status)'
     );
 }
 
@@ -390,21 +460,11 @@ if (!in_array($method, ['GET', 'POST'], true)) {
 
 $projectRoot = dirname(__DIR__);
 
-$autoloadPath = $projectRoot . '/vendor/autoload.php';
-$configPath = $projectRoot . '/config/database.php';
+$configPath = $projectRoot
+    . DIRECTORY_SEPARATOR . 'config'
+    . DIRECTORY_SEPARATOR . 'database.php';
+    //. DIRECTORY_SEPARATOR . '/workshop/database.php';
 
-if (!file_exists($autoloadPath)) {
-    sendJson(
-        500,
-        false,
-        'Composer autoload tidak ditemukan.',
-        [
-            'path' => $autoloadPath,
-            'solution' =>
-                'Jalankan composer install dari folder website/API.',
-        ]
-    );
-}
 
 if (!file_exists($configPath)) {
     sendJson(
@@ -417,7 +477,16 @@ if (!file_exists($configPath)) {
     );
 }
 
-require_once $autoloadPath;
+$databaseConfig = require $configPath;
+$sqliteConfig = $databaseConfig['sqlite'] ?? null;
+
+if (!is_array($sqliteConfig)) {
+    sendJson(
+        500,
+        false,
+        'Konfigurasi SQLite tidak ditemukan.'
+    );
+}
 
 /*
 |--------------------------------------------------------------------------
@@ -765,18 +834,9 @@ function fetchAdminLeads(PDO $pdo): array
 }
 
 if ($method === 'GET') {
-    $databaseConfig = require $configPath;
-    $sqliteConfig = $databaseConfig['sqlite'] ?? null;
-
-    if (!is_array($sqliteConfig)) {
-        sendJson(
-            500,
-            false,
-            'Konfigurasi SQLite tidak ditemukan.'
-        );
-    }
-
+    // Menggunakan satu database utama dari config/database.php.
     $pdo = openSqliteConnection($sqliteConfig, $projectRoot);
+    ensureWorkshopRegistrationColumns($pdo);
     $items = fetchAdminLeads($pdo);
     $statusCounts = [];
     $topicCounts = [];
@@ -896,120 +956,16 @@ if (!in_array($formType, $allowedFormTypes, true)) {
 
 /*
 |--------------------------------------------------------------------------
-| Konfigurasi database
+| Database utama ArduFlow
 |--------------------------------------------------------------------------
+|
+| Semua form dan pendaftaran memakai:
+| website/API/database/arduflow.sqlite
+|
 */
 
-$databaseConfig = require $configPath;
-$sqliteConfig = $databaseConfig['sqlite'] ?? null;
-
-if (!is_array($sqliteConfig)) {
-    sendJson(
-        500,
-        false,
-        'Konfigurasi SQLite tidak ditemukan.'
-    );
-}
-
-$databasePath = trim(
-    (string) ($sqliteConfig['path'] ?? '')
-);
-
-$busyTimeout = (int) (
-    $sqliteConfig['busy_timeout_ms'] ?? 15000
-);
-
-if ($databasePath === '') {
-    sendJson(
-        500,
-        false,
-        'Path database SQLite belum dikonfigurasi.'
-    );
-}
-
-$isWindowsAbsolutePath = preg_match(
-    '/^[A-Za-z]:[\\\\\/]/',
-    $databasePath
-) === 1;
-
-$isUnixAbsolutePath = str_starts_with(
-    $databasePath,
-    '/'
-);
-
-if (
-    !$isWindowsAbsolutePath
-    && !$isUnixAbsolutePath
-) {
-    $databasePath =
-        $projectRoot
-        . DIRECTORY_SEPARATOR
-        . str_replace(
-            ['/', '\\'],
-            DIRECTORY_SEPARATOR,
-            $databasePath
-        );
-}
-
-$databaseDirectory = dirname($databasePath);
-
-if (
-    !is_dir($databaseDirectory)
-    && !mkdir($databaseDirectory, 0775, true)
-    && !is_dir($databaseDirectory)
-) {
-    sendJson(
-        500,
-        false,
-        'Folder database tidak dapat dibuat.',
-        [
-            'database_directory' => $databaseDirectory,
-        ]
-    );
-}
-
-/*
-|--------------------------------------------------------------------------
-| Koneksi SQLite
-|--------------------------------------------------------------------------
-*/
-
-try {
-    $pdo = new PDO(
-        'sqlite:' . $databasePath,
-        null,
-        null,
-        [
-            PDO::ATTR_ERRMODE =>
-                PDO::ERRMODE_EXCEPTION,
-
-            PDO::ATTR_DEFAULT_FETCH_MODE =>
-                PDO::FETCH_ASSOC,
-
-            PDO::ATTR_EMULATE_PREPARES =>
-                false,
-        ]
-    );
-
-    $pdo->exec('PRAGMA foreign_keys = ON');
-    $pdo->exec('PRAGMA journal_mode = WAL');
-    $pdo->exec('PRAGMA synchronous = NORMAL');
-    $pdo->exec(
-        'PRAGMA busy_timeout = '
-        . max(15000, $busyTimeout)
-    );
-} catch (Throwable $exception) {
-    error_log(
-        'Koneksi SQLite gagal: '
-        . $exception->getMessage()
-    );
-
-    sendJson(
-        500,
-        false,
-        'Koneksi database SQLite gagal.'
-    );
-}
+$pdo = openSqliteConnection($sqliteConfig, $projectRoot);
+ensureWorkshopRegistrationColumns($pdo);
 
 $now = gmdate('Y-m-d\TH:i:s\Z');
 
@@ -1465,7 +1421,6 @@ if ($formType === 'workshop') {
             'SELECT title
              FROM workshops
              WHERE id = :id
-             AND deleted_at IS NULL
              LIMIT 1'
         );
 
@@ -1476,6 +1431,28 @@ if ($formType === 'workshop') {
         $workshopChoice = trim(
             (string) ($workshopStatement->fetchColumn() ?: '')
         );
+    }
+
+    if (
+        $workshopId === null
+        && $workshopChoice !== ''
+        && tableExists($pdo, 'workshops')
+    ) {
+        $workshopIdStatement = $pdo->prepare(
+            'SELECT id
+             FROM workshops
+             WHERE LOWER(title) = LOWER(:title)
+             ORDER BY id DESC
+             LIMIT 1'
+        );
+        $workshopIdStatement->execute([
+            ':title' => $workshopChoice,
+        ]);
+
+        $resolvedWorkshopId = $workshopIdStatement->fetchColumn();
+        if ($resolvedWorkshopId !== false && (int) $resolvedWorkshopId > 0) {
+            $workshopId = (int) $resolvedWorkshopId;
+        }
     }
 
     $participantEstimate = trim(
@@ -1543,6 +1520,11 @@ if ($formType === 'workshop') {
             'Pilihan workshop tidak valid.';
     }
 
+    if ($workshopId === null) {
+        $errors['pilihan_workshop_id'] =
+            'ID workshop tidak ditemukan. Pastikan workshop dipilih dari data SQLite.';
+    }
+
     if (textLength($participantEstimate) > 150) {
         $errors['jumlah_peserta_workshop'] =
             'Jumlah peserta maksimal 150 karakter.';
@@ -1588,9 +1570,10 @@ if ($formType === 'workshop') {
             : null;
 
     $participantEstimateValue =
-        $participantEstimate !== ''
-            ? $participantEstimate
-            : null;
+        max(
+            1,
+            (int) (preg_replace('/\D+/', '', $participantEstimate) ?: 1)
+        );
 
     $memberNamesValue =
         $memberNames !== ''
@@ -1629,6 +1612,7 @@ if ($formType === 'workshop') {
             'INSERT INTO workshop_registrations (
                 participant_name,
                 participant_email,
+                participant_phone,
                 participant_whatsapp,
                 institution_name,
                 workshop_id,
@@ -1645,6 +1629,7 @@ if ($formType === 'workshop') {
             ) VALUES (
                 :participant_name,
                 :participant_email,
+                :participant_phone,
                 :participant_whatsapp,
                 :institution_name,
                 :workshop_id,
@@ -1664,6 +1649,7 @@ if ($formType === 'workshop') {
         $statement->execute([
             ':participant_name' => $participantName,
             ':participant_email' => $participantEmail,
+            ':participant_phone' => $participantWhatsapp,
             ':participant_whatsapp' =>
                 $participantWhatsapp,
             ':institution_name' =>
