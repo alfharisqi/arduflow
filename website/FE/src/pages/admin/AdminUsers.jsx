@@ -84,7 +84,36 @@ function csvCell(value) {
   return `"${String(value ?? '').replace(/"/g, '""')}"`;
 }
 
+async function copyText(value) {
+  const text = String(value || '');
+
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.top = '-9999px';
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  const copied = document.execCommand('copy');
+  document.body.removeChild(textarea);
+
+  if (!copied) {
+    throw new Error('Clipboard tidak tersedia di browser ini.');
+  }
+}
+
 function exportUsersCsv(users, filename = 'arduflow-users.csv') {
+  if (!users.length) {
+    showErrorAlert('Tidak Ada Data', 'Tidak ada user yang bisa diexport.');
+    return 0;
+  }
+
   const headers = [
     'ID',
     'Nama',
@@ -120,10 +149,12 @@ function exportUsersCsv(users, filename = 'arduflow-users.csv') {
   link.download = filename;
   link.click();
   URL.revokeObjectURL(url);
+
+  return users.length;
 }
 
 export function AdminUsers() {
-  const [filters, setFilters] = useState(initialFilters);
+  const [filters, setFilters] = useState({ ...initialFilters });
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -194,11 +225,21 @@ export function AdminUsers() {
   }
 
   function resetFilters() {
-    setFilters(initialFilters);
+    setFilters({ ...initialFilters });
+  }
+
+  function resetFiltersWithFeedback() {
+    resetFilters();
+    showSuccessAlert('Filter Direset', 'Filter user dikembalikan ke kondisi awal.');
   }
 
   function refreshUsers() {
     setFilters((current) => ({ ...current }));
+  }
+
+  function refreshUsersWithFeedback() {
+    refreshUsers();
+    showSuccessAlert('Data Diperbarui', 'Daftar user sedang dimuat ulang.');
   }
 
   function removeUserFromSelection(userId) {
@@ -228,20 +269,34 @@ export function AdminUsers() {
     setDetailOpen(true);
   }
 
-  function copyUser(user) {
-    navigator.clipboard?.writeText([
-      user.name,
-      user.username,
-      user.email,
-      user.whatsapp,
-      user.workplace,
-    ].join('\n'));
-    showSuccessAlert('Data Disalin', `Data "${user.name}" berhasil disalin ke clipboard.`);
+  async function copyUser(user) {
+    try {
+      await copyText([
+        user.name,
+        user.username,
+        user.email,
+        user.whatsapp,
+        user.workplace,
+      ].join('\n'));
+      showSuccessAlert('Data Disalin', `Data "${user.name}" berhasil disalin ke clipboard.`);
+    } catch (copyError) {
+      showErrorAlert('Gagal Menyalin', copyError.message || 'Browser tidak mengizinkan akses clipboard.');
+    }
   }
 
   function exportSelectedUsers() {
     const selectedUsers = users.filter((user) => selectedIds.includes(user.id));
-    exportUsersCsv(selectedUsers.length ? selectedUsers : users, 'arduflow-selected-users.csv');
+    const exported = exportUsersCsv(selectedUsers.length ? selectedUsers : users, 'arduflow-selected-users.csv');
+    if (exported > 0) {
+      showSuccessAlert('Export Berhasil', `${exported} user berhasil disiapkan sebagai CSV.`);
+    }
+  }
+
+  function exportVisibleUsers(filename = 'arduflow-users.csv') {
+    const exported = exportUsersCsv(users, filename);
+    if (exported > 0) {
+      showSuccessAlert('Export Berhasil', `${exported} user berhasil disiapkan sebagai CSV.`);
+    }
   }
 
   async function toggleAccountStatus(user) {
@@ -259,8 +314,13 @@ export function AdminUsers() {
     try {
       await updateAdminUserStatus(user.id, nextStatus);
       refreshUsers();
+      showSuccessAlert(
+        nextStatus ? 'Akun Diaktifkan' : 'Akun Dinonaktifkan',
+        `Akun "${user.name}" berhasil ${nextStatus ? 'diaktifkan' : 'dinonaktifkan'}.`
+      );
     } catch (requestError) {
       setError(requestError.message || `Gagal ${actionLabel} akun user.`);
+      showErrorAlert('Gagal', requestError.message || `Gagal ${actionLabel} akun user.`);
     } finally {
       setProcessingUserId(null);
     }
@@ -306,8 +366,10 @@ export function AdminUsers() {
       await deleteAdminUser(user.id);
       removeUserFromSelection(user.id);
       refreshUsers();
+      showSuccessAlert('Akun Dihapus', `Akun "${user.name}" berhasil dihapus.`);
     } catch (requestError) {
       setError(requestError.message || 'Gagal menghapus akun user.');
+      showErrorAlert('Gagal', requestError.message || 'Gagal menghapus akun user.');
     } finally {
       setProcessingUserId(null);
     }
@@ -410,7 +472,7 @@ export function AdminUsers() {
               <p>Dashboard <span>/</span> Manajemen User</p>
               {error ? <small className="admin-dashboard-error">{error}</small> : null}
             </div>
-            <button type="button" onClick={refreshUsers}>Refresh Data</button>
+            <button type="button" onClick={refreshUsersWithFeedback}>Refresh Data</button>
           </div>
 
           <section className="admin-users-summary" aria-label="Ringkasan user">
@@ -442,8 +504,8 @@ export function AdminUsers() {
                   onChange={(event) => updateFilter('search', event.target.value)}
                 />
               </label>
-              <button type="button" onClick={resetFilters}>Reset Filter</button>
-              <button type="button" onClick={refreshUsers}>Refresh</button>
+              <button type="button" onClick={resetFiltersWithFeedback}>Reset Filter</button>
+              <button type="button" onClick={refreshUsersWithFeedback}>Refresh</button>
             </div>
             <div className="admin-users-select-grid">
               <label>
@@ -495,8 +557,8 @@ export function AdminUsers() {
             <button type="button" disabled={!selectedIds.length || processingUserId === 'bulk-status'} onClick={() => setSelectedAccountStatus(true)}>Aktifkan Terpilih</button>
             <button type="button" disabled={!selectedIds.length || processingUserId === 'bulk-status'} onClick={() => setSelectedAccountStatus(false)}>Nonaktifkan Terpilih</button>
             <button type="button" className="admin-users-action-danger" disabled={!selectedIds.length || processingUserId === 'bulk-delete'} onClick={deleteSelectedUsers}>Hapus Terpilih</button>
-            <button type="button" disabled={!users.length} onClick={() => exportUsersCsv(users)}>Export CSV</button>
-            <button type="button" onClick={refreshUsers}>Refresh</button>
+            <button type="button" disabled={!users.length} onClick={() => exportVisibleUsers()}>Export CSV</button>
+            <button type="button" onClick={refreshUsersWithFeedback}>Refresh</button>
           </section>
 
           <section className="admin-users-table-card">
@@ -653,8 +715,8 @@ export function AdminUsers() {
               <button type="button" disabled={!selectedIds.length || processingUserId === 'bulk-status'} onClick={() => setSelectedAccountStatus(true)}>Aktifkan User Terpilih</button>
               <button type="button" disabled={!selectedIds.length || processingUserId === 'bulk-status'} onClick={() => setSelectedAccountStatus(false)}>Nonaktifkan User Terpilih</button>
               <button type="button" className="admin-users-action-danger" disabled={!selectedIds.length || processingUserId === 'bulk-delete'} onClick={deleteSelectedUsers}>Hapus User Terpilih</button>
-              <button type="button" disabled={!users.length} onClick={() => exportUsersCsv(users)}>Export Semua User</button>
-              <button type="button" onClick={refreshUsers}>Muat Ulang Data</button>
+              <button type="button" disabled={!users.length} onClick={() => exportVisibleUsers()}>Export Semua User</button>
+              <button type="button" onClick={refreshUsersWithFeedback}>Muat Ulang Data</button>
             </article>
           </section>
         </section>
@@ -744,6 +806,7 @@ export function AdminUsers() {
                 setSelectedIds((current) => (
                   current.includes(selectedUser.id) ? current : [...current, selectedUser.id]
                 ));
+                showSuccessAlert('User Dipilih', `"${selectedUser.name}" masuk ke daftar pilihan.`);
               }}>
                 Pilih User
               </button>
