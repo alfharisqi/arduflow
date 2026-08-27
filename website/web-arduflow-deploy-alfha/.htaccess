@@ -1,0 +1,16 @@
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule . index.php [QSA,L]
+</IfModule>
+
+<FilesMatch "^(\.env|composer\.(json|lock)|README\.md|router\.php)$">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteRule ^(app|bootstrap|config|migrations|scripts|storage|vendor)(/.*)?$ - [F,L]
+</IfModule>

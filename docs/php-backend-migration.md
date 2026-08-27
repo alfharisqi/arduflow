@@ -2,7 +2,7 @@
 
 ## Status
 
-Dokumen ini mencatat migrasi bertahap. Backend Node.js pada `website/BE` tetap menjadi backend aktif sampai endpoint PHP lulus uji kompatibilitas. Fondasi PHP berada di `website/API`.
+Dokumen ini mencatat migrasi bertahap. Backend Node.js pada `website/BE` tetap menjadi backend aktif sampai endpoint PHP lulus uji kompatibilitas. Fondasi PHP berada di `website/BE`.
 
 | Tahap | Status |
 | --- | --- |
@@ -42,14 +42,14 @@ MySQL bukan dependency request pengguna. Jika MySQL mati, request tetap mengguna
 ## Lokasi database
 
 - Node aktif saat ini: `website/BE/storage/database/arduflow.sqlite`
-- PHP baru: `website/API/storage/database/arduflow.sqlite`
+- PHP baru: `website/BE/storage/database/arduflow.sqlite`
 
 Kedua file sengaja dipisahkan selama migrasi. Jangan memakai file yang sama secara bersamaan dari Node dan PHP sebelum strategi cutover disetujui.
 
 ## Menjalankan PHP API lokal
 
 ```powershell
-cd website/API
+cd website/BE
 composer install
 Copy-Item .env.example .env
 php scripts/check-runtime.php
@@ -69,7 +69,7 @@ Invoke-RestMethod http://127.0.0.1:8000/api/health/database
 
 ## Environment awal
 
-Salin `website/API/.env.example` menjadi `.env`. Nilai secret wajib dibuat sendiri dan tidak boleh di-commit:
+Salin `website/BE/.env.example` menjadi `.env`. Nilai secret wajib dibuat sendiri dan tidak boleh di-commit:
 
 - `SYNC_API_TOKEN`
 - `SYNC_HMAC_SECRET`
@@ -128,7 +128,7 @@ Reset password dan soft delete mencabut seluruh sesi user yang aktif.
 php scripts/import-auth-from-node-sqlite.php
 ```
 
-Sumber default adalah `website/BE/storage/database/arduflow.sqlite`, dapat diubah dengan `NODE_SQLITE_DATABASE_PATH`. Script membuat backup target ke `website/API/storage/backups/sqlite`, mempertahankan primary key, melakukan upsert user/admin, tidak membuat outbox, dan sengaja tidak mengimpor sesi lama.
+Sumber default adalah `website/BE/storage/database/arduflow.sqlite`, dapat diubah dengan `NODE_SQLITE_DATABASE_PATH`. Script membuat backup target ke `website/BE/storage/backups/sqlite`, mempertahankan primary key, melakukan upsert user/admin, tidak membuat outbox, dan sengaja tidak mengimpor sesi lama.
 
 Sesudah import, isi konfigurasi seed admin lalu jalankan:
 
@@ -200,7 +200,7 @@ SQLITE_BACKUP_RETENTION_DAYS=14
 
 ## Deployment FTP/PHP
 
-Untuk hosting tanpa Composer CLI, jalankan `composer install --no-dev --optimize-autoloader` secara lokal lalu upload isi `website/API`, termasuk `vendor`, dengan document root diarahkan ke `website/API/public`. Folder `storage` harus writable dan tidak boleh berada di document root.
+Untuk hosting tanpa Composer CLI, jalankan `composer install --no-dev --optimize-autoloader` secara lokal lalu upload isi `website/BE`, termasuk `vendor`, dengan document root diarahkan ke `website/BE/public`. Folder `storage` harus writable dan tidak boleh berada di document root.
 
 ## Cron sinkronisasi
 
@@ -209,14 +209,14 @@ Worker PHP mengambil event `pending` paling lama, menguncinya dengan `worker_id`
 Jalankan manual:
 
 ```powershell
-cd website/API
+cd website/BE
 composer sync:run
 ```
 
 Cron production:
 
 ```cron
-*/5 * * * * cd /path/to/project/website/API && php scripts/sync-sqlite-to-mysql.php >> storage/logs/sync-cron.log 2>&1
+*/5 * * * * cd /path/to/project/website/BE && php scripts/sync-sqlite-to-mysql.php >> storage/logs/sync-cron.log 2>&1
 ```
 
 Jika shared hosting tidak menyediakan cron, sinkronisasi harus dijalankan oleh cron eksternal atau worker terpisah. Sinkronisasi tidak boleh dipicu oleh setiap request pengguna.

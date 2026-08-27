@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $frontendDir = Join-Path $repoRoot "website/FE"
-$apiDir = Join-Path $repoRoot "website/API"
+$apiDir = Join-Path $repoRoot "website/BE"
 $deployDir = Join-Path $repoRoot $OutputDir
 $publicHtmlDir = Join-Path $deployDir "public_html"
 $apiDeployDir = Join-Path $publicHtmlDir "api"

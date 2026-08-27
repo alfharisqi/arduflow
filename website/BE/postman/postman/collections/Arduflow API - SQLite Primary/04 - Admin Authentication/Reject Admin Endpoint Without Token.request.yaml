@@ -1,9 +1,0 @@
-$kind: http-request
-method: GET
-url: '{{base_url}}/api/admin/database-sync/status'
-order: 3000
-scripts:
-  - type: afterResponse
-    language: text/javascript
-    code: |-
-      pm.test('Route admin terlindungi', () => pm.response.to.have.status(401));

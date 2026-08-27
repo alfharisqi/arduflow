@@ -1,0 +1,841 @@
+.admin-transactions-page .admin-dashboard-main {
+  background: #ffffff;
+}
+
+.admin-transactions-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px 22px 0;
+  margin-bottom: 18px;
+}
+
+.admin-transactions-heading h1 {
+  margin: 0 0 5px;
+  font-family: 'Inter', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.admin-transactions-heading p {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.admin-transactions-heading p span {
+  margin: 0 8px;
+}
+
+.admin-transactions-hero-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-transactions-manage,
+.admin-transactions-toolbar button,
+.admin-transactions-form button,
+.admin-transactions-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid #d8dde6;
+  border-radius: 6px;
+  background: #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #111827;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.admin-transactions-manage {
+  gap: 8px;
+}
+
+.admin-transactions-manage:first-child,
+.admin-transactions-form button,
+.admin-transactions-export {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.admin-transactions-manage img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+.admin-transactions-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+  padding: 0 22px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.admin-transactions-tabs button {
+  min-height: 38px;
+  padding: 0 0 11px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+}
+
+.admin-transactions-tabs button.is-active {
+  border-bottom-color: #2563eb;
+  color: #2563eb;
+}
+
+.admin-transactions-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+  padding: 0 22px;
+  margin-bottom: 16px;
+}
+
+.admin-transactions-summary article {
+  min-height: 104px;
+  padding: 18px;
+  border: 1px solid #dfe5ee;
+  border-radius: 8px;
+  background: #ffffff;
+  font-family: 'Inter', sans-serif;
+}
+
+.admin-transactions-summary span {
+  display: block;
+  margin-bottom: 9px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.admin-transactions-summary strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.05;
+  color: #111827;
+}
+
+.admin-transactions-summary small {
+  font-size: 11px;
+  color: #4b5563;
+}
+
+.admin-transactions-create {
+  padding: 0 22px;
+  margin-bottom: 14px;
+}
+
+.admin-transactions-create p {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 7px;
+  background: #eff6ff;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: #1d4ed8;
+}
+
+.admin-transactions-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  padding: 0 22px 28px;
+}
+
+.admin-transactions-layout--with-form {
+  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+}
+
+.admin-transactions-form,
+.admin-transactions-panel {
+  border: 1px solid #dfe5ee;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.admin-transactions-form {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.admin-transactions-form h2 {
+  margin: 0 0 4px;
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  color: #111827;
+}
+
+.admin-transactions-form label {
+  display: grid;
+  gap: 6px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: #374151;
+}
+
+.admin-transactions-form input,
+.admin-transactions-form select,
+.admin-transactions-form textarea,
+.admin-transactions-toolbar input,
+.admin-transactions-toolbar select {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid #d8dde6;
+  border-radius: 6px;
+  background: #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: #111827;
+}
+
+.admin-transactions-form input,
+.admin-transactions-form select,
+.admin-transactions-toolbar input,
+.admin-transactions-toolbar select {
+  padding: 0 12px;
+}
+
+.admin-transactions-form input[type='file'] {
+  padding: 7px 10px;
+}
+
+.admin-transactions-form textarea {
+  min-height: 84px;
+  padding: 10px 12px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.admin-transactions-toolbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) repeat(3, minmax(140px, 180px)) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.admin-transactions-search {
+  position: relative;
+}
+
+.admin-transactions-search input {
+  padding-right: 38px;
+}
+
+.admin-transactions-search::before {
+  content: '';
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid #6b7280;
+  border-radius: 50%;
+  transform: translateY(-58%);
+  pointer-events: none;
+}
+
+.admin-transactions-search::after {
+  content: '';
+  position: absolute;
+  right: 11px;
+  top: 22px;
+  width: 7px;
+  height: 1.5px;
+  background: #6b7280;
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.admin-transactions-export:disabled,
+.admin-transactions-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.admin-transactions-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-transactions-table {
+  width: 100%;
+  min-width: 1080px;
+  border-collapse: collapse;
+  font-family: 'Inter', sans-serif;
+}
+
+.admin-transactions-table th,
+.admin-transactions-table td {
+  height: 50px;
+  padding: 9px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #111827;
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.admin-transactions-table th {
+  height: 40px;
+  background: #fafafa;
+  font-weight: 700;
+}
+
+.admin-transactions-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.admin-transactions-table td strong {
+  font-weight: 700;
+}
+
+.admin-transactions-table small {
+  display: block;
+  max-width: 210px;
+  margin-top: 4px;
+  overflow: hidden;
+  color: #6b7280;
+  text-overflow: ellipsis;
+}
+
+.admin-transactions-product b {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 5px;
+  background: #eef2ff;
+  color: #2563eb;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.admin-transactions-status {
+  min-width: 124px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid #d8dde6;
+  border-radius: 6px;
+  background: #f8fafc;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: #374151;
+}
+
+.admin-transactions-status--paid {
+  color: #15803d;
+  background: #dcfce7;
+  border-color: #bbf7d0;
+}
+
+.admin-transactions-status--pending,
+.admin-transactions-status--proof_uploaded {
+  color: #92400e;
+  background: #ffedd5;
+  border-color: #fed7aa;
+}
+
+.admin-transactions-status--rejected,
+.admin-transactions-status--failed,
+.admin-transactions-status--cancelled,
+.admin-transactions-status--expired {
+  color: #dc2626;
+  background: #fee2e2;
+  border-color: #fecaca;
+}
+
+.admin-transactions-status--refunded {
+  color: #0369a1;
+  background: #e0f2fe;
+  border-color: #bae6fd;
+}
+
+.admin-transactions-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-transactions-actions button {
+  height: 28px;
+  padding: 0 8px;
+  font-size: 10px;
+}
+
+.admin-transactions-action-danger {
+  border-color: #fecaca !important;
+  background: #fff1f2 !important;
+  color: #dc2626 !important;
+}
+
+.admin-payment-methods-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(17, 24, 39, 0.28);
+}
+
+.admin-payment-methods-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(960px, 100%);
+  max-height: min(760px, calc(100vh - 48px));
+  overflow: hidden;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+  font-family: 'Inter', sans-serif;
+}
+
+.admin-payment-methods-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 22px 12px;
+}
+
+.admin-payment-methods-head h2 {
+  margin: 0 0 6px;
+  color: #111827;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.admin-payment-methods-head p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.admin-payment-methods-close {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #d8dde6;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #374151;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.admin-payment-methods-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 22px 14px;
+}
+
+.admin-payment-methods-search {
+  width: min(390px, 100%);
+}
+
+.admin-payment-methods-search input {
+  width: 100%;
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid #d8dde6;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #111827;
+  font: inherit;
+  font-size: 13px;
+}
+
+.admin-payment-methods-add,
+.admin-payment-methods-form-actions button,
+.admin-payment-methods-actions button,
+.admin-payment-methods-footer button {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid #d8dde6;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #111827;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-payment-methods-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.admin-payment-methods-add span {
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.admin-payment-methods-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 22px 18px;
+}
+
+.admin-payment-methods-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.admin-payment-methods-form label {
+  display: grid;
+  gap: 6px;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-payment-methods-form input,
+.admin-payment-methods-form select {
+  width: 100%;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #111827;
+  font: inherit;
+  font-size: 12px;
+}
+
+.admin-payment-methods-form input[type='file'] {
+  padding: 7px 10px;
+}
+
+.admin-payment-methods-check {
+  display: flex !important;
+  grid-template-columns: none !important;
+  align-items: center;
+  gap: 8px !important;
+}
+
+.admin-payment-methods-check input {
+  width: 16px;
+  min-height: 16px;
+}
+
+.admin-payment-methods-form-actions {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+}
+
+.admin-payment-methods-form-actions button:first-child,
+.admin-payment-methods-footer button:last-child {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.admin-payment-methods-message {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 7px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 13px;
+}
+
+.admin-payment-methods-table {
+  margin: 0 0 14px;
+  overflow-x: auto;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+}
+
+.admin-payment-methods-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1.6fr 0.7fr 0.7fr 0.8fr;
+  min-width: 780px;
+  min-height: 64px;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e5e7eb;
+  color: #111827;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.admin-payment-methods-row:last-child {
+  border-bottom: 0;
+}
+
+.admin-payment-methods-row--head {
+  min-height: 40px;
+  background: #fafafa;
+  font-weight: 700;
+}
+
+.admin-payment-methods-row strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.admin-payment-methods-row small {
+  display: block;
+  margin-top: 4px;
+  color: #6b7280;
+  font-size: 11px;
+}
+
+.admin-payment-methods-bank,
+.admin-payment-methods-qr,
+.admin-payment-methods-image {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 44px;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #4b5563;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.admin-payment-methods-image {
+  padding: 4px;
+  object-fit: contain;
+}
+
+.admin-payment-methods-qr {
+  display: grid;
+  grid-template-columns: repeat(3, 10px);
+  grid-auto-rows: 10px;
+  gap: 3px;
+}
+
+.admin-payment-methods-qr i {
+  display: block;
+  background: #111827;
+}
+
+.admin-payment-methods-qr i:nth-child(2),
+.admin-payment-methods-qr i:nth-child(4),
+.admin-payment-methods-qr i:nth-child(8) {
+  background: transparent;
+  outline: 2px solid #111827;
+  outline-offset: -2px;
+}
+
+.admin-payment-methods-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-width: 56px;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 5px;
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 11px;
+}
+
+.admin-payment-methods-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.admin-payment-methods-actions button.danger,
+.admin-payment-methods-actions button:last-child {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #dc2626;
+}
+
+.admin-payment-methods-new {
+  display: grid;
+  grid-template-columns: 36px 1fr 20px;
+  grid-template-areas:
+    'icon title arrow'
+    'icon note arrow';
+  align-items: center;
+  width: 100%;
+  min-height: 72px;
+  padding: 14px;
+  border: 1px dashed #9ca3af;
+  border-radius: 8px;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-payment-methods-new span {
+  grid-area: icon;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #111827;
+  border-radius: 50%;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.admin-payment-methods-new b {
+  grid-area: title;
+  color: #111827;
+  font-size: 14px;
+}
+
+.admin-payment-methods-new small {
+  grid-area: note;
+  margin-top: 3px;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.admin-payment-methods-new i {
+  grid-area: arrow;
+  color: #111827;
+  font-size: 20px;
+  font-style: normal;
+}
+
+.admin-payment-methods-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex: none;
+  padding: 14px 22px;
+  border-top: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.admin-payment-methods-footer button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 1200px) {
+  .admin-transactions-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-transactions-layout,
+  .admin-transactions-layout--with-form {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-transactions-toolbar {
+    grid-template-columns: minmax(260px, 1fr) repeat(2, minmax(140px, 180px)) auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-transactions-heading,
+  .admin-transactions-summary,
+  .admin-transactions-layout,
+  .admin-transactions-tabs,
+  .admin-transactions-create {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .admin-transactions-heading {
+    flex-direction: column;
+  }
+
+  .admin-transactions-hero-actions,
+  .admin-transactions-manage {
+    width: 100%;
+  }
+
+  .admin-transactions-tabs {
+    gap: 18px;
+    overflow-x: auto;
+  }
+
+  .admin-transactions-tabs button {
+    flex: none;
+  }
+
+  .admin-transactions-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-transactions-toolbar {
+    grid-template-columns: minmax(220px, 1fr);
+  }
+
+  .admin-payment-methods-backdrop {
+    align-items: stretch;
+    padding: 14px;
+  }
+
+  .admin-payment-methods-modal {
+    overflow-y: auto;
+  }
+
+  .admin-payment-methods-head,
+  .admin-payment-methods-toolbar,
+  .admin-payment-methods-footer {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .admin-payment-methods-toolbar,
+  .admin-payment-methods-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-payment-methods-form {
+    grid-template-columns: 1fr;
+  }
+}
