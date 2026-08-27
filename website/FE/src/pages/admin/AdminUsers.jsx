@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
 import {
   deleteAdminUser,
@@ -155,6 +155,7 @@ function exportUsersCsv(users, filename = 'arduflow-users.csv') {
 
 export function AdminUsers() {
   const [filters, setFilters] = useState({ ...initialFilters });
+  const [draftSearch, setDraftSearch] = useState(initialFilters.search);
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -162,6 +163,9 @@ export function AdminUsers() {
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [isDetailOpen, setDetailOpen] = useState(false);
   const [processingUserId, setProcessingUserId] = useState(null);
+  const [openActionUserId, setOpenActionUserId] = useState(null);
+  const [actionMenuPosition, setActionMenuPosition] = useState({ top: 0, left: 0 });
+  const actionButtonRefs = useRef(new Map());
 
   useEffect(() => {
     let isMounted = true;
@@ -194,6 +198,7 @@ export function AdminUsers() {
   const pagination = data?.pagination || { page: 1, perPage: 10, total: 0, from: 0, to: 0, lastPage: 1 };
   const allCurrentUsersSelected = users.length > 0 && selectedIds.length === users.length;
   const selectedUser = users.find((user) => user.id === selectedUserId) || null;
+  const openActionUser = users.find((user) => user.id === openActionUserId) || null;
   const pages = useMemo(() => {
     const current = Number(pagination.page) || 1;
     const last = Number(pagination.lastPage) || 1;
@@ -220,11 +225,69 @@ export function AdminUsers() {
     };
   }, [isDetailOpen]);
 
+  useEffect(() => {
+    if (openActionUserId === null) {
+      return undefined;
+    }
+
+    function closeActions(event) {
+      if (!event.target.closest?.('.admin-users-action-menu') && !event.target.closest?.('.admin-users-action-popover')) {
+        setOpenActionUserId(null);
+      }
+    }
+
+    function closeWithEscape(event) {
+      if (event.key === 'Escape') {
+        setOpenActionUserId(null);
+      }
+    }
+
+    document.addEventListener('mousedown', closeActions);
+    document.addEventListener('keydown', closeWithEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', closeActions);
+      document.removeEventListener('keydown', closeWithEscape);
+    };
+  }, [openActionUserId]);
+
+  useEffect(() => {
+    if (openActionUserId === null) {
+      return undefined;
+    }
+
+    function updateActionMenuPosition() {
+      const button = actionButtonRefs.current.get(openActionUserId);
+      if (!button) return;
+
+      const rect = button.getBoundingClientRect();
+      const menuWidth = 190;
+      const gap = 8;
+      const left = Math.max(12, Math.min(window.innerWidth - menuWidth - 12, rect.right - menuWidth));
+      const top = Math.max(12, Math.min(window.innerHeight - 12, rect.bottom + gap));
+      setActionMenuPosition({ top, left });
+    }
+
+    updateActionMenuPosition();
+    window.addEventListener('resize', updateActionMenuPosition);
+    window.addEventListener('scroll', updateActionMenuPosition, true);
+
+    return () => {
+      window.removeEventListener('resize', updateActionMenuPosition);
+      window.removeEventListener('scroll', updateActionMenuPosition, true);
+    };
+  }, [openActionUserId]);
+
   function updateFilter(key, value) {
     setFilters((current) => ({ ...current, [key]: value, page: 1 }));
   }
 
+  function applySearch() {
+    setFilters((current) => ({ ...current, search: draftSearch.trim(), page: 1 }));
+  }
+
   function resetFilters() {
+    setDraftSearch(initialFilters.search);
     setFilters({ ...initialFilters });
   }
 
@@ -267,6 +330,7 @@ export function AdminUsers() {
   function openUserDetail(user) {
     setSelectedUserId(user.id);
     setDetailOpen(true);
+    setOpenActionUserId(null);
   }
 
   async function copyUser(user) {
@@ -300,6 +364,7 @@ export function AdminUsers() {
   }
 
   async function toggleAccountStatus(user) {
+    setOpenActionUserId(null);
     const nextStatus = !user.isActive;
     const actionLabel = nextStatus ? 'mengaktifkan' : 'menonaktifkan';
     const confirmed = await showConfirmAlert({
@@ -353,6 +418,7 @@ export function AdminUsers() {
   }
 
   async function deleteUserAccount(user) {
+    setOpenActionUserId(null);
     const confirmed = await showConfirmAlert({
       title: 'Hapus Akun?',
       text: `Yakin ingin menghapus akun "${user.name}"? Akun ini akan terhapus dari daftar user dan sesi login akan diputus.`,
@@ -406,6 +472,7 @@ export function AdminUsers() {
   }
 
   async function verifyUserEmail(user) {
+    setOpenActionUserId(null);
     const confirmed = await showConfirmAlert({
       title: 'Verifikasi Email Manual?',
       text: `Email "${user.email}" akan ditandai terverifikasi.`,
@@ -429,6 +496,7 @@ export function AdminUsers() {
   }
 
   async function resendVerificationEmail(user) {
+    setOpenActionUserId(null);
     const confirmed = await showConfirmAlert({
       title: 'Kirim Ulang Verifikasi?',
       text: `Email verifikasi akan dikirim ulang ke "${user.email}".`,
@@ -460,8 +528,9 @@ export function AdminUsers() {
       <AdminTopbar
         searchPlaceholder="Cari data user"
         searchLabel="Cari data user"
-        searchValue={filters.search}
-        onSearchChange={(value) => updateFilter('search', value)}
+        searchValue={draftSearch}
+        onSearchChange={setDraftSearch}
+        onSearchSubmit={applySearch}
       />
 
       <div className="admin-users-layout">
@@ -500,10 +569,17 @@ export function AdminUsers() {
                   id="admin-users-search"
                   name="admin-users-search"
                   placeholder="Search by nama, email, username, WhatsApp..."
-                  value={filters.search}
-                  onChange={(event) => updateFilter('search', event.target.value)}
+                  value={draftSearch}
+                  onChange={(event) => setDraftSearch(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      applySearch();
+                    }
+                  }}
                 />
               </label>
+              <button type="button" onClick={applySearch}>Cari</button>
               <button type="button" onClick={resetFiltersWithFeedback}>Reset Filter</button>
               <button type="button" onClick={refreshUsersWithFeedback}>Refresh</button>
             </div>
@@ -562,6 +638,13 @@ export function AdminUsers() {
           </section>
 
           <section className="admin-users-table-card">
+            <div className="admin-users-table-header">
+              <div>
+                <h2>Daftar User</h2>
+                <p>{formatNumber(pagination.total)} user terdaftar</p>
+              </div>
+              <span>{selectedIds.length} dipilih</span>
+            </div>
             <table className="admin-users-table">
               <thead>
                 <tr>
@@ -596,7 +679,19 @@ export function AdminUsers() {
                         onChange={() => toggleUser(user.id)}
                       />
                     </td>
-                    <td><span className="admin-users-avatar" />{user.name}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="admin-users-name-button"
+                        onClick={() => openUserDetail(user)}
+                      >
+                        <span className="admin-users-avatar" />
+                        <span>
+                          <b>{user.name}</b>
+                          <small>{user.email}</small>
+                        </span>
+                      </button>
+                    </td>
                     <td>{user.username}</td>
                     <td>{user.email}</td>
                     <td>{user.whatsapp}</td>
@@ -606,50 +701,23 @@ export function AdminUsers() {
                     <td>{formatDate(user.registeredAt)}</td>
                     <td>{user.lastLoginAt ? timeAgo(user.lastLoginAt) : '-'}</td>
                     <td>
-                      <div className="admin-users-actions">
-                        <button type="button" aria-label={`Lihat ${user.name}`} onClick={() => openUserDetail(user)}>Detail</button>
-                        <button type="button" aria-label={`Salin ${user.name}`} onClick={() => copyUser(user)}>Copy</button>
-                        {user.emailStatus !== 'Terverifikasi' ? (
-                          <>
-                            <button
-                              type="button"
-                              disabled={processingUserId === user.id}
-                              aria-label={`Verifikasi email ${user.name}`}
-                              onClick={() => verifyUserEmail(user)}
-                            >
-                              Verifikasi
-                            </button>
-                            <button
-                              type="button"
-                              disabled={processingUserId === user.id}
-                              aria-label={`Kirim ulang verifikasi ${user.name}`}
-                              onClick={() => resendVerificationEmail(user)}
-                            >
-                              Kirim Ulang
-                            </button>
-                          </>
-                        ) : null}
+                      <div className="admin-users-actions admin-users-action-menu">
                         <button
                           type="button"
-                          disabled={processingUserId === user.id}
-                          aria-label={`${user.isActive ? 'Nonaktifkan' : 'Aktifkan'} ${user.name}`}
-                          onClick={() => toggleAccountStatus(user)}
+                          className="admin-users-action-trigger"
+                          ref={(node) => {
+                            if (node) {
+                              actionButtonRefs.current.set(user.id, node);
+                            } else {
+                              actionButtonRefs.current.delete(user.id);
+                            }
+                          }}
+                          aria-label={`Buka aksi untuk ${user.name}`}
+                          aria-expanded={openActionUserId === user.id}
+                          onClick={() => setOpenActionUserId((current) => (current === user.id ? null : user.id))}
                         >
-                          {user.isActive ? 'Nonaktifkan' : 'Aktifkan'}
+                          ...
                         </button>
-                        <button
-                          type="button"
-                          className="admin-users-action-danger"
-                          disabled={processingUserId === user.id}
-                          aria-label={`Hapus ${user.name}`}
-                          onClick={() => deleteUserAccount(user)}
-                        >
-                          Hapus
-                        </button>
-                        <a href={`mailto:${user.email}`} aria-label={`Email ${user.name}`}>Email</a>
-                        {user.whatsapp !== '-' ? (
-                          <a href={`https://wa.me/${String(user.whatsapp).replace(/\D/g, '')}`} target="_blank" rel="noreferrer" aria-label={`WhatsApp ${user.name}`}>WA</a>
-                        ) : null}
                       </div>
                     </td>
                   </tr>
@@ -661,11 +729,10 @@ export function AdminUsers() {
               </tbody>
             </table>
             <div className="admin-users-pagination">
-              <span>
-                Menampilkan {pagination.from} - {pagination.to} dari {formatNumber(pagination.total)} user
-              </span>
+              <button type="button" disabled={pagination.page <= 1} onClick={() => changePage(pagination.page - 1)}>
+                Previous
+              </button>
               <div>
-                <button type="button" disabled={pagination.page <= 1} onClick={() => changePage(pagination.page - 1)}>{'<'}</button>
                 {pages.map((page) => (
                   <button
                     type="button"
@@ -676,14 +743,18 @@ export function AdminUsers() {
                     {page}
                   </button>
                 ))}
-                <button
-                  type="button"
-                  disabled={pagination.page >= pagination.lastPage}
-                  onClick={() => changePage(pagination.page + 1)}
-                >
-                  {'>'}
-                </button>
               </div>
+              <span>
+                Page {pagination.page} of {pagination.lastPage}
+                <small>Menampilkan {pagination.from} - {pagination.to} dari {formatNumber(pagination.total)} user</small>
+              </span>
+              <button
+                type="button"
+                disabled={pagination.page >= pagination.lastPage}
+                onClick={() => changePage(pagination.page + 1)}
+              >
+                Next
+              </button>
             </div>
           </section>
 
@@ -814,6 +885,69 @@ export function AdminUsers() {
           </aside>
         </div>
       )}
+
+      {openActionUser ? (
+        <div
+          className="admin-users-action-popover"
+          role="menu"
+          style={{
+            top: `${actionMenuPosition.top}px`,
+            left: `${actionMenuPosition.left}px`,
+          }}
+        >
+          <button type="button" role="menuitem" onClick={() => openUserDetail(openActionUser)}>Detail</button>
+          <button type="button" role="menuitem" onClick={() => copyUser(openActionUser)}>Copy</button>
+          {openActionUser.emailStatus !== 'Terverifikasi' ? (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                disabled={processingUserId === openActionUser.id}
+                onClick={() => verifyUserEmail(openActionUser)}
+              >
+                Verifikasi Email
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                disabled={processingUserId === openActionUser.id}
+                onClick={() => resendVerificationEmail(openActionUser)}
+              >
+                Kirim Ulang
+              </button>
+            </>
+          ) : null}
+          <button
+            type="button"
+            role="menuitem"
+            disabled={processingUserId === openActionUser.id}
+            onClick={() => toggleAccountStatus(openActionUser)}
+          >
+            {openActionUser.isActive ? 'Nonaktifkan' : 'Aktifkan'}
+          </button>
+          <a href={`mailto:${openActionUser.email}`} role="menuitem" onClick={() => setOpenActionUserId(null)}>Email</a>
+          {openActionUser.whatsapp !== '-' ? (
+            <a
+              href={`https://wa.me/${String(openActionUser.whatsapp).replace(/\D/g, '')}`}
+              target="_blank"
+              rel="noreferrer"
+              role="menuitem"
+              onClick={() => setOpenActionUserId(null)}
+            >
+              WhatsApp
+            </a>
+          ) : null}
+          <button
+            type="button"
+            role="menuitem"
+            className="admin-users-action-danger"
+            disabled={processingUserId === openActionUser.id}
+            onClick={() => deleteUserAccount(openActionUser)}
+          >
+            Hapus
+          </button>
+        </div>
+      ) : null}
     </AdminPage>
   );
 }

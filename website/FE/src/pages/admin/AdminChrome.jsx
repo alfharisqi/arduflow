@@ -229,6 +229,7 @@ export function AdminTopbar({
   searchName,
   searchValue,
   onSearchChange,
+  onSearchSubmit,
   adminName = 'Admin',
   adminRole = 'Super Admin',
   children,
@@ -249,6 +250,12 @@ export function AdminTopbar({
           aria-label={searchLabel}
           value={searchValue}
           onChange={onSearchChange ? (event) => onSearchChange(event.target.value) : undefined}
+          onKeyDown={onSearchSubmit ? (event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              onSearchSubmit();
+            }
+          } : undefined}
         />
       </label>
       <div className="admin-dashboard-account">
