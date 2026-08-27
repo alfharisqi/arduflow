@@ -712,7 +712,6 @@ export function AdminLeads() {
                       </td>
                       <td>
                         <button type="button" className="admin-users-name-button" onClick={() => openLeadDetail(lead.id)}>
-                          <span className="admin-users-avatar">{initials(lead.name)}</span>
                           <span>
                             <b>{lead.name}</b>
                             <small>{lead.email}</small>

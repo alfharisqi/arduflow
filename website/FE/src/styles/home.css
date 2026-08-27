@@ -1683,3 +1683,96 @@
   text-align: center;
 }
 
+.project-link-button,
+.ide-token-button,
+.program-primary,
+.program-secondary,
+.tutorial-all-button,
+.projects-all-button,
+.gallery-all-button,
+.partners-section .partners-button {
+  text-decoration: none;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    color 180ms ease,
+    filter 180ms ease;
+}
+
+.project-link-button:hover,
+.project-link-button:focus-visible,
+.program-secondary:hover,
+.program-secondary:focus-visible,
+.tutorial-all-button:hover,
+.tutorial-all-button:focus-visible,
+.projects-all-button:hover,
+.projects-all-button:focus-visible,
+.partners-section .partners-button:hover,
+.partners-section .partners-button:focus-visible {
+  color: #ffffff;
+  border-color: rgba(0, 168, 255, 0.82);
+  background: rgba(0, 168, 255, 0.1);
+  box-shadow: 0 12px 24px rgba(0, 168, 255, 0.22), 0 0 0 3px rgba(0, 168, 255, 0.12);
+}
+
+.ide-token-button:hover,
+.ide-token-button:focus-visible,
+.program-primary:hover,
+.program-primary:focus-visible {
+  color: #ffffff;
+  box-shadow: 0 14px 28px rgba(255, 90, 0, 0.34), 0 0 0 3px rgba(255, 90, 0, 0.16);
+  filter: brightness(1.08);
+}
+
+.gallery-all-button:hover,
+.gallery-all-button:focus-visible {
+  color: #ffffff;
+  border-color: rgba(255, 90, 0, 0.82);
+  background: rgba(255, 90, 0, 0.1);
+  box-shadow: 0 12px 24px rgba(255, 90, 0, 0.24), 0 0 0 3px rgba(255, 90, 0, 0.13);
+}
+
+.tutorial-card,
+.projects-section .project-card,
+.gallery-image-card {
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    filter 180ms ease,
+    transform 180ms ease;
+}
+
+.tutorial-card:hover,
+.tutorial-card:focus-visible,
+.projects-section .project-card:hover,
+.projects-section .project-card:focus-visible,
+.gallery-image-card:hover,
+.gallery-image-card:focus-visible {
+  box-shadow: 0 16px 30px rgba(0, 162, 255, 0.2);
+  filter: brightness(1.06);
+  transform: translateY(-3px);
+}
+
+.tutorial-card:hover,
+.tutorial-card:focus-visible,
+.gallery-image-card:hover,
+.gallery-image-card:focus-visible {
+  border-color: #00a8ff;
+}
+
+.project-link-button:focus-visible,
+.ide-token-button:focus-visible,
+.program-primary:focus-visible,
+.program-secondary:focus-visible,
+.tutorial-card:focus-visible,
+.tutorial-all-button:focus-visible,
+.projects-section .project-card:focus-visible,
+.projects-all-button:focus-visible,
+.gallery-image-card:focus-visible,
+.gallery-all-button:focus-visible,
+.partners-section .partners-button:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 3px;
+}
+

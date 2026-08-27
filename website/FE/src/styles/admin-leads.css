@@ -1088,13 +1088,12 @@
 }
 
 .admin-leads-users-table .admin-users-name-button {
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
+  display: block;
   width: 100%;
   max-width: 100%;
 }
 
-.admin-leads-users-table .admin-users-name-button > span:last-child {
+.admin-leads-users-table .admin-users-name-button > span {
   min-width: 0;
 }
 
