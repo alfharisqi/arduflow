@@ -15,7 +15,7 @@ import troubleshootingTutorialImage from '../assets/images/Troubleshooting Board
 
 const TUTORIAL_API_URL = (
   import.meta.env.VITE_TUTORIAL_API_URL ||
-  'http://192.168.130.11:8000/api/'
+  'http://192.168.130.10:8000/api/'
 ).replace(/\/+$/, '');
 
 const ARTICLE_API_URL =

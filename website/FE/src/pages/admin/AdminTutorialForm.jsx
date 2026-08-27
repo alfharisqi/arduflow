@@ -8,7 +8,7 @@ import {
   showSuccessAlert,
 } from '../../utils/alerts.js';
 const MATERI_API_URL =
-  'http://192.168.130.11:8000/api/materi-api.php';
+  'http://192.168.130.10:8000/api/materi-api.php';
 
 const initialSlides = [];
 
