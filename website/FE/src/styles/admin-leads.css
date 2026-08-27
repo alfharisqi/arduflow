@@ -985,3 +985,218 @@
     position: static;
   }
 }
+
+/* Admin Leads uses the Admin Users dashboard primitives. These rules only
+   cover lead-specific values that are not part of that shared system. */
+.admin-users-badge--baru {
+  background: #fffaeb;
+  color: #b54708;
+}
+
+.admin-users-badge--diproses,
+.admin-users-badge--menunggu-balasan {
+  background: #eff8ff;
+  color: #175cd3;
+}
+
+.admin-users-badge--selesai {
+  background: #ecfdf3;
+  color: #027a48;
+}
+
+.admin-users-badge--ditolak {
+  background: #fef3f2;
+  color: #b42318;
+}
+
+.admin-leads-error {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff1f2;
+  color: #b42318;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+}
+
+.admin-leads-users-table-card {
+  overflow-x: auto;
+}
+
+.admin-leads-users-table {
+  table-layout: fixed;
+  min-width: 1320px;
+}
+
+.admin-leads-users-table th,
+.admin-leads-users-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+.admin-leads-users-table th:nth-child(1),
+.admin-leads-users-table td:nth-child(1) {
+  width: 44px;
+}
+
+.admin-leads-users-table th:nth-child(2),
+.admin-leads-users-table td:nth-child(2) {
+  width: 240px;
+  min-width: 240px;
+  max-width: 240px;
+}
+
+.admin-leads-users-table th:nth-child(3),
+.admin-leads-users-table td:nth-child(3) {
+  width: 210px;
+  min-width: 210px;
+  max-width: 210px;
+}
+
+.admin-leads-users-table th:nth-child(4),
+.admin-leads-users-table td:nth-child(4) {
+  width: 140px;
+}
+
+.admin-leads-users-table th:nth-child(5),
+.admin-leads-users-table td:nth-child(5) {
+  width: 150px;
+}
+
+.admin-leads-users-table th:nth-child(6),
+.admin-leads-users-table td:nth-child(6) {
+  width: 220px;
+}
+
+.admin-leads-users-table th:nth-child(7),
+.admin-leads-users-table td:nth-child(7) {
+  width: 130px;
+}
+
+.admin-leads-users-table th:nth-child(8),
+.admin-leads-users-table td:nth-child(8) {
+  width: 130px;
+}
+
+.admin-leads-users-table th:nth-child(9),
+.admin-leads-users-table td:nth-child(9),
+.admin-leads-users-table th:nth-child(10),
+.admin-leads-users-table td:nth-child(10) {
+  width: 132px;
+}
+
+.admin-leads-users-table .admin-users-name-button {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  width: 100%;
+  max-width: 100%;
+}
+
+.admin-leads-users-table .admin-users-name-button > span:last-child {
+  min-width: 0;
+}
+
+.admin-leads-users-table .admin-users-name-button b,
+.admin-leads-users-table .admin-users-name-button small {
+  max-width: 100%;
+}
+
+.admin-leads-panel-meta {
+  display: block !important;
+  min-height: 0 !important;
+  margin: -10px 0 10px !important;
+  border-bottom: 0 !important;
+  color: #7b809a !important;
+  font-size: 11px !important;
+  justify-content: flex-start !important;
+}
+
+.admin-users-panel .admin-leads-activity-row {
+  grid-template-columns: auto 1fr auto !important;
+}
+
+.admin-users-panel .admin-leads-dot {
+  width: 10px;
+  height: 10px;
+}
+
+.admin-users-panel.admin-leads-conversion {
+  padding-bottom: 12px;
+}
+
+.admin-users-panel.admin-leads-conversion ul {
+  padding: 0 18px;
+  margin: 0;
+  list-style: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: #344767;
+}
+
+.admin-users-panel.admin-leads-conversion li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.admin-users-panel.admin-leads-conversion li b {
+  margin-left: auto;
+}
+
+.admin-leads-detail.admin-users-detail {
+  width: min(980px, 100%);
+  border: 1px solid #dfe5ee;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.admin-leads-detail-head.admin-users-detail-head {
+  min-height: 62px;
+  padding: 10px 18px;
+}
+
+.admin-leads-detail-head.admin-users-detail-head div {
+  display: grid;
+  gap: 3px;
+}
+
+.admin-leads-detail-head.admin-users-detail-head span {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.admin-leads-detail-profile.admin-users-detail-profile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  border: 0;
+  text-align: left;
+}
+
+.admin-leads-detail-profile .admin-leads-detail-avatar {
+  width: 64px;
+  height: 64px;
+  margin: 0;
+  background: linear-gradient(195deg, #49a3f1, #1a73e8);
+  color: #ffffff;
+  font-size: 20px;
+}
+
+.admin-leads-detail-body {
+  padding: 16px;
+}
+
+.admin-leads-detail-actions {
+  border-radius: 0 0 12px 12px;
+}
+
+@media (max-width: 760px) {
+  .admin-leads-detail-profile.admin-users-detail-profile {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
