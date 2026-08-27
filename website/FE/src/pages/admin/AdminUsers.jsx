@@ -7,6 +7,7 @@ import {
   updateAdminUserStatus,
   verifyAdminUserEmail,
 } from '../../services/authApi.js';
+import { apiUrl } from '../../services/apiEndpoints.js';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
 import userIcon from '../../assets/icons/icon-user-2.svg';
 import mailIcon from '../../assets/icons/icon-mail-1.svg';
@@ -78,6 +79,34 @@ function userInitials(name) {
     .map((part) => part[0])
     .join('')
     .toUpperCase() || '-';
+}
+
+function resolveUserAvatarUrl(user) {
+  const rawUrl = String(user?.profileImage || user?.avatarPath || '').trim();
+
+  if (!rawUrl) return '';
+  if (/^(https?:|data:|blob:)/i.test(rawUrl)) return rawUrl;
+
+  return apiUrl(rawUrl);
+}
+
+function UserAvatar({ user, className }) {
+  const avatarUrl = resolveUserAvatarUrl(user);
+  const initials = userInitials(user?.name);
+
+  if (avatarUrl) {
+    return (
+      <span className={`${className} ${className}--image`}>
+        <img src={avatarUrl} alt={`Foto profil ${user?.name || 'user'}`} loading="lazy" />
+      </span>
+    );
+  }
+
+  return (
+    <span className={`${className} ${className}--initials`} aria-hidden="true">
+      {initials}
+    </span>
+  );
 }
 
 function csvCell(value) {
@@ -685,7 +714,7 @@ export function AdminUsers() {
                         className="admin-users-name-button"
                         onClick={() => openUserDetail(user)}
                       >
-                        <span className="admin-users-avatar" />
+                        <UserAvatar user={user} className="admin-users-avatar" />
                         <span>
                           <b>{user.name}</b>
                           <small>{user.email}</small>
@@ -811,7 +840,7 @@ export function AdminUsers() {
               <button type="button" aria-label="Tutup detail user" onClick={() => setDetailOpen(false)}>x</button>
             </div>
             <div className="admin-users-detail-profile">
-              <span className="admin-users-detail-avatar">{userInitials(selectedUser.name)}</span>
+              <UserAvatar user={selectedUser} className="admin-users-detail-avatar" />
               <h3>{selectedUser.name}</h3>
               <p>{selectedUser.email}</p>
               <UserBadge>{selectedUser.accountStatus}</UserBadge>

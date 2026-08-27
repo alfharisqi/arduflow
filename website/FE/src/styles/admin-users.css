@@ -553,16 +553,29 @@
   justify-content: center;
   flex: none;
   border-radius: 50%;
+  overflow: hidden;
   background:
     radial-gradient(circle at 50% 35%, #ffffff 0 20%, transparent 21%),
     radial-gradient(circle at 50% 78%, #ffffff 0 30%, transparent 31%),
     linear-gradient(195deg, #42424a, #191919);
   box-shadow: 0 3px 10px rgba(52, 71, 103, 0.16);
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-weight: 800;
 }
 
 .admin-users-avatar {
   width: 28px;
   height: 28px;
+  font-size: 10px;
+}
+
+.admin-users-avatar img,
+.admin-users-detail-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .admin-users-badge {
@@ -809,10 +822,7 @@
   height: 72px;
   margin-bottom: 12px;
   background: linear-gradient(195deg, #49a3f1, #1a73e8);
-  color: #ffffff;
-  font-family: 'Inter', sans-serif;
   font-size: 20px;
-  font-weight: 800;
 }
 
 .admin-users-detail-profile h3,
