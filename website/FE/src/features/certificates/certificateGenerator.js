@@ -1,9 +1,9 @@
 import { generate } from '@pdfme/generator';
-import { DEFAULT_FONT_NAME, DEFAULT_FONT_VALUE } from '@pdfme/common';
 import { barcodes, image, line, rectangle, text } from '@pdfme/schemas';
 import loraFontUrl from '../../assets/fonts/Lora.ttf?url';
 import playfairDisplayFontUrl from '../../assets/fonts/PlayfairDisplay.ttf?url';
 import poppinsFontUrl from '../../assets/fonts/Poppins.ttf?url';
+import robotoFontUrl from '../../assets/fonts/Roboto.ttf?url';
 import {
   arduflowCertificateTemplate,
   sampleCertificateData,
@@ -21,14 +21,15 @@ const certificatePlugins = {
 };
 
 const CERTIFICATE_NUMBER_PREFIX = 'AFW-CERT';
+const DEFAULT_CERTIFICATE_FONT_NAME = 'Roboto';
 
 export const certificateFontOptions = [
   {
     id: 'roboto',
     name: 'Roboto',
-    pdfName: DEFAULT_FONT_NAME,
+    pdfName: DEFAULT_CERTIFICATE_FONT_NAME,
     cssFamily: 'Roboto, Arial, sans-serif',
-    data: DEFAULT_FONT_VALUE,
+    url: robotoFontUrl,
   },
   {
     id: 'playfair',
@@ -69,7 +70,7 @@ async function getCertificateFontData(fontOption) {
   }
 
   if (!fontOption.url) {
-    return DEFAULT_FONT_VALUE;
+    return getCertificateFontData(certificateFontOptions[0]);
   }
 
   if (!fontDataCache.has(fontOption.url)) {
@@ -106,6 +107,15 @@ async function createCertificateFontConfig(fontId) {
 function cleanString(value, fallback = '') {
   const textValue = value === null || value === undefined ? '' : String(value);
   return textValue.trim() || fallback;
+}
+
+function cleanParticipantName(value, fallback = '') {
+  return cleanString(value, fallback)
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi, ' ')
+    .replace(/^\s*\d+\s*[\).\-\:]\s*/g, '')
+    .replace(/\s+/g, ' ')
+    .trim() || fallback;
 }
 
 function formatIndonesianDate(value) {
@@ -159,7 +169,7 @@ export function normalizeCertificateInput(data = {}) {
 
   return {
     ...sampleCertificateData,
-    participantName: cleanString(data.participantName || data.userName, sampleCertificateData.participantName).toUpperCase(),
+    participantName: cleanParticipantName(data.participantName || data.userName, sampleCertificateData.participantName).toUpperCase(),
     certificateTitle: cleanString(data.certificateTitle, 'Sertifikat Penyelesaian'),
     programName,
     description: cleanString(
@@ -277,7 +287,7 @@ function createCustomQrSchema(fieldLayout) {
   };
 }
 
-function createCustomCertificateTemplate(customTemplate = {}, input = {}, fontName = DEFAULT_FONT_NAME) {
+function createCustomCertificateTemplate(customTemplate = {}, input = {}, fontName = DEFAULT_CERTIFICATE_FONT_NAME) {
   const fields = customTemplate.fields || {};
   const dynamicSchemas = [];
   const pdfInput = {};

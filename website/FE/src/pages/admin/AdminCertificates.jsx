@@ -1400,15 +1400,19 @@ export function AdminCertificates() {
     const customTemplate = availableCustomTemplates.find(
       (template) => getCustomTemplateOptionId(template) === form.templateId,
     );
+    const participantCertificateName = cleanCertificatePersonName(
+      participant.participantName || participant.memberName,
+      participant.participantName || participant.memberName,
+    );
 
     const payload = {
       ...form,
       registrationId: participant.registrationId,
       certificateTargetId: participant.certificateTargetId || '',
       memberKey: participant.memberKey || '',
-      memberName: participant.memberName || participant.participantName,
+      memberName: cleanCertificatePersonName(participant.memberName, participantCertificateName),
       userId: participant.userId || '',
-      userName: participant.participantName,
+      userName: participantCertificateName,
       email: participant.participantEmail,
       workshopId: selectedWorkshop.id,
       workshopTitle: selectedWorkshop.title,
@@ -1478,7 +1482,7 @@ export function AdminCertificates() {
       ...payload,
       ...certificate,
       customTemplate,
-      participantName: certificate.userName || payload.userName,
+      participantName: cleanCertificatePersonName(certificate.userName || payload.userName, payload.userName),
       programName: certificate.workshopTitle || payload.workshopTitle,
       issueDate: certificate.issuedAt || payload.issuedAt,
       certificateNumber:
