@@ -12,10 +12,10 @@ import fileIcon from '../../assets/icons/icon-file-text-1.svg';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
 import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
 import zapIcon from '../../assets/icons/icon-zap-1.svg';
+import { apiEndpoint } from '../../services/apiEndpoints.js';
 
 const TUTORIAL_API_URL = (
-  import.meta.env.VITE_TUTORIAL_API_URL ||
-  'http://192.168.130.11:8000/api/'
+  apiEndpoint(import.meta.env.VITE_TUTORIAL_API_URL, '/api/')
 ).replace(/\/+$/, '');
 
 const ARTICLE_API_URL = `${TUTORIAL_API_URL}/materi-api.php`;

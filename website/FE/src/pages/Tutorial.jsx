@@ -11,11 +11,11 @@ import boardTutorialImage from '../assets/images/Mengenal Board Arduino UNO.jpg'
 import dhtTutorialImage from '../assets/images/Menggunakan Sensor DHT22.jpg';
 import ledTutorialImage from '../assets/images/Menghubungkan LED ke Arduino.jpg';
 import troubleshootingTutorialImage from '../assets/images/Troubleshooting Board Tidak Terdeteksi.jpg';
+import { apiEndpoint } from '../services/apiEndpoints.js';
 
 
 const TUTORIAL_API_URL = (
-  import.meta.env.VITE_TUTORIAL_API_URL ||
-  'http://192.168.130.11:8000/api/'
+  apiEndpoint(import.meta.env.VITE_TUTORIAL_API_URL, '/api/')
 ).replace(/\/+$/, '');
 
 const ARTICLE_API_URL =
