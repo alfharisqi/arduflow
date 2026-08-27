@@ -8,6 +8,9 @@ import allProjectSoilImage from "../assets/images/all-project-soil.png";
 import allProjectWateringImage from "../assets/images/all-project-watering.png";
 import allProjectTrashImage from "../assets/images/all-project-trash.png";
 import allProjectParkingImage from "../assets/images/all-project-parking.png";
+import { useEffect, useMemo } from "react";
+import { getProjectApiUrl } from "../services/projectApiConfig.js";
+import { resolveProjectImageUrl } from "../services/projectImageUrl.js";
 
 const filters = ["Semua", "Proyek Pemula", "Iot", "Arduino", "Esp 32"];
 const projectTypeFilters = [
@@ -139,7 +142,84 @@ const searchResults = [
   },
 ];
 
+const fallbackProjectImages = [
+  allProjectLedImage,
+  allProjectDht22Image,
+  allProjectEsp32Image,
+  allProjectLdrImage,
+  allProjectMotionImage,
+  allProjectSoilImage,
+  allProjectWateringImage,
+  allProjectTrashImage,
+  allProjectParkingImage,
+];
+
+function stripProjectText(value) {
+  return String(value || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeProjectTags(project) {
+  const rawTags = Array.isArray(project?.tags)
+    ? project.tags
+    : String(project?.tags || "")
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean);
+  const category = project?.category || project?.kategori || "";
+  const difficulty = project?.difficulty || project?.level || "";
+  const language = project?.programmingLanguage || project?.programming_language || "";
+  const tags = new Set([...rawTags, category, difficulty, language].filter(Boolean));
+  const text = [...tags].join(" ").toLowerCase();
+
+  if (text.includes("iot")) tags.add("Iot");
+  if (text.includes("esp")) tags.add("Esp 32");
+  if (text.includes("arduino")) tags.add("Arduino");
+  if (text.includes("otomasi") || text.includes("otomatis")) tags.add("Otomasi");
+  if (text.includes("sensor")) tags.add("Sensor");
+  if (text.includes("pemula")) tags.add("Proyek Pemula");
+
+  return [...tags];
+}
+
+function normalizeApiProject(project, index = 0) {
+  const title = project?.title || project?.judul || project?.name || "Proyek Tanpa Judul";
+  const category =
+    project?.category ||
+    project?.kategori ||
+    project?.difficulty ||
+    project?.level ||
+    "Proyek Pemula";
+  const difficulty = project?.difficulty || project?.level || "Pemula";
+  const fallbackImage = fallbackProjectImages[index % fallbackProjectImages.length];
+
+  return {
+    id: project?.id || project?.slug || title,
+    title,
+    image: resolveProjectImageUrl(project, fallbackImage),
+    category,
+    tags: normalizeProjectTags(project),
+    difficulty,
+    description:
+      stripProjectText(project?.description || project?.deskripsi).slice(0, 135) ||
+      "Eksplorasi proyek IoT nyata dengan dokumentasi, sensor, dan insight implementasi.",
+  };
+}
+
+function isPublicProject(project) {
+  const status = String(project?.status || project?.visibility || "").toLowerCase();
+
+  return !status || (!status.includes("draft") && !status.includes("archive"));
+}
+
+function getProjectDetailHref(project) {
+  return project?.id ? `/project/detail?id=${encodeURIComponent(project.id)}` : "/project/detail";
+}
+
 export function ProjectAll() {
+  const [apiProjects, setApiProjects] = useState([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -152,13 +232,53 @@ export function ProjectAll() {
     project.tags.some((tag) => normalizeFilter(tag) === normalizeFilter(filter));
   const projectMatchesDifficulty = (project, filter) =>
     filter === "Semua" || project.difficulty === filter;
-  const visibleProjects = allProjects.filter(
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadProjects() {
+      try {
+        const response = await fetch(getProjectApiUrl());
+        if (!response.ok) return;
+
+        const payload = await response.json();
+        const list = Array.isArray(payload)
+          ? payload
+          : payload?.data || payload?.projects || payload?.items || [];
+
+        if (!ignore && Array.isArray(list)) {
+          setApiProjects(list.filter(isPublicProject).map(normalizeApiProject));
+        }
+      } catch {
+        if (!ignore) setApiProjects([]);
+      }
+    }
+
+    loadProjects();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  const projectSource = useMemo(
+    () => (apiProjects.length ? apiProjects : allProjects),
+    [apiProjects],
+  );
+  const visibleProjects = projectSource.filter(
     (project) =>
       projectMatchesType(project, activeCategory) &&
       projectMatchesType(project, activeTypeFilter) &&
       projectMatchesDifficulty(project, activeDifficulty),
   );
-  const visibleSearchResults = searchResults.filter((project) => {
+  const searchSource = useMemo(
+    () =>
+      projectSource.map((project) => ({
+        ...project,
+        type: project.category,
+      })),
+    [projectSource],
+  );
+  const visibleSearchResults = searchSource.filter((project) => {
     const value = `${project.title} ${project.type} ${project.difficulty}`.toLowerCase();
 
     return value.includes(searchTerm.toLowerCase());
@@ -230,7 +350,7 @@ export function ProjectAll() {
 
               <div className="project-search-results">
                 {visibleSearchResults.map((project) => (
-                <a className="project-search-result" href="/project/detail" key={project.title}>
+                <a className="project-search-result" href={getProjectDetailHref(project)} key={project.title}>
                     <img src={project.image} alt="" />
                     <span className="project-search-result__content">
                       <strong>{project.title}</strong>
@@ -342,7 +462,7 @@ export function ProjectAll() {
                 <h2>{project.title}</h2>
                 <span className="all-project-card__category">{project.category}</span>
                 <p>{project.description}</p>
-                <a href="/project/detail">
+                <a href={getProjectDetailHref(project)}>
                   Lihat Detail Proyek <span aria-hidden="true">â†’</span>
                 </a>
               </div>

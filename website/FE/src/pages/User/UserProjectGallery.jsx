@@ -1,10 +1,22 @@
-import { useState } from 'react';
+import { createElement, useEffect, useMemo, useRef, useState } from 'react';
+import '@wokwi/elements';
 import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
 import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import certificateIcon from '../../assets/icons/icon-downloadsim-1.svg';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import projectImage from '../../assets/images/workshop-experience-student.png';
 import { ProfileAvatar } from '../../features/profile-image-crop/ProfileAvatar.jsx';
+import { WorkshopImageCropper } from '../../features/profile-image-crop/WorkshopImageCropper.jsx';
+import { TinyMCEEditor } from '../../components/TinyMCEEditor.jsx';
+import { NodeSprite } from '../../components/NodeSprite.jsx';
+import {
+  PROJECT_NODE_CATALOG,
+  getProjectNodeType,
+  normalizeProjectNode,
+  normalizeNodeType,
+} from '../../config/projectNodes.js';
+import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
+import { showConfirmAlert, showPromptAlert, showSuccessAlert } from '../../utils/alerts.js';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 
 const menuItems = [
@@ -12,18 +24,64 @@ const menuItems = [
   { label: 'Progres Belajar', icon: 'graduation', href: '/progress-belajar' },
   { label: 'Proyek Saya', icon: 'folder', href: '/proyek-saya', active: true },
   { label: 'Workshop / Program', icon: 'calendar', href: '/workshop-program' },
+  { label: 'Transaksi', icon: 'certificate', href: '/transaksi' },
   { label: 'IDE', icon: 'cpu', href: '/ide' },
   { label: 'Sertifikat', icon: 'certificate', href: '/sertifikat' },
   { label: 'Settings', icon: 'settings', href: '/settings' },
 ];
 
-const projects = Array.from({ length: 9 }, (_, index) => ({
-  id: index + 1,
-  title: 'Judul Proyek',
-  category: 'Kategori Proyek',
-  date: 'Hari Bulan Tanggal',
-  price: 'IDR 10.000',
-}));
+const PROJECT_API_URL = apiEndpoint(
+  import.meta.env.VITE_PROJECT_API_URL,
+  'https://arduflow.indobilliard.com/apk/uploads/web/api/project-submit-sqlite.php'
+);
+
+const PROJECT_UPLOAD_API =
+  import.meta.env.VITE_PROJECT_UPLOAD_API_URL?.trim() ||
+  'http://localhost/upload_api/project-upload.php';
+
+const PROJECT_UPLOAD_TARGET_FOLDER = 'project';
+
+const PROJECT_IMAGE_PUBLIC_BASE_URL =
+  'https://arduflow.indobilliard.com/apk/uploads/web/storage/project';
+
+const WOKWI_COMPONENT_CATALOG = [
+  { category: 'Board', name: 'Arduino Uno R3', specification: 'ATmega328P development board', wokwiElement: 'wokwi-arduino-uno' },
+  { category: 'Board', name: 'Arduino Mega', specification: 'ATmega2560 development board', wokwiElement: 'wokwi-arduino-mega' },
+  { category: 'Board', name: 'Arduino Nano', specification: 'Compact ATmega328P board', wokwiElement: 'wokwi-arduino-nano' },
+  { category: 'Board', name: 'ESP32 DevKit', specification: 'WiFi and Bluetooth microcontroller', wokwiElement: 'wokwi-esp32-devkit-v1' },
+  { category: 'Board', name: 'Arduino Nano RP2040 Connect', specification: 'RP2040 WiFi development board', wokwiElement: 'wokwi-nano-rp2040-connect' },
+  { category: 'Prototyping', name: 'Breadboard', specification: 'Solderless prototyping board', wokwiElement: '' },
+  { category: 'Prototyping', name: 'Jumper Wire', specification: 'Male/female wiring connection', wokwiElement: '' },
+  { category: 'Passive', name: 'Resistor', specification: 'Current limiting resistor', wokwiElement: 'wokwi-resistor' },
+  { category: 'Passive', name: 'Potentiometer', specification: 'Analog variable resistor', wokwiElement: 'wokwi-potentiometer' },
+  { category: 'Output', name: 'LED', specification: 'Single color indicator light', wokwiElement: 'wokwi-led' },
+  { category: 'Output', name: 'RGB LED', specification: 'Red, green, blue indicator light', wokwiElement: 'wokwi-rgb-led' },
+  { category: 'Output', name: 'Buzzer', specification: 'Audio alert component', wokwiElement: 'wokwi-buzzer' },
+  { category: 'Output', name: 'Servo Motor', specification: '0-180 degree actuator', wokwiElement: 'wokwi-servo' },
+  { category: 'Output', name: 'Relay Module', specification: 'Digital controlled switch module', wokwiElement: '' },
+  { category: 'Display', name: 'LCD 16x2', specification: 'Character LCD display', wokwiElement: 'wokwi-lcd1602' },
+  { category: 'Display', name: 'OLED SSD1306', specification: 'I2C monochrome OLED display', wokwiElement: 'wokwi-ssd1306' },
+  { category: 'Display', name: '7 Segment Display', specification: 'Numeric LED display', wokwiElement: 'wokwi-7segment' },
+  { category: 'Input', name: 'Pushbutton', specification: 'Momentary digital input', wokwiElement: 'wokwi-pushbutton' },
+  { category: 'Input', name: 'Keypad 4x4', specification: 'Matrix keypad input', wokwiElement: 'wokwi-membrane-keypad' },
+  { category: 'Sensor', name: 'DHT22', specification: 'Temperature and humidity sensor', wokwiElement: 'wokwi-dht22' },
+  { category: 'Sensor', name: 'HC-SR04 Ultrasonic', specification: 'Distance measurement sensor', wokwiElement: 'wokwi-hc-sr04' },
+  { category: 'Sensor', name: 'PIR Motion Sensor', specification: 'Motion detection sensor', wokwiElement: 'wokwi-pir-motion-sensor' },
+  { category: 'Sensor', name: 'LDR Photoresistor', specification: 'Light level sensor', wokwiElement: 'wokwi-photoresistor-sensor' },
+  { category: 'Sensor', name: 'MPU6050', specification: 'Accelerometer and gyroscope module', wokwiElement: 'wokwi-mpu6050' },
+  { category: 'Module', name: 'NeoPixel Ring', specification: 'Addressable RGB LED ring', wokwiElement: 'wokwi-led-ring' },
+  { category: 'Module', name: 'IR Receiver', specification: 'Infrared remote receiver', wokwiElement: 'wokwi-ir-receiver' },
+  { category: 'Module', name: 'RTC DS1307', specification: 'Real time clock module', wokwiElement: 'wokwi-ds1307' },
+  { category: 'Module', name: 'Micro SD Card', specification: 'SPI storage module', wokwiElement: 'wokwi-microsd-card' },
+];
+
+const SUPPORTED_WOKWI_ELEMENTS = new Set(
+  WOKWI_COMPONENT_CATALOG
+    .map((component) => component.wokwiElement)
+    .filter(Boolean)
+);
+
+const MANUAL_PICKER_VALUE = '__manual__';
 
 function getStoredUser() {
   try {
@@ -199,12 +257,220 @@ function InfoIcon() {
   );
 }
 
-function UploadField({ label, hint, children }) {
+function stripHtml(value) {
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = value || '';
+  return wrapper.textContent || wrapper.innerText || '';
+}
+
+function projectPayload(project) {
+  return project?.payload && typeof project.payload === 'object' ? project.payload : {};
+}
+
+function projectField(project, fieldName, fallback = '') {
+  const payload = projectPayload(project);
+  return project?.[fieldName] ?? payload?.[fieldName] ?? fallback;
+}
+
+function normalizeProjectList(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function getProjectFileName(file) {
+  return file?.name || file?.file_name || file?.fileName || '';
+}
+
+function getProjectFileUrl(file) {
+  const rawUrl = String(file?.file_url || file?.fileUrl || file?.url || file?.src || '').trim();
+
+  if (!rawUrl) return '';
+  if (/^(https?:\/\/|data:|blob:)/i.test(rawUrl)) return rawUrl;
+
+  return `${API_BASE_URL}${rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`}`;
+}
+
+function getInitialProjectForm(project) {
+  const payload = projectPayload(project);
+  const payment = project?.payment || payload.payment || {};
+  const tags = normalizeProjectList(project?.tags || payload.tags);
+
+  return {
+    title: projectField(project, 'title'),
+    category: projectField(project, 'category'),
+    description: projectField(project, 'description'),
+    tools: normalizeProjectList(project?.tools || payload.tools).map((tool) => (
+      typeof tool === 'string'
+        ? { name: tool, specification: '', image: null, imageFile: null }
+        : { ...tool, imageFile: null }
+    )),
+    nodes: normalizeProjectList(project?.nodes || payload.nodes).map(normalizeProjectNode),
+    steps: normalizeProjectList(project?.steps || payload.steps),
+    isPaid: Boolean(payment.isPaid || project?.isPaid || payload.isPaid),
+    price: payment.price || project?.price || payload.price || '',
+    paymentCode: payment.paymentCode || project?.paymentCode || payload.paymentCode || '',
+    projectFile: null,
+    coverImage: null,
+    circuitImage: null,
+    altText: project?.coverImage?.altText || payload.coverImage?.altText || project?.altText || payload.altText || '',
+    visibility: projectField(project, 'visibility', 'public'),
+    difficulty: projectField(project, 'difficulty'),
+    estimatedTime: projectField(project, 'estimatedTime'),
+    programmingLanguage: projectField(project, 'programmingLanguage'),
+    tags: tags.length ? tags : ['IoT', 'Arduino', 'Sensor', 'SmartHome'],
+  };
+}
+
+function getEmptyManualNode() {
+  return {
+    name: '',
+    category: '',
+    description: '',
+  };
+}
+
+function RichTextEditor({ value, onChange, error }) {
   return (
-    <label className="project-upload-field">
+    <div className={`project-upload-editor${error ? ' has-error' : ''}`}>
+      <TinyMCEEditor
+        value={value}
+        onChange={onChange}
+        height={360}
+        ariaLabel="Deskripsi proyek"
+      />
+    </div>
+  );
+}
+
+function UploadRowActions({ onEdit, onDelete }) {
+  return (
+    <span className="project-upload-row-actions">
+      <button type="button" onClick={onEdit}>Edit</button>
+      <button type="button" className="danger" onClick={onDelete}>Hapus</button>
+    </span>
+  );
+}
+
+function getWokwiPreviewScale(elementName = '') {
+  const scaleMap = {
+    'wokwi-arduino-uno': 0.95,
+    'wokwi-arduino-mega': 0.68,
+    'wokwi-arduino-nano': 1.35,
+    'wokwi-esp32-devkit-v1': 1.28,
+    'wokwi-nano-rp2040-connect': 1.25,
+
+    'wokwi-resistor': 1.8,
+    'wokwi-potentiometer': 1.55,
+    'wokwi-led': 2.2,
+    'wokwi-rgb-led': 2.0,
+    'wokwi-buzzer': 1.65,
+    'wokwi-servo': 1.05,
+
+    'wokwi-lcd1602': 0.88,
+    'wokwi-ssd1306': 1.25,
+    'wokwi-7segment': 1.45,
+
+    'wokwi-pushbutton': 1.9,
+    'wokwi-membrane-keypad': 0.82,
+
+    'wokwi-dht22': 1.75,
+    'wokwi-hc-sr04': 1.15,
+    'wokwi-pir-motion-sensor': 1.25,
+    'wokwi-photoresistor-sensor': 1.45,
+    'wokwi-mpu6050': 1.3,
+
+    'wokwi-led-ring': 1.15,
+    'wokwi-ir-receiver': 1.7,
+    'wokwi-ds1307': 1.25,
+    'wokwi-microsd-card': 1.3,
+  };
+
+  return scaleMap[elementName] || 1.2;
+}
+
+function WokwiComponentPreview({ elementName, fallback }) {
+  const isSupported =
+    Boolean(elementName) &&
+    SUPPORTED_WOKWI_ELEMENTS.has(elementName);
+
+  if (!isSupported) {
+    return (
+      <span
+        className="project-upload-wokwi-preview is-fallback"
+        aria-hidden="true"
+        title={`${fallback || 'Komponen'} belum memiliki preview Wokwi`}
+        style={{
+          width: '92px',
+          height: '76px',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+          borderRadius: '8px',
+        }}
+      >
+        <BoxPlusIcon />
+      </span>
+    );
+  }
+
+  const previewScale = getWokwiPreviewScale(elementName);
+
+  return (
+    <span
+      className="project-upload-wokwi-preview"
+      aria-hidden="true"
+      title={fallback}
+      style={{
+        width: '92px',
+        height: '76px',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+        position: 'relative',
+        borderRadius: '8px',
+      }}
+    >
+      {createElement(elementName, {
+        style: {
+          display: 'block',
+          flex: '0 0 auto',
+          transform: `scale(${previewScale})`,
+          transformOrigin: 'center center',
+          pointerEvents: 'none',
+        },
+      })}
+    </span>
+  );
+}
+
+function ComponentImageField({ tool, index, onChange }) {
+  const imageName = tool.imageFile?.name || getProjectFileName(tool.image);
+  const imageUrl = tool.imageFile ? '' : getProjectFileUrl(tool.image);
+
+  return (
+    <label className="project-upload-component-image">
+      <input
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        onChange={(event) => onChange(index, event)}
+      />
+      {imageUrl ? (
+        <img src={imageUrl} alt="" />
+      ) : (
+        <WokwiComponentPreview elementName={tool.wokwiElement} fallback={tool.name} />
+      )}
+      <small>{imageName || (tool.wokwiElement ? 'Preview Wokwi' : 'Upload gambar')}</small>
+    </label>
+  );
+}
+
+function UploadField({ label, hint, error, children }) {
+  return (
+    <label className={`project-upload-field${error ? ' has-error' : ''}`}>
       <span>{label}</span>
       {children}
-      {hint ? <small>{hint}</small> : null}
+      {error ? <em className="project-upload-error">{error}</em> : hint ? <small>{hint}</small> : null}
     </label>
   );
 }
@@ -225,29 +491,81 @@ function EmptyUploadTable({ title, description }) {
   );
 }
 
-function ProjectUploadForm({ onCancel }) {
-  const [formData, setFormData] = useState({
-    title: '',
-    category: '',
-    description: '',
-    tools: [],
-    nodes: [],
-    steps: [],
-    isPaid: false,
-    price: '',
-    paymentCode: '',
-    projectFile: null,
-    coverImage: null,
-    altText: '',
-    visibility: 'public',
-    difficulty: '',
-    estimatedTime: '',
-    programmingLanguage: '',
-    tags: ['IoT', 'Arduino', 'Sensor', 'SmartHome'],
-  });
+export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projectId = '', initialProject = null }) {
+  const currentUser = getStoredUser();
+  const ownerName = currentUser.name || currentUser.fullName || 'Nama Lengkap';
+  const ownerUsername =
+    currentUser.username ||
+    currentUser.nickname ||
+    currentUser.email ||
+    '-';
+
+  const [formData, setFormData] = useState(() => getInitialProjectForm(initialProject));
   const [newTag, setNewTag] = useState('');
   const [jsonResult, setJsonResult] = useState(null);
   const [formError, setFormError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [coverCrop, setCoverCrop] = useState(null);
+  const [coverPreviewUrl, setCoverPreviewUrl] = useState('');
+  const [circuitPreviewUrl, setCircuitPreviewUrl] = useState('');
+  const [selectedToolKey, setSelectedToolKey] = useState('');
+  const [selectedNodeKey, setSelectedNodeKey] = useState('');
+  const [nodeSearch, setNodeSearch] = useState('');
+  const [isNodePickerOpen, setIsNodePickerOpen] = useState(false);
+  const [manualNode, setManualNode] = useState(() => getEmptyManualNode());
+  const existingProjectFileName = getProjectFileName(initialProject?.projectFile);
+  const existingCoverImageName = getProjectFileName(initialProject?.coverImage);
+  const existingCircuitImageName = getProjectFileName(initialProject?.circuitImage);
+
+  useEffect(() => {
+    setFormData(getInitialProjectForm(initialProject));
+    setFieldErrors({});
+    setFormError('');
+    setJsonResult(null);
+    setNewTag('');
+    setSelectedToolKey('');
+    setSelectedNodeKey('');
+    setNodeSearch('');
+    setIsNodePickerOpen(false);
+    setManualNode(getEmptyManualNode());
+  }, [initialProject, mode, projectId]);
+
+  useEffect(() => {
+    if (!formData.coverImage) {
+      setCoverPreviewUrl(resolveProjectCoverUrl(initialProject));
+      return undefined;
+    }
+
+    const nextUrl = URL.createObjectURL(formData.coverImage);
+    setCoverPreviewUrl(nextUrl);
+    return () => URL.revokeObjectURL(nextUrl);
+  }, [formData.coverImage, initialProject]);
+
+  useEffect(() => {
+    if (!formData.circuitImage) {
+      setCircuitPreviewUrl(getProjectFileUrl(initialProject?.circuitImage));
+      return undefined;
+    }
+
+    const nextUrl = URL.createObjectURL(formData.circuitImage);
+    setCircuitPreviewUrl(nextUrl);
+    return () => URL.revokeObjectURL(nextUrl);
+  }, [formData.circuitImage, initialProject]);
+
+  useEffect(() => () => {
+    if (coverCrop?.source) {
+      URL.revokeObjectURL(coverCrop.source);
+    }
+  }, [coverCrop]);
+
+  function clearFieldError(name) {
+    setFieldErrors((current) => {
+      if (!current[name]) return current;
+      const next = { ...current };
+      delete next[name];
+      return next;
+    });
+  }
 
   function handleInputChange(event) {
     const { name, value, type, checked } = event.target;
@@ -255,39 +573,395 @@ function ProjectUploadForm({ onCancel }) {
       ...current,
       [name]: type === 'checkbox' ? checked : value,
     }));
+    clearFieldError(name);
+    if (name === 'isPaid' && !checked) {
+      setFieldErrors((current) => {
+        const next = { ...current };
+        delete next.price;
+        delete next.paymentCode;
+        return next;
+      });
+    }
+  }
+
+  function handleManualNodeChange(event) {
+    const { name, value } = event.target;
+    setManualNode((current) => ({ ...current, [name]: value }));
+    clearFieldError('nodes');
   }
 
   function handleFileChange(event) {
     const { name, files } = event.target;
-    setFormData((current) => ({ ...current, [name]: files?.[0] || null }));
+    const file = files?.[0] || null;
+    event.target.value = '';
+
+    if (name === 'coverImage') {
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        setFieldErrors((current) => ({
+          ...current,
+          coverImage: 'Gambar cover harus berupa file gambar.',
+        }));
+        return;
+      }
+
+      clearFieldError('coverImage');
+      setFormError('');
+      const source = URL.createObjectURL(file);
+      setCoverCrop((current) => {
+        if (current?.source) {
+          URL.revokeObjectURL(current.source);
+        }
+        return {
+          source,
+          fileName: file.name,
+        };
+      });
+      return;
+    }
+
+    if (name === 'projectFile' && file) {
+      const extension = file.name.split('.').pop()?.toLowerCase() || '';
+
+      if (!['json', 'flow'].includes(extension)) {
+        setFieldErrors((current) => ({
+          ...current,
+          projectFile: 'Format file proyek harus .json atau .flow.',
+        }));
+        return;
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        setFieldErrors((current) => ({
+          ...current,
+          projectFile: 'Ukuran file proyek maksimal 10 MB.',
+        }));
+        return;
+      }
+    }
+
+    if (name === 'circuitImage' && file) {
+      if (!file.type.startsWith('image/')) {
+        setFieldErrors((current) => ({
+          ...current,
+          circuitImage: 'Gambar rangkaian harus berupa file gambar.',
+        }));
+        return;
+      }
+
+      if (file.size > 2 * 1024 * 1024) {
+        setFieldErrors((current) => ({
+          ...current,
+          circuitImage: 'Ukuran gambar rangkaian maksimal 2 MB.',
+        }));
+        return;
+      }
+    }
+
+    setFormData((current) => ({ ...current, [name]: file }));
+    clearFieldError(name);
+  }
+
+  function handleApplyCoverCrop({ file }) {
+    if (!file) return;
+
+    setCoverCrop((current) => {
+      if (current?.source) {
+        URL.revokeObjectURL(current.source);
+      }
+      return null;
+    });
+    setFormData((current) => ({ ...current, coverImage: file }));
+    clearFieldError('coverImage');
+    setFormError('');
+  }
+
+  function handleCancelCoverCrop() {
+    setCoverCrop((current) => {
+      if (current?.source) {
+        URL.revokeObjectURL(current.source);
+      }
+      return null;
+    });
+  }
+
+  function handleDescriptionChange(value) {
+    setFormData((current) => ({ ...current, description: value }));
+    clearFieldError('description');
   }
 
   function addTool() {
-    const name = window.prompt('Masukkan nama alat atau komponen:');
-    if (!name?.trim()) return;
-    const specification = window.prompt('Masukkan keterangan atau spesifikasi:') || '';
+    const selectedTool = WOKWI_COMPONENT_CATALOG[Number(selectedToolKey)];
+
+    if (!selectedTool) {
+      setFieldErrors((current) => ({
+        ...current,
+        tools: 'Pilih alat atau komponen terlebih dahulu.',
+      }));
+      return;
+    }
+
     setFormData((current) => ({
       ...current,
-      tools: [...current.tools, { name: name.trim(), specification: specification.trim() }],
+      tools: [...current.tools, { ...selectedTool, image: null, imageFile: null }],
+    }));
+    setSelectedToolKey('');
+    clearFieldError('tools');
+  }
+
+  function editTool(index) {
+    const selectedTool = WOKWI_COMPONENT_CATALOG[Number(selectedToolKey)];
+
+    if (!selectedTool) {
+      setFieldErrors((current) => ({
+        ...current,
+        tools: 'Pilih komponen pengganti dari daftar, lalu klik Edit pada baris komponen.',
+      }));
+      return;
+    }
+
+    setFormData((current) => ({
+      ...current,
+      tools: current.tools.map((tool, toolIndex) =>
+        toolIndex === index
+          ? { ...tool, ...selectedTool }
+          : tool
+      ),
+    }));
+    setSelectedToolKey('');
+    clearFieldError('tools');
+  }
+
+  function handleComponentImageChange(index, event) {
+    const file = event.target.files?.[0] || null;
+    event.target.value = '';
+
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setFieldErrors((current) => ({
+        ...current,
+        tools: 'Gambar komponen harus berupa file gambar.',
+      }));
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setFieldErrors((current) => ({
+        ...current,
+        tools: 'Ukuran gambar komponen maksimal 2 MB.',
+      }));
+      return;
+    }
+
+    setFormData((current) => ({
+      ...current,
+      tools: current.tools.map((tool, toolIndex) =>
+        toolIndex === index ? { ...tool, imageFile: file } : tool
+      ),
+    }));
+    clearFieldError('tools');
+  }
+
+  async function deleteTool(index) {
+    const confirmed = await showConfirmAlert({
+      title: 'Hapus Komponen?',
+      text: 'Alat atau komponen ini akan dihapus dari form.',
+      confirmButtonText: 'Hapus',
+    });
+    if (!confirmed) return;
+    setFormData((current) => ({
+      ...current,
+      tools: current.tools.filter((_, toolIndex) => toolIndex !== index),
     }));
   }
+
+  const filteredNodeCatalog = useMemo(() => {
+    const keyword = nodeSearch.trim().toLowerCase();
+
+    if (!keyword) {
+      return PROJECT_NODE_CATALOG;
+    }
+
+    return PROJECT_NODE_CATALOG.filter((node) =>
+      [node.type, node.name, node.category]
+        .join(' ')
+        .toLowerCase()
+        .includes(keyword)
+    );
+  }, [nodeSearch]);
 
   function addNode() {
-    const name = window.prompt('Masukkan nama node ArduFlow:');
-    if (!name?.trim()) return;
-    const description = window.prompt('Masukkan fungsi atau keterangan node:') || '';
+    if (selectedNodeKey === MANUAL_PICKER_VALUE) {
+      const name = manualNode.name.trim();
+
+      if (!name) {
+        setFieldErrors((current) => ({
+          ...current,
+          nodes: 'Nama node manual wajib diisi.',
+        }));
+        return;
+      }
+
+      setFormData((current) => ({
+        ...current,
+        nodes: [
+          ...current.nodes,
+          {
+            type: `manual-${normalizeNodeType(name) || crypto.randomUUID().slice(0, 8)}`,
+            name,
+            category: manualNode.category.trim() || 'Manual',
+            description: manualNode.description.trim(),
+            source: 'manual',
+          },
+        ],
+      }));
+      setManualNode(getEmptyManualNode());
+      clearFieldError('nodes');
+      return;
+    }
+
+    const selectedNode = PROJECT_NODE_CATALOG.find((node) => node.type === selectedNodeKey);
+
+    if (!selectedNode) {
+      setFieldErrors((current) => ({
+        ...current,
+        nodes: 'Pilih node ArduFlow terlebih dahulu.',
+      }));
+      return;
+    }
+
     setFormData((current) => ({
       ...current,
-      nodes: [...current.nodes, { name: name.trim(), description: description.trim() }],
+      nodes: [...current.nodes, { ...selectedNode }],
+    }));
+    setSelectedNodeKey('');
+    clearFieldError('nodes');
+  }
+
+  function editNode(index) {
+    if (selectedNodeKey === MANUAL_PICKER_VALUE) {
+      const name = manualNode.name.trim();
+
+      if (!name) {
+        setFieldErrors((current) => ({
+          ...current,
+          nodes: 'Isi data manual, lalu klik Edit pada baris node.',
+        }));
+        return;
+      }
+
+      setFormData((current) => ({
+        ...current,
+        nodes: current.nodes.map((node, nodeIndex) =>
+          nodeIndex === index
+            ? {
+                ...node,
+                type: `manual-${normalizeNodeType(name) || crypto.randomUUID().slice(0, 8)}`,
+                name,
+                category: manualNode.category.trim() || 'Manual',
+                description: manualNode.description.trim(),
+                source: 'manual',
+              }
+            : node
+        ),
+      }));
+      setManualNode(getEmptyManualNode());
+      clearFieldError('nodes');
+      return;
+    }
+
+    const selectedNode = PROJECT_NODE_CATALOG.find((node) => node.type === selectedNodeKey);
+
+    if (!selectedNode) {
+      setFieldErrors((current) => ({
+        ...current,
+        nodes: 'Pilih node pengganti dari daftar, lalu klik Edit pada baris node.',
+      }));
+      return;
+    }
+
+    setFormData((current) => ({
+      ...current,
+      nodes: current.nodes.map((node, nodeIndex) =>
+        nodeIndex === index ? { ...selectedNode } : node
+      ),
+    }));
+    setSelectedNodeKey('');
+    clearFieldError('nodes');
+  }
+
+  async function deleteNode(index) {
+    const confirmed = await showConfirmAlert({
+      title: 'Hapus Node?',
+      text: 'Node ini akan dihapus dari form proyek.',
+      confirmButtonText: 'Hapus',
+    });
+    if (!confirmed) return;
+    setFormData((current) => ({
+      ...current,
+      nodes: current.nodes.filter((_, nodeIndex) => nodeIndex !== index),
     }));
   }
 
-  function addStep() {
-    const description = window.prompt('Masukkan deskripsi langkah pengerjaan:');
+  async function addStep() {
+    const title = await showPromptAlert({
+      title: 'Judul Langkah',
+      text: 'Masukkan judul singkat langkah pengerjaan.',
+      requiredMessage: 'Judul langkah wajib diisi.',
+    });
+    if (!title?.trim()) return;
+    const description = await showPromptAlert({
+      title: 'Tambah Langkah',
+      text: 'Masukkan deskripsi langkah pengerjaan.',
+      requiredMessage: 'Deskripsi langkah wajib diisi.',
+    });
     if (!description?.trim()) return;
     setFormData((current) => ({
       ...current,
-      steps: [...current.steps, { order: current.steps.length + 1, description: description.trim() }],
+      steps: [...current.steps, { order: current.steps.length + 1, title: title.trim(), description: description.trim() }],
+    }));
+    clearFieldError('steps');
+  }
+
+  async function editStep(index) {
+    const selected = formData.steps[index];
+    if (!selected) return;
+    const title = await showPromptAlert({
+      title: 'Edit Judul Langkah',
+      text: 'Edit judul singkat langkah pengerjaan.',
+      inputValue: selected.title || `Langkah ${selected.order || index + 1}`,
+      requiredMessage: 'Judul langkah wajib diisi.',
+    });
+    if (!title?.trim()) return;
+    const description = await showPromptAlert({
+      title: 'Edit Langkah',
+      text: 'Edit deskripsi langkah pengerjaan.',
+      inputValue: selected.description,
+      requiredMessage: 'Deskripsi langkah wajib diisi.',
+    });
+    if (!description?.trim()) return;
+    setFormData((current) => ({
+      ...current,
+      steps: current.steps.map((step, stepIndex) =>
+        stepIndex === index ? { ...step, title: title.trim(), description: description.trim() } : step
+      ),
+    }));
+  }
+
+  async function deleteStep(index) {
+    const confirmed = await showConfirmAlert({
+      title: 'Hapus Langkah?',
+      text: 'Langkah pengerjaan ini akan dihapus dari form.',
+      confirmButtonText: 'Hapus',
+    });
+    if (!confirmed) return;
+    setFormData((current) => ({
+      ...current,
+      steps: current.steps
+        .filter((_, stepIndex) => stepIndex !== index)
+        .map((step, stepIndex) => ({ ...step, order: stepIndex + 1 })),
     }));
   }
 
@@ -330,24 +1004,48 @@ function ProjectUploadForm({ onCancel }) {
       : null;
   }
 
+  function toolToJson(tool) {
+    if (typeof tool === 'string') {
+      return { name: tool, specification: '' };
+    }
+
+    const { imageFile, ...toolData } = tool || {};
+
+    return {
+      ...toolData,
+      image: imageFile ? fileToJson(imageFile) : (toolData.image || null),
+    };
+  }
+
+  function validateProjectForm(status) {
+    const isDraft = status === 'draft';
+    const isEdit = mode === 'edit';
+    const errors = {};
+    const descriptionText = stripHtml(formData.description).trim();
+
+    if (!isDraft && !formData.title.trim()) errors.title = 'Judul proyek wajib diisi.';
+    if (!isDraft && !formData.category.trim()) errors.category = 'Kategori wajib diisi.';
+    if (!isDraft && !descriptionText) errors.description = 'Deskripsi proyek wajib diisi.';
+    if (!isDraft && !isEdit && !formData.projectFile) errors.projectFile = 'File proyek wajib dipilih.';
+    if (!isDraft && !isEdit && !formData.coverImage) errors.coverImage = 'Gambar cover wajib dipilih.';
+    if (!isDraft && formData.tools.length === 0) errors.tools = 'Tambahkan minimal satu alat atau komponen.';
+    if (!isDraft && formData.nodes.length === 0) errors.nodes = 'Tambahkan minimal satu node ArduFlow.';
+    if (!isDraft && formData.steps.length === 0) errors.steps = 'Tambahkan minimal satu langkah pengerjaan.';
+    if (formData.isPaid && Number(formData.price) <= 0) errors.price = 'Harga proyek berbayar harus lebih dari 0.';
+    if (formData.isPaid && !formData.paymentCode) errors.paymentCode = 'Generate kode pembayaran terlebih dahulu.';
+
+    return errors;
+  }
+
   function createProjectJson(status) {
     const title = formData.title.trim();
     const isDraft = status === 'draft';
-    const errors = [];
+    const validationErrors = validateProjectForm(status);
 
-    if (!isDraft && !title) errors.push('Judul proyek wajib diisi.');
-    if (!isDraft && !formData.category.trim()) errors.push('Kategori wajib diisi.');
-    if (!isDraft && !formData.description.trim()) errors.push('Deskripsi wajib diisi.');
-    if (!isDraft && !formData.projectFile) errors.push('File proyek wajib dipilih.');
-    if (!isDraft && !formData.coverImage) errors.push('Gambar cover wajib dipilih.');
-    if (!isDraft && formData.tools.length === 0) errors.push('Tambahkan minimal satu alat atau komponen.');
-    if (!isDraft && formData.nodes.length === 0) errors.push('Tambahkan minimal satu node ArduFlow.');
-    if (!isDraft && formData.steps.length === 0) errors.push('Tambahkan minimal satu langkah pengerjaan.');
-    if (formData.isPaid && Number(formData.price) <= 0) errors.push('Harga proyek berbayar harus lebih dari 0.');
-    if (formData.isPaid && !formData.paymentCode) errors.push('Generate kode pembayaran terlebih dahulu.');
+    setFieldErrors(validationErrors);
 
-    if (errors.length) {
-      setFormError(errors.join(' '));
+    if (Object.keys(validationErrors).length) {
+      setFormError('Lengkapi kolom wajib yang masih kosong sebelum mempublikasikan proyek.');
       return null;
     }
 
@@ -356,7 +1054,10 @@ function ProjectUploadForm({ onCancel }) {
       success: true,
       message: isDraft ? 'Draft proyek berhasil dibuat dalam format JSON.' : 'Proyek siap dipublikasikan dalam format JSON.',
       data: {
-        id: crypto.randomUUID(),
+        id: mode === 'edit' ? (projectId || initialProject?.id) : crypto.randomUUID(),
+        ownerName: initialProject?.ownerName || initialProject?.userName || ownerName,
+        ownerUsername: initialProject?.ownerUsername || initialProject?.username || ownerUsername,
+        userId: initialProject?.userId || currentUser.id || currentUser.userId || null,
         title,
         slug: title
           .toLowerCase()
@@ -366,7 +1067,7 @@ function ProjectUploadForm({ onCancel }) {
           .replace(/-+/g, '-'),
         category: formData.category.trim(),
         description: formData.description.trim(),
-        tools: formData.tools,
+        tools: formData.tools.map(toolToJson),
         nodes: formData.nodes,
         steps: formData.steps,
         payment: {
@@ -375,10 +1076,11 @@ function ProjectUploadForm({ onCancel }) {
           currency: 'IDR',
           paymentCode: formData.isPaid ? formData.paymentCode : null,
         },
-        projectFile: fileToJson(formData.projectFile),
+        projectFile: fileToJson(formData.projectFile) || initialProject?.projectFile || null,
         coverImage: formData.coverImage
           ? { ...fileToJson(formData.coverImage), altText: formData.altText.trim() }
-          : null,
+          : (initialProject?.coverImage || null),
+        circuitImage: fileToJson(formData.circuitImage) || initialProject?.circuitImage || null,
         visibility: isDraft ? 'draft' : formData.visibility,
         difficulty: formData.difficulty,
         estimatedTime: formData.estimatedTime.trim(),
@@ -386,40 +1088,447 @@ function ProjectUploadForm({ onCancel }) {
         tags: formData.tags,
         status: isDraft ? 'draft' : 'published',
         publishedAt: isDraft ? null : now,
-        createdAt: now,
+        createdAt: initialProject?.createdAt || now,
+        updatedAt: now,
       },
     };
 
     setFormError('');
+    setFieldErrors({});
     setJsonResult(result);
     console.log('JSON proyek:', JSON.stringify(result, null, 2));
     return result;
   }
 
+  async function uploadProjectImageToServer(file, imageType = 'project-image') {
+    if (!file) {
+      return null;
+    }
+
+    const uploadData = new FormData();
+    uploadData.append('file', file, file.name);
+    uploadData.append('target_folder', PROJECT_UPLOAD_TARGET_FOLDER);
+
+    console.log('[Project Upload] mulai:', {
+      imageType,
+      fileName: file.name,
+      fileType: file.type,
+      fileSize: file.size,
+      endpoint: PROJECT_UPLOAD_API,
+      targetFolder: PROJECT_UPLOAD_TARGET_FOLDER,
+    });
+
+    const response = await fetch(PROJECT_UPLOAD_API, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+      },
+      body: uploadData,
+    });
+
+    const responseText = await response.text();
+
+    let result;
+    try {
+      result = responseText
+        ? JSON.parse(responseText)
+        : {};
+    } catch {
+      throw new Error(
+        `Response upload gambar proyek bukan JSON: ${responseText}`
+      );
+    }
+
+    console.log('[Project Upload] response:', {
+      status: response.status,
+      imageType,
+      result,
+    });
+
+    if (!response.ok || result?.success === false) {
+      const remoteMessage =
+        result?.data?.remote_response?.message ||
+        result?.data?.remote_response?.error ||
+        '';
+
+      throw new Error(
+        result?.message ||
+        result?.error ||
+        result?.errors?.file ||
+        remoteMessage ||
+        `Upload ${imageType} gagal. HTTP ${response.status}`
+      );
+    }
+
+    const uploadedUrl =
+      result?.data?.url ||
+      result?.data?.file_url ||
+      result?.data?.fileUrl ||
+      result?.url ||
+      result?.file_url ||
+      result?.fileUrl ||
+      '';
+
+    const uploadedPath =
+      result?.data?.path ||
+      result?.data?.file_path ||
+      result?.path ||
+      result?.file_path ||
+      '';
+
+    if (!uploadedUrl && !uploadedPath) {
+      throw new Error(
+        `Upload ${imageType} berhasil, tetapi API tidak mengembalikan URL/path file.`
+      );
+    }
+
+    const sourceValue =
+      uploadedPath ||
+      uploadedUrl;
+
+    let fileName = '';
+
+    try {
+      if (/^https?:\/\//i.test(sourceValue)) {
+        const parsedUrl = new URL(sourceValue);
+        fileName = decodeURIComponent(
+          parsedUrl.pathname
+            .split('/')
+            .filter(Boolean)
+            .pop() || ''
+        );
+      } else {
+        fileName = decodeURIComponent(
+          String(sourceValue)
+            .replace(/\\/g, '/')
+            .split('/')
+            .filter(Boolean)
+            .pop() || ''
+        );
+      }
+    } catch {
+      fileName =
+        String(sourceValue)
+          .replace(/\\/g, '/')
+          .split('/')
+          .filter(Boolean)
+          .pop() ||
+        file.name;
+    }
+
+    if (!fileName) {
+      fileName = file.name;
+    }
+
+    const finalPath =
+      uploadedPath ||
+      `uploads/web/storage/project/${fileName}`;
+
+    const finalUrl =
+      uploadedUrl ||
+      `${PROJECT_IMAGE_PUBLIC_BASE_URL}/${encodeURIComponent(fileName)}`;
+
+    console.log('[Project Upload] berhasil:', {
+      imageType,
+      fileName,
+      path: finalPath,
+      url: finalUrl,
+    });
+
+    return {
+      file_name: fileName,
+      fileName,
+      name: fileName,
+      original_name: file.name,
+      originalName: file.name,
+      file_type: file.type || 'application/octet-stream',
+      fileType: file.type || 'application/octet-stream',
+      type: file.type || 'application/octet-stream',
+      file_size: file.size,
+      fileSize: file.size,
+      size: file.size,
+      file_path: finalPath,
+      filePath: finalPath,
+      path: finalPath,
+      file_url: finalUrl,
+      fileUrl: finalUrl,
+      url: finalUrl,
+    };
+  }
+
   async function sendProjectToApi(status) {
     const projectJson = createProjectJson(status);
-    if (!projectJson) return;
-    try {
-      //const response = await fetch('http://localhost/arduflow/api/project-submit-sqlite.php', {
-      const response = await fetch('http://192.168.130.11:8000/api/formhandle2.php', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(projectJson.data),
-      });
-      const result = await response.json();
-      console.log('SQLite API Response:', result);
-      if (!response.ok) {
-        throw new Error(result.message || 'Gagal menyimpan proyek.');
-      }
-      setJsonResult(result);
-      alert(result.message);
-    } catch (error) {
-      console.error(error);
-      setFormError(error.message);
+
+    if (!projectJson) {
+      return;
     }
-  }
+
+    try {
+      const isEdit =
+        mode === 'edit' &&
+        (projectId || initialProject?.id);
+
+      /*
+       * Salin data agar metadata File lokal dapat diganti dengan
+       * URL/path hasil upload server.
+       */
+      const projectData = {
+        ...projectJson.data,
+      };
+
+      /*
+       * 1. Cover proyek -> server /web/storage/project
+       */
+      if (formData.coverImage) {
+        projectData.coverImage =
+          await uploadProjectImageToServer(
+            formData.coverImage,
+            'cover proyek'
+          );
+
+        if (formData.altText?.trim()) {
+          projectData.coverImage.altText =
+            formData.altText.trim();
+        }
+      }
+
+      /*
+       * 2. Gambar rangkaian -> server /web/storage/project
+       */
+      if (formData.circuitImage) {
+        projectData.circuitImage =
+          await uploadProjectImageToServer(
+            formData.circuitImage,
+            'gambar rangkaian'
+          );
+      }
+
+      /*
+       * 3. Gambar komponen -> server /web/storage/project
+       */
+      projectData.tools =
+        await Promise.all(
+          formData.tools.map(
+            async (tool) => {
+              const {
+                imageFile,
+                ...toolData
+              } = tool || {};
+
+              if (!imageFile) {
+                return {
+                  ...toolData,
+                  image:
+                    toolData.image ||
+                    null,
+                };
+              }
+
+              const uploadedImage =
+                await uploadProjectImageToServer(
+                  imageFile,
+                  `gambar komponen ${toolData.name || ''}`.trim()
+                );
+
+              return {
+                ...toolData,
+                image: uploadedImage,
+              };
+            }
+          )
+        );
+
+      /*
+       * project-submit-sqlite.php tetap menyimpan data proyek ke SQLite.
+       * Gambar TIDAK dikirim ulang ke API ini karena sudah ada di server.
+       */
+      const payload = new FormData();
+
+      payload.append(
+        'payload',
+        JSON.stringify(projectData)
+      );
+
+      if (isEdit) {
+        payload.append(
+          '_method',
+          'PUT'
+        );
+      }
+
+      /*
+       * File .json/.flow masih diproses oleh project-submit-sqlite.php.
+       */
+      if (formData.projectFile) {
+        payload.append(
+          'project_file',
+          formData.projectFile
+        );
+      }
+
+      const requestUrl =
+        isEdit
+          ? `${PROJECT_API_URL}?id=${encodeURIComponent(
+              projectId ||
+              initialProject.id
+            )}`
+          : PROJECT_API_URL;
+
+      console.log(
+        '[Project Submit] data yang dikirim:',
+        projectData
+      );
+
+      const response =
+        await fetch(
+          requestUrl,
+          {
+            method: 'POST',
+            headers: {
+              Accept:
+                'application/json',
+            },
+            body: payload,
+          }
+        );
+
+      const responseText =
+        await response.text();
+
+      let result;
+
+      try {
+        result =
+          responseText
+            ? JSON.parse(
+                responseText
+              )
+            : {};
+      } catch {
+        throw new Error(
+          `Response API bukan JSON: ${responseText}`
+        );
+      }
+
+      console.log(
+        'SQLite API URL:',
+        requestUrl
+      );
+
+      console.log(
+        'SQLite API Status:',
+        response.status
+      );
+
+      console.log(
+        'SQLite API Response:',
+        result
+      );
+
+      if (
+        !response.ok ||
+        result?.success === false
+      ) {
+        const errorParts = [];
+
+        if (result?.message) {
+          errorParts.push(
+            result.message
+          );
+        }
+
+        if (result?.error) {
+          errorParts.push(
+            result.error
+          );
+        }
+
+        if (
+          result?.errors &&
+          typeof result.errors ===
+            'object'
+        ) {
+          Object.entries(
+            result.errors
+          ).forEach(
+            ([key, value]) => {
+              if (
+                value !== null &&
+                value !== undefined &&
+                String(value).trim()
+              ) {
+                errorParts.push(
+                  `${key}: ${String(
+                    value
+                  )}`
+                );
+              }
+            }
+          );
+        }
+
+        if (
+          result?.database_path
+        ) {
+          errorParts.push(
+            `database_path: ${result.database_path}`
+          );
+        }
+
+        const errorMessage =
+          [
+            ...new Set(
+              errorParts
+            ),
+          ].join(' | ');
+
+        console.error(
+          'Detail error Project API:',
+          {
+            status:
+              response.status,
+            url:
+              requestUrl,
+            response:
+              result,
+          }
+        );
+
+        throw new Error(
+          errorMessage ||
+          'Gagal menyimpan proyek.'
+        );
+      }
+
+      setJsonResult(result);
+
+      onSuccess?.(
+        result.data ||
+        result
+      );
+
+      await showSuccessAlert(
+        'Berhasil',
+        result.message ||
+          (
+            isEdit
+              ? 'Proyek berhasil diperbarui.'
+              : 'Proyek berhasil disimpan.'
+          )
+      );
+    } catch (error) {
+      console.error(
+        'Gagal mengirim proyek ke API:',
+        error
+      );
+
+      setFormError(
+        error instanceof TypeError
+          ? `API tidak dapat dihubungi. Project API: ${PROJECT_API_URL}; Upload API: ${PROJECT_UPLOAD_API}.`
+          : error.message
+      );
+    }
+  };
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -427,59 +1536,158 @@ function ProjectUploadForm({ onCancel }) {
   }
 
   return (
+    <>
     <section className="project-upload-page" aria-labelledby="project-upload-title">
-      <h2 id="project-upload-title">Upload Proyek Baru</h2>
+      <h2 id="project-upload-title">{mode === 'edit' ? 'Edit Proyek' : 'Upload Proyek Baru'}</h2>
+      {mode === 'edit' ? (
+        <p className="project-upload-edit-notice">
+          Mode edit proyek aktif{projectId ? ` untuk ID proyek ${projectId}` : ''}. Silakan sesuaikan data proyek melalui form ini.
+        </p>
+      ) : null}
 
       <div className="project-upload-layout">
         <form className="project-upload-main" id="project-upload-form" onSubmit={handleSubmit}>
-          <UploadField label="Judul Proyek *" hint="Pilih judul yang jelas dan menarik">
-            <input name="title" type="text" value={formData.title} onChange={handleInputChange} placeholder="Masukkan judul proyek" />
+          <UploadField label="Judul Proyek *" hint="Pilih judul yang jelas dan menarik" error={fieldErrors.title}>
+            <input name="title" type="text" value={formData.title} onChange={handleInputChange} placeholder="Masukkan judul proyek" aria-invalid={Boolean(fieldErrors.title)} />
           </UploadField>
 
-          <UploadField label="Kategori *" hint="Pilih kategori yang paling sesuai dengan proyek anda">
-            <input name="category" type="text" value={formData.category} onChange={handleInputChange} placeholder="Pilih kategori proyek" />
+          <UploadField label="Kategori *" hint="Pilih kategori yang paling sesuai dengan proyek anda" error={fieldErrors.category}>
+            <input name="category" type="text" value={formData.category} onChange={handleInputChange} placeholder="Pilih kategori proyek" aria-invalid={Boolean(fieldErrors.category)} />
           </UploadField>
 
           <div className="project-upload-field">
             <span>Deskripsi Proyek *</span>
-            <div className="project-upload-editor">
-              <div className="project-upload-editor__toolbar" aria-hidden="true">
-                <span>↶</span><span>↷</span><span>Normal text⌄</span><span>≡</span>
-                <span className="project-upload-editor__color" /><b>B</b><i>I</i><u>U</u>
-                <span>S</span><span>&lt;&gt;</span><span>▱</span><span>•≡</span><span>1≡</span><span>🔗</span>
-              </div>
-              <textarea name="description" value={formData.description} onChange={handleInputChange} placeholder="Jelaskan proyek anda secara detail..." />
-            </div>
-            <small>Jelaskan fungsi, tujuan, dan cara kerja proyek anda</small>
+            <RichTextEditor value={formData.description} onChange={handleDescriptionChange} error={fieldErrors.description} />
+            {fieldErrors.description ? <em className="project-upload-error">{fieldErrors.description}</em> : <small>Jelaskan fungsi, tujuan, dan cara kerja proyek anda</small>}
           </div>
 
           <section className="project-upload-list-section">
             <div className="project-upload-section-head">
-              <div><h3>Alat &amp; Komponen *</h3><p>Daftarkan alat dan komponen yang digunakan dalam proyek ini</p></div>
+              <div><h3>Alat &amp; Komponen *</h3><p>Pilih alat dan komponen elektronik dari katalog Wokwi yang digunakan dalam proyek ini</p></div>
+            </div>
+            <div className="project-upload-node-picker project-upload-component-picker">
+              <select
+                value={selectedToolKey}
+                onChange={(event) => {
+                  setSelectedToolKey(event.target.value);
+                  clearFieldError('tools');
+                }}
+              >
+                <option value="">Pilih alat atau komponen</option>
+                {WOKWI_COMPONENT_CATALOG.map((tool, index) => (
+                  <option value={index} key={`${tool.category}-${tool.name}`}>
+                    {tool.category} - {tool.name} - {tool.specification}
+                  </option>
+                ))}
+              </select>
               <button type="button" onClick={addTool}><PlusIcon /> Tambah Item</button>
             </div>
-            <div className="project-upload-table">
-              <div className="project-upload-table__head"><span>Nama Alat/Komponen</span><span>Keterangan/Spesifikasi</span></div>
+            <div className={`project-upload-table${fieldErrors.tools ? ' has-error' : ''}`}>
+              <div className="project-upload-table__head project-upload-table__head--components"><span>Kategori</span><span>Nama Alat/Komponen</span><span>Keterangan/Spesifikasi</span><span>Gambar</span><span>Aksi</span></div>
               {formData.tools.length ? formData.tools.map((tool, index) => (
-                <div className="project-upload-table__head" key={`${tool.name}-${index}`}><span>{tool.name}</span><span>{tool.specification || '-'}</span></div>
+                <div className="project-upload-table__head project-upload-table__head--components" key={`${tool.name}-${index}`}>
+                  <span>{tool.category || '-'}</span>
+                  <span>{tool.name}</span>
+                  <span>{tool.specification || '-'}</span>
+                  <ComponentImageField tool={tool} index={index} onChange={handleComponentImageChange} />
+                  <UploadRowActions onEdit={() => editTool(index)} onDelete={() => deleteTool(index)} />
+                </div>
               )) : (
-                <div className="project-upload-empty"><BoxPlusIcon /><strong>Belum ada alat atau komponen</strong><p>Klik tombol “Tambah Item” untuk menambahkan</p></div>
+                <div className="project-upload-empty"><BoxPlusIcon /><strong>Belum ada alat atau komponen</strong><p>Pilih item dari katalog, lalu klik tombol “Tambah Item”</p></div>
               )}
             </div>
+            {fieldErrors.tools ? <em className="project-upload-error">{fieldErrors.tools}</em> : null}
           </section>
 
           <section className="project-upload-list-section">
             <div className="project-upload-section-head">
-              <div><h3>Node ArduFlow yang Digunakan *</h3><p>Sebutkan node atau blok Arduflow yang digunakan dalam proyek ini</p></div>
-              <button type="button" onClick={addNode}><PlusIcon /> Tambah Node</button>
+              <div><h3>Node ArduFlow yang Digunakan *</h3><p>Pilih node dari katalog ArduFlow yang digunakan dalam proyek ini</p></div>
+              <button
+                type="button"
+                onClick={() => setIsNodePickerOpen((current) => !current)}
+              >
+                <PlusIcon /> {isNodePickerOpen ? 'Tutup Node' : 'Tambah Node'}
+              </button>
             </div>
+            {isNodePickerOpen ? (
+              <div className="project-upload-node-picker-panel">
+                <div className="project-upload-node-search">
+                  <input
+                    type="search"
+                    placeholder="Cari node..."
+                    value={nodeSearch}
+                    onChange={(event) => setNodeSearch(event.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className={selectedNodeKey === MANUAL_PICKER_VALUE ? 'is-active' : ''}
+                    onClick={() => {
+                      setSelectedNodeKey(MANUAL_PICKER_VALUE);
+                      clearFieldError('nodes');
+                    }}
+                  >
+                    <PlusIcon /> Manual
+                  </button>
+                  <button type="button" onClick={addNode}><PlusIcon /> Tambah Node</button>
+                </div>
+                {selectedNodeKey === MANUAL_PICKER_VALUE ? (
+                  <div className="project-upload-manual-grid" aria-label="Tambah node ArduFlow manual">
+                    <input name="category" type="text" value={manualNode.category} onChange={handleManualNodeChange} placeholder="Kategori manual" />
+                    <input name="name" type="text" value={manualNode.name} onChange={handleManualNodeChange} placeholder="Nama node *" />
+                    <input name="description" type="text" value={manualNode.description} onChange={handleManualNodeChange} placeholder="Keterangan node" />
+                  </div>
+                ) : null}
+                <div className="project-upload-node-grid" role="listbox" aria-label="Pilih node ArduFlow">
+                  {filteredNodeCatalog.map((node) => {
+                    const isSelected = selectedNodeKey === node.type;
+
+                    return (
+                      <button
+                        type="button"
+                        className={`project-upload-node-card${isSelected ? ' is-selected' : ''}`}
+                        key={node.type}
+                        onClick={() => {
+                          setSelectedNodeKey(node.type);
+                          clearFieldError('nodes');
+                        }}
+                        aria-pressed={isSelected}
+                      >
+                        <span className="project-upload-node-card__sprite">
+                          <NodeSprite name={node.type} scale={0.54} maxWidth={128} maxHeight={96} title={node.name} />
+                        </span>
+                        <span>{node.name}</span>
+                        <small>{node.category}</small>
+                      </button>
+                    );
+                  })}
+                  {filteredNodeCatalog.length === 0 ? (
+                    <div className="project-upload-node-card project-upload-node-card--empty">
+                      <span>Node tidak ditemukan</span>
+                      <small>Coba kata kunci lain</small>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
             {formData.nodes.length ? (
-              <div className="project-upload-table">
-                <div className="project-upload-table__head"><span>Node</span><span>Deskripsi</span></div>
-                {formData.nodes.map((node, index) => <div className="project-upload-table__head" key={`${node.name}-${index}`}><span>{node.name}</span><span>{node.description || '-'}</span></div>)}
+              <div className={`project-upload-table${fieldErrors.nodes ? ' has-error' : ''}`}>
+                <div className="project-upload-table__head project-upload-table__head--nodes"><span>Node</span><span>Kategori</span><span>Keterangan</span><span>Aksi</span></div>
+                {formData.nodes.map((node, index) => (
+                  <div className="project-upload-table__head project-upload-table__head--nodes" key={`${node.name}-${index}`}>
+                    <span className="project-upload-selected-node">
+                      <NodeSprite name={getProjectNodeType(node)} scale={0.34} title={node.name} />
+                      <b>{node.name}</b>
+                    </span>
+                    <span>{node.category || '-'}</span>
+                    <span>{node.description || '-'}</span>
+                    <UploadRowActions onEdit={() => editNode(index)} onDelete={() => deleteNode(index)} />
+                  </div>
+                ))}
               </div>
             ) : <EmptyUploadTable title="Belum ada node yang ditambahkan" description="Klik tombol “Tambah Node” untuk menambahkan" />}
           </section>
+
+          {fieldErrors.nodes ? <em className="project-upload-error">{fieldErrors.nodes}</em> : null}
 
           <section className="project-upload-list-section">
             <div className="project-upload-section-head">
@@ -487,13 +1695,21 @@ function ProjectUploadForm({ onCancel }) {
               <button type="button" onClick={addStep}><PlusIcon /> Tambah Langkah</button>
             </div>
             {formData.steps.length ? (
-              <div className="project-upload-table">
-                <div className="project-upload-table__head"><span>Langkah</span><span>Deskripsi</span></div>
-                {formData.steps.map((step) => <div className="project-upload-table__head" key={step.order}><span>{step.order}</span><span>{step.description}</span></div>)}
+              <div className={`project-upload-table${fieldErrors.steps ? ' has-error' : ''}`}>
+                <div className="project-upload-table__head project-upload-table__head--steps"><span>No</span><span>Judul</span><span>Deskripsi</span><span>Aksi</span></div>
+                {formData.steps.map((step, index) => (
+                  <div className="project-upload-table__head project-upload-table__head--steps" key={step.order}>
+                    <span>{step.order}</span>
+                    <span>{step.title || `Langkah ${step.order || index + 1}`}</span>
+                    <span>{step.description}</span>
+                    <UploadRowActions onEdit={() => editStep(index)} onDelete={() => deleteStep(index)} />
+                  </div>
+                ))}
               </div>
             ) : <EmptyUploadTable title="Belum ada langkah yang ditambahkan" description="Klik tombol “Tambah Langkah” untuk menambahkan" />}
           </section>
 
+            {fieldErrors.steps ? <em className="project-upload-error">{fieldErrors.steps}</em> : null}
           <div className="project-upload-price">
             <div><h3>Harga Proyek &amp; Kode Pembayaran</h3><p>Atur harga dan buat kode pembayaran untuk pembeli</p></div>
             <label className="project-upload-toggle">
@@ -503,23 +1719,27 @@ function ProjectUploadForm({ onCancel }) {
           </div>
           <div className="project-upload-payment">
             <span>Harga (IDR) *</span>
-            <label className="project-upload-price-input"><span>IDR</span><input name="price" type="number" min="0" value={formData.price} onChange={handleInputChange} disabled={!formData.isPaid} placeholder="Contoh : 15000" /></label>
+            <label className={`project-upload-price-input${fieldErrors.price ? ' has-error' : ''}`}><span>IDR</span><input name="price" type="number" min="0" value={formData.price} onChange={handleInputChange} disabled={!formData.isPaid} placeholder="Contoh : 15000" aria-invalid={Boolean(fieldErrors.price)} /></label>
+            {fieldErrors.price ? <em className="project-upload-error">{fieldErrors.price}</em> : null}
             <span>Kode Akses / Kode Pembayaran *</span>
             <div className="project-upload-code-row">
-              <input type="text" value={formData.paymentCode} readOnly placeholder="Kode akan dibuat setelah di generate" />
+              <input className={fieldErrors.paymentCode ? 'has-error' : ''} type="text" value={formData.paymentCode} readOnly placeholder="Kode akan dibuat setelah di generate" aria-invalid={Boolean(fieldErrors.paymentCode)} />
               <button type="button" onClick={generatePaymentCode} disabled={!formData.isPaid}><RefreshIcon /> Generate Kode</button>
               <button type="button" onClick={copyPaymentCode} disabled={!formData.paymentCode}><CopyIcon /> Salin</button>
             </div>
+            {fieldErrors.paymentCode ? <em className="project-upload-error">{fieldErrors.paymentCode}</em> : null}
             <p className="project-upload-payment-info"><InfoIcon /><span>Kode pembayaran akan digunakan oleh pembeli untuk mengakses dan membuka proyek ini.<br />Kode dibuat otomatis setelah harga diisi</span></p>
           </div>
 
           <div className="project-upload-file-section">
             <h3>File Proyek *</h3>
-            <label className="project-upload-file-box">
+            <label className={`project-upload-file-box${fieldErrors.projectFile ? ' has-error' : ''}`}>
               <input name="projectFile" type="file" accept=".json,.flow" onChange={handleFileChange} />
               <PlusIcon /><strong>Klik untuk upload file proyek</strong>
-              <span>{formData.projectFile?.name || 'Drag & drop file di sini'}</span><small>Format : json, flow | Maksimal 10 MB</small>
+              <span>{formData.projectFile?.name || existingProjectFileName || 'Drag & drop file di sini'}</span>
+              <small>{existingProjectFileName && !formData.projectFile ? 'File lama tetap digunakan jika tidak diganti' : 'Format : json, flow | Maksimal 10 MB'}</small>
             </label>
+            {fieldErrors.projectFile ? <em className="project-upload-error">{fieldErrors.projectFile}</em> : null}
             <p>Pastikan file yang diupload sudah berfungsi dengan baik</p>
           </div>
         </form>
@@ -527,13 +1747,37 @@ function ProjectUploadForm({ onCancel }) {
         <aside className="project-upload-side">
           <section className="project-upload-card project-upload-cover">
             <h3>Gambar Cover Proyek *</h3>
-            <label className="project-upload-cover-box">
+            <label className={`project-upload-cover-box${fieldErrors.coverImage ? ' has-error' : ''}`}>
               <input name="coverImage" type="file" accept="image/png,image/jpeg" onChange={handleFileChange} />
-              <ImageIcon /><span>{formData.coverImage?.name || 'Upload gambar cover'}</span><small>PNG, JPG maksimal 2 MB</small><strong>Pilih Gambar</strong>
+              {coverPreviewUrl ? (
+                <img className="project-upload-cover-preview" src={coverPreviewUrl} alt="Preview cover proyek" />
+              ) : (
+                <ImageIcon />
+              )}
+              <span>{formData.coverImage?.name || existingCoverImageName || 'Upload gambar cover'}</span>
+              <small>{existingCoverImageName && !formData.coverImage ? 'Cover lama tetap digunakan jika tidak diganti' : 'PNG, JPG maksimal 2 MB'}</small>
+              <strong>Pilih Gambar</strong>
             </label>
+            {fieldErrors.coverImage ? <em className="project-upload-error">{fieldErrors.coverImage}</em> : null}
             <UploadField label="Alt Text" hint="Pilih gambar yang mewakili proyek Anda">
               <input name="altText" type="text" value={formData.altText} onChange={handleInputChange} placeholder="Deskripsikan proyek anda" />
             </UploadField>
+          </section>
+
+          <section className="project-upload-card project-upload-cover">
+            <h3>Gambar Rangkaian</h3>
+            <label className={`project-upload-cover-box${fieldErrors.circuitImage ? ' has-error' : ''}`}>
+              <input name="circuitImage" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFileChange} />
+              {circuitPreviewUrl ? (
+                <img className="project-upload-cover-preview" src={circuitPreviewUrl} alt="Preview gambar rangkaian" />
+              ) : (
+                <ImageIcon />
+              )}
+              <span>{formData.circuitImage?.name || existingCircuitImageName || 'Upload gambar rangkaian'}</span>
+              <small>{existingCircuitImageName && !formData.circuitImage ? 'Gambar lama tetap digunakan jika tidak diganti' : 'PNG, JPG, WEBP maksimal 2 MB'}</small>
+              <strong>Pilih Gambar</strong>
+            </label>
+            {fieldErrors.circuitImage ? <em className="project-upload-error">{fieldErrors.circuitImage}</em> : null}
           </section>
 
           <section className="project-upload-card project-upload-visibility">
@@ -572,16 +1816,155 @@ function ProjectUploadForm({ onCancel }) {
         </section>
       ) : null}
     </section>
+    <WorkshopImageCropper
+      source={coverCrop?.source || ''}
+      fileName={coverCrop?.fileName || 'project-cover.png'}
+      onCancel={handleCancelCoverCrop}
+      onApply={handleApplyCoverCrop}
+    />
+    </>
   );
+}
+
+function resolveProjectCoverUrl(project) {
+  const cover = project?.coverImage || {};
+  const rawUrl = (
+    project?.coverUrl ||
+    project?.coverPath ||
+    cover.file_url ||
+    cover.fileUrl ||
+    cover.url ||
+    cover.file_path ||
+    cover.filePath ||
+    ''
+  );
+
+  if (!rawUrl) return '';
+  if (/^(https?:\/\/|data:image\/|blob:)/i.test(rawUrl)) return rawUrl;
+
+  const normalizedPath = String(rawUrl)
+    .replace(/^\/+/, '')
+    .replace(/^storage\/uploads\//i, 'uploads/');
+
+  return `${API_BASE_URL}/${normalizedPath}`;
+}
+
+function formatProjectDate(project) {
+  const raw = project?.updatedAt || project?.updated_at || project?.createdAt || project?.created_at;
+  const date = raw ? new Date(raw) : null;
+
+  if (!date || Number.isNaN(date.getTime())) return '-';
+
+  return new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+}
+
+function formatProjectPrice(project) {
+  const payment = project?.payment || {};
+  const isPaid = Boolean(payment.isPaid || project?.isPaid);
+  const price = Number(payment.price || project?.price || 0);
+
+  if (!isPaid || price <= 0) return 'Gratis';
+
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: payment.currency || 'IDR',
+    maximumFractionDigits: 0,
+  }).format(price);
 }
 
 export function UserProjectGallery() {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialSidebarCollapsed);
-  const [isUploadFormOpen, setUploadFormOpen] = useState(false);
+  const searchParams = new URLSearchParams(window.location.search);
+  const projectFormMode = searchParams.get('mode') === 'edit' ? 'edit' : 'create';
+  const editProjectId = searchParams.get('projectId') || '';
+  const shouldOpenProjectForm = searchParams.get('mode') === 'edit' || searchParams.get('mode') === 'upload';
+  const isAdminProjectEditRoute = window.location.pathname.startsWith('/admin/projects/edit');
+  const [isUploadFormOpen, setUploadFormOpen] = useState(shouldOpenProjectForm);
   const user = getStoredUser();
   const fullName = user.name || user.fullName || 'Nama Lengkap';
   const greetingName = user.nickname || fullName;
   const profileImage = user.profileImage || user.avatar || '';
+  const currentUserId = user.id || user.userId || null;
+  const [projects, setProjects] = useState([]);
+  const [isProjectsLoading, setProjectsLoading] = useState(true);
+  const [projectsError, setProjectsError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('Terbaru');
+
+  async function loadProjects() {
+    setProjectsLoading(true);
+    setProjectsError('');
+
+    try {
+      const response = await fetch(PROJECT_API_URL, {
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+      const text = await response.text();
+      let result;
+
+      try {
+        result = JSON.parse(text);
+      } catch {
+        throw new Error(`Response API bukan JSON: ${text}`);
+      }
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Gagal mengambil data proyek.');
+      }
+
+      const rows = Array.isArray(result.data) ? result.data : [];
+      const ownedProjects = currentUserId
+        ? rows.filter((project) => String(project.userId || project.payload?.userId || '') === String(currentUserId))
+        : rows;
+
+      setProjects(ownedProjects);
+    } catch (error) {
+      console.error('Gagal mengambil data proyek:', error);
+      setProjectsError(
+        error instanceof TypeError
+          ? `API tidak dapat dihubungi di ${PROJECT_API_URL}. Pastikan server PHP berjalan.`
+          : error.message
+      );
+    } finally {
+      setProjectsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadProjects();
+  }, []);
+
+  const visibleProjects = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    const filtered = query
+      ? projects.filter((project) => {
+          const haystack = [
+            project.title,
+            project.category,
+            project.description,
+            ...(Array.isArray(project.tags) ? project.tags : []),
+          ].join(' ').toLowerCase();
+
+          return haystack.includes(query);
+        })
+      : [...projects];
+
+    return filtered.sort((first, second) => {
+      if (sortBy === 'Nama') {
+        return String(first.title || '').localeCompare(String(second.title || ''), 'id-ID');
+      }
+
+      const firstTime = new Date(first.updatedAt || first.createdAt || 0).getTime() || 0;
+      const secondTime = new Date(second.updatedAt || second.createdAt || 0).getTime() || 0;
+      return secondTime - firstTime;
+    });
+  }, [projects, searchQuery, sortBy]);
 
   function handleLogout() {
     window.localStorage.removeItem('arduflow_user');
@@ -657,7 +2040,24 @@ export function UserProjectGallery() {
           ) : null}
 
           {isUploadFormOpen ? (
-            <ProjectUploadForm onCancel={() => setUploadFormOpen(false)} />
+            <ProjectUploadForm
+              mode={projectFormMode}
+              projectId={editProjectId}
+              onSuccess={() => {
+                loadProjects();
+                if (!isAdminProjectEditRoute) {
+                  setUploadFormOpen(false);
+                }
+              }}
+              onCancel={() => {
+                if (isAdminProjectEditRoute) {
+                  window.location.href = '/admin/projects';
+                  return;
+                }
+
+                setUploadFormOpen(false);
+              }}
+            />
           ) : (
             <section className="user-project-panel" aria-labelledby="project-gallery-title">
             <div className="user-project-header">
@@ -665,15 +2065,14 @@ export function UserProjectGallery() {
               <div className="user-project-toolbar">
                 <label className="user-project-search">
                   <span className="sr-only">Cari proyek</span>
-                  <input type="search" placeholder="Cari" />
+                  <input type="search" placeholder="Cari" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} />
                   <SearchIcon />
                 </label>
 
                 <div className="user-project-controls">
                   <div className="user-project-sort">
                     <span>Urutkan</span>
-                    <select defaultValue="Relevance" aria-label="Urutkan proyek">
-                      <option>Relevance</option>
+                    <select value={sortBy} aria-label="Urutkan proyek" onChange={(event) => setSortBy(event.target.value)}>
                       <option>Terbaru</option>
                       <option>Nama</option>
                     </select>
@@ -690,25 +2089,35 @@ export function UserProjectGallery() {
               </div>
             </div>
 
-            <div className="user-project-grid">
-              {projects.map((project) => (
-                <article className="user-project-card" key={project.id}>
-                  <img src={projectImage} alt="" />
-                  <div className="user-project-card__body">
-                    <h3>{project.title}</h3>
-                    <p>{project.category}</p>
-                    <time>{project.date}</time>
-                    <strong>{project.price}</strong>
-                  </div>
-                </article>
-              ))}
-            </div>
+            {isProjectsLoading ? (
+              <div className="user-project-empty">Memuat proyek...</div>
+            ) : projectsError ? (
+              <div className="user-project-empty">{projectsError}</div>
+            ) : visibleProjects.length === 0 ? (
+              <div className="user-project-empty">Belum ada proyek yang tersimpan.</div>
+            ) : (
+              <div className="user-project-grid">
+                {visibleProjects.map((project) => {
+                  const coverUrl = resolveProjectCoverUrl(project) || projectImage;
+
+                  return (
+                    <article className="user-project-card" key={project.id}>
+                      <img src={coverUrl} alt={project.coverImage?.altText || project.title || 'Cover proyek'} />
+                      <div className="user-project-card__body">
+                        <h3>{project.title || 'Tanpa judul'}</h3>
+                        <p>{project.category || '-'}</p>
+                        <time>{formatProjectDate(project)}</time>
+                        <strong>{formatProjectPrice(project)}</strong>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
 
             <nav className="user-project-pagination" aria-label="Pagination proyek kamu">
               <button type="button" aria-label="Halaman sebelumnya">&lsaquo;</button>
               <button className="user-project-pagination__active" type="button">1</button>
-              <button type="button">2</button>
-              <button type="button">3</button>
               <button type="button" aria-label="Halaman berikutnya">&rsaquo;</button>
             </nav>
             </section>

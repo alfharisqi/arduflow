@@ -2,11 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { AdminSidebar } from './AdminSidebar.jsx';
 import { ProjectUploadForm } from '../User/UserProjectGallery.jsx';
 import {
-  showConfirmAlert,
-  showErrorAlert,
-  showSuccessAlert,
-} from '../../utils/alerts.js';
-import {
   getInitialAdminSidebarCollapsed,
   persistAdminSidebarCollapsed,
 } from './adminSidebarState.js';
@@ -17,338 +12,9 @@ import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
 import fileIcon from '../../assets/icons/icon-file-text-1.svg';
 import galleryIcon from '../../assets/icons/icon-image-placeholder-1.svg';
 import zapIcon from '../../assets/icons/icon-zap-1.svg';
+import { getProjectApiUrl } from '../../services/projectApiConfig.js';
 
-const PROJECT_API_URL =
-  'https://arduflow.indobilliard.com/apk/uploads/web/api/project-submit-sqlite.php';
-
-const PROJECT_IMAGE_BASE_URL =
-  'https://arduflow.indobilliard.com/apk/uploads/web/storage/project/';
-
-console.info('[AdminProjects] PROJECT_STORAGE_THUMBNAIL_FIX aktif');
-
-function getProjectPayload(project) {
-  const rawPayload =
-    project?.payload ??
-    project?.payloadJson ??
-    project?.payload_json ??
-    {};
-
-  if (
-    rawPayload &&
-    typeof rawPayload === 'object' &&
-    !Array.isArray(rawPayload)
-  ) {
-    return rawPayload;
-  }
-
-  if (
-    typeof rawPayload === 'string' &&
-    rawPayload.trim()
-  ) {
-    try {
-      const parsed = JSON.parse(rawPayload);
-
-      return (
-        parsed &&
-        typeof parsed === 'object' &&
-        !Array.isArray(parsed)
-      )
-        ? parsed
-        : {};
-    } catch {
-      return {};
-    }
-  }
-
-  return {};
-}
-
-function getProjectImageFileName(value) {
-  if (!value) {
-    return '';
-  }
-
-  if (typeof value === 'object') {
-    const candidates = [
-      value.file_name,
-      value.fileName,
-      value.name,
-      value.stored_name,
-      value.storedName,
-      value.file_url,
-      value.fileUrl,
-      value.url,
-      value.src,
-      value.path,
-      value.file_path,
-      value.filePath,
-    ];
-
-    for (const candidate of candidates) {
-      const result =
-        getProjectImageFileName(candidate);
-
-      if (result) {
-        return result;
-      }
-    }
-
-    return '';
-  }
-
-  let clean = String(value)
-    .trim()
-    .replace(/\\/g, '/');
-
-  if (!clean) {
-    return '';
-  }
-
-  if (/^https?:\/\//i.test(clean)) {
-    try {
-      const parsedUrl = new URL(clean);
-      clean = parsedUrl.pathname;
-    } catch {
-      // lanjut sebagai path biasa
-    }
-  }
-
-  clean = clean
-    .split('?')[0]
-    .split('#')[0];
-
-  let fileName = clean
-    .split('/')
-    .filter(Boolean)
-    .pop() || '';
-
-  try {
-    fileName =
-      decodeURIComponent(fileName);
-  } catch {
-    // biarkan nama asli
-  }
-
-  if (
-    !/\.(jpg|jpeg|png|webp|gif|avif)$/i.test(
-      fileName
-    )
-  ) {
-    return '';
-  }
-
-  return fileName;
-}
-
-function buildProjectImageUrl(value) {
-  if (!value) {
-    return '';
-  }
-
-  if (typeof value === 'string') {
-    const clean = value.trim();
-
-    /*
-     * URL storage terbaru dari backend boleh dipakai langsung.
-     */
-    if (
-      /^https?:\/\//i.test(clean) &&
-      clean.includes(
-        '/apk/uploads/web/storage/project/'
-      )
-    ) {
-      return clean;
-    }
-  }
-
-  const fileName =
-    getProjectImageFileName(value);
-
-  if (!fileName) {
-    return '';
-  }
-
-  return (
-    PROJECT_IMAGE_BASE_URL +
-    encodeURIComponent(fileName)
-  );
-}
-
-function getProjectThumbnailUrl(project) {
-  if (!project || typeof project !== 'object') {
-    return '';
-  }
-
-  const payload =
-    getProjectPayload(project);
-
-  const projectCover =
-    project?.coverImage &&
-    typeof project.coverImage === 'object'
-      ? project.coverImage
-      : {};
-
-  const payloadCover =
-    payload?.coverImage &&
-    typeof payload.coverImage === 'object'
-      ? payload.coverImage
-      : {};
-
-  const candidates = [
-    /*
-     * Response project-submit-sqlite.php terbaru.
-     */
-    projectCover.file_url,
-    projectCover.fileUrl,
-    projectCover.url,
-    projectCover.src,
-    projectCover.file_name,
-    projectCover.fileName,
-    projectCover.name,
-    projectCover.file_path,
-    projectCover.filePath,
-
-    /*
-     * Field langsung pada project.
-     */
-    project?.cover_image_url,
-    project?.coverImageUrl,
-    project?.cover_url,
-    project?.coverUrl,
-    project?.cover_image_path,
-    project?.coverPath,
-    project?.cover_path,
-    project?.cover_image_name,
-    project?.thumbnail,
-    project?.thumbnailUrl,
-    project?.thumbnail_url,
-    project?.image,
-    project?.imageUrl,
-    project?.image_url,
-
-    /*
-     * Cover dari payload JSON.
-     */
-    payloadCover.file_url,
-    payloadCover.fileUrl,
-    payloadCover.url,
-    payloadCover.src,
-    payloadCover.file_name,
-    payloadCover.fileName,
-    payloadCover.name,
-    payloadCover.file_path,
-    payloadCover.filePath,
-
-    payload?.cover_image_url,
-    payload?.coverImageUrl,
-    payload?.cover_url,
-    payload?.coverUrl,
-    payload?.cover_image_path,
-    payload?.coverPath,
-    payload?.cover_path,
-    payload?.cover_image_name,
-    payload?.thumbnail,
-    payload?.thumbnailUrl,
-    payload?.thumbnail_url,
-  ];
-
-  for (const candidate of candidates) {
-    const imageUrl =
-      buildProjectImageUrl(candidate);
-
-    if (imageUrl) {
-      return imageUrl;
-    }
-  }
-
-  return '';
-}
-
-function ProjectThumbnail({
-  project,
-  index = 0,
-}) {
-  const imageUrl = useMemo(
-    () => getProjectThumbnailUrl(project),
-    [project]
-  );
-
-  const [failedUrl, setFailedUrl] =
-    useState('');
-
-  useEffect(() => {
-    setFailedUrl('');
-  }, [imageUrl]);
-
-  const failed =
-    Boolean(imageUrl) &&
-    failedUrl === imageUrl;
-
-  if (!imageUrl || failed) {
-    return (
-      <span
-        className={`admin-projects-thumb is-${index % 5}`}
-        title={
-          failed
-            ? `Thumbnail gagal dimuat: ${imageUrl}`
-            : 'Thumbnail proyek tidak tersedia'
-        }
-        aria-label="Thumbnail tidak tersedia"
-        style={{
-          width: '40px',
-          height: '40px',
-          display: 'block',
-          borderRadius: '6px',
-        }}
-      />
-    );
-  }
-
-  return (
-    <img
-      className={`admin-projects-thumb is-${index % 5}`}
-      src={imageUrl}
-      alt={`Thumbnail ${
-        project?.title ||
-        'proyek'
-      }`}
-      loading="lazy"
-      width="40"
-      height="40"
-      style={{
-        width: '40px',
-        height: '40px',
-        objectFit: 'cover',
-        display: 'block',
-        borderRadius: '6px',
-      }}
-      onLoad={() => {
-        console.log(
-          '[AdminProjects] Thumbnail berhasil:',
-          {
-            projectId: project?.id,
-            title: project?.title,
-            imageUrl,
-          }
-        );
-      }}
-      onError={() => {
-        console.error(
-          '[AdminProjects] Thumbnail gagal:',
-          {
-            projectId: project?.id,
-            title: project?.title,
-            imageUrl,
-            coverImage:
-              project?.coverImage,
-          }
-        );
-
-        setFailedUrl(imageUrl);
-      }}
-    />
-  );
-}
+const PROJECT_API_URL = getProjectApiUrl();
 
 function toProjectNumber(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
@@ -760,28 +426,9 @@ export function AdminProjects() {
     }
   };
 
-  const handleEditProject = async (project) => {
+  const handleEditProject = (project) => {
     if (!project?.id) {
-      const message = 'ID proyek tidak tersedia.';
-      setActionError(message);
-
-      await showErrorAlert(
-        'Gagal Membuka Edit',
-        message
-      );
-
-      return;
-    }
-
-    const confirmed = await showConfirmAlert({
-      title: 'Edit Proyek?',
-      text: `Anda akan mengedit proyek "${project.title || 'Tanpa Judul'}".`,
-      confirmButtonText: 'Edit Proyek',
-      cancelButtonText: 'Batal',
-      icon: 'question',
-    });
-
-    if (!confirmed) {
+      setActionError('ID proyek tidak tersedia.');
       return;
     }
 
@@ -793,87 +440,40 @@ export function AdminProjects() {
 
   const handleDeleteProject = async (project) => {
     if (!project?.id) {
-      const message = 'ID proyek tidak tersedia.';
-      setActionError(message);
-
-      await showErrorAlert(
-        'Gagal Menghapus',
-        message
-      );
-
+      setActionError('ID proyek tidak tersedia.');
       return;
     }
 
-    const confirmed = await showConfirmAlert({
-      title: 'Hapus Proyek?',
-      text:
-        `Yakin ingin menghapus proyek "${project.title || 'Tanpa Judul'}"? ` +
-        'Data yang sudah dihapus tidak dapat dikembalikan.',
-      confirmButtonText: 'Hapus',
-      cancelButtonText: 'Batal',
-      icon: 'warning',
-    });
+    const confirmed = window.confirm(
+      `Yakin ingin menghapus proyek "${project.title || 'Tanpa Judul'}"? Data yang dihapus tidak dapat dikembalikan.`
+    );
 
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     try {
       setBusyProjectId(project.id);
       setActionError('');
       setActionMessage('');
 
-      const response = await fetch(
-        `${PROJECT_API_URL}?id=${encodeURIComponent(project.id)}`,
-        {
-          method: 'DELETE',
-          headers: {
-            Accept: 'application/json',
-          },
-        }
-      );
+      const response = await fetch(`${PROJECT_API_URL}?id=${encodeURIComponent(project.id)}`, {
+        method: 'DELETE',
+        headers: { Accept: 'application/json' },
+      });
 
       const result = await parseApiResponse(response);
 
       setProjects((currentProjects) =>
-        currentProjects.filter(
-          (item) =>
-            String(item.id) !== String(project.id)
-        )
+        currentProjects.filter((item) => item.id !== project.id)
       );
 
       setSelectedProject((currentProject) =>
-        String(currentProject?.id || '') === String(project.id)
-          ? null
-          : currentProject
+        currentProject?.id === project.id ? null : currentProject
       );
 
-      const successMessage =
-        result.message ||
-        `Proyek "${project.title || 'Tanpa Judul'}" berhasil dihapus.`;
-
-      setActionMessage(successMessage);
-
-      await showSuccessAlert(
-        'Berhasil Dihapus',
-        successMessage
-      );
+      setActionMessage(result.message || 'Proyek berhasil dihapus.');
     } catch (error) {
-      console.error(
-        'Gagal menghapus proyek:',
-        error
-      );
-
-      const message =
-        error?.message ||
-        'Gagal menghapus proyek.';
-
-      setActionError(message);
-
-      await showErrorAlert(
-        'Gagal Menghapus',
-        message
-      );
+      console.error('Gagal menghapus proyek:', error);
+      setActionError(error.message || 'Gagal menghapus proyek.');
     } finally {
       setBusyProjectId(null);
     }
@@ -1043,7 +643,7 @@ export function AdminProjects() {
 
                           <td>
                             <div className="admin-projects-title-cell">
-                              <ProjectThumbnail project={project} index={index} />
+                              <span className={`admin-projects-thumb is-${index % 5}`} />
                               <span>
                                 <b>{project.title || '-'}</b>
                                 <small>{project.description || '-'}</small>

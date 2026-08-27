@@ -10,6 +10,9 @@ import cpuIcon from "../assets/icons/icon-cpu-1.svg";
 import zapIcon from "../assets/icons/icon-zap-1.svg";
 import workflowIcon from "../assets/icons/icon-workflow-1.svg";
 import clockIcon from "../assets/icons/icon-clock-1.svg";
+import { useEffect, useMemo, useState } from "react";
+import { getProjectApiUrl } from "../services/projectApiConfig.js";
+import { resolveProjectImageUrl } from "../services/projectImageUrl.js";
 
 const componentItems = [
   { name: "Arduino Uno", quantity: "1", image: arduinoImage },
@@ -78,6 +81,31 @@ const steps = [
   },
 ];
 
+function stripProjectText(value) {
+  return String(value || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeProjectDetail(project) {
+  if (!project) return null;
+
+  const title = project.title || project.judul || project.name || "LED Sederhana dengan Arduino";
+
+  return {
+    id: project.id || project.slug || title,
+    title,
+    category: project.category || project.kategori || project.difficulty || "Proyek Pemula",
+    platform: project.programmingLanguage || project.programming_language || "Arduino",
+    difficulty: project.difficulty || project.level || "Pemula",
+    description:
+      stripProjectText(project.description || project.deskripsi) ||
+      "Pelajari cara menyalakan dan mematikan LED menggunakan node visual di ArduFlow IDE tanpa harus menulis kode secara manual tinggal tarik-tarik saja",
+    image: resolveProjectImageUrl(project, projectLedImage),
+  };
+}
+
 function NodePreview() {
   return (
     <div className="detail-node-preview" aria-label="Preview rangkaian node ArduFlow">
@@ -105,35 +133,80 @@ function NodePreview() {
 }
 
 export function ProjectDetail() {
+  const [apiProject, setApiProject] = useState(null);
+
+  useEffect(() => {
+    let ignore = false;
+    const params = new URLSearchParams(window.location.search);
+    const selectedId = params.get("id");
+
+    async function loadProject() {
+      try {
+        const response = await fetch(getProjectApiUrl());
+        if (!response.ok) return;
+
+        const payload = await response.json();
+        const list = Array.isArray(payload)
+          ? payload
+          : payload?.data || payload?.projects || payload?.items || [];
+        const match =
+          Array.isArray(list) &&
+          (selectedId
+            ? list.find((project) => String(project.id || project.slug) === selectedId)
+            : list[0]);
+
+        if (!ignore) setApiProject(normalizeProjectDetail(match));
+      } catch {
+        if (!ignore) setApiProject(null);
+      }
+    }
+
+    loadProject();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  const project = useMemo(
+    () =>
+      apiProject || {
+        title: "LED Sederhana dengan Arduino",
+        category: "Proyek Pemula",
+        platform: "Arduino",
+        difficulty: "Pemula",
+        description:
+          "Pelajari cara menyalakan dan mematikan LED menggunakan node visual di ArduFlow IDE tanpa harus menulis kode secara manual tinggal tarik-tarik saja",
+        image: projectLedImage,
+      },
+    [apiProject],
+  );
+
   return (
     <section className="project-detail" aria-labelledby="project-detail-title">
       <div className="project-detail__content">
         <div className="project-detail__hero">
           <img
             className="project-detail__image"
-            src={projectLedImage}
+            src={project.image}
             alt="Rangkaian LED sederhana dengan Arduino"
           />
 
           <div className="project-detail__summary">
             <div className="project-detail__tags" aria-label="Kategori proyek">
-              <span>Proyek Pemula</span>
-              <span>Arduino</span>
+              <span>{project.category}</span>
+              <span>{project.platform}</span>
             </div>
 
-            <h1 id="project-detail-title">LED Sederhana dengan Arduino</h1>
-            <p>
-              Pelajari cara menyalakan dan mematikan LED menggunakan node visual
-              di ArduFlow IDE tanpa harus menulis kode secara manual tinggal
-              tarik-tarik saja
-            </p>
+            <h1 id="project-detail-title">{project.title}</h1>
+            <p>{project.description}</p>
 
             <div className="project-detail__stats" aria-label="Ringkasan proyek">
               <div>
                 <img src={monitorIcon} alt="" aria-hidden="true" />
                 <span>
                   <strong>Tingkat</strong>
-                  Pemula
+                  {project.difficulty}
                 </span>
               </div>
               <div>
@@ -146,7 +219,7 @@ export function ProjectDetail() {
                 <img src={cpuIcon} alt="" aria-hidden="true" />
                 <span>
                   <strong>Platform</strong>
-                  Arduino
+                  {project.platform}
                 </span>
               </div>
             </div>

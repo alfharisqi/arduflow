@@ -15,6 +15,10 @@ import partnerPoliwangiImage from "../assets/images/partner-poliwangi.png";
 import partnerSmknGlagahImage from "../assets/images/partner-smkn-glagah.png";
 import partnerUmmImage from "../assets/images/partner-umm.png";
 import projectHeroImage from "../assets/images/project-hero-reference.png";
+import arrowRightIcon from "../assets/icons/icon-arrow-right-1.svg";
+import { useEffect, useMemo } from "react";
+import { getProjectApiUrl } from "../services/projectApiConfig.js";
+import { resolveProjectImageUrl } from "../services/projectImageUrl.js";
 
 const metrics = [
   { value: "12+", label: "Proyek" },
@@ -95,6 +99,110 @@ const projectLibrary = [
   },
 ];
 
+const projectFallbackImages = [
+  allProjectLedImage,
+  allProjectDht22Image,
+  allProjectEsp32Image,
+  allProjectLdrImage,
+  allProjectMotionImage,
+  allProjectSoilImage,
+];
+
+function stripProjectText(value) {
+  return String(value || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeProjectTags(project) {
+  const rawTags = Array.isArray(project?.tags)
+    ? project.tags
+    : String(project?.tags || "")
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean);
+  const category = project?.category || project?.kategori || "";
+  const difficulty = project?.difficulty || project?.level || "";
+  const language = project?.programmingLanguage || project?.programming_language || "";
+  const tags = new Set([...rawTags, category, difficulty, language].filter(Boolean));
+  const text = [...tags].join(" ").toLowerCase();
+
+  if (text.includes("iot")) tags.add("IoT");
+  if (text.includes("esp")) tags.add("Esp 32");
+  if (text.includes("arduino")) tags.add("Arduino");
+  if (text.includes("otomasi") || text.includes("otomatis")) tags.add("Otomasi");
+  if (text.includes("pemula")) tags.add("Proyek Pemula");
+
+  return [...tags];
+}
+
+function normalizeUploadedProject(project, index = 0) {
+  const title = project?.title || project?.judul || project?.name || "Proyek Tanpa Judul";
+  const category =
+    project?.category ||
+    project?.kategori ||
+    project?.difficulty ||
+    project?.level ||
+    "Proyek Pemula";
+  const fallbackImage = projectFallbackImages[index % projectFallbackImages.length];
+
+  return {
+    id: project?.id || project?.slug || title,
+    title,
+    category,
+    image: resolveProjectImageUrl(project, fallbackImage),
+    tags: normalizeProjectTags(project),
+    description:
+      stripProjectText(project?.description || project?.deskripsi).slice(0, 120) ||
+      "Eksplorasi proyek IoT nyata dengan dokumentasi, sensor, dan insight implementasi.",
+  };
+}
+
+function isPublicProject(project) {
+  const status = String(project?.status || project?.visibility || "").toLowerCase();
+
+  return !status || (!status.includes("draft") && !status.includes("archive"));
+}
+
+function getProjectDetailHref(project) {
+  return project?.id ? `/project/detail?id=${encodeURIComponent(project.id)}` : "/project/detail";
+}
+
+function useUploadedProjects() {
+  const [projects, setProjects] = useState([]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadProjects() {
+      try {
+        const response = await fetch(getProjectApiUrl());
+        if (!response.ok) return;
+
+        const payload = await response.json();
+        const list = Array.isArray(payload)
+          ? payload
+          : payload?.data || payload?.projects || payload?.items || [];
+
+        if (!ignore && Array.isArray(list)) {
+          setProjects(list.filter(isPublicProject).map(normalizeUploadedProject));
+        }
+      } catch {
+        if (!ignore) setProjects([]);
+      }
+    }
+
+    loadProjects();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  return projects;
+}
+
 const contentCollections = [
   {
     eyebrow: "Karya Pengguna",
@@ -130,6 +238,19 @@ const projectFaqs = [
   "Bagaimana cara membuat proyek sendiri?",
   "Apakah saya bisa menggunakan proyek untuk tugas sekolah?",
 ];
+
+function ProjectAssetIcon({ src, className = "" }) {
+  return <img className={className} src={src} alt="" aria-hidden="true" />;
+}
+
+function ProjectLinkArrow() {
+  return (
+    <ProjectAssetIcon
+      src={arrowRightIcon}
+      className="project-link-arrow"
+    />
+  );
+}
 
 function ProjectHero() {
   return (
@@ -188,7 +309,9 @@ function ProjectHero() {
   );
 }
 
-function FeaturedProjects() {
+function FeaturedProjects({ projects = featuredProjects }) {
+  const visibleProjects = projects.length ? projects.slice(0, 3) : featuredProjects;
+
   return (
     <section
       id="proyek"
@@ -202,20 +325,20 @@ function FeaturedProjects() {
             <h2 id="featured-projects-title">Proyek Pilihan</h2>
           </div>
           <a className="featured-projects__all" href="/project/semua">
-            Lihat semua Proyek <span aria-hidden="true">-&gt;</span>
+            Lihat semua Proyek <ProjectLinkArrow />
           </a>
         </div>
 
         <div className="featured-projects__grid">
-          {featuredProjects.map((project) => (
+          {visibleProjects.map((project) => (
             <article className="featured-card" key={project.title}>
               <img src={project.image} alt="" className="featured-card__image" />
               <div className="featured-card__body">
                 <h3>{project.title}</h3>
                 <span className="featured-card__category">{project.category}</span>
                 <p>{project.description}</p>
-                <a href="/project/detail">
-                  Lihat Detail Proyek <span aria-hidden="true">-&gt;</span>
+                <a href={getProjectDetailHref(project)}>
+                  Lihat Detail Proyek <ProjectLinkArrow />
                 </a>
               </div>
             </article>
@@ -226,12 +349,13 @@ function FeaturedProjects() {
   );
 }
 
-function ProjectLibrary() {
+function ProjectLibrary({ projects = projectLibrary }) {
   const [activeFilter, setActiveFilter] = useState("Semua");
+  const sourceProjects = projects.length ? projects : projectLibrary;
   const filteredProjects =
     activeFilter === "Semua"
-      ? projectLibrary
-      : projectLibrary.filter((project) => project.tags.includes(activeFilter));
+      ? sourceProjects
+      : sourceProjects.filter((project) => project.tags.includes(activeFilter));
 
   return (
     <section className="project-library" aria-labelledby="project-library-title">
@@ -268,8 +392,8 @@ function ProjectLibrary() {
                   Eksplorasi proyek IoT nyata dengan dokumentasi, sensor, dan
                   insight implementasi.
                 </p>
-                <a href="/project/detail">
-                  Lihat Detail Proyek <span aria-hidden="true">-&gt;</span>
+                <a href={getProjectDetailHref(project)}>
+                  Lihat Detail Proyek <ProjectLinkArrow />
                 </a>
               </div>
             </article>
@@ -298,7 +422,7 @@ function ContentCollections() {
             <h3>{collection.title}</h3>
             <span>{collection.metadata}</span>
             <a href={collection.href}>
-              Lihat Selengkapnya <span aria-hidden="true">-&gt;</span>
+              Lihat Selengkapnya <ProjectLinkArrow />
             </a>
           </article>
         ))}
@@ -391,11 +515,21 @@ function FinalCta() {
 }
 
 export function Project() {
+  const uploadedProjects = useUploadedProjects();
+  const featuredItems = useMemo(
+    () => (uploadedProjects.length ? uploadedProjects : featuredProjects),
+    [uploadedProjects],
+  );
+  const libraryItems = useMemo(
+    () => (uploadedProjects.length ? uploadedProjects : projectLibrary),
+    [uploadedProjects],
+  );
+
   return (
     <>
       <ProjectHero />
-      <FeaturedProjects />
-      <ProjectLibrary />
+      <FeaturedProjects projects={featuredItems} />
+      <ProjectLibrary projects={libraryItems} />
       <ContentCollections />
       <CommunityPartners />
       <ProjectFaq />

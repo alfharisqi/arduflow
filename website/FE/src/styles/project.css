@@ -231,7 +231,7 @@
 
 .featured-projects__inner {
   position: relative;
-  width: min(100%, 1440px);
+  width: min(1280px, calc(100% - 48px));
   min-height: 510px;
   margin-inline: auto;
   padding: 0;
@@ -239,9 +239,9 @@
 
 .featured-projects__header {
   position: absolute;
-  left: 80px;
-  top: 40px;
-  width: 400px;
+  left: 0;
+  top: 64px;
+  width: 100%;
   height: 81px;
   margin: 0;
 }
@@ -264,14 +264,18 @@
 
 .featured-projects__all {
   position: absolute;
-  left: 1090px;
+  right: 0;
   top: 45px;
   width: 200px;
   height: 24px;
   margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
   color: var(--blue);
   font: 700 13px/17px "Rajdhani", sans-serif;
-  text-align: left;
+  text-align: right;
 }
 
 .featured-projects__all:hover,
@@ -281,13 +285,13 @@
 
 .featured-projects__grid {
   position: absolute;
-  left: 80px;
-  top: 134px;
+  left: 0;
+  top: 164px;
   display: grid;
   grid-template-columns: repeat(3, 344px);
   align-items: flex-start;
   gap: 101px;
-  width: 1252px;
+  width: 1254px;
   height: 322px;
 }
 
@@ -333,13 +337,11 @@
 }
 
 .featured-card__category {
-  position: absolute;
-  left: 24px;
-  top: 226px;
   width: 72px;
   height: 18px;
   display: flex;
   align-items: center;
+  margin-top: -4.5px;
   color: var(--muted);
   font-size: 12px;
   font-weight: 300;
@@ -360,7 +362,10 @@
   position: absolute;
   left: 0;
   top: 85px;
-  width: 160px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
   height: 24px;
   color: var(--blue);
   font-size: 11px;
@@ -408,7 +413,7 @@
 
 .project-library__inner {
   position: relative;
-  width: min(100%, 1440px);
+  width: min(1280px, calc(100% - 48px));
   min-height: 1050px;
   margin-inline: auto;
   padding: 0;
@@ -416,7 +421,7 @@
 
 .project-library__title {
   position: absolute;
-  left: 80px;
+  left: 0;
   top: 0;
   width: 215px;
   height: 81px;
@@ -439,7 +444,7 @@
 
 .project-library__filters {
   position: absolute;
-  left: 80px;
+  left: 0;
   top: 95px;
   display: flex;
   flex-wrap: nowrap;
@@ -495,7 +500,7 @@
 
 .project-library__grid {
   position: absolute;
-  left: 80px;
+  left: 0;
   top: 190px;
   display: grid;
   grid-template-columns: repeat(3, 344px);
@@ -578,7 +583,10 @@
   position: absolute;
   left: 0;
   top: 85px;
-  width: 160px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
   height: 24px;
   color: var(--blue);
   font-size: 11px;
@@ -593,8 +601,9 @@
 
 .load-more {
   position: absolute;
-  left: 598px;
+  left: 50%;
   top: 908px;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -683,7 +692,10 @@
   position: absolute;
   left: 22px;
   bottom: 24px;
-  width: 160px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
   color: #00a8ff;
   font-size: 11px;
   font-weight: 700;
@@ -695,16 +707,28 @@
   left: 19px;
 }
 
-.collection-card a span {
-  display: inline;
-  width: auto;
-  color: inherit;
-  font-size: inherit;
-  line-height: inherit;
-}
-
 .collection-card a:hover {
   color: var(--orange);
+}
+
+.project-link-arrow {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  object-fit: contain;
+  filter: brightness(0) saturate(100%) invert(53%) sepia(94%) saturate(2810%) hue-rotate(168deg) brightness(103%) contrast(103%);
+  transition:
+    transform 180ms ease,
+    filter 180ms ease;
+}
+
+.featured-projects__all:hover .project-link-arrow,
+.featured-card a:hover .project-link-arrow,
+.project-card a:hover .project-link-arrow,
+.collection-card a:hover .project-link-arrow {
+  transform: translateX(3px);
+  filter: brightness(0) saturate(100%) invert(52%) sepia(98%) saturate(2152%) hue-rotate(1deg) brightness(104%) contrast(103%);
 }
 
 .community-partners {
