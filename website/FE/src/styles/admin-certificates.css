@@ -283,6 +283,44 @@
   font-family: 'Inter', sans-serif;
 }
 
+/* Keep the certificate list aligned with the admin users table contract. */
+.admin-certificates-page .admin-certificates-select-grid {
+  grid-template-columns: minmax(220px, 280px);
+}
+
+.admin-certificates-page .admin-certificates-main-table th:first-child,
+.admin-certificates-page .admin-certificates-main-table td:first-child {
+  width: 360px;
+  min-width: 300px;
+  padding-right: 16px;
+}
+
+.admin-certificates-page .admin-certificates-main-table th:last-child,
+.admin-certificates-page .admin-certificates-main-table td:last-child {
+  width: 270px;
+  min-width: 270px;
+}
+
+.admin-certificates-page .admin-certificates-main-table .admin-certificates-workshop-title {
+  min-width: 260px;
+  max-width: 360px;
+}
+
+.admin-certificates-page .admin-certificates-main-table .admin-users-actions {
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+
+.admin-certificates-page .admin-certificates-main-table .admin-users-actions button {
+  min-width: 0;
+}
+
+@media (max-width: 760px) {
+  .admin-certificates-page .admin-certificates-select-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .admin-certificates-table th,
 .admin-certificates-table td {
   min-height: 48px;
@@ -393,6 +431,34 @@
   border-color: #ddd6fe;
   background: #f5f3ff;
   color: #6d28d9;
+}
+
+.admin-certificates-page .admin-certificates-main-table .admin-certificates-badge {
+  min-width: 58px;
+  height: 22px;
+  min-height: 22px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.admin-certificates-page .admin-certificates-main-table .admin-certificates-badge--lengkap {
+  background: #ecfdf3;
+  color: #027a48;
+}
+
+.admin-certificates-page .admin-certificates-main-table .admin-certificates-badge--sebagian {
+  background: #eff8ff;
+  color: #175cd3;
+}
+
+.admin-certificates-page .admin-certificates-main-table .admin-certificates-badge--belum-dibuat,
+.admin-certificates-page .admin-certificates-main-table .admin-certificates-badge--belum-ada-member {
+  background: #fffaeb;
+  color: #b54708;
 }
 
 .admin-certificates-actions {

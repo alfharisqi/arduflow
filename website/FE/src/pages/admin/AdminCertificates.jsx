@@ -1,10 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AdminNotificationButton } from './AdminChrome.jsx';
-import { AdminSidebar } from './AdminSidebar.jsx';
-import {
-  getInitialAdminSidebarCollapsed,
-  persistAdminSidebarCollapsed,
-} from './adminSidebarState.js';
+import { AdminPage, AdminTopbar } from './AdminChrome.jsx';
 import bookIcon from '../../assets/icons/icon-book-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
@@ -345,31 +340,6 @@ function CertificateAction({ label, className = '', children, ...props }) {
     <button className={`admin-certificates-action ${className}`.trim()} type="button" aria-label={label} {...props}>
       {children}
     </button>
-  );
-}
-
-function AdminCertificatesTopbar({ query, onQueryChange }) {
-  return (
-    <header className="admin-dashboard-topbar">
-      <label className="admin-dashboard-search">
-        <span aria-hidden="true" />
-        <input
-          type="search"
-          placeholder="Cari sertifikat"
-          aria-label="Cari sertifikat"
-          value={query}
-          onChange={(event) => onQueryChange(event.target.value)}
-        />
-      </label>
-      <div className="admin-dashboard-account">
-        <AdminNotificationButton />
-        <span className="admin-dashboard-avatar" aria-hidden="true" />
-        <span>
-          <strong>Admin</strong>
-          <small>Super Admin</small>
-        </span>
-      </div>
-    </header>
   );
 }
 
@@ -1147,7 +1117,6 @@ function CustomCertificateTemplateModal({ onClose, templates, onTemplatesChange 
 }
 
 export function AdminCertificates() {
-  const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialAdminSidebarCollapsed);
   const [certificates, setCertificates] = useState([]);
   const [workshops, setWorkshops] = useState([]);
   const [participants, setParticipants] = useState([]);
@@ -1166,14 +1135,6 @@ export function AdminCertificates() {
   const [selectedWorkshopMembers, setSelectedWorkshopMembers] = useState(null);
   const [sendingCertificateIds, setSendingCertificateIds] = useState(() => new Set());
   const [sendingWorkshopId, setSendingWorkshopId] = useState('');
-
-  const handleToggleSidebar = () => {
-    setSidebarCollapsed((value) => {
-      const nextValue = !value;
-      persistAdminSidebarCollapsed(nextValue);
-      return nextValue;
-    });
-  };
 
   const loadCertificates = async () => {
     setIsLoading(true);
@@ -1842,22 +1803,24 @@ export function AdminCertificates() {
   };
 
   return (
-    <main className={`admin-dashboard-page admin-certificates-page${isSidebarCollapsed ? ' admin-dashboard-page--collapsed' : ''}`}>
-      <AdminSidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleSidebar} />
+    <AdminPage pageClassName="admin-certificates-page" ariaLabel="Sertifikat admin">
+      <AdminTopbar
+        searchPlaceholder="Cari sertifikat"
+        searchLabel="Cari sertifikat"
+        searchValue={query}
+        onSearchChange={setQuery}
+      />
 
-      <section className="admin-dashboard-main" aria-label="Sertifikat admin">
-        <AdminCertificatesTopbar query={query} onQueryChange={setQuery} />
-
-        <div className="admin-certificates-layout">
-          <section className="admin-certificates-content">
-            <div className="admin-certificates-heading">
+      <div className="admin-users-layout">
+        <section className="admin-users-content">
+          <div className="admin-users-heading">
               <div>
                 <h1>Sertifikat</h1>
                 <p>Dashboard <span>/</span> Sertifikat</p>
               </div>
               <button
                 type="button"
-                className="admin-certificates-primary"
+                className="admin-users-primary"
                 onClick={() => {
                   refreshCustomCertificateTemplates();
                   setTemplateBuilderOpen(true);
@@ -1867,34 +1830,46 @@ export function AdminCertificates() {
               </button>
             </div>
 
-            {error ? <p className="admin-certificates-alert">{error}</p> : null}
+          {error ? <small className="admin-dashboard-error">{error}</small> : null}
 
-            <section className="admin-certificates-stats" aria-label="Ringkasan sertifikat">
-              {stats.map((item) => (
-                <article className="admin-certificates-stat" key={item.label}>
-                  <span className={`admin-certificates-stat-icon is-${item.tone}`}>
-                    <img src={item.icon} alt="" />
-                  </span>
-                  <div>
-                    <p>{item.label}</p>
-                    <strong>{item.value}</strong>
-                    <small>{item.note}</small>
-                  </div>
-                </article>
-              ))}
-            </section>
+          <section className="admin-users-summary" aria-label="Ringkasan sertifikat">
+            {stats.map((item) => (
+              <article className="admin-users-stat" key={item.label}>
+                <span>
+                  <img src={item.icon} alt="" />
+                </span>
+                <div>
+                  <p>{item.label}</p>
+                  <strong>{item.value}</strong>
+                  <small>{item.note}</small>
+                </div>
+              </article>
+            ))}
+          </section>
 
-            <section className="admin-certificates-filter" aria-label="Filter sertifikat">
-              <label className="admin-certificates-search">
+          <section className="admin-users-filter" aria-label="Filter sertifikat">
+            <div className="admin-users-filter-row">
+              <label className="admin-users-search">
                 <input
                   type="search"
                   placeholder="Cari workshop, member, email, atau nomor sertifikat..."
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      setQuery(query.trim());
+                    }
+                  }}
                 />
               </label>
+              <button type="button" onClick={() => setQuery(query.trim())}>Cari</button>
+              <button type="button" onClick={resetFilters}>Reset Filter</button>
+              <button type="button" onClick={loadCertificates}>Refresh</button>
+            </div>
+            <div className="admin-users-select-grid admin-certificates-select-grid">
               <label>
-                <span>Status</span>
+                <span>Status Workshop</span>
                 <select value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}>
                   <option value="">Semua Status</option>
                   <option value="Belum ada member">Belum ada member</option>
@@ -1903,14 +1878,23 @@ export function AdminCertificates() {
                   <option value="Lengkap">Lengkap</option>
                 </select>
               </label>
-              <button type="button" onClick={resetFilters}>Reset</button>
-              <button type="button" onClick={loadCertificates}>Refresh</button>
-              <button type="button" className="admin-certificates-primary" onClick={exportCsv}>Export CSV</button>
-            </section>
+            </div>
+          </section>
 
-            <section className="admin-certificates-table-card">
-              <div className="admin-certificates-table-scroll">
-                <table className="admin-certificates-table">
+          <section className="admin-users-toolbar">
+            <span>{filteredWorkshopRows.length} workshop ditampilkan</span>
+            <button type="button" className="admin-users-primary" onClick={exportCsv}>Export CSV</button>
+          </section>
+
+          <section className="admin-users-table-card">
+            <div className="admin-users-table-header">
+              <div>
+                <h2>Daftar Sertifikat</h2>
+                <p>{workshopCertificateRows.length} workshop terdaftar</p>
+              </div>
+              <span>{filteredWorkshopRows.length} ditampilkan</span>
+            </div>
+            <table className="admin-users-table admin-certificates-main-table">
                   <thead>
                     <tr>
                       <th>Workshop / Program</th>
@@ -1922,9 +1906,9 @@ export function AdminCertificates() {
                   </thead>
                   <tbody>
                     {isLoading ? (
-                      <tr><td colSpan="5" className="admin-certificates-empty">Memuat data sertifikat...</td></tr>
+                      <tr><td colSpan="5" className="admin-empty-state">Memuat data sertifikat...</td></tr>
                     ) : filteredWorkshopRows.length === 0 ? (
-                      <tr><td colSpan="5" className="admin-certificates-empty">Belum ada workshop yang cocok dengan filter.</td></tr>
+                      <tr><td colSpan="5" className="admin-empty-state">Belum ada workshop yang cocok dengan filter.</td></tr>
                     ) : (
                       filteredWorkshopRows.map((row) => (
                         <tr key={row.id || row.title}>
@@ -1941,24 +1925,21 @@ export function AdminCertificates() {
                           <td>{row.generatedCount} / {row.totalMembers}</td>
                           <td><CertificateBadge>{getWorkshopStatus(row)}</CertificateBadge></td>
                           <td>
-                            <div className="admin-certificates-actions">
+                            <div className="admin-users-actions">
                               <button
                                 type="button"
-                                className="admin-certificates-secondary"
                                 onClick={() => setSelectedWorkshopMembers(row)}
                               >
                                 Lihat Member
                               </button>
                               <button
                                 type="button"
-                                className="admin-certificates-secondary"
                                 onClick={() => openGenerateWorkshopCertificates(row)}
                               >
                                 Generate Semua
                               </button>
                               <button
                                 type="button"
-                                className="admin-certificates-secondary"
                                 disabled={
                                   sendingWorkshopId === String(row.id || row.title || '') ||
                                   row.members.every((member) => !member.certificate || !getCertificateFileUrl(member.certificate.file))
@@ -1973,19 +1954,21 @@ export function AdminCertificates() {
                       ))
                     )}
                   </tbody>
-                </table>
+            </table>
+            <div className="admin-users-pagination">
+              <button type="button" disabled>Previous</button>
+              <div>
+                <button type="button" className="is-active">1</button>
               </div>
-              <div className="admin-certificates-pagination">
-                <span>Menampilkan {filteredWorkshopRows.length} dari {workshopCertificateRows.length} workshop</span>
-                <div>
-                  <button type="button" disabled>&lt;</button>
-                  <button type="button" className="is-active">1</button>
-                  <button type="button" disabled>&gt;</button>
-                </div>
-              </div>
-            </section>
+              <span>
+                Page 1 of 1
+                <small>Menampilkan {filteredWorkshopRows.length} dari {workshopCertificateRows.length} workshop</small>
+              </span>
+              <button type="button" disabled>Next</button>
+            </div>
           </section>
-        </div>
+        </section>
+      </div>
 
         {isFormOpen ? (
           <CertificateFormModal
@@ -2026,8 +2009,7 @@ export function AdminCertificates() {
           isSendingWorkshop={sendingWorkshopId === String(selectedWorkshopMembers?.id || selectedWorkshopMembers?.title || '')}
         />
 
-        <CertificateDetailModal certificate={selectedCertificate} onClose={() => setSelectedCertificate(null)} />
-      </section>
-    </main>
+      <CertificateDetailModal certificate={selectedCertificate} onClose={() => setSelectedCertificate(null)} />
+    </AdminPage>
   );
 }
