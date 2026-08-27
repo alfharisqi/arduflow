@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AdminNotificationButton } from './AdminChrome.jsx';
 import { AdminSidebar } from './AdminSidebar.jsx';
+import { AdminActionDropdown } from './AdminActionDropdown.jsx';
 import {
   getInitialAdminSidebarCollapsed,
   persistAdminSidebarCollapsed,
@@ -1623,29 +1624,25 @@ export function AdminTutorial() {
                         <td>{item.updatedAt}</td>
 
                         <td>
-                          <div className="admin-tutorial-actions">
-                            <TutorialAction
-                              label={`Lihat ${item.title}`}
-                              onClick={() => setSelectedTutorial(item)}
-                            >
-                              <img src={eyeIcon} alt="" />
-                            </TutorialAction>
-
-                            <TutorialAction
-                              label={`Edit ${item.title}`}
-                              onClick={() => handleEditTutorial(item)}
-                            >
-                              Edit
-                            </TutorialAction>
-
-                            <TutorialAction
-                              label={`Delete ${item.title}`}
-                              onClick={() => handleDeleteTutorial(item)}
-                              tone="danger"
-                            >
-                              Delete
-                            </TutorialAction>
-                          </div>
+                          <AdminActionDropdown
+                            label={`Buka aksi untuk ${item.title}`}
+                            items={[
+                              {
+                                label: 'Lihat',
+                                icon: <img src={eyeIcon} alt="" />,
+                                onSelect: () => setSelectedTutorial(item),
+                              },
+                              {
+                                label: 'Edit',
+                                onSelect: () => handleEditTutorial(item),
+                              },
+                              {
+                                label: 'Delete',
+                                tone: 'danger',
+                                onSelect: () => handleDeleteTutorial(item),
+                              },
+                            ]}
+                          />
                         </td>
                       </tr>
                     ))}

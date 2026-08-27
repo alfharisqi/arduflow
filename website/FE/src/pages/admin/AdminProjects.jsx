@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AdminNotificationButton } from './AdminChrome.jsx';
 import { AdminSidebar } from './AdminSidebar.jsx';
+import { AdminActionDropdown } from './AdminActionDropdown.jsx';
 import { ProjectUploadForm } from '../User/UserProjectGallery.jsx';
 import {
   getInitialAdminSidebarCollapsed,
@@ -1318,36 +1319,28 @@ export function AdminProjects() {
                           <td><ProjectDateTime value={project.updatedAt} /></td>
 
                           <td>
-                            <div
-                              className="admin-projects-actions"
-                              onClick={(event) => event.stopPropagation()}
-                            >
-                              <ProjectAction
-                                label={`Lihat ${project.title}`}
-                                active
-                                disabled={busyProjectId === project.id}
-                                onClick={() => handleViewProject(project)}
-                              >
-                                <img src={eyeIcon} alt="" />
-                                <span>Lihat</span>
-                              </ProjectAction>
-
-                              <ProjectAction
-                                label={`Edit ${project.title}`}
-                                disabled={busyProjectId === project.id}
-                                onClick={() => handleEditProject(project)}
-                              >
-                                Edit
-                              </ProjectAction>
-
-                              <ProjectAction
-                                label={`Hapus ${project.title}`}
-                                disabled={busyProjectId === project.id}
-                                onClick={() => handleDeleteProject(project)}
-                              >
-                                Hapus
-                              </ProjectAction>
-                            </div>
+                            <AdminActionDropdown
+                              label={`Buka aksi untuk ${project.title || 'proyek'}`}
+                              items={[
+                                {
+                                  label: 'Lihat',
+                                  icon: <img src={eyeIcon} alt="" />,
+                                  disabled: busyProjectId === project.id,
+                                  onSelect: () => handleViewProject(project),
+                                },
+                                {
+                                  label: 'Edit',
+                                  disabled: busyProjectId === project.id,
+                                  onSelect: () => handleEditProject(project),
+                                },
+                                {
+                                  label: 'Hapus',
+                                  tone: 'danger',
+                                  disabled: busyProjectId === project.id,
+                                  onSelect: () => handleDeleteProject(project),
+                                },
+                              ]}
+                            />
                           </td>
                         </tr>
                       );

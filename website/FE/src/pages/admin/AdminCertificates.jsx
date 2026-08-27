@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AdminPage, AdminTopbar } from './AdminChrome.jsx';
+import { AdminActionDropdown } from './AdminActionDropdown.jsx';
 import bookIcon from '../../assets/icons/icon-book-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
@@ -731,36 +732,33 @@ function WorkshopMembersModal({
                       <td><CertificateBadge>{certificate?.status || 'Belum dibuat'}</CertificateBadge></td>
                       <td>{fileUrl ? <a href={fileUrl} target="_blank" rel="noreferrer">Buka</a> : 'Belum ada'}</td>
                       <td>
-                        <div className="admin-certificates-actions">
-                          <button
-                            type="button"
-                            className="admin-certificates-secondary"
-                            onClick={() => onGenerateMember(row, member)}
-                          >
-                            {certificate ? 'Generate Ulang' : 'Generate'}
-                          </button>
-                          <CertificateAction
-                            label={`Lihat sertifikat ${memberLabel}`}
-                            disabled={!certificate}
-                            onClick={() => certificate && onViewCertificate(certificate)}
-                          >
-                            <img src={eyeIcon} alt="" />
-                          </CertificateAction>
-                          <CertificateAction
-                            label={`Download sertifikat ${memberLabel}`}
-                            disabled={!fileUrl}
-                            onClick={() => fileUrl && window.open(fileUrl, '_blank', 'noopener,noreferrer')}
-                          >
-                            <img src={downloadIcon} alt="" />
-                          </CertificateAction>
-                          <CertificateAction
-                            label={`Kirim sertifikat ${memberLabel}`}
-                            disabled={!certificate || !fileUrl || sendingCertificateIds.has(certificate.id)}
-                            onClick={() => certificate && onSendCertificate(certificate)}
-                          >
-                            <img src={mailIcon} alt="" />
-                          </CertificateAction>
-                        </div>
+                        <AdminActionDropdown
+                          label={`Buka aksi sertifikat ${memberLabel}`}
+                          items={[
+                            {
+                              label: certificate ? 'Generate Ulang' : 'Generate',
+                              onSelect: () => onGenerateMember(row, member),
+                            },
+                            {
+                              label: 'Lihat',
+                              icon: <img src={eyeIcon} alt="" />,
+                              disabled: !certificate,
+                              onSelect: () => certificate && onViewCertificate(certificate),
+                            },
+                            {
+                              label: 'Download',
+                              icon: <img src={downloadIcon} alt="" />,
+                              disabled: !fileUrl,
+                              onSelect: () => fileUrl && window.open(fileUrl, '_blank', 'noopener,noreferrer'),
+                            },
+                            {
+                              label: 'Kirim',
+                              icon: <img src={mailIcon} alt="" />,
+                              disabled: !certificate || !fileUrl || sendingCertificateIds.has(certificate.id),
+                              onSelect: () => certificate && onSendCertificate(certificate),
+                            },
+                          ]}
+                        />
                       </td>
                     </tr>
                   );
@@ -1925,30 +1923,26 @@ export function AdminCertificates() {
                           <td>{row.generatedCount} / {row.totalMembers}</td>
                           <td><CertificateBadge>{getWorkshopStatus(row)}</CertificateBadge></td>
                           <td>
-                            <div className="admin-users-actions">
-                              <button
-                                type="button"
-                                onClick={() => setSelectedWorkshopMembers(row)}
-                              >
-                                Lihat Member
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => openGenerateWorkshopCertificates(row)}
-                              >
-                                Generate Semua
-                              </button>
-                              <button
-                                type="button"
-                                disabled={
-                                  sendingWorkshopId === String(row.id || row.title || '') ||
-                                  row.members.every((member) => !member.certificate || !getCertificateFileUrl(member.certificate.file))
-                                }
-                                onClick={() => handleSendWorkshopCertificates(row)}
-                              >
-                                {sendingWorkshopId === String(row.id || row.title || '') ? 'Mengirim...' : 'Kirim Email'}
-                              </button>
-                            </div>
+                            <AdminActionDropdown
+                              label={`Buka aksi sertifikat ${safeText(row.title)}`}
+                              items={[
+                                {
+                                  label: 'Lihat Member',
+                                  onSelect: () => setSelectedWorkshopMembers(row),
+                                },
+                                {
+                                  label: 'Generate Semua',
+                                  onSelect: () => openGenerateWorkshopCertificates(row),
+                                },
+                                {
+                                  label: sendingWorkshopId === String(row.id || row.title || '') ? 'Mengirim...' : 'Kirim Email',
+                                  disabled:
+                                    sendingWorkshopId === String(row.id || row.title || '') ||
+                                    row.members.every((member) => !member.certificate || !getCertificateFileUrl(member.certificate.file)),
+                                  onSelect: () => handleSendWorkshopCertificates(row),
+                                },
+                              ]}
+                            />
                           </td>
                         </tr>
                       ))
