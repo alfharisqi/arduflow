@@ -16,7 +16,7 @@ import {
 } from '../../config/projectNodes.js';
 import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
 import { fetchTransactions } from '../../services/transactionApi.js';
-import { showConfirmAlert, showPromptAlert, showSuccessAlert } from '../../utils/alerts.js';
+import { showConfirmAlert, showSuccessAlert } from '../../utils/alerts.js';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 
 const menuItems = [
@@ -74,6 +74,70 @@ const SUPPORTED_WOKWI_ELEMENTS = new Set(
 );
 
 const MANUAL_PICKER_VALUE = '__manual__';
+
+const PROJECT_CATEGORY_OPTIONS = [
+  'Pemula',
+  'Menengah',
+  'Lanjutan',
+  'Arduino',
+  'ESP32',
+  'Sensor',
+  'Aktuator',
+  'IoT',
+  'Otomasi',
+  'Smart Home',
+  'Robotik',
+  'Monitoring',
+];
+
+const PROJECT_FILE_ACCEPT = '.json,.flow,.schema,.txt,.md';
+const PROJECT_FILE_EXTENSIONS = ['json', 'flow', 'schema', 'txt', 'md'];
+const DEFAULT_PROJECT_FILE_LABELS = [
+  'File JSON',
+  'File Schema',
+  'File External Button',
+];
+
+const PROJECT_FORM_TABS = [
+  { id: 'basic', label: 'Info Dasar' },
+  { id: 'media', label: 'File & Gambar' },
+  { id: 'components', label: 'Komponen' },
+  { id: 'nodes', label: 'Node' },
+  { id: 'steps', label: 'Langkah' },
+  { id: 'publish', label: 'Publish' },
+];
+
+const STEP_TEMPLATES = [
+  {
+    title: 'Persiapan Komponen',
+    description: 'Siapkan board, kabel jumper, sensor, aktuator, dan komponen lain yang dibutuhkan.',
+  },
+  {
+    title: 'Rakit Rangkaian',
+    description: 'Hubungkan setiap komponen ke pin yang sesuai berdasarkan diagram rangkaian proyek.',
+  },
+  {
+    title: 'Upload Program',
+    description: 'Buka file proyek, periksa konfigurasi board, lalu upload program ke mikrokontroler.',
+  },
+  {
+    title: 'Uji Fungsi',
+    description: 'Jalankan proyek dan pastikan input, output, serta alur node bekerja sesuai kebutuhan.',
+  },
+  {
+    title: 'Troubleshooting',
+    description: 'Jika hasil belum sesuai, periksa koneksi kabel, library, pin, dan data serial monitor.',
+  },
+];
+
+function normalizeProjectSteps(steps = []) {
+  return steps.map((step, index) => ({
+    ...step,
+    order: index + 1,
+    title: step.title || '',
+    description: step.description || '',
+  }));
+}
 
 function getStoredUser() {
   try {
@@ -213,7 +277,7 @@ function normalizeProjectList(value) {
 }
 
 function getProjectFileName(file) {
-  return file?.name || file?.file_name || file?.fileName || '';
+  return file?.original_name || file?.originalName || file?.name || file?.file_name || file?.fileName || '';
 }
 
 function getProjectFileUrl(file) {
@@ -229,6 +293,7 @@ function getInitialProjectForm(project) {
   const payload = projectPayload(project);
   const payment = project?.payment || payload.payment || {};
   const tags = normalizeProjectList(project?.tags || payload.tags);
+  const projectFiles = normalizeProjectFiles(project);
 
   return {
     title: projectField(project, 'title'),
@@ -245,6 +310,7 @@ function getInitialProjectForm(project) {
     price: payment.price || project?.price || payload.price || '',
     paymentCode: payment.paymentCode || project?.paymentCode || payload.paymentCode || '',
     projectFile: null,
+    projectFiles,
     coverImage: null,
     circuitImage: null,
     altText: project?.coverImage?.altText || payload.coverImage?.altText || project?.altText || payload.altText || '',
@@ -254,6 +320,54 @@ function getInitialProjectForm(project) {
     programmingLanguage: projectField(project, 'programmingLanguage'),
     tags: tags.length ? tags : ['IoT', 'Arduino', 'Sensor', 'SmartHome'],
   };
+}
+
+function createProjectFileEntry(file = null, label = '') {
+  return {
+    id: crypto.randomUUID(),
+    label,
+    file,
+    existingFile: null,
+    preview: '',
+  };
+}
+
+function normalizeProjectFiles(project) {
+  const payload = projectPayload(project);
+  const files = normalizeProjectList(project?.projectFiles || payload.projectFiles || payload.project_files);
+
+  if (files.length) {
+    return files.map((item, index) => ({
+      id: crypto.randomUUID(),
+      label: item?.label || item?.name || DEFAULT_PROJECT_FILE_LABELS[index] || `File Proyek ${index + 1}`,
+      file: null,
+      existingFile: item?.file && typeof item.file === 'object' ? item.file : item,
+      preview: '',
+    }));
+  }
+
+  if (project?.projectFile || payload.projectFile) {
+    return [{
+      id: crypto.randomUUID(),
+      label: 'File JSON',
+      file: null,
+      existingFile: project?.projectFile || payload.projectFile,
+      preview: '',
+    }];
+  }
+
+  return [createProjectFileEntry(null, DEFAULT_PROJECT_FILE_LABELS[0])];
+}
+
+function getProjectFileEntryName(entry) {
+  return entry?.file?.name || getProjectFileName(entry?.existingFile);
+}
+
+function formatFileSize(size) {
+  const value = Number(size || 0);
+  if (!value) return '-';
+  if (value >= 1024 * 1024) return `${(value / 1024 / 1024).toLocaleString('id-ID', { maximumFractionDigits: 1 })} MB`;
+  return `${Math.max(1, Math.round(value / 1024)).toLocaleString('id-ID')} KB`;
 }
 
 function getEmptyManualTool() {
@@ -370,16 +484,32 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
   const [coverCrop, setCoverCrop] = useState(null);
   const [coverPreviewUrl, setCoverPreviewUrl] = useState('');
   const [circuitPreviewUrl, setCircuitPreviewUrl] = useState('');
+  const [activeSection, setActiveSection] = useState('basic');
   const [selectedToolKey, setSelectedToolKey] = useState('');
   const [selectedNodeKey, setSelectedNodeKey] = useState('');
   const [nodeSearch, setNodeSearch] = useState('');
   const [isNodePickerOpen, setIsNodePickerOpen] = useState(false);
   const [manualTool, setManualTool] = useState(() => getEmptyManualTool());
   const [manualNode, setManualNode] = useState(() => getEmptyManualNode());
-  const [projectFilePreview, setProjectFilePreview] = useState('');
-  const existingProjectFileName = getProjectFileName(initialProject?.projectFile);
   const existingCoverImageName = getProjectFileName(initialProject?.coverImage);
   const existingCircuitImageName = getProjectFileName(initialProject?.circuitImage);
+  const categoryOptions = useMemo(() => (
+    PROJECT_CATEGORY_OPTIONS.includes(formData.category) || !formData.category
+      ? PROJECT_CATEGORY_OPTIONS
+      : [formData.category, ...PROJECT_CATEGORY_OPTIONS]
+  ), [formData.category]);
+  const completionItems = useMemo(() => {
+    const descriptionText = stripHtml(formData.description).trim();
+    const projectFileCount = formData.projectFiles.filter((entry) => entry.file || entry.existingFile).length;
+
+    return [
+      { label: 'Info dasar', done: Boolean(formData.title.trim() && formData.category.trim() && descriptionText) },
+      { label: 'Cover & file', done: Boolean((formData.coverImage || coverPreviewUrl) && projectFileCount > 0) },
+      { label: 'Komponen', done: formData.tools.length > 0 },
+      { label: 'Node', done: formData.nodes.length > 0 },
+      { label: 'Langkah', done: formData.steps.length > 0 },
+    ];
+  }, [coverPreviewUrl, formData]);
 
   useEffect(() => {
     setFormData(getInitialProjectForm(initialProject));
@@ -391,9 +521,9 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     setSelectedNodeKey('');
     setNodeSearch('');
     setIsNodePickerOpen(false);
+    setActiveSection('basic');
     setManualTool(getEmptyManualTool());
     setManualNode(getEmptyManualNode());
-    setProjectFilePreview('');
   }, [initialProject, mode, projectId]);
 
   useEffect(() => {
@@ -493,40 +623,6 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
       return;
     }
 
-    if (name === 'projectFile') {
-      setProjectFilePreview('');
-
-      if (!file) return;
-
-      const extension = file.name.split('.').pop()?.toLowerCase() || '';
-
-      if (!['json', 'flow'].includes(extension)) {
-        setFieldErrors((current) => ({
-          ...current,
-          projectFile: 'Format file proyek harus .json atau .flow.',
-        }));
-        return;
-      }
-
-      if (file.size > 10 * 1024 * 1024) {
-        setFieldErrors((current) => ({
-          ...current,
-          projectFile: 'Ukuran file proyek maksimal 10 MB.',
-        }));
-        return;
-      }
-
-      try {
-        setProjectFilePreview(await file.text());
-      } catch (error) {
-        console.error('File proyek tidak dapat dibaca:', error);
-        setFieldErrors((current) => ({
-          ...current,
-          projectFile: 'File proyek berhasil dipilih, tetapi isi file tidak dapat ditampilkan.',
-        }));
-      }
-    }
-
     if (name === 'circuitImage' && file) {
       if (!file.type.startsWith('image/')) {
         setFieldErrors((current) => ({
@@ -547,6 +643,98 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
 
     setFormData((current) => ({ ...current, [name]: file }));
     clearFieldError(name);
+  }
+
+  function addProjectFileRow() {
+    setFormData((current) => ({
+      ...current,
+      projectFiles: [
+        ...current.projectFiles,
+        createProjectFileEntry(null, DEFAULT_PROJECT_FILE_LABELS[current.projectFiles.length] || `File Proyek ${current.projectFiles.length + 1}`),
+      ],
+    }));
+    clearFieldError('projectFile');
+  }
+
+  function updateProjectFileLabel(index, value) {
+    setFormData((current) => ({
+      ...current,
+      projectFiles: current.projectFiles.map((entry, entryIndex) =>
+        entryIndex === index ? { ...entry, label: value } : entry
+      ),
+    }));
+    clearFieldError('projectFile');
+  }
+
+  async function handleProjectFileChange(index, event) {
+    const file = event.target.files?.[0] || null;
+    event.target.value = '';
+
+    if (!file) return;
+
+    const extension = file.name.split('.').pop()?.toLowerCase() || '';
+
+    if (!PROJECT_FILE_EXTENSIONS.includes(extension)) {
+      setFieldErrors((current) => ({
+        ...current,
+        projectFile: 'Format file proyek harus .json, .flow, .schema, .txt, atau .md.',
+      }));
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setFieldErrors((current) => ({
+        ...current,
+        projectFile: 'Ukuran setiap file proyek maksimal 10 MB.',
+      }));
+      return;
+    }
+
+    let preview = '';
+
+    try {
+      preview = await file.text();
+    } catch (error) {
+      console.error('File proyek tidak dapat dibaca:', error);
+      setFieldErrors((current) => ({
+        ...current,
+        projectFile: 'File proyek berhasil dipilih, tetapi isi file tidak dapat ditampilkan.',
+      }));
+    }
+
+    setFormData((current) => ({
+      ...current,
+      projectFile: index === 0 ? file : current.projectFile,
+      projectFiles: current.projectFiles.map((entry, entryIndex) =>
+        entryIndex === index ? { ...entry, file, preview } : entry
+      ),
+    }));
+    clearFieldError('projectFile');
+    setFormError('');
+  }
+
+  async function removeProjectFileRow(index) {
+    const entry = formData.projectFiles[index];
+    const hasFile = entry?.file || entry?.existingFile;
+
+    if (hasFile) {
+      const confirmed = await showConfirmAlert({
+        title: 'Hapus File Proyek?',
+        text: 'File ini akan dihapus dari daftar file proyek pada form.',
+        confirmButtonText: 'Hapus',
+      });
+      if (!confirmed) return;
+    }
+
+    setFormData((current) => {
+      const nextFiles = current.projectFiles.filter((_, entryIndex) => entryIndex !== index);
+      return {
+        ...current,
+        projectFiles: nextFiles.length ? nextFiles : [createProjectFileEntry(null, DEFAULT_PROJECT_FILE_LABELS[0])],
+        projectFile: nextFiles[0]?.file || null,
+      };
+    });
+    clearFieldError('projectFile');
   }
 
   function handleApplyCoverCrop({ file }) {
@@ -853,49 +1041,46 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     }));
   }
 
-  async function addStep() {
-    const title = await showPromptAlert({
-      title: 'Judul Langkah',
-      text: 'Masukkan judul singkat langkah pengerjaan.',
-      requiredMessage: 'Judul langkah wajib diisi.',
-    });
-    if (!title?.trim()) return;
-    const description = await showPromptAlert({
-      title: 'Tambah Langkah',
-      text: 'Masukkan deskripsi langkah pengerjaan.',
-      requiredMessage: 'Deskripsi langkah wajib diisi.',
-    });
-    if (!description?.trim()) return;
+  function addStep(template = null) {
     setFormData((current) => ({
       ...current,
-      steps: [...current.steps, { order: current.steps.length + 1, title: title.trim(), description: description.trim() }],
+      steps: normalizeProjectSteps([
+        ...current.steps,
+        {
+          order: current.steps.length + 1,
+          title: template?.title || '',
+          description: template?.description || '',
+        },
+      ]),
     }));
     clearFieldError('steps');
   }
 
-  async function editStep(index) {
-    const selected = formData.steps[index];
-    if (!selected) return;
-    const title = await showPromptAlert({
-      title: 'Edit Judul Langkah',
-      text: 'Edit judul singkat langkah pengerjaan.',
-      inputValue: selected.title || `Langkah ${selected.order || index + 1}`,
-      requiredMessage: 'Judul langkah wajib diisi.',
-    });
-    if (!title?.trim()) return;
-    const description = await showPromptAlert({
-      title: 'Edit Langkah',
-      text: 'Edit deskripsi langkah pengerjaan.',
-      inputValue: selected.description,
-      requiredMessage: 'Deskripsi langkah wajib diisi.',
-    });
-    if (!description?.trim()) return;
+  function updateStep(index, field, value) {
     setFormData((current) => ({
       ...current,
-      steps: current.steps.map((step, stepIndex) =>
-        stepIndex === index ? { ...step, title: title.trim(), description: description.trim() } : step
-      ),
+      steps: normalizeProjectSteps(current.steps.map((step, stepIndex) =>
+        stepIndex === index ? { ...step, [field]: value } : step
+      )),
     }));
+    clearFieldError('steps');
+  }
+
+  function moveStep(index, direction) {
+    setFormData((current) => {
+      const nextIndex = index + direction;
+      if (nextIndex < 0 || nextIndex >= current.steps.length) return current;
+
+      const nextSteps = [...current.steps];
+      const [selected] = nextSteps.splice(index, 1);
+      nextSteps.splice(nextIndex, 0, selected);
+
+      return {
+        ...current,
+        steps: normalizeProjectSteps(nextSteps),
+      };
+    });
+    clearFieldError('steps');
   }
 
   async function deleteStep(index) {
@@ -907,9 +1092,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     if (!confirmed) return;
     setFormData((current) => ({
       ...current,
-      steps: current.steps
-        .filter((_, stepIndex) => stepIndex !== index)
-        .map((step, stepIndex) => ({ ...step, order: stepIndex + 1 })),
+      steps: normalizeProjectSteps(current.steps.filter((_, stepIndex) => stepIndex !== index)),
     }));
   }
 
@@ -952,6 +1135,16 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
       : null;
   }
 
+  function projectFileEntryToJson(entry, index) {
+    const fileMeta = fileToJson(entry.file) || entry.existingFile || null;
+
+    return {
+      id: entry.id,
+      label: entry.label.trim() || DEFAULT_PROJECT_FILE_LABELS[index] || `File Proyek ${index + 1}`,
+      file: fileMeta,
+    };
+  }
+
   function toolToJson(tool) {
     if (typeof tool === 'string') {
       return { name: tool, specification: '' };
@@ -970,11 +1163,14 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     const isEdit = mode === 'edit';
     const errors = {};
     const descriptionText = stripHtml(formData.description).trim();
+    const validProjectFiles = formData.projectFiles.filter((entry) => entry.file || entry.existingFile);
+    const missingProjectFileNames = formData.projectFiles.some((entry) => (entry.file || entry.existingFile) && !entry.label.trim());
 
     if (!isDraft && !formData.title.trim()) errors.title = 'Judul proyek wajib diisi.';
     if (!isDraft && !formData.category.trim()) errors.category = 'Kategori wajib diisi.';
     if (!isDraft && !descriptionText) errors.description = 'Deskripsi proyek wajib diisi.';
-    if (!isDraft && !isEdit && !formData.projectFile) errors.projectFile = 'File proyek wajib dipilih.';
+    if (!isDraft && !isEdit && validProjectFiles.length === 0) errors.projectFile = 'Tambahkan minimal satu file proyek.';
+    if (!isDraft && missingProjectFileNames) errors.projectFile = 'Nama file proyek wajib diisi sebelum upload/disimpan.';
     if (!isDraft && !isEdit && !formData.coverImage) errors.coverImage = 'Gambar cover wajib dipilih.';
     if (!isDraft && formData.tools.length === 0) errors.tools = 'Tambahkan minimal satu alat atau komponen.';
     if (!isDraft && formData.nodes.length === 0) errors.nodes = 'Tambahkan minimal satu node ArduFlow.';
@@ -998,6 +1194,10 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     }
 
     const now = new Date().toISOString();
+    const projectFiles = formData.projectFiles
+      .filter((entry) => entry.file || entry.existingFile)
+      .map(projectFileEntryToJson);
+    const primaryProjectFile = projectFiles[0]?.file || initialProject?.projectFile || null;
     const result = {
       success: true,
       message: isDraft ? 'Draft proyek berhasil dibuat dalam format JSON.' : 'Proyek siap dipublikasikan dalam format JSON.',
@@ -1024,7 +1224,8 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
           currency: 'IDR',
           paymentCode: formData.isPaid ? formData.paymentCode : null,
         },
-        projectFile: fileToJson(formData.projectFile) || initialProject?.projectFile || null,
+        projectFile: primaryProjectFile,
+        projectFiles,
         coverImage: formData.coverImage
           ? { ...fileToJson(formData.coverImage), altText: formData.altText.trim() }
           : (initialProject?.coverImage || null),
@@ -1060,9 +1261,11 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
         payload.append('_method', 'PUT');
       }
 
-      if (formData.projectFile) {
-        payload.append('project_file', formData.projectFile);
-      }
+      formData.projectFiles.filter((entry) => entry.file || entry.existingFile).forEach((entry, index) => {
+        if (entry.file) {
+          payload.append(`project_files[${index}]`, entry.file);
+        }
+      });
 
       if (formData.coverImage) {
         payload.append('cover_image', formData.coverImage);
@@ -1134,23 +1337,65 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
         </p>
       ) : null}
 
+      <section className="project-upload-actions project-upload-actions--top" aria-label="Aksi form proyek">
+        <button className="project-upload-publish" type="submit" form="project-upload-form"><PublishIcon /> Simpan Proyek</button>
+        <button className="project-upload-draft" type="button" onClick={() => sendProjectToApi('draft')}><SaveIcon /> Simpan Draft</button>
+        <button className="project-upload-cancel" type="button" onClick={onCancel}>Batal</button>
+      </section>
+
+      <nav className="project-upload-tabs" aria-label="Navigasi form proyek">
+        {PROJECT_FORM_TABS.map((tab) => (
+          <button
+            type="button"
+            className={activeSection === tab.id ? 'is-active' : ''}
+            onClick={() => setActiveSection(tab.id)}
+            key={tab.id}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </nav>
+
       <div className="project-upload-layout">
         <form className="project-upload-main" id="project-upload-form" onSubmit={handleSubmit}>
-          <UploadField label="Judul Proyek *" hint="Pilih judul yang jelas dan menarik" error={fieldErrors.title}>
-            <input name="title" type="text" value={formData.title} onChange={handleInputChange} placeholder="Masukkan judul proyek" aria-invalid={Boolean(fieldErrors.title)} />
-          </UploadField>
+          <section className={`project-upload-form-section${activeSection === 'basic' ? ' is-active' : ''}`}>
+            <UploadField label="Judul Proyek *" hint="Pilih judul yang jelas dan menarik" error={fieldErrors.title}>
+              <input name="title" type="text" value={formData.title} onChange={handleInputChange} placeholder="Masukkan judul proyek" aria-invalid={Boolean(fieldErrors.title)} />
+            </UploadField>
 
-          <UploadField label="Kategori *" hint="Pilih kategori yang paling sesuai dengan proyek anda" error={fieldErrors.category}>
-            <input name="category" type="text" value={formData.category} onChange={handleInputChange} placeholder="Pilih kategori proyek" aria-invalid={Boolean(fieldErrors.category)} />
-          </UploadField>
+            <UploadField label="Kategori *" hint="Pilih kategori yang paling sesuai dengan proyek anda" error={fieldErrors.category}>
+              <select name="category" value={formData.category} onChange={handleInputChange} aria-invalid={Boolean(fieldErrors.category)}>
+                <option value="">Pilih kategori proyek</option>
+                {categoryOptions.map((category) => (
+                  <option value={category} key={category}>{category}</option>
+                ))}
+              </select>
+            </UploadField>
 
-          <div className="project-upload-field">
-            <span>Deskripsi Proyek *</span>
-            <RichTextEditor value={formData.description} onChange={handleDescriptionChange} error={fieldErrors.description} />
-            {fieldErrors.description ? <em className="project-upload-error">{fieldErrors.description}</em> : <small>Jelaskan fungsi, tujuan, dan cara kerja proyek anda</small>}
-          </div>
+            <div className="project-upload-field">
+              <span>Deskripsi Proyek *</span>
+              <RichTextEditor value={formData.description} onChange={handleDescriptionChange} error={fieldErrors.description} />
+              {fieldErrors.description ? <em className="project-upload-error">{fieldErrors.description}</em> : <small>Jelaskan fungsi, tujuan, dan cara kerja proyek anda</small>}
+            </div>
 
-          <section className="project-upload-list-section">
+            <div className="project-upload-inline-grid">
+              <section className="project-upload-card project-upload-extra">
+                <h3>Informasi Tambahan</h3>
+                <UploadField label="Tingkat Kesulitan"><select name="difficulty" value={formData.difficulty} onChange={handleInputChange}><option value="">Pilih tingkat kesulitan</option><option>Pemula</option><option>Menengah</option><option>Lanjutan</option></select></UploadField>
+                <UploadField label="Estimasi Waktu"><input name="estimatedTime" type="text" value={formData.estimatedTime} onChange={handleInputChange} placeholder="Contoh: 2-3 jam" /></UploadField>
+                <UploadField label="Bahasa Pemrograman"><input name="programmingLanguage" type="text" value={formData.programmingLanguage} onChange={handleInputChange} placeholder="Contoh: Arduino" /></UploadField>
+              </section>
+
+              <section className="project-upload-card project-upload-tags">
+                <h3>Tag</h3>
+                <div className="project-upload-tag-form"><input type="text" value={newTag} onChange={(event) => setNewTag(event.target.value)} placeholder="Tambah tag" /><button type="button" onClick={addTag}>Tambah</button></div>
+                <div className="project-upload-tag-list">{formData.tags.map((tag) => <button type="button" key={tag} onClick={() => removeTag(tag)}>{tag} x</button>)}</div>
+                <p>Tambah tag untuk memudahkan pencarian</p>
+              </section>
+            </div>
+          </section>
+
+          <section className={`project-upload-list-section project-upload-form-section${activeSection === 'components' ? ' is-active' : ''}`}>
             <div className="project-upload-section-head">
               <div><h3>Alat &amp; Komponen *</h3><p>Pilih alat dan komponen elektronik dari katalog Wokwi yang digunakan dalam proyek ini</p></div>
             </div>
@@ -1205,7 +1450,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
             {fieldErrors.tools ? <em className="project-upload-error">{fieldErrors.tools}</em> : null}
           </section>
 
-          <section className="project-upload-list-section">
+          <section className={`project-upload-list-section project-upload-form-section${activeSection === 'nodes' ? ' is-active' : ''}`}>
             <div className="project-upload-section-head">
               <div><h3>Node ArduFlow yang Digunakan *</h3><p>Pilih node dari katalog ArduFlow yang digunakan dalam proyek ini</p></div>
               <button
@@ -1291,136 +1536,201 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
                 ))}
               </div>
             ) : <EmptyUploadTable title="Belum ada node yang ditambahkan" description="Klik tombol “Tambah Node” untuk menambahkan" />}
+            {fieldErrors.nodes ? <em className="project-upload-error">{fieldErrors.nodes}</em> : null}
           </section>
 
-          {fieldErrors.nodes ? <em className="project-upload-error">{fieldErrors.nodes}</em> : null}
-
-          <section className="project-upload-list-section">
+          <section className={`project-upload-list-section project-upload-form-section${activeSection === 'steps' ? ' is-active' : ''}`}>
             <div className="project-upload-section-head">
-              <div><h3>Langkah-langkah Pengerjaan *</h3><p>Jelaskan langkah langkah pembuatan proyek secara berurutan</p></div>
-              <button type="button" onClick={addStep}><PlusIcon /> Tambah Langkah</button>
+              <div><h3>Langkah-langkah Pengerjaan *</h3><p>Susun langkah secara berurutan. Judul dan deskripsi bisa diedit langsung tanpa pop-up.</p></div>
+              <button type="button" onClick={() => addStep()}><PlusIcon /> Tambah Langkah</button>
+            </div>
+            <div className="project-upload-step-templates" aria-label="Template cepat langkah pengerjaan">
+              {STEP_TEMPLATES.map((template) => (
+                <button type="button" onClick={() => addStep(template)} key={template.title}>
+                  <PlusIcon /> {template.title}
+                </button>
+              ))}
             </div>
             {formData.steps.length ? (
-              <div className={`project-upload-table${fieldErrors.steps ? ' has-error' : ''}`}>
-                <div className="project-upload-table__head project-upload-table__head--steps"><span>No</span><span>Judul</span><span>Deskripsi</span><span>Aksi</span></div>
+              <div className={`project-upload-step-list${fieldErrors.steps ? ' has-error' : ''}`}>
                 {formData.steps.map((step, index) => (
-                  <div className="project-upload-table__head project-upload-table__head--steps" key={step.order}>
-                    <span>{step.order}</span>
-                    <span>{step.title || `Langkah ${step.order || index + 1}`}</span>
-                    <span>{step.description}</span>
-                    <UploadRowActions onEdit={() => editStep(index)} onDelete={() => deleteStep(index)} />
-                  </div>
+                  <article className="project-upload-step-card" key={`${step.order}-${index}`}>
+                    <div className="project-upload-step-number">{step.order || index + 1}</div>
+                    <div className="project-upload-step-fields">
+                      <label>
+                        <span>Judul langkah</span>
+                        <input
+                          type="text"
+                          value={step.title}
+                          onChange={(event) => updateStep(index, 'title', event.target.value)}
+                          placeholder={`Langkah ${index + 1}`}
+                        />
+                      </label>
+                      <label>
+                        <span>Deskripsi</span>
+                        <textarea
+                          value={step.description}
+                          onChange={(event) => updateStep(index, 'description', event.target.value)}
+                          placeholder="Tuliskan instruksi langkah ini dengan jelas"
+                          rows={3}
+                        />
+                      </label>
+                    </div>
+                    <div className="project-upload-step-actions">
+                      <button type="button" onClick={() => moveStep(index, -1)} disabled={index === 0}>Naik</button>
+                      <button type="button" onClick={() => moveStep(index, 1)} disabled={index === formData.steps.length - 1}>Turun</button>
+                      <button type="button" className="is-danger" onClick={() => deleteStep(index)}>Hapus</button>
+                    </div>
+                  </article>
                 ))}
               </div>
             ) : <EmptyUploadTable title="Belum ada langkah yang ditambahkan" description="Klik tombol “Tambah Langkah” untuk menambahkan" />}
+            {fieldErrors.steps ? <em className="project-upload-error">{fieldErrors.steps}</em> : null}
           </section>
 
-            {fieldErrors.steps ? <em className="project-upload-error">{fieldErrors.steps}</em> : null}
-          <div className="project-upload-price">
-            <div><h3>Harga Proyek &amp; Kode Pembayaran</h3><p>Atur harga dan buat kode pembayaran untuk pembeli</p></div>
-            <label className="project-upload-toggle">
-              <input name="isPaid" type="checkbox" checked={formData.isPaid} onChange={handleInputChange} />
-              <span />Proyek berbayar
-            </label>
-          </div>
-          <div className="project-upload-payment">
-            <span>Harga (IDR) *</span>
-            <label className={`project-upload-price-input${fieldErrors.price ? ' has-error' : ''}`}><span>IDR</span><input name="price" type="number" min="0" value={formData.price} onChange={handleInputChange} disabled={!formData.isPaid} placeholder="Contoh : 15000" aria-invalid={Boolean(fieldErrors.price)} /></label>
-            {fieldErrors.price ? <em className="project-upload-error">{fieldErrors.price}</em> : null}
-            <span>Kode Akses / Kode Pembayaran *</span>
-            <div className="project-upload-code-row">
-              <input className={fieldErrors.paymentCode ? 'has-error' : ''} type="text" value={formData.paymentCode} readOnly placeholder="Kode akan dibuat setelah di generate" aria-invalid={Boolean(fieldErrors.paymentCode)} />
-              <button type="button" onClick={generatePaymentCode} disabled={!formData.isPaid}><RefreshIcon /> Generate Kode</button>
-              <button type="button" onClick={copyPaymentCode} disabled={!formData.paymentCode}><CopyIcon /> Salin</button>
+          <section className={`project-upload-form-section${activeSection === 'publish' ? ' is-active' : ''}`}>
+            <div className="project-upload-price">
+              <div><h3>Harga Proyek &amp; Kode Pembayaran</h3><p>Atur harga dan buat kode pembayaran untuk pembeli</p></div>
+              <label className="project-upload-toggle">
+                <input name="isPaid" type="checkbox" checked={formData.isPaid} onChange={handleInputChange} />
+                <span />Proyek berbayar
+              </label>
             </div>
-            {fieldErrors.paymentCode ? <em className="project-upload-error">{fieldErrors.paymentCode}</em> : null}
-            <p className="project-upload-payment-info"><InfoIcon /><span>Kode pembayaran akan digunakan oleh pembeli untuk mengakses dan membuka proyek ini.<br />Kode dibuat otomatis setelah harga diisi</span></p>
-          </div>
-
-          <div className="project-upload-file-section">
-            <h3>File Proyek *</h3>
-            <label className={`project-upload-file-box${fieldErrors.projectFile ? ' has-error' : ''}`}>
-              <input name="projectFile" type="file" accept=".json,.flow" onChange={handleFileChange} />
-              <PlusIcon /><strong>Klik untuk upload file proyek</strong>
-              <span>{formData.projectFile?.name || existingProjectFileName || 'Drag & drop file di sini'}</span>
-              <small>{existingProjectFileName && !formData.projectFile ? 'File lama tetap digunakan jika tidak diganti' : 'Format : json, flow | Maksimal 10 MB'}</small>
-            </label>
-            {fieldErrors.projectFile ? <em className="project-upload-error">{fieldErrors.projectFile}</em> : null}
-            {projectFilePreview ? (
-              <div className="project-upload-file-preview" aria-label="Preview isi file proyek">
-                <div>
-                  <strong>Code File Proyek</strong>
-                  <span>{formData.projectFile?.name}</span>
-                </div>
-                <pre>{projectFilePreview}</pre>
+            <div className="project-upload-payment">
+              <span>Harga (IDR) *</span>
+              <label className={`project-upload-price-input${fieldErrors.price ? ' has-error' : ''}`}><span>IDR</span><input name="price" type="number" min="0" value={formData.price} onChange={handleInputChange} disabled={!formData.isPaid} placeholder="Contoh : 15000" aria-invalid={Boolean(fieldErrors.price)} /></label>
+              {fieldErrors.price ? <em className="project-upload-error">{fieldErrors.price}</em> : null}
+              <span>Kode Akses / Kode Pembayaran *</span>
+              <div className="project-upload-code-row">
+                <input className={fieldErrors.paymentCode ? 'has-error' : ''} type="text" value={formData.paymentCode} readOnly placeholder="Kode akan dibuat setelah di generate" aria-invalid={Boolean(fieldErrors.paymentCode)} />
+                <button type="button" onClick={generatePaymentCode} disabled={!formData.isPaid}><RefreshIcon /> Generate Kode</button>
+                <button type="button" onClick={copyPaymentCode} disabled={!formData.paymentCode}><CopyIcon /> Salin</button>
               </div>
-            ) : null}
+              {fieldErrors.paymentCode ? <em className="project-upload-error">{fieldErrors.paymentCode}</em> : null}
+              <p className="project-upload-payment-info"><InfoIcon /><span>Kode pembayaran akan digunakan oleh pembeli untuk mengakses dan membuka proyek ini.<br />Kode dibuat otomatis setelah harga diisi</span></p>
+            </div>
+
+            <div className="project-upload-inline-grid">
+              <section className="project-upload-card project-upload-visibility">
+                <h3>Pengaturan Visibilitas</h3>
+                <label><input type="radio" name="visibility" value="public" checked={formData.visibility === 'public'} onChange={handleInputChange} /><span><strong>Publik</strong><small>Proyek dapat dilihat oleh semua orang</small></span></label>
+                <label><input type="radio" name="visibility" value="draft" checked={formData.visibility === 'draft'} onChange={handleInputChange} /><span><strong>Draft</strong><small>Simpan sebagai draft, belum dipublikasikan</small></span></label>
+              </section>
+
+              <section className="project-upload-card project-upload-preview-card">
+                <h3>Preview Ringkas</h3>
+                {coverPreviewUrl ? <img src={coverPreviewUrl} alt="Preview cover proyek" /> : null}
+                <div className="project-upload-preview-title">
+                  <strong>{formData.title.trim() || 'Judul proyek belum diisi'}</strong>
+                  <span>{formData.category.trim() || 'Kategori belum dipilih'}</span>
+                </div>
+                <dl>
+                  <div><dt>File</dt><dd>{formData.projectFiles.filter((entry) => entry.file || entry.existingFile).length}</dd></div>
+                  <div><dt>Komponen</dt><dd>{formData.tools.length}</dd></div>
+                  <div><dt>Node</dt><dd>{formData.nodes.length}</dd></div>
+                  <div><dt>Langkah</dt><dd>{formData.steps.length}</dd></div>
+                </dl>
+                <ul>
+                  {completionItems.map((item) => (
+                    <li className={item.done ? 'is-done' : ''} key={item.label}>
+                      <span aria-hidden="true" />
+                      {item.label}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            </div>
+          </section>
+
+          <section className={`project-upload-file-section project-upload-form-section${activeSection === 'media' ? ' is-active' : ''}`}>
+            <div className="project-upload-media-grid">
+              <section className="project-upload-card project-upload-cover">
+                <h3>Gambar Cover Proyek *</h3>
+                <label className={`project-upload-cover-box${fieldErrors.coverImage ? ' has-error' : ''}`}>
+                  <input name="coverImage" type="file" accept="image/png,image/jpeg" onChange={handleFileChange} />
+                  {coverPreviewUrl ? (
+                    <img className="project-upload-cover-preview" src={coverPreviewUrl} alt="Preview cover proyek" />
+                  ) : (
+                    <ImageIcon />
+                  )}
+                  <span>{formData.coverImage?.name || existingCoverImageName || 'Upload gambar cover'}</span>
+                  <small>{existingCoverImageName && !formData.coverImage ? 'Cover lama tetap digunakan jika tidak diganti' : 'PNG, JPG maksimal 2 MB'}</small>
+                  <strong>Pilih Gambar</strong>
+                </label>
+                {fieldErrors.coverImage ? <em className="project-upload-error">{fieldErrors.coverImage}</em> : null}
+                <UploadField label="Alt Text" hint="Pilih gambar yang mewakili proyek Anda">
+                  <input name="altText" type="text" value={formData.altText} onChange={handleInputChange} placeholder="Deskripsikan proyek anda" />
+                </UploadField>
+              </section>
+
+              <section className="project-upload-card project-upload-cover">
+                <h3>Gambar Rangkaian</h3>
+                <label className={`project-upload-cover-box${fieldErrors.circuitImage ? ' has-error' : ''}`}>
+                  <input name="circuitImage" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFileChange} />
+                  {circuitPreviewUrl ? (
+                    <img className="project-upload-cover-preview" src={circuitPreviewUrl} alt="Preview gambar rangkaian" />
+                  ) : (
+                    <ImageIcon />
+                  )}
+                  <span>{formData.circuitImage?.name || existingCircuitImageName || 'Upload gambar rangkaian'}</span>
+                  <small>{existingCircuitImageName && !formData.circuitImage ? 'Gambar lama tetap digunakan jika tidak diganti' : 'PNG, JPG, WEBP maksimal 2 MB'}</small>
+                  <strong>Pilih Gambar</strong>
+                </label>
+                {fieldErrors.circuitImage ? <em className="project-upload-error">{fieldErrors.circuitImage}</em> : null}
+              </section>
+            </div>
+
+            <div className="project-upload-section-head">
+              <div>
+                <h3>File Proyek *</h3>
+                <p>Tambahkan nama file terlebih dahulu, lalu upload file yang sesuai.</p>
+              </div>
+              <button type="button" onClick={addProjectFileRow}><PlusIcon /> Tambah File</button>
+            </div>
+            <div className={`project-upload-file-list${fieldErrors.projectFile ? ' has-error' : ''}`}>
+              {formData.projectFiles.map((entry, index) => {
+                const fileName = getProjectFileEntryName(entry);
+                const fileSize = entry.file?.size || entry.existingFile?.file_size || entry.existingFile?.size;
+                const previewText = entry.preview;
+
+                return (
+                  <article className="project-upload-file-item" key={entry.id}>
+                    <div className="project-upload-file-row">
+                      <input
+                        type="text"
+                        value={entry.label}
+                        onChange={(event) => updateProjectFileLabel(index, event.target.value)}
+                        placeholder={DEFAULT_PROJECT_FILE_LABELS[index] || `Nama file ${index + 1}`}
+                        aria-label={`Nama file proyek ${index + 1}`}
+                      />
+                      <label className="project-upload-file-picker">
+                        <input type="file" accept={PROJECT_FILE_ACCEPT} onChange={(event) => handleProjectFileChange(index, event)} />
+                        <PlusIcon />
+                        <span>{fileName || 'Upload file'}</span>
+                      </label>
+                      <button type="button" className="project-upload-file-remove" onClick={() => removeProjectFileRow(index)}>Hapus</button>
+                    </div>
+                    <small className="project-upload-file-meta">
+                      {fileName ? `${fileName} - ${formatFileSize(fileSize)}` : 'Format: json, flow, schema, txt, md | Maksimal 10 MB per file'}
+                    </small>
+                    {previewText ? (
+                      <div className="project-upload-file-preview" aria-label={`Preview ${entry.label || fileName || `file ${index + 1}`}`}>
+                        <div>
+                          <strong>{entry.label || 'Preview File'}</strong>
+                          <span>{fileName}</span>
+                        </div>
+                        <pre>{previewText}</pre>
+                      </div>
+                    ) : null}
+                  </article>
+                );
+              })}
+            </div>
+            {fieldErrors.projectFile ? <em className="project-upload-error">{fieldErrors.projectFile}</em> : null}
             <p>Pastikan file yang diupload sudah berfungsi dengan baik</p>
-          </div>
+          </section>
         </form>
 
-        <aside className="project-upload-side">
-          <section className="project-upload-card project-upload-cover">
-            <h3>Gambar Cover Proyek *</h3>
-            <label className={`project-upload-cover-box${fieldErrors.coverImage ? ' has-error' : ''}`}>
-              <input name="coverImage" type="file" accept="image/png,image/jpeg" onChange={handleFileChange} />
-              {coverPreviewUrl ? (
-                <img className="project-upload-cover-preview" src={coverPreviewUrl} alt="Preview cover proyek" />
-              ) : (
-                <ImageIcon />
-              )}
-              <span>{formData.coverImage?.name || existingCoverImageName || 'Upload gambar cover'}</span>
-              <small>{existingCoverImageName && !formData.coverImage ? 'Cover lama tetap digunakan jika tidak diganti' : 'PNG, JPG maksimal 2 MB'}</small>
-              <strong>Pilih Gambar</strong>
-            </label>
-            {fieldErrors.coverImage ? <em className="project-upload-error">{fieldErrors.coverImage}</em> : null}
-            <UploadField label="Alt Text" hint="Pilih gambar yang mewakili proyek Anda">
-              <input name="altText" type="text" value={formData.altText} onChange={handleInputChange} placeholder="Deskripsikan proyek anda" />
-            </UploadField>
-          </section>
-
-          <section className="project-upload-card project-upload-cover">
-            <h3>Gambar Rangkaian</h3>
-            <label className={`project-upload-cover-box${fieldErrors.circuitImage ? ' has-error' : ''}`}>
-              <input name="circuitImage" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFileChange} />
-              {circuitPreviewUrl ? (
-                <img className="project-upload-cover-preview" src={circuitPreviewUrl} alt="Preview gambar rangkaian" />
-              ) : (
-                <ImageIcon />
-              )}
-              <span>{formData.circuitImage?.name || existingCircuitImageName || 'Upload gambar rangkaian'}</span>
-              <small>{existingCircuitImageName && !formData.circuitImage ? 'Gambar lama tetap digunakan jika tidak diganti' : 'PNG, JPG, WEBP maksimal 2 MB'}</small>
-              <strong>Pilih Gambar</strong>
-            </label>
-            {fieldErrors.circuitImage ? <em className="project-upload-error">{fieldErrors.circuitImage}</em> : null}
-          </section>
-
-          <section className="project-upload-card project-upload-visibility">
-            <h3>Pengaturan Visibilitas</h3>
-            <label><input type="radio" name="visibility" value="public" checked={formData.visibility === 'public'} onChange={handleInputChange} /><span><strong>Publik</strong><small>Proyek dapat dilihat oleh semua orang</small></span></label>
-            <label><input type="radio" name="visibility" value="draft" checked={formData.visibility === 'draft'} onChange={handleInputChange} /><span><strong>Draft</strong><small>Simpan sebagai draft, belum dipublikasikan</small></span></label>
-          </section>
-
-          <section className="project-upload-card project-upload-extra">
-            <h3>Informasi Tambahan</h3>
-            <UploadField label="Tingkat Kesulitan"><select name="difficulty" value={formData.difficulty} onChange={handleInputChange}><option value="">Pilih tingkat kesulitan</option><option>Pemula</option><option>Menengah</option><option>Lanjutan</option></select></UploadField>
-            <UploadField label="Estimasi Waktu"><input name="estimatedTime" type="text" value={formData.estimatedTime} onChange={handleInputChange} placeholder="Contoh: 2-3 jam" /></UploadField>
-            <UploadField label="Bahasa Pemrograman"><input name="programmingLanguage" type="text" value={formData.programmingLanguage} onChange={handleInputChange} placeholder="Contoh: Arduino" /></UploadField>
-          </section>
-
-          <section className="project-upload-card project-upload-tags">
-            <h3>Tag</h3>
-            <div className="project-upload-tag-form"><input type="text" value={newTag} onChange={(event) => setNewTag(event.target.value)} placeholder="Tambah tag" /><button type="button" onClick={addTag}>Tambah</button></div>
-            <div className="project-upload-tag-list">{formData.tags.map((tag) => <button type="button" key={tag} onClick={() => removeTag(tag)}>{tag} ×</button>)}</div>
-            <p>Tambah tag untuk memudahkan pencarian</p>
-          </section>
-
-          <section className="project-upload-card project-upload-actions">
-            <button className="project-upload-publish" type="submit" form="project-upload-form"><PublishIcon /> Publikasikan Proyek</button>
-            <button className="project-upload-draft" type="button" onClick={() => sendProjectToApi('draft')}><SaveIcon /> Simpan Draft</button>
-            <button className="project-upload-cancel" type="button" onClick={onCancel}>Batal</button>
-          </section>
-        </aside>
       </div>
 
       {formError ? <p role="alert" style={{ color: '#b42318', marginTop: 16 }}>{formError}</p> : null}

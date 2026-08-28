@@ -72,9 +72,7 @@ export function AdminActionDropdown({ label = 'Buka menu aksi', items = [], alig
         aria-label={label}
         aria-expanded={isOpen}
         onClick={() => setOpen((current) => !current)}
-      >
-        ...
-      </button>
+      />
 
       {isOpen ? (
         <div
