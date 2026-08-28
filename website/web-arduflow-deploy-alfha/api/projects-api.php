@@ -199,6 +199,23 @@ function ensureProjectTables(PDO $pdo): void
             updated_at TEXT NOT NULL
         )'
     );
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS user_entitlements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            transaction_id INTEGER NULL,
+            user_id INTEGER NULL,
+            email TEXT,
+            product_type TEXT NOT NULL,
+            product_id INTEGER NULL,
+            product_title TEXT,
+            status TEXT NOT NULL DEFAULT "active",
+            granted_at TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            deleted_at TEXT,
+            version INTEGER NOT NULL DEFAULT 1
+        )'
+    );
 
     if (function_exists('addColumnIfMissing')) {
         addColumnIfMissing($pdo, 'project_submissions', 'cover_image_name', 'TEXT');
@@ -220,6 +237,10 @@ function ensureProjectTables(PDO $pdo): void
         addColumnIfMissing($pdo, 'project_submissions', 'deleted_at', 'TEXT');
         addColumnIfMissing($pdo, 'project_submissions', 'version', 'INTEGER NOT NULL DEFAULT 1');
     }
+
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_user_entitlements_user_id ON user_entitlements(user_id)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_user_entitlements_email ON user_entitlements(email)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_user_entitlements_product ON user_entitlements(product_type, product_id)');
 }
 
 function hasStoredFile(?array $file): bool
@@ -227,7 +248,7 @@ function hasStoredFile(?array $file): bool
     return $file !== null && trim((string) ($file['file_name'] ?? $file['name'] ?? '')) !== '';
 }
 
-function rowToProject(array $row): array
+function rowToProject(array $row, array $viewerAccess = []): array
 {
     $payload = json_decode((string) ($row['payload_json'] ?? '{}'), true);
     $payload = is_array($payload) ? $payload : [];
@@ -282,6 +303,13 @@ function rowToProject(array $row): array
         'estimatedTime' => $payload['estimatedTime'] ?? '',
         'programmingLanguage' => $payload['programmingLanguage'] ?? '',
         'payment' => $payload['payment'] ?? null,
+        'viewerAccess' => [
+            'hasPurchased' => (bool) ($viewerAccess['hasPurchased'] ?? false),
+            'purchaseStatus' => $viewerAccess['purchaseStatus'] ?? 'none',
+            'entitlementId' => $viewerAccess['entitlementId'] ?? null,
+            'transactionId' => $viewerAccess['transactionId'] ?? null,
+        ],
+        'hasPurchased' => (bool) ($viewerAccess['hasPurchased'] ?? false),
         'tags' => $payload['tags'] ?? [],
         'componentImages' => $componentImages,
         'tools' => $payload['tools'] ?? [],
@@ -305,6 +333,80 @@ function findProject(PDO $pdo, int $id): ?array
     $row = $statement->fetch();
 
     return $row === false ? null : $row;
+}
+
+function getViewerIdentityFromQuery(): array
+{
+    $userId = $_GET['userId'] ?? $_GET['user_id'] ?? null;
+    $email = trim((string) ($_GET['email'] ?? $_GET['userEmail'] ?? $_GET['user_email'] ?? ''));
+
+    return [
+        'userId' => $userId === null || $userId === '' ? null : (int) $userId,
+        'email' => $email,
+    ];
+}
+
+function getProjectViewerAccess(PDO $pdo, int $projectId): array
+{
+    $viewer = getViewerIdentityFromQuery();
+    $userId = $viewer['userId'];
+    $email = $viewer['email'];
+
+    $access = [
+        'hasPurchased' => false,
+        'purchaseStatus' => 'none',
+        'entitlementId' => null,
+        'transactionId' => null,
+    ];
+
+    if ($userId === null && $email === '') {
+        return $access;
+    }
+
+    $where = [
+        'product_type = "project"',
+        'product_id = :project_id',
+        'status = "active"',
+        'deleted_at IS NULL',
+    ];
+    $params = [
+        ':project_id' => $projectId,
+    ];
+
+    if ($userId !== null && $email !== '') {
+        $where[] = '(user_id = :user_id OR LOWER(email) = LOWER(:email))';
+        $params[':user_id'] = $userId;
+        $params[':email'] = $email;
+    } elseif ($userId !== null) {
+        $where[] = 'user_id = :user_id';
+        $params[':user_id'] = $userId;
+    } else {
+        $where[] = 'LOWER(email) = LOWER(:email)';
+        $params[':email'] = $email;
+    }
+
+    $statement = $pdo->prepare(
+        'SELECT id, transaction_id, status
+         FROM user_entitlements
+         WHERE ' . implode(' AND ', $where) . '
+         ORDER BY updated_at DESC, id DESC
+         LIMIT 1'
+    );
+    $statement->execute($params);
+    $row = $statement->fetch();
+
+    if ($row === false) {
+        return $access;
+    }
+
+    return [
+        'hasPurchased' => true,
+        'purchaseStatus' => $row['status'] ?? 'active',
+        'entitlementId' => isset($row['id']) ? (int) $row['id'] : null,
+        'transactionId' => isset($row['transaction_id']) && $row['transaction_id'] !== null
+            ? (int) $row['transaction_id']
+            : null,
+    ];
 }
 
 function validateProject(array $project): array
@@ -673,7 +775,7 @@ try {
             sendJson(200, [
                 'success' => true,
                 'message' => 'Detail proyek berhasil diambil.',
-                'data' => rowToProject($row),
+                'data' => rowToProject($row, getProjectViewerAccess($pdo, $projectId)),
             ]);
         }
 

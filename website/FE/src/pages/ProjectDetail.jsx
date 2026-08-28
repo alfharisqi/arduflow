@@ -5,7 +5,6 @@ import monitorIcon from "../assets/icons/icon-monitor-1.svg";
 import cpuIcon from "../assets/icons/icon-cpu-1.svg";
 import clockIcon from "../assets/icons/icon-clock-1.svg";
 import fileIcon from "../assets/icons/icon-file-text-1.svg";
-import downloadIcon from "../assets/icons/icon-downloadsim-1.svg";
 import {
   fetchProjectSubmission,
   fetchProjectSubmissions,
@@ -47,6 +46,14 @@ function getStoredUser() {
   } catch {
     return {};
   }
+}
+
+function getUserId(user) {
+  return user?.id ?? user?.userId ?? user?.user_id ?? null;
+}
+
+function getUserEmail(user) {
+  return String(user?.email ?? user?.emailAddress ?? user?.email_address ?? "").trim();
 }
 
 function getToolName(tool) {
@@ -261,8 +268,17 @@ function InfoNotice() {
   );
 }
 
-function SectionFooterButton({ children }) {
-  return <button className="detail-card__footer-button" type="button">{children}</button>;
+function SectionFooterButton({ children, onClick, expanded = false }) {
+  return (
+    <button
+      className="detail-card__footer-button"
+      type="button"
+      onClick={onClick}
+      aria-expanded={expanded}
+    >
+      {children}
+    </button>
+  );
 }
 
 function StepArrow() {
@@ -276,6 +292,14 @@ function getNodeName(node, index) {
 function NodeIcon({ node, index }) {
   const nodeType = getProjectNodeType(node);
   const nodeName = getNodeName(node, index);
+
+  if (node?.imageUrl) {
+    return (
+      <span className="detail-node-icon detail-node-icon--image">
+        <img src={node.imageUrl} alt="" aria-hidden="true" />
+      </span>
+    );
+  }
 
   return (
     <span className="detail-node-icon">
@@ -291,6 +315,10 @@ function NodeIcon({ node, index }) {
 }
 
 function ComponentImage({ tool }) {
+  if (tool?.imageUrl) {
+    return <img className="detail-component-image" src={tool.imageUrl} alt="" aria-hidden="true" />;
+  }
+
   const wokwiElement = getWokwiElementName(tool);
 
   if (wokwiElement) {
@@ -299,10 +327,6 @@ function ComponentImage({ tool }) {
         {createElement(wokwiElement)}
       </span>
     );
-  }
-
-  if (tool?.imageUrl) {
-    return <img className="detail-component-image" src={tool.imageUrl} alt="" aria-hidden="true" />;
   }
 
   return (
@@ -366,19 +390,39 @@ function isPaidProject(project) {
   return Boolean(payment.isPaid || project?.isPaid || getProjectPrice(project) > 0);
 }
 
-function isPaidProjectTransaction(transaction, project) {
+function isTransactionForProject(transaction, project) {
+  const payload = transaction?.payload && typeof transaction.payload === "object" ? transaction.payload : {};
+  const transactionProjectIds = [
+    transaction?.itemId,
+    transaction?.item_id,
+    payload.projectId,
+    payload.project_id,
+    payload.itemId,
+    payload.item_id,
+    payload.project?.id,
+  ].filter((value) => value !== undefined && value !== null && String(value).trim() !== "");
+
   return (
-    transaction?.itemType === "project" &&
-    String(transaction.itemId || "") === String(project?.id || "") &&
-    transaction.status === "paid"
+    String(transaction?.itemType || transaction?.item_type || "").toLowerCase() === "project" &&
+    transactionProjectIds.some((projectId) => String(projectId) === String(project?.id || ""))
+  );
+}
+
+function isPaidProjectTransaction(transaction, project) {
+  const status = String(transaction?.status || "").toLowerCase();
+
+  return (
+    isTransactionForProject(transaction, project) &&
+    ["paid", "approved", "success", "successful", "completed", "complete", "settlement", "verified"].includes(status)
   );
 }
 
 function isPendingProjectTransaction(transaction, project) {
+  const status = String(transaction?.status || "").toLowerCase();
+
   return (
-    transaction?.itemType === "project" &&
-    String(transaction.itemId || "") === String(project?.id || "") &&
-    ["pending", "proof_uploaded", "rejected"].includes(transaction.status)
+    isTransactionForProject(transaction, project) &&
+    ["pending", "proof_uploaded", "uploaded", "waiting", "review", "rejected"].includes(status)
   );
 }
 
@@ -513,13 +557,19 @@ function ProjectHero({ project, tools, nodes, tags, description }) {
   const paidProject = isPaidProject(project);
   const projectPrice = getProjectPrice(project);
   const projectCurrency = payment.currency || "IDR";
+  const hasPurchasedFromDatabase = Boolean(
+    project?.hasPurchased ||
+    project?.has_purchased ||
+    project?.viewerAccess?.hasPurchased ||
+    project?.viewerAccess?.has_purchased
+  );
   const paidTransaction = projectTransactions.find((transaction) =>
     isPaidProjectTransaction(transaction, project)
   );
   const pendingTransaction = projectTransactions.find((transaction) =>
     isPendingProjectTransaction(transaction, project)
   );
-  const hasProjectAccess = !paidProject || Boolean(paidTransaction);
+  const hasProjectAccess = !paidProject || hasPurchasedFromDatabase || Boolean(paidTransaction);
 
   const descriptionLength = useMemo(
     () => getPlainTextLengthFromHtml(description),
@@ -538,20 +588,47 @@ function ProjectHero({ project, tools, nodes, tags, description }) {
 
   useEffect(() => {
     const user = getStoredUser();
-    const params = {};
-    if (user.id || user.userId) params.userId = user.id || user.userId;
-    if (user.email) params.email = user.email;
+    const userId = getUserId(user);
+    const email = getUserEmail(user);
 
-    if (!paidProject || (!params.userId && !params.email)) {
+    if (!paidProject || (!userId && !email)) {
       setProjectTransactions([]);
       return undefined;
     }
 
     let isActive = true;
-    fetchTransactions(params)
-      .then((records) => {
+    const queries = [];
+
+    if (userId && email) {
+      queries.push({ userId, email });
+    }
+    if (email) {
+      queries.push({ email });
+    }
+    if (userId) {
+      queries.push({ userId });
+    }
+
+    Promise.allSettled(queries.map((params) => fetchTransactions(params)))
+      .then((results) => {
         if (isActive) {
-          setProjectTransactions(records.filter((transaction) => transaction.itemType === "project"));
+          const mergedRecords = results
+            .filter((result) => result.status === "fulfilled")
+            .flatMap((result) => result.value);
+          const uniqueRecords = Array.from(
+            new Map(
+              mergedRecords.map((transaction, index) => [
+                transaction.id ? String(transaction.id) : `${transaction.itemType}-${transaction.itemId}-${index}`,
+                transaction,
+              ])
+            ).values()
+          );
+
+          setProjectTransactions(
+            uniqueRecords.filter(
+              (transaction) => String(transaction.itemType || transaction.item_type || "").toLowerCase() === "project"
+            )
+          );
         }
       })
       .catch((error) => {
@@ -568,8 +645,8 @@ function ProjectHero({ project, tools, nodes, tags, description }) {
 
   async function handleBuyProject() {
     const user = getStoredUser();
-    const userId = user.id || user.userId || null;
-    const email = user.email || "";
+    const userId = getUserId(user);
+    const email = getUserEmail(user);
 
     if (!userId && !email) {
       window.location.href = `/signin?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
@@ -671,7 +748,6 @@ function ProjectHero({ project, tools, nodes, tags, description }) {
                   disabled={isPurchasing}
                 >
                   {isPurchasing ? "Memproses..." : pendingTransaction ? "Lihat Transaksi" : "Beli Proyek"}
-                  <img src={downloadIcon} alt="" aria-hidden="true" />
                 </button>
                 {pendingTransaction ? (
                   <p className="project-detail__purchase-message" role="status">
@@ -689,7 +765,7 @@ function ProjectHero({ project, tools, nodes, tags, description }) {
                   type="button"
                   onClick={() => openIDE(description)}
                 >
-                  Buka ArduFlow IDE <span aria-hidden="true">-&gt;</span>
+                  Buka Proyek
                 </button>
                 <a
                   className="project-detail__button project-detail__button--secondary"
@@ -697,8 +773,7 @@ function ProjectHero({ project, tools, nodes, tags, description }) {
                   target={project.projectFileUrl ? "_blank" : undefined}
                   rel={project.projectFileUrl ? "noreferrer" : undefined}
                 >
-                  {getProjectFileLabel(project)}
-                  <img src={downloadIcon} alt="" aria-hidden="true" />
+                  {project.projectFileUrl ? "Unduh Proyek" : getProjectFileLabel(project)}
                 </a>
               </>
             )}
@@ -710,12 +785,16 @@ function ProjectHero({ project, tools, nodes, tags, description }) {
 }
 
 function ComponentsCard({ tools }) {
+  const [expanded, setExpanded] = useState(false);
+  const visibleTools = expanded ? tools : visibleList(tools, 6);
+  const hasOverflow = tools.length > 6;
+
   return (
     <section className="detail-card detail-components" aria-labelledby="components-title">
       <h2 id="components-title">Alat dan Komponen</h2>
       {tools.length ? (
         <ul>
-          {visibleList(tools, 6).map((tool, index) => (
+          {visibleTools.map((tool, index) => (
             <li key={`${getToolName(tool)}-${index}`}>
               <ComponentImage tool={tool} />
               <span className="detail-component-copy">
@@ -729,18 +808,26 @@ function ComponentsCard({ tools }) {
       ) : (
         <EmptyDetail>Belum ada data alat dan komponen.</EmptyDetail>
       )}
-      {tools.length > 6 && <SectionFooterButton>Lihat Semua Komponen</SectionFooterButton>}
+      {hasOverflow ? (
+        <SectionFooterButton expanded={expanded} onClick={() => setExpanded((current) => !current)}>
+          {expanded ? "Tampilkan Lebih Sedikit" : `Lihat Semua Komponen (${tools.length})`}
+        </SectionFooterButton>
+      ) : null}
     </section>
   );
 }
 
 function NodesCard({ nodes }) {
+  const [expanded, setExpanded] = useState(false);
+  const visibleNodes = expanded ? nodes : visibleList(nodes, 4);
+  const hasOverflow = nodes.length > 4;
+
   return (
     <section className="detail-card detail-nodes" aria-labelledby="nodes-title">
       <h2 id="nodes-title">Node ArduFlow yang Digunakan</h2>
       {nodes.length ? (
         <ul>
-          {visibleList(nodes, 4).map((node, index) => (
+          {visibleNodes.map((node, index) => (
             <li key={`${node.name || node.title || "node"}-${index}`}>
               <NodeIcon node={node} index={index} />
               <span>
@@ -753,7 +840,11 @@ function NodesCard({ nodes }) {
       ) : (
         <EmptyDetail>Belum ada data node ArduFlow.</EmptyDetail>
       )}
-      {nodes.length > 4 && <SectionFooterButton>Lihat Semua Node</SectionFooterButton>}
+      {hasOverflow ? (
+        <SectionFooterButton expanded={expanded} onClick={() => setExpanded((current) => !current)}>
+          {expanded ? "Tampilkan Lebih Sedikit" : `Lihat Semua Node (${nodes.length})`}
+        </SectionFooterButton>
+      ) : null}
     </section>
   );
 }
@@ -795,8 +886,16 @@ export function ProjectDetail() {
       setError("");
 
       try {
+        const user = getStoredUser();
+        const viewerParams = {};
+        const userId = getUserId(user);
+        const email = getUserEmail(user);
+
+        if (userId) viewerParams.userId = userId;
+        if (email) viewerParams.email = email;
+
         const row = projectId
-          ? await fetchProjectSubmission(projectId)
+          ? await fetchProjectSubmission(projectId, viewerParams)
           : (await fetchProjectSubmissions()).find(isPublicProject);
 
         if (!isActive) return;

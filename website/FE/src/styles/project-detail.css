@@ -377,6 +377,12 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+.detail-node-icon--image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .detail-nodes li span:last-child {
   display: grid;
   min-width: 0;
@@ -404,10 +410,19 @@
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.06);
   color: #dce7f4;
-  cursor: default;
+  cursor: pointer;
   font-family: inherit;
   font-size: 13px;
   font-weight: 800;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.detail-card__footer-button:hover,
+.detail-card__footer-button:focus-visible {
+  border-color: rgba(125, 211, 252, 0.48);
+  background: rgba(0, 162, 255, 0.16);
+  color: #ffffff;
+  outline: 0;
 }
 
 .detail-circuit {

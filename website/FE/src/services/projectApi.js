@@ -29,6 +29,7 @@ function normalizeProject(project) {
   const coverImage = project.coverImage || project.cover_image || project.image || null;
   const projectFile = project.projectFile || project.project_file || null;
   const circuitImage = project.circuitImage || project.circuit_image || null;
+  const viewerAccess = project.viewerAccess || project.viewer_access || {};
 
   const tools = normalizeList(project.tools).map((tool) => {
     if (!tool || typeof tool !== 'object') return tool;
@@ -51,7 +52,14 @@ function normalizeProject(project) {
     estimatedTime: project.estimatedTime || '',
     tags: tags.length ? tags : [category],
     tools,
-    nodes: normalizeList(project.nodes),
+    nodes: normalizeList(project.nodes).map((node) => {
+      if (!node || typeof node !== 'object') return node;
+
+      return {
+        ...node,
+        imageUrl: resolveFileUrl(node.image),
+      };
+    }),
     steps: normalizeList(project.steps),
     coverImage,
     coverImageUrl: resolveFileUrl(coverImage),
@@ -61,6 +69,13 @@ function normalizeProject(project) {
     projectFileUrl: resolveFileUrl(projectFile),
     programmingLanguage: project.programmingLanguage || '',
     payment: project.payment || null,
+    viewerAccess,
+    hasPurchased: Boolean(
+      project.hasPurchased ||
+      project.has_purchased ||
+      viewerAccess.hasPurchased ||
+      viewerAccess.has_purchased
+    ),
     viewer: Number(project.viewer) || 0,
     likes: Number(project.likes) || 0,
     saves: Number(project.saves) || 0,
@@ -94,7 +109,7 @@ export async function fetchProjectSubmissions() {
   return (payload.data || []).map(normalizeProject);
 }
 
-export async function fetchProjectSubmission(id) {
+export async function fetchProjectSubmission(id, params = {}) {
   const projectId = String(id || '').trim();
 
   if (!projectId) {
@@ -103,6 +118,11 @@ export async function fetchProjectSubmission(id) {
 
   const url = new URL(PROJECT_API_URL, window.location.origin);
   url.searchParams.set('id', projectId);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+      url.searchParams.set(key, String(value).trim());
+    }
+  });
 
   const response = await fetch(url.toString(), {
     method: 'GET',
