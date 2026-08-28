@@ -1,4 +1,4 @@
-import { createElement, useEffect, useMemo, useState } from "react";
+import { createElement, useEffect, useMemo, useRef, useState } from "react";
 import { compressToEncodedURIComponent } from "lz-string";
 
 import monitorIcon from "../assets/icons/icon-monitor-1.svg";
@@ -9,6 +9,8 @@ import {
   fetchProjectSubmission,
   fetchProjectSubmissions,
   isPublicProject,
+  deleteProjectRating,
+  updateProjectRating,
   updateProjectInteraction,
 } from "../services/projectApi.js";
 import { createTransaction, fetchTransactions } from "../services/transactionApi.js";
@@ -60,6 +62,75 @@ function getUserEmail(user) {
 function getInteractionStorageKey(projectId, type, user = getStoredUser()) {
   const userKey = getUserEmail(user) || getUserId(user) || "guest";
   return `arduflow_project_${projectId}_${type}_${userKey}`;
+}
+
+function getUserDisplayName(user) {
+  return String(user?.name || user?.fullName || user?.username || getUserEmail(user) || "User").trim();
+}
+
+function getInitials(name) {
+  return String(name || "User")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
+
+const PROJECT_REVIEW_CATEGORIES = [
+  { id: "documentation", label: "Kualitas Dokumentasi" },
+  { id: "easyToFollow", label: "Kemudahan Diikuti" },
+  { id: "fileCompleteness", label: "Kelengkapan File" },
+  { id: "resultAccuracy", label: "Kesesuaian Hasil" },
+  { id: "circuitNeatness", label: "Kerapian Rangkaian" },
+];
+
+function createEmptyCategoryRatings(value = 0) {
+  return PROJECT_REVIEW_CATEGORIES.reduce((result, category) => {
+    result[category.id] = Number(value) || 0;
+    return result;
+  }, {});
+}
+
+function normalizeReviewCategories(categories = {}) {
+  const source = categories && typeof categories === "object" ? categories : {};
+  return PROJECT_REVIEW_CATEGORIES.reduce((result, category) => {
+    result[category.id] = Math.min(5, Math.max(0, Number(source[category.id]) || 0));
+    return result;
+  }, {});
+}
+
+function normalizeProjectReviews(reviews = []) {
+  return (Array.isArray(reviews) ? reviews : [])
+    .map((review, index) => ({
+      id: review?.id || review?.identity || `review-${index}`,
+      identity: String(review?.identity || ""),
+      value: Math.min(5, Math.max(0, Number(review?.value || review?.rating || 0))),
+      message: String(review?.message || review?.comment || "").trim(),
+      categories: normalizeReviewCategories(review?.categories),
+      authorName: String(review?.authorName || review?.userName || review?.name || "User").trim(),
+      authorEmail: String(review?.authorEmail || review?.email || "").trim(),
+      createdAt: review?.createdAt || review?.created_at || null,
+      updatedAt: review?.updatedAt || review?.updated_at || null,
+    }))
+    .filter((review) => review.value || review.message);
+}
+
+function formatCommentDate(value) {
+  if (!value) return "";
+
+  try {
+    return new Intl.DateTimeFormat("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(value));
+  } catch {
+    return "";
+  }
 }
 
 function getToolName(tool) {
@@ -348,6 +419,165 @@ function ProjectSocialActions({ stats, onLike, onSave, onShare, onComment }) {
         <strong>{formatNumber(stats.viewer)}</strong>
         <span>viewers</span>
       </p>
+    </section>
+  );
+}
+
+function RatingStars({ value, onChange, disabled = false, label = "Rating" }) {
+  return (
+    <div className="project-review__stars" role="radiogroup" aria-label={label}>
+      {[1, 2, 3, 4, 5].map((ratingValue) => (
+        <button
+          type="button"
+          className={value >= ratingValue ? "is-active" : ""}
+          disabled={disabled}
+          onClick={() => onChange(ratingValue)}
+          aria-checked={value === ratingValue}
+          role="radio"
+          title={`${label} ${ratingValue}`}
+          key={ratingValue}
+        >
+          ★
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ProjectReview({
+  average,
+  count,
+  categoryAverages,
+  reviews,
+  viewerReview,
+  draft,
+  rating,
+  categoryRatings,
+  error,
+  isEditing,
+  isSubmitting,
+  inputRef,
+  onStartEdit,
+  onCancelEdit,
+  onDelete,
+  onDraftChange,
+  onRatingChange,
+  onCategoryChange,
+  onSubmit,
+}) {
+  const roundedAverage = Math.min(5, Math.max(0, Number(average) || 0));
+  const formVisible = isEditing || !viewerReview;
+  const visibleReviews = viewerReview
+    ? reviews.filter((review) => review.identity !== viewerReview.identity && review.id !== viewerReview.id)
+    : reviews;
+
+  return (
+    <section className="project-review" aria-label="Review proyek">
+      <div className="project-review__head">
+        <div className="project-review__summary">
+          <strong>{roundedAverage ? roundedAverage.toLocaleString("id-ID", { maximumFractionDigits: 1 }) : "0"}</strong>
+          <span>/ 5</span>
+          <small>{count ? `${formatNumber(count)} review` : "Belum ada review"}</small>
+        </div>
+        {viewerReview && !isEditing ? (
+          <div className="project-review__actions">
+            <button type="button" onClick={onStartEdit}>Edit Review</button>
+            <button type="button" onClick={onDelete} disabled={isSubmitting}>Hapus</button>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="project-review__categories">
+        {PROJECT_REVIEW_CATEGORIES.map((category) => (
+          <span key={category.id}>
+            <strong>{category.label}</strong>
+            <small>{Number(categoryAverages?.[category.id] || 0).toLocaleString("id-ID", { maximumFractionDigits: 1 })}/5</small>
+          </span>
+        ))}
+      </div>
+
+      {viewerReview && !isEditing ? (
+        <article className="project-review__mine">
+          <header>
+            <strong>Review anda</strong>
+            <span>{viewerReview.value}/5</span>
+          </header>
+          {viewerReview.message ? <p>{viewerReview.message}</p> : null}
+          <div className="project-review__mine-categories">
+            {PROJECT_REVIEW_CATEGORIES.map((category) => (
+              <span key={category.id}>{category.label}: {viewerReview.categories?.[category.id] || 0}/5</span>
+            ))}
+          </div>
+        </article>
+      ) : null}
+
+      {formVisible ? (
+        <form className="project-review__form" onSubmit={onSubmit}>
+          <div className="project-review__field">
+            <label>Rating keseluruhan</label>
+            <RatingStars value={rating} onChange={onRatingChange} disabled={isSubmitting} label="Rating keseluruhan" />
+          </div>
+
+          <div className="project-review__category-form">
+            {PROJECT_REVIEW_CATEGORIES.map((category) => (
+              <div className="project-review__field" key={category.id}>
+                <label>{category.label}</label>
+                <RatingStars
+                  value={categoryRatings[category.id] || 0}
+                  onChange={(value) => onCategoryChange(category.id, value)}
+                  disabled={isSubmitting}
+                  label={category.label}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="project-review__field">
+            <label>Komentar</label>
+            <textarea
+              ref={inputRef}
+              value={draft}
+              onChange={(event) => onDraftChange(event.target.value)}
+              placeholder="Tulis pengalaman menggunakan proyek ini"
+              rows={3}
+              maxLength={1000}
+            />
+          </div>
+
+          <div className="project-review__form-footer">
+            {error ? <span>{error}</span> : <small>{draft.length}/1000</small>}
+            <div>
+              {isEditing ? <button type="button" className="project-review__ghost" onClick={onCancelEdit}>Batal</button> : null}
+              <button type="submit" disabled={isSubmitting || !rating || !draft.trim()}>
+                {isSubmitting ? "Menyimpan..." : isEditing ? "Simpan Perubahan" : "Kirim Review"}
+              </button>
+            </div>
+          </div>
+      </form>
+      ) : null}
+
+      <div className="project-review__list">
+        {visibleReviews.length ? visibleReviews.map((review) => (
+          <article className="project-review__item" key={review.id}>
+            <span>{getInitials(review.authorName)}</span>
+            <div>
+              <header>
+                <strong>{review.authorName}</strong>
+                <small>{review.value}/5</small>
+                {review.updatedAt || review.createdAt ? <time>{formatCommentDate(review.updatedAt || review.createdAt)}</time> : null}
+              </header>
+              {review.message ? <p>{review.message}</p> : null}
+              <div className="project-review__item-categories">
+                {PROJECT_REVIEW_CATEGORIES.map((category) => (
+                  <span key={category.id}>{category.label}: {review.categories?.[category.id] || 0}/5</span>
+                ))}
+              </div>
+            </div>
+          </article>
+        )) : (
+          <p className="project-review__empty">Review lain yang dikirim akan tampil di sini.</p>
+        )}
+      </div>
     </section>
   );
 }
@@ -1317,12 +1547,25 @@ export function ProjectDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
+  const [projectReviews, setProjectReviews] = useState([]);
+  const [reviewDraft, setReviewDraft] = useState("");
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewCategories, setReviewCategories] = useState(createEmptyCategoryRatings());
+  const [viewerReview, setViewerReview] = useState(null);
+  const [reviewError, setReviewError] = useState("");
+  const [isReviewEditing, setIsReviewEditing] = useState(false);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const reviewInputRef = useRef(null);
   const [socialStats, setSocialStats] = useState({
     viewer: 0,
     likes: 0,
     saves: 0,
     shares: 0,
     comments: 0,
+    averageRating: 0,
+    ratingCount: 0,
+    viewerRating: 0,
+    categoryAverages: {},
     liked: false,
     saved: false,
   });
@@ -1332,16 +1575,43 @@ export function ProjectDetail() {
   function applyProjectStats(row) {
     const liked = window.localStorage.getItem(getInteractionStorageKey(row.id, "liked")) === "1";
     const saved = window.localStorage.getItem(getInteractionStorageKey(row.id, "saved")) === "1";
+    const reviews = normalizeProjectReviews(row.ratingItems);
 
     setSocialStats({
       viewer: Number(row.viewer) || 0,
       likes: Number(row.likes) || 0,
       saves: Number(row.saves) || 0,
       shares: Number(row.shares) || 0,
-      comments: Number(row.comments) || 0,
+      comments: Number(row.comments) || reviews.filter((review) => review.message).length,
+      averageRating: Math.min(5, Math.max(0, Number(row.averageRating) || 0)),
+      ratingCount: Number(row.ratingCount) || 0,
+      viewerRating: Number(row.viewerRating) || 0,
+      categoryAverages: row.categoryAverages || {},
       liked,
       saved,
     });
+  }
+
+  function applyProjectReviews(row) {
+    const reviews = normalizeProjectReviews(row?.ratingItems);
+    const currentViewerReview = row?.viewerReview
+      ? normalizeProjectReviews([row.viewerReview])[0] || null
+      : null;
+
+    setProjectReviews(reviews);
+    setViewerReview(currentViewerReview);
+
+    if (currentViewerReview) {
+      setReviewDraft(currentViewerReview.message || "");
+      setReviewRating(currentViewerReview.value || 0);
+      setReviewCategories(normalizeReviewCategories(currentViewerReview.categories));
+      setIsReviewEditing(false);
+    } else {
+      setReviewDraft("");
+      setReviewRating(0);
+      setReviewCategories(createEmptyCategoryRatings());
+      setIsReviewEditing(false);
+    }
   }
 
   async function sendInteraction(type, active = true) {
@@ -1437,15 +1707,115 @@ export function ProjectDetail() {
   }
 
   function handleCommentProject() {
-    const comment = window.prompt("Tulis komentar untuk proyek ini:");
+    setIsReviewEditing(true);
+    window.setTimeout(() => {
+      reviewInputRef.current?.focus();
+    }, 0);
+  }
 
-    if (!comment || !comment.trim()) return;
+  function getViewerParams() {
+    const user = getStoredUser();
+    const userId = getUserId(user);
+    const email = getUserEmail(user);
+    const viewerParams = {};
 
-    setSocialStats((current) => ({
-      ...current,
-      comments: current.comments + 1,
-    }));
-    sendInteraction("comments", true);
+    if (userId) viewerParams.userId = userId;
+    if (email) viewerParams.email = email;
+
+    return { user, userId, email, viewerParams };
+  }
+
+  function handleStartEditReview() {
+    setIsReviewEditing(true);
+    setReviewError("");
+    window.setTimeout(() => {
+      reviewInputRef.current?.focus();
+    }, 0);
+  }
+
+  function handleCancelEditReview() {
+    setReviewDraft(viewerReview?.message || "");
+    setReviewRating(viewerReview?.value || 0);
+    setReviewCategories(normalizeReviewCategories(viewerReview?.categories));
+    setReviewError("");
+    setIsReviewEditing(false);
+  }
+
+  async function handleSubmitReview(event) {
+    event.preventDefault();
+
+    if (!project?.id || isSubmittingReview) return;
+
+    const message = reviewDraft.trim();
+    const { user, userId, email, viewerParams } = getViewerParams();
+
+    if (!userId && !email) {
+      setReviewError("Login diperlukan untuk memberi review.");
+      return;
+    }
+
+    if (!reviewRating) {
+      setReviewError("Pilih rating keseluruhan.");
+      return;
+    }
+
+    if (!message) {
+      setReviewError("Komentar tidak boleh kosong.");
+      return;
+    }
+
+    setReviewError("");
+    setIsSubmittingReview(true);
+
+    try {
+      const updatedProject = await updateProjectRating(project.id, {
+        value: reviewRating,
+        message,
+        categories: reviewCategories,
+        authorName: getUserDisplayName(user),
+        authorEmail: email,
+      }, viewerParams);
+
+      if (updatedProject?.id) {
+        setProject(updatedProject);
+        applyProjectStats(updatedProject);
+        applyProjectReviews(updatedProject);
+      }
+    } catch (submitError) {
+      console.error("Gagal menyimpan review proyek:", submitError);
+      setReviewError(submitError.message || "Review tidak dapat disimpan.");
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  }
+
+  async function handleDeleteReview() {
+    if (!project?.id || isSubmittingReview) return;
+
+    const { userId, email, viewerParams } = getViewerParams();
+
+    if (!userId && !email) {
+      setReviewError("Login diperlukan untuk menghapus review.");
+      return;
+    }
+
+    setReviewError("");
+    setIsSubmittingReview(true);
+
+    try {
+      const updatedProject = await deleteProjectRating(project.id, viewerParams);
+
+      if (updatedProject?.id) {
+        setProject(updatedProject);
+        applyProjectStats(updatedProject);
+        applyProjectReviews(updatedProject);
+      }
+    } catch (deleteError) {
+      console.error("Gagal menghapus review proyek:", deleteError);
+      setReviewError(deleteError.message || "Review tidak dapat dihapus.");
+    } finally {
+      setIsSubmittingReview(false);
+    }
   }
 
   useEffect(() => {
@@ -1476,6 +1846,7 @@ export function ProjectDetail() {
 
         setProject(row);
         applyProjectStats(row);
+        applyProjectReviews(row);
       } catch (fetchError) {
         if (!isActive) return;
 
@@ -1574,6 +1945,40 @@ export function ProjectDetail() {
           onSave={handleToggleSave}
           onShare={handleShareProject}
           onComment={handleCommentProject}
+        />
+        <ProjectReview
+          average={socialStats.averageRating}
+          count={socialStats.ratingCount}
+          categoryAverages={socialStats.categoryAverages}
+          reviews={projectReviews}
+          viewerReview={viewerReview}
+          draft={reviewDraft}
+          rating={reviewRating}
+          categoryRatings={reviewCategories}
+          error={reviewError}
+          isEditing={isReviewEditing}
+          isSubmitting={isSubmittingReview}
+          inputRef={reviewInputRef}
+          onStartEdit={handleStartEditReview}
+          onCancelEdit={handleCancelEditReview}
+          onDelete={handleDeleteReview}
+          onDraftChange={(value) => {
+            setReviewDraft(value);
+            if (reviewError) setReviewError("");
+          }}
+          onRatingChange={(value) => {
+            setReviewRating(value);
+            setReviewCategories((current) => {
+              const hasCategoryValue = Object.values(current).some((item) => Number(item) > 0);
+              return hasCategoryValue ? current : createEmptyCategoryRatings(value);
+            });
+            if (reviewError) setReviewError("");
+          }}
+          onCategoryChange={(categoryId, value) => {
+            setReviewCategories((current) => ({ ...current, [categoryId]: value }));
+            if (reviewError) setReviewError("");
+          }}
+          onSubmit={handleSubmitReview}
         />
       </div>
     </main>

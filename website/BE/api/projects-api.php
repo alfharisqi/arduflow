@@ -252,6 +252,16 @@ function rowToProject(array $row, array $viewerAccess = []): array
 {
     $payload = json_decode((string) ($row['payload_json'] ?? '{}'), true);
     $payload = is_array($payload) ? $payload : [];
+    $viewer = getViewerIdentityFromQuery();
+    $viewerRatingIdentity = null;
+
+    if (($viewer['userId'] ?? null) !== null) {
+        $viewerRatingIdentity = 'user:' . (int) $viewer['userId'];
+    } elseif (($viewer['email'] ?? '') !== '') {
+        $viewerRatingIdentity = 'email:' . strtolower((string) $viewer['email']);
+    }
+
+    $ratingSummary = summarizeProjectRatings($payload, $viewerRatingIdentity);
 
     $coverImage = [
         'file_name' => $row['cover_image_name'] ?? null,
@@ -323,7 +333,14 @@ function rowToProject(array $row, array $viewerAccess = []): array
         'likes' => $payload['likes'] ?? 0,
         'saves' => $payload['saves'] ?? 0,
         'shares' => $payload['shares'] ?? 0,
-        'comments' => $payload['comments'] ?? 0,
+        'comments' => $ratingSummary['reviewCount'],
+        'commentItems' => $ratingSummary['reviewItems'],
+        'averageRating' => $ratingSummary['averageRating'],
+        'ratingCount' => $ratingSummary['ratingCount'],
+        'viewerRating' => $ratingSummary['viewerRating'],
+        'viewerReview' => $ratingSummary['viewerReview'],
+        'categoryAverages' => $ratingSummary['categoryAverages'],
+        'ratingItems' => $ratingSummary['ratingItems'],
         'createdAt' => $row['created_at'],
         'updatedAt' => $row['updated_at'],
         'payload' => $payload,
@@ -501,6 +518,264 @@ function updateProjectMetric(PDO $pdo, array $row, string $metric, int $delta): 
         'metric' => $metric,
         'value' => $payload[$metric],
     ];
+}
+
+function addProjectComment(PDO $pdo, array $row, array $commentData): array
+{
+    $message = trim((string) ($commentData['message'] ?? $commentData['comment'] ?? ''));
+
+    if ($message === '') {
+        throw new InvalidArgumentException('Komentar tidak boleh kosong.');
+    }
+
+    $messageLength = function_exists('mb_strlen') ? mb_strlen($message) : strlen($message);
+
+    if ($messageLength > 1000) {
+        throw new InvalidArgumentException('Komentar maksimal 1000 karakter.');
+    }
+
+    $payload = getProjectPayload($row);
+    $commentsList = isset($payload['commentItems']) && is_array($payload['commentItems'])
+        ? $payload['commentItems']
+        : (isset($payload['commentList']) && is_array($payload['commentList']) ? $payload['commentList'] : []);
+
+    $comment = [
+        'id' => bin2hex(random_bytes(8)),
+        'message' => $message,
+        'authorName' => trim((string) ($commentData['authorName'] ?? $commentData['userName'] ?? 'User')),
+        'authorEmail' => trim((string) ($commentData['authorEmail'] ?? $commentData['email'] ?? '')),
+        'createdAt' => jakartaNow(),
+    ];
+
+    $commentsList[] = $comment;
+    $payload['commentItems'] = array_values($commentsList);
+    $payload['comments'] = count($payload['commentItems']);
+    $now = jakartaNow();
+
+    $statement = $pdo->prepare(
+        'UPDATE project_submissions
+         SET payload_json = :payload_json, updated_at = :updated_at
+         WHERE id = :id'
+    );
+    $statement->execute([
+        ':payload_json' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+        ':updated_at' => $now,
+        ':id' => (int) $row['id'],
+    ]);
+
+    return $comment;
+}
+
+function getRatingIdentity(array $ratingData): string
+{
+    $viewer = getViewerIdentityFromQuery();
+    $userId = $viewer['userId'] ?? ($ratingData['userId'] ?? $ratingData['user_id'] ?? null);
+    $email = trim((string) (($viewer['email'] ?? '') ?: ($ratingData['email'] ?? $ratingData['authorEmail'] ?? '')));
+
+    if ($userId !== null && $userId !== '') {
+        return 'user:' . (int) $userId;
+    }
+
+    if ($email !== '') {
+        return 'email:' . strtolower($email);
+    }
+
+    throw new InvalidArgumentException('Login diperlukan untuk memberi rating.');
+}
+
+function normalizeRatingCategories($categories): array
+{
+    if (!is_array($categories)) {
+        return [];
+    }
+
+    $normalized = [];
+
+    foreach ($categories as $key => $value) {
+        $categoryKey = preg_replace('/[^a-z0-9_-]+/i', '', (string) $key) ?? '';
+        $categoryKey = trim($categoryKey);
+        $ratingValue = (int) $value;
+
+        if ($categoryKey === '' || $ratingValue < 1 || $ratingValue > 5) {
+            continue;
+        }
+
+        $normalized[$categoryKey] = $ratingValue;
+    }
+
+    return $normalized;
+}
+
+function normalizeProjectRatings(array $payload): array
+{
+    $ratings = isset($payload['ratingItems']) && is_array($payload['ratingItems'])
+        ? $payload['ratingItems']
+        : (isset($payload['ratings']) && is_array($payload['ratings']) ? $payload['ratings'] : []);
+
+    return array_values(array_filter(array_map(static function ($item) {
+        if (!is_array($item)) {
+            return null;
+        }
+
+        $value = (int) ($item['value'] ?? $item['rating'] ?? 0);
+
+        if ($value < 1 || $value > 5) {
+            return null;
+        }
+
+        $message = trim((string) ($item['message'] ?? $item['comment'] ?? ''));
+
+        return [
+            'identity' => (string) ($item['identity'] ?? ''),
+            'value' => $value,
+            'message' => $message,
+            'categories' => normalizeRatingCategories($item['categories'] ?? []),
+            'authorName' => (string) ($item['authorName'] ?? $item['userName'] ?? 'User'),
+            'authorEmail' => (string) ($item['authorEmail'] ?? $item['email'] ?? ''),
+            'createdAt' => (string) ($item['createdAt'] ?? jakartaNow()),
+            'updatedAt' => (string) ($item['updatedAt'] ?? $item['createdAt'] ?? jakartaNow()),
+        ];
+    }, $ratings)));
+}
+
+function summarizeProjectRatings(array $payload, ?string $viewerIdentity = null): array
+{
+    $ratings = normalizeProjectRatings($payload);
+    $count = count($ratings);
+    $total = array_sum(array_map(static fn ($item) => (int) $item['value'], $ratings));
+    $average = $count > 0 ? round($total / $count, 1) : 0;
+    $viewerRating = null;
+    $viewerReview = null;
+    $categoryTotals = [];
+    $categoryCounts = [];
+
+    foreach ($ratings as $rating) {
+        if ($viewerIdentity !== null && ($rating['identity'] ?? '') === $viewerIdentity) {
+            $viewerRating = (int) $rating['value'];
+            $viewerReview = $rating;
+        }
+
+        foreach (($rating['categories'] ?? []) as $categoryKey => $categoryValue) {
+            $categoryTotals[$categoryKey] = ($categoryTotals[$categoryKey] ?? 0) + (int) $categoryValue;
+            $categoryCounts[$categoryKey] = ($categoryCounts[$categoryKey] ?? 0) + 1;
+        }
+    }
+
+    $categoryAverages = [];
+    foreach ($categoryTotals as $categoryKey => $totalValue) {
+        $categoryAverages[$categoryKey] = round($totalValue / max(1, $categoryCounts[$categoryKey] ?? 1), 1);
+    }
+
+    $reviewItems = array_values(array_filter($ratings, static fn ($rating) => trim((string) ($rating['message'] ?? '')) !== ''));
+
+    return [
+        'averageRating' => $average,
+        'ratingCount' => $count,
+        'viewerRating' => $viewerRating,
+        'viewerReview' => $viewerReview,
+        'categoryAverages' => $categoryAverages,
+        'reviewCount' => count($reviewItems),
+        'reviewItems' => $reviewItems,
+        'ratingItems' => $ratings,
+    ];
+}
+
+function updateProjectRating(PDO $pdo, array $row, array $ratingData): array
+{
+    $value = (int) ($ratingData['value'] ?? $ratingData['rating'] ?? 0);
+
+    if ($value < 1 || $value > 5) {
+        throw new InvalidArgumentException('Rating harus bernilai 1 sampai 5.');
+    }
+
+    $message = trim((string) ($ratingData['message'] ?? $ratingData['comment'] ?? ''));
+    $messageLength = function_exists('mb_strlen') ? mb_strlen($message) : strlen($message);
+
+    if ($messageLength > 1000) {
+        throw new InvalidArgumentException('Komentar maksimal 1000 karakter.');
+    }
+
+    $categories = normalizeRatingCategories($ratingData['categories'] ?? []);
+    $identity = getRatingIdentity($ratingData);
+    $payload = getProjectPayload($row);
+    $ratings = normalizeProjectRatings($payload);
+    $now = jakartaNow();
+    $updated = false;
+
+    foreach ($ratings as &$rating) {
+        if (($rating['identity'] ?? '') === $identity) {
+            $rating['value'] = $value;
+            $rating['message'] = $message;
+            $rating['categories'] = $categories;
+            $rating['authorName'] = trim((string) ($ratingData['authorName'] ?? $ratingData['userName'] ?? $rating['authorName'] ?? 'User'));
+            $rating['authorEmail'] = trim((string) ($ratingData['authorEmail'] ?? $ratingData['email'] ?? $rating['authorEmail'] ?? ''));
+            $rating['updatedAt'] = $now;
+            $updated = true;
+            break;
+        }
+    }
+    unset($rating);
+
+    if (!$updated) {
+        $ratings[] = [
+            'identity' => $identity,
+            'value' => $value,
+            'message' => $message,
+            'categories' => $categories,
+            'authorName' => trim((string) ($ratingData['authorName'] ?? $ratingData['userName'] ?? 'User')),
+            'authorEmail' => trim((string) ($ratingData['authorEmail'] ?? $ratingData['email'] ?? '')),
+            'createdAt' => $now,
+            'updatedAt' => $now,
+        ];
+    }
+
+    $summary = summarizeProjectRatings(['ratingItems' => $ratings], $identity);
+    $payload['ratingItems'] = $ratings;
+    $payload['averageRating'] = $summary['averageRating'];
+    $payload['ratingCount'] = $summary['ratingCount'];
+    $payload['comments'] = $summary['reviewCount'];
+    unset($payload['commentItems'], $payload['commentList']);
+
+    $statement = $pdo->prepare(
+        'UPDATE project_submissions
+         SET payload_json = :payload_json, updated_at = :updated_at
+         WHERE id = :id'
+    );
+    $statement->execute([
+        ':payload_json' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+        ':updated_at' => $now,
+        ':id' => (int) $row['id'],
+    ]);
+
+    return $summary;
+}
+
+function deleteProjectRating(PDO $pdo, array $row, array $ratingData): array
+{
+    $identity = getRatingIdentity($ratingData);
+    $payload = getProjectPayload($row);
+    $ratings = normalizeProjectRatings($payload);
+    $ratings = array_values(array_filter($ratings, static fn ($rating) => ($rating['identity'] ?? '') !== $identity));
+    $summary = summarizeProjectRatings(['ratingItems' => $ratings], $identity);
+    $payload['ratingItems'] = $ratings;
+    $payload['averageRating'] = $summary['averageRating'];
+    $payload['ratingCount'] = $summary['ratingCount'];
+    $payload['comments'] = $summary['reviewCount'];
+    unset($payload['commentItems'], $payload['commentList']);
+    $now = jakartaNow();
+
+    $statement = $pdo->prepare(
+        'UPDATE project_submissions
+         SET payload_json = :payload_json, updated_at = :updated_at
+         WHERE id = :id'
+    );
+    $statement->execute([
+        ':payload_json' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+        ':updated_at' => $now,
+        ':id' => (int) $row['id'],
+    ]);
+
+    return $summary;
 }
 
 function getViewerIdentityFromQuery(): array
@@ -1000,6 +1275,45 @@ try {
             ]);
         }
 
+        if (($_GET['action'] ?? '') === 'comment') {
+            sendJson(410, [
+                'success' => false,
+                'message' => 'Komentar proyek sekarang dikirim bersama rating.',
+            ]);
+        }
+
+        if (($_GET['action'] ?? '') === 'rating') {
+            if ($projectId === null) {
+                sendJson(422, [
+                    'success' => false,
+                    'message' => 'ID proyek wajib diisi.',
+                ]);
+            }
+
+            $row = findProject($pdo, $projectId);
+
+            if ($row === null) {
+                sendJson(404, [
+                    'success' => false,
+                    'message' => 'Proyek tidak ditemukan.',
+                ]);
+            }
+
+            $result = updateProjectRating($pdo, $row, readJsonBody());
+            $updatedRow = findProject($pdo, $projectId);
+
+            sendJson(200, [
+                'success' => true,
+                'message' => 'Rating proyek berhasil disimpan.',
+                'data' => [
+                    'rating' => $result['viewerRating'],
+                    'averageRating' => $result['averageRating'],
+                    'ratingCount' => $result['ratingCount'],
+                    'project' => $updatedRow ? rowToProject($updatedRow, getProjectViewerAccess($pdo, $projectId)) : null,
+                ],
+            ]);
+        }
+
         $project = readProjectBody();
         $errors = validateProject($project);
 
@@ -1358,6 +1672,38 @@ try {
     }
 
     if ($method === 'DELETE') {
+        if (($_GET['action'] ?? '') === 'rating') {
+            if ($projectId === null) {
+                sendJson(422, [
+                    'success' => false,
+                    'message' => 'ID proyek wajib diisi.',
+                ]);
+            }
+
+            $row = findProject($pdo, $projectId);
+
+            if ($row === null) {
+                sendJson(404, [
+                    'success' => false,
+                    'message' => 'Proyek tidak ditemukan.',
+                ]);
+            }
+
+            $result = deleteProjectRating($pdo, $row, readJsonBody());
+            $updatedRow = findProject($pdo, $projectId);
+
+            sendJson(200, [
+                'success' => true,
+                'message' => 'Rating proyek berhasil dihapus.',
+                'data' => [
+                    'rating' => $result['viewerRating'],
+                    'averageRating' => $result['averageRating'],
+                    'ratingCount' => $result['ratingCount'],
+                    'project' => $updatedRow ? rowToProject($updatedRow, getProjectViewerAccess($pdo, $projectId)) : null,
+                ],
+            ]);
+        }
+
         if ($projectId === null) {
             throw new InvalidArgumentException('Parameter id wajib diisi untuk menghapus proyek.');
         }

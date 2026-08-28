@@ -88,10 +88,128 @@ function normalizeProject(project) {
     saves: Number(project.saves) || 0,
     shares: Number(project.shares) || 0,
     comments: Number(project.comments) || 0,
+    commentItems: normalizeList(project.commentItems || project.comment_items || project.commentList || project.comment_list),
+    averageRating: Math.min(5, Math.max(0, Number(project.averageRating || project.average_rating || 0))),
+    ratingCount: Number(project.ratingCount || project.rating_count || 0),
+    viewerRating: Number(project.viewerRating || project.viewer_rating || 0),
+    viewerReview: project.viewerReview || project.viewer_review || null,
+    categoryAverages: project.categoryAverages || project.category_averages || {},
+    ratingItems: normalizeList(project.ratingItems || project.rating_items || project.ratings),
     createdAt: project.createdAt || project.created_at || null,
     updatedAt: project.updatedAt || project.updated_at || null,
     payload: project.payload || {},
   };
+}
+
+export async function updateProjectRating(id, rating, params = {}) {
+  const projectId = String(id || '').trim();
+  const ratingPayload = rating && typeof rating === 'object' ? rating : { value: rating };
+  const value = Number(ratingPayload.value ?? ratingPayload.rating);
+
+  if (!projectId) {
+    throw new Error('ID proyek tidak tersedia.');
+  }
+
+  if (!Number.isFinite(value) || value < 1 || value > 5) {
+    throw new Error('Rating harus bernilai 1 sampai 5.');
+  }
+
+  const url = new URL(PROJECT_API_URL, window.location.origin);
+  url.searchParams.set('id', projectId);
+  url.searchParams.set('action', 'rating');
+  Object.entries(params).forEach(([key, paramValue]) => {
+    if (paramValue !== undefined && paramValue !== null && String(paramValue).trim() !== '') {
+      url.searchParams.set(key, String(paramValue).trim());
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      ...ratingPayload,
+      value,
+    }),
+  });
+  const responseText = await response.text();
+  const payload = responseText ? JSON.parse(responseText) : {};
+
+  if (!response.ok || payload.success === false) {
+    throw new Error(payload.message || `Gagal menyimpan rating proyek. HTTP ${response.status}`);
+  }
+
+  return normalizeProject(payload.data?.project || payload.project || payload.data || {});
+}
+
+export async function deleteProjectRating(id, params = {}) {
+  const projectId = String(id || '').trim();
+
+  if (!projectId) {
+    throw new Error('ID proyek tidak tersedia.');
+  }
+
+  const url = new URL(PROJECT_API_URL, window.location.origin);
+  url.searchParams.set('id', projectId);
+  url.searchParams.set('action', 'rating');
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+      url.searchParams.set(key, String(value).trim());
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    method: 'DELETE',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(params),
+  });
+  const responseText = await response.text();
+  const payload = responseText ? JSON.parse(responseText) : {};
+
+  if (!response.ok || payload.success === false) {
+    throw new Error(payload.message || `Gagal menghapus rating proyek. HTTP ${response.status}`);
+  }
+
+  return normalizeProject(payload.data?.project || payload.project || payload.data || {});
+}
+
+export async function addProjectComment(id, comment, params = {}) {
+  const projectId = String(id || '').trim();
+
+  if (!projectId) {
+    throw new Error('ID proyek tidak tersedia.');
+  }
+
+  const url = new URL(PROJECT_API_URL, window.location.origin);
+  url.searchParams.set('id', projectId);
+  url.searchParams.set('action', 'comment');
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+      url.searchParams.set(key, String(value).trim());
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(comment),
+  });
+  const responseText = await response.text();
+  const payload = responseText ? JSON.parse(responseText) : {};
+
+  if (!response.ok || payload.success === false) {
+    throw new Error(payload.message || `Gagal menyimpan komentar proyek. HTTP ${response.status}`);
+  }
+
+  return normalizeProject(payload.data?.project || payload.project || payload.data || {});
 }
 
 export async function updateProjectInteraction(id, type, active = true, params = {}) {
