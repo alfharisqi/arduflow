@@ -67,6 +67,13 @@ function normalizeProject(project) {
     circuitImageUrl: resolveFileUrl(circuitImage),
     projectFile,
     projectFileUrl: resolveFileUrl(projectFile),
+    projectFiles: normalizeList(project.projectFiles || project.project_files).map((entry) => ({
+      ...entry,
+      fileUrl: resolveFileUrl(entry?.file || entry),
+    })),
+    projectArchiveUrl: project.id
+      ? `${PROJECT_API_URL}${PROJECT_API_URL.includes('?') ? '&' : '?'}id=${encodeURIComponent(project.id)}&action=download`
+      : '',
     programmingLanguage: project.programmingLanguage || '',
     payment: project.payment || null,
     viewerAccess,
@@ -79,10 +86,46 @@ function normalizeProject(project) {
     viewer: Number(project.viewer) || 0,
     likes: Number(project.likes) || 0,
     saves: Number(project.saves) || 0,
+    shares: Number(project.shares) || 0,
+    comments: Number(project.comments) || 0,
     createdAt: project.createdAt || project.created_at || null,
     updatedAt: project.updatedAt || project.updated_at || null,
     payload: project.payload || {},
   };
+}
+
+export async function updateProjectInteraction(id, type, active = true, params = {}) {
+  const projectId = String(id || '').trim();
+
+  if (!projectId) {
+    throw new Error('ID proyek tidak tersedia.');
+  }
+
+  const url = new URL(PROJECT_API_URL, window.location.origin);
+  url.searchParams.set('id', projectId);
+  url.searchParams.set('action', 'interaction');
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+      url.searchParams.set(key, String(value).trim());
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ type, active }),
+  });
+  const responseText = await response.text();
+  const payload = responseText ? JSON.parse(responseText) : {};
+
+  if (!response.ok || payload.success === false) {
+    throw new Error(payload.message || `Gagal memperbarui interaksi proyek. HTTP ${response.status}`);
+  }
+
+  return normalizeProject(payload.data?.project || payload.project || payload.data || {});
 }
 
 export function isPublicProject(project) {

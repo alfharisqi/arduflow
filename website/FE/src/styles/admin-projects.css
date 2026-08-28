@@ -305,12 +305,12 @@
 }
 
 .admin-projects-table-card > .admin-users-table-header {
-  min-width: 1680px;
+  min-width: 1760px;
 }
 
 .admin-projects-table {
-  width: 1680px;
-  min-width: 1680px;
+  width: 1760px;
+  min-width: 1760px;
   border-collapse: collapse;
   table-layout: fixed;
   font-family: 'Inter', sans-serif;
@@ -325,7 +325,7 @@
 .admin-projects-col-price { width: 124px; }
 .admin-projects-col-status { width: 116px; }
 .admin-projects-col-viewer { width: 82px; }
-.admin-projects-col-like { width: 104px; }
+.admin-projects-col-like { width: 76px; }
 .admin-projects-col-date { width: 132px; }
 .admin-projects-col-actions { width: 72px; }
 
@@ -393,7 +393,9 @@
 .admin-projects-table th:nth-child(13),
 .admin-projects-table td:nth-child(13),
 .admin-projects-table th:nth-child(14),
-.admin-projects-table td:nth-child(14) {
+.admin-projects-table td:nth-child(14),
+.admin-projects-table th:nth-child(15),
+.admin-projects-table td:nth-child(15) {
   text-align: center;
 }
 
@@ -412,8 +414,8 @@
   text-align: center;
 }
 
-.admin-projects-table th:nth-child(15),
-.admin-projects-table td:nth-child(15) {
+.admin-projects-table th:last-child,
+.admin-projects-table td:last-child {
   position: sticky;
   right: 0;
   z-index: 2;
@@ -426,12 +428,12 @@
   overflow: visible;
 }
 
-.admin-projects-table th:nth-child(15) {
+.admin-projects-table th:last-child {
   z-index: 3;
   background: #f9fafb;
 }
 
-.admin-projects-table tbody tr:hover td:nth-child(15) {
+.admin-projects-table tbody tr:hover td:last-child {
   background: #f9fafb;
 }
 
@@ -2016,15 +2018,15 @@
   text-transform: none;
 }
 
-.admin-projects-table th:nth-child(15),
-.admin-projects-table td:nth-child(15) {
+.admin-projects-table th:nth-child(16),
+.admin-projects-table td:nth-child(16) {
   width: 72px;
   min-width: 72px;
   background: #ffffff;
   box-shadow: -1px 0 0 #eaecf0;
 }
 
-.admin-projects-table th:nth-child(15) {
+.admin-projects-table th:nth-child(16) {
   background: #f9fafb;
 }
 
@@ -2032,7 +2034,7 @@
   background: #f9fafb;
 }
 
-.admin-projects-table tbody tr:hover td:nth-child(15) {
+.admin-projects-table tbody tr:hover td:nth-child(16) {
   background: #f9fafb;
 }
 

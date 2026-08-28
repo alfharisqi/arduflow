@@ -1826,8 +1826,7 @@
   font-weight: 700;
 }
 
-.project-upload-step-fields input,
-.project-upload-step-fields textarea {
+.project-upload-step-fields input {
   box-sizing: border-box;
   width: 100%;
   border: 1px solid #d0d5dd;
@@ -1845,11 +1844,85 @@
   padding: 0 12px;
 }
 
-.project-upload-step-fields textarea {
-  min-height: 92px;
-  resize: vertical;
-  padding: 10px 12px;
-  line-height: 1.45;
+.project-upload-step-editor {
+  min-width: 0;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.project-upload-step-editor .tox-tinymce {
+  border: 0;
+}
+
+.project-upload-step-linked {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #f9fafb;
+}
+
+.project-upload-step-linked > span {
+  color: #344054;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.project-upload-step-linked > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.project-upload-step-linked button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid #d0d5dd;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #344054;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.project-upload-step-linked button.is-selected {
+  border-color: #4285f4;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.project-upload-step-linked button b {
+  color: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.project-upload-step-linked button small {
+  overflow: hidden;
+  max-width: 90px;
+  color: inherit;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.75;
+}
+
+.project-upload-step-linked.is-empty {
+  color: #667085;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .project-upload-step-actions {

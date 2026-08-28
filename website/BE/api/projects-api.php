@@ -280,6 +280,9 @@ function rowToProject(array $row, array $viewerAccess = []): array
     $payloadProjectFile = isset($payload['projectFile']) && is_array($payload['projectFile'])
         ? $payload['projectFile']
         : [];
+    $projectFiles = isset($payload['projectFiles']) && is_array($payload['projectFiles'])
+        ? $payload['projectFiles']
+        : [];
     $payloadCircuitImage = isset($payload['circuitImage']) && is_array($payload['circuitImage'])
         ? $payload['circuitImage']
         : [];
@@ -295,6 +298,7 @@ function rowToProject(array $row, array $viewerAccess = []): array
         'visibility' => $row['visibility'],
         'coverImage' => hasStoredFile($coverImage) ? array_replace($payloadCoverImage, $coverImage) : ($payload['coverImage'] ?? null),
         'projectFile' => hasStoredFile($projectFile) ? array_replace($payloadProjectFile, $projectFile) : ($payload['projectFile'] ?? null),
+        'projectFiles' => $projectFiles,
         'circuitImage' => hasStoredFile($circuitImage) ? array_replace($payloadCircuitImage, $circuitImage) : ($payload['circuitImage'] ?? null),
         'ownerName' => $payload['ownerName'] ?? 'User',
         'ownerUsername' => $payload['ownerUsername'] ?? '-',
@@ -318,6 +322,8 @@ function rowToProject(array $row, array $viewerAccess = []): array
         'viewer' => $payload['viewer'] ?? 0,
         'likes' => $payload['likes'] ?? 0,
         'saves' => $payload['saves'] ?? 0,
+        'shares' => $payload['shares'] ?? 0,
+        'comments' => $payload['comments'] ?? 0,
         'createdAt' => $row['created_at'],
         'updatedAt' => $row['updated_at'],
         'payload' => $payload,
@@ -333,6 +339,168 @@ function findProject(PDO $pdo, int $id): ?array
     $row = $statement->fetch();
 
     return $row === false ? null : $row;
+}
+
+function slugifyProjectFileName(string $value): string
+{
+    $slug = strtolower(trim($value));
+    $slug = preg_replace('/[^a-z0-9]+/i', '-', $slug) ?? '';
+    $slug = trim($slug, '-');
+
+    return $slug !== '' ? $slug : 'proyek';
+}
+
+function getProjectPayload(array $row): array
+{
+    $payload = json_decode((string) ($row['payload_json'] ?? '{}'), true);
+
+    return is_array($payload) ? $payload : [];
+}
+
+function getStoredProjectFiles(array $row): array
+{
+    $payload = getProjectPayload($row);
+    $files = isset($payload['projectFiles']) && is_array($payload['projectFiles'])
+        ? $payload['projectFiles']
+        : [];
+
+    if ($files === [] && isset($payload['projectFile']) && is_array($payload['projectFile'])) {
+        $files[] = [
+            'label' => 'File Proyek',
+            'file' => $payload['projectFile'],
+        ];
+    }
+
+    if ($files === [] && trim((string) ($row['project_file_path'] ?? '')) !== '') {
+        $files[] = [
+            'label' => 'File Proyek',
+            'file' => [
+                'file_name' => $row['project_file_name'] ?? null,
+                'file_path' => $row['project_file_path'] ?? null,
+            ],
+        ];
+    }
+
+    return $files;
+}
+
+function buildStoredZip(array $files): string
+{
+    $centralDirectory = '';
+    $zip = '';
+    $offset = 0;
+
+    foreach ($files as $index => $entry) {
+        $file = is_array($entry) && isset($entry['file']) && is_array($entry['file'])
+            ? $entry['file']
+            : $entry;
+        $path = (string) ($file['file_path'] ?? '');
+
+        if ($path === '' || !is_file($path)) {
+            continue;
+        }
+
+        $baseName = sanitizeStoredFileName((string) ($file['original_name'] ?? $file['file_name'] ?? 'file-' . ($index + 1)));
+        $label = is_array($entry) ? slugifyProjectFileName((string) ($entry['label'] ?? 'file-' . ($index + 1))) : 'file-' . ($index + 1);
+        $extension = pathinfo($baseName, PATHINFO_EXTENSION);
+        $archiveName = $label . ($extension !== '' ? '.' . strtolower($extension) : '');
+        $archiveName = sanitizeStoredFileName($archiveName);
+        $content = file_get_contents($path);
+
+        if ($content === false) {
+            continue;
+        }
+
+        $crc = crc32($content);
+        if ($crc < 0) {
+            $crc += 4294967296;
+        }
+        $size = strlen($content);
+        $nameLength = strlen($archiveName);
+
+        $localHeader = pack('VvvvvvVVVvv', 0x04034b50, 20, 0, 0, 0, 0, $crc, $size, $size, $nameLength, 0) . $archiveName;
+        $zip .= $localHeader . $content;
+
+        $centralDirectory .= pack(
+            'VvvvvvvVVVvvvvvVV',
+            0x02014b50,
+            20,
+            20,
+            0,
+            0,
+            0,
+            0,
+            $crc,
+            $size,
+            $size,
+            $nameLength,
+            0,
+            0,
+            0,
+            0,
+            0,
+            $offset
+        ) . $archiveName;
+        $offset += strlen($localHeader) + $size;
+    }
+
+    $fileCount = substr_count($centralDirectory, pack('V', 0x02014b50));
+    $centralDirectorySize = strlen($centralDirectory);
+    $centralDirectoryOffset = strlen($zip);
+
+    return $zip . $centralDirectory . pack('VvvvvVVv', 0x06054b50, 0, 0, $fileCount, $fileCount, $centralDirectorySize, $centralDirectoryOffset, 0);
+}
+
+function sendProjectZipDownload(array $row): never
+{
+    $emptyZip = buildStoredZip([]);
+    $zipContent = buildStoredZip(getStoredProjectFiles($row));
+
+    if ($zipContent === $emptyZip) {
+        sendJson(404, [
+            'success' => false,
+            'message' => 'File proyek belum tersedia.',
+        ]);
+    }
+
+    $fileName = slugifyProjectFileName((string) ($row['title'] ?? 'proyek')) . '.zip';
+
+    header('Content-Type: application/zip');
+    header('Content-Disposition: attachment; filename="' . $fileName . '"');
+    header('Content-Length: ' . strlen($zipContent));
+    header('Cache-Control: no-store');
+    echo $zipContent;
+    exit;
+}
+
+function updateProjectMetric(PDO $pdo, array $row, string $metric, int $delta): array
+{
+    $allowedMetrics = ['viewer', 'likes', 'saves', 'shares', 'comments'];
+
+    if (!in_array($metric, $allowedMetrics, true)) {
+        throw new InvalidArgumentException('Tipe interaksi proyek tidak valid.');
+    }
+
+    $payload = getProjectPayload($row);
+    $current = max(0, (int) ($payload[$metric] ?? 0));
+    $payload[$metric] = max(0, $current + $delta);
+    $now = jakartaNow();
+
+    $statement = $pdo->prepare(
+        'UPDATE project_submissions
+         SET payload_json = :payload_json, updated_at = :updated_at
+         WHERE id = :id'
+    );
+    $statement->execute([
+        ':payload_json' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+        ':updated_at' => $now,
+        ':id' => (int) $row['id'],
+    ]);
+
+    return [
+        'metric' => $metric,
+        'value' => $payload[$metric],
+    ];
 }
 
 function getViewerIdentityFromQuery(): array
@@ -581,7 +749,7 @@ function storeUploadedProjectFile(array $storage): ?array
 
     return $file === null
         ? null
-        : storeUploadedFile($file, $storage, 'project-file', ['json', 'flow', 'schema', 'txt', 'md'], 10 * 1024 * 1024);
+        : storeUploadedFile($file, $storage, 'project-file', ['json', 'flow', 'schema', 'txt', 'md', 'ino', 'zip'], 10 * 1024 * 1024);
 }
 
 function storeUploadedProjectFiles(array $storage, array $projectFiles): array
@@ -595,7 +763,7 @@ function storeUploadedProjectFiles(array $storage, array $projectFiles): array
             : null;
         $storedFile = $uploadedFile === null
             ? $existingFile
-            : storeUploadedFile($uploadedFile, $storage, 'project-file', ['json', 'flow', 'schema', 'txt', 'md'], 10 * 1024 * 1024);
+            : storeUploadedFile($uploadedFile, $storage, 'project-file', ['json', 'flow', 'schema', 'txt', 'md', 'ino', 'zip'], 10 * 1024 * 1024);
 
         if ($storedFile === null) {
             continue;
@@ -772,6 +940,10 @@ try {
                 ]);
             }
 
+            if (($_GET['action'] ?? '') === 'download') {
+                sendProjectZipDownload($row);
+            }
+
             sendJson(200, [
                 'success' => true,
                 'message' => 'Detail proyek berhasil diambil.',
@@ -793,6 +965,41 @@ try {
     }
 
     if ($method === 'POST') {
+        if (($_GET['action'] ?? '') === 'interaction') {
+            if ($projectId === null) {
+                sendJson(422, [
+                    'success' => false,
+                    'message' => 'ID proyek wajib diisi.',
+                ]);
+            }
+
+            $row = findProject($pdo, $projectId);
+
+            if ($row === null) {
+                sendJson(404, [
+                    'success' => false,
+                    'message' => 'Proyek tidak ditemukan.',
+                ]);
+            }
+
+            $body = readJsonBody();
+            $metric = (string) ($body['type'] ?? $body['metric'] ?? '');
+            $active = filter_var($body['active'] ?? true, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            $delta = ($active === false) ? -1 : 1;
+            $result = updateProjectMetric($pdo, $row, $metric, $delta);
+            $updatedRow = findProject($pdo, $projectId);
+
+            sendJson(200, [
+                'success' => true,
+                'message' => 'Interaksi proyek berhasil diperbarui.',
+                'data' => [
+                    'metric' => $result['metric'],
+                    'value' => $result['value'],
+                    'project' => $updatedRow ? rowToProject($updatedRow, getProjectViewerAccess($pdo, $projectId)) : null,
+                ],
+            ]);
+        }
+
         $project = readProjectBody();
         $errors = validateProject($project);
 

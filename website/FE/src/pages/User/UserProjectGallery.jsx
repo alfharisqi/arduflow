@@ -90,8 +90,9 @@ const PROJECT_CATEGORY_OPTIONS = [
   'Monitoring',
 ];
 
-const PROJECT_FILE_ACCEPT = '.json,.flow,.schema,.txt,.md';
-const PROJECT_FILE_EXTENSIONS = ['json', 'flow', 'schema', 'txt', 'md'];
+const PROJECT_FILE_ACCEPT = '.json,.flow,.schema,.txt,.md,.ino,.zip';
+const PROJECT_FILE_EXTENSIONS = ['json', 'flow', 'schema', 'txt', 'md', 'ino', 'zip'];
+const PROJECT_FILE_TEXT_PREVIEW_EXTENSIONS = new Set(['json', 'flow', 'schema', 'txt', 'md', 'ino']);
 const DEFAULT_PROJECT_FILE_LABELS = [
   'File JSON',
   'File Schema',
@@ -130,12 +131,45 @@ const STEP_TEMPLATES = [
   },
 ];
 
+function normalizeStepReferences(references = []) {
+  return normalizeProjectList(references)
+    .map((item) => {
+      if (typeof item === 'string') {
+        return {
+          kind: 'component',
+          name: item.trim(),
+          category: '',
+          value: '',
+          description: '',
+        };
+      }
+
+      return {
+        kind: item?.kind === 'node' ? 'node' : 'component',
+        name: String(item?.name || item?.title || '').trim(),
+        category: String(item?.category || '').trim(),
+        value: String(item?.value ?? '').trim(),
+        description: String(item?.description || item?.specification || '').trim(),
+      };
+    })
+    .filter((item) => item.name);
+}
+
 function normalizeProjectSteps(steps = []) {
   return steps.map((step, index) => ({
     ...step,
     order: index + 1,
     title: step.title || '',
     description: step.description || '',
+    references: normalizeStepReferences([
+      ...normalizeProjectList(step.references || step.items),
+      ...normalizeProjectList(step.components).map((item) => (
+        typeof item === 'string' ? item : { ...item, kind: 'component' }
+      )),
+      ...normalizeProjectList(step.nodes).map((item) => (
+        typeof item === 'string' ? { kind: 'node', name: item } : { ...item, kind: 'node' }
+      )),
+    ]),
   }));
 }
 
@@ -405,6 +439,98 @@ function RichTextEditor({ value, onChange, error }) {
   );
 }
 
+function getProjectReferenceName(item, fallback) {
+  return String(item?.name || item?.title || fallback).trim();
+}
+
+function getProjectReferenceValue(item) {
+  return String(item?.value ?? '').trim();
+}
+
+function createStepReferenceItems(tools = [], nodes = []) {
+  return [
+    ...tools.map((tool, index) => ({
+      key: `component-${index}`,
+      kind: 'component',
+      name: getProjectReferenceName(tool, `Komponen ${index + 1}`),
+      category: tool?.category || '',
+      specification: tool?.specification || tool?.description || '',
+      description: tool?.specification || tool?.description || '',
+      value: getProjectReferenceValue(tool),
+    })),
+    ...nodes.map((node, index) => ({
+      key: `node-${index}`,
+      kind: 'node',
+      name: getProjectReferenceName(node, `Node ${index + 1}`),
+      category: node?.category || '',
+      description: node?.description || '',
+      value: getProjectReferenceValue(node),
+    })),
+  ].filter((item) => item.name);
+}
+
+function StepRichTextEditor({ value, onChange, references }) {
+  return (
+    <div className="project-upload-step-editor">
+      <TinyMCEEditor
+        value={value}
+        onChange={onChange}
+        height={260}
+        ariaLabel="Deskripsi langkah pengerjaan"
+        enableProjectReferences
+        projectReferences={references}
+      />
+    </div>
+  );
+}
+
+function getStepReferenceKey(reference) {
+  return [
+    reference?.kind || 'component',
+    reference?.name || '',
+    reference?.category || '',
+    reference?.value || '',
+  ].join('|').toLowerCase();
+}
+
+function StepReferencePicker({ references, selectedReferences, onToggle }) {
+  if (!references.length) {
+    return (
+      <div className="project-upload-step-linked is-empty">
+        Tambahkan komponen atau node terlebih dahulu.
+      </div>
+    );
+  }
+
+  const selectedKeys = new Set(selectedReferences.map(getStepReferenceKey));
+
+  return (
+    <div className="project-upload-step-linked" aria-label="Komponen dan node terkait langkah">
+      <span>Komponen/Node terkait</span>
+      <div>
+        {references.map((item) => {
+          const itemKey = getStepReferenceKey(item);
+          const selected = selectedKeys.has(itemKey);
+
+          return (
+            <button
+              type="button"
+              className={selected ? 'is-selected' : ''}
+              onClick={() => onToggle(item)}
+              aria-pressed={selected}
+              key={`${item.key}-${item.name}`}
+            >
+              <b>{item.kind === 'node' ? 'Node' : 'Komponen'}</b>
+              {item.name}
+              {item.value ? <small>{item.value}</small> : null}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function UploadRowActions({ onEdit, onDelete }) {
   return (
     <span className="project-upload-row-actions">
@@ -508,6 +634,10 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
       ? PROJECT_CATEGORY_OPTIONS
       : [formData.category, ...PROJECT_CATEGORY_OPTIONS]
   ), [formData.category]);
+  const stepReferenceItems = useMemo(
+    () => createStepReferenceItems(formData.tools, formData.nodes),
+    [formData.tools, formData.nodes]
+  );
   const completionItems = useMemo(() => {
     const descriptionText = stripHtml(formData.description).trim();
     const projectFileCount = formData.projectFiles.filter((entry) => entry.file || entry.existingFile).length;
@@ -704,7 +834,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     if (!PROJECT_FILE_EXTENSIONS.includes(extension)) {
       setFieldErrors((current) => ({
         ...current,
-        projectFile: 'Format file proyek harus .json, .flow, .schema, .txt, atau .md.',
+        projectFile: 'Format file proyek harus .json, .flow, .schema, .txt, .md, .ino, atau .zip.',
       }));
       return;
     }
@@ -719,14 +849,18 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
 
     let preview = '';
 
-    try {
-      preview = await file.text();
-    } catch (error) {
-      console.error('File proyek tidak dapat dibaca:', error);
-      setFieldErrors((current) => ({
-        ...current,
-        projectFile: 'File proyek berhasil dipilih, tetapi isi file tidak dapat ditampilkan.',
-      }));
+    if (PROJECT_FILE_TEXT_PREVIEW_EXTENSIONS.has(extension)) {
+      try {
+        preview = await file.text();
+      } catch (error) {
+        console.error('File proyek tidak dapat dibaca:', error);
+        setFieldErrors((current) => ({
+          ...current,
+          projectFile: 'File proyek berhasil dipilih, tetapi isi file tidak dapat ditampilkan.',
+        }));
+      }
+    } else if (extension === 'zip') {
+      preview = `Preview ZIP tidak tersedia.\nFile: ${file.name}\nUkuran: ${formatFileSize(file.size)}`;
     }
 
     setFormData((current) => ({
@@ -1132,6 +1266,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
           order: current.steps.length + 1,
           title: template?.title || '',
           description: template?.description || '',
+          references: [],
         },
       ]),
     }));
@@ -1144,6 +1279,35 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
       steps: normalizeProjectSteps(current.steps.map((step, stepIndex) =>
         stepIndex === index ? { ...step, [field]: value } : step
       )),
+    }));
+    clearFieldError('steps');
+  }
+
+  function toggleStepReference(index, reference) {
+    const referenceData = {
+      kind: reference.kind === 'node' ? 'node' : 'component',
+      name: reference.name,
+      category: reference.category || '',
+      value: reference.value || '',
+      description: reference.description || reference.specification || '',
+    };
+    const referenceKey = getStepReferenceKey(referenceData);
+
+    setFormData((current) => ({
+      ...current,
+      steps: normalizeProjectSteps(current.steps.map((step, stepIndex) => {
+        if (stepIndex !== index) return step;
+
+        const currentReferences = normalizeStepReferences(step.references);
+        const hasReference = currentReferences.some((item) => getStepReferenceKey(item) === referenceKey);
+
+        return {
+          ...step,
+          references: hasReference
+            ? currentReferences.filter((item) => getStepReferenceKey(item) !== referenceKey)
+            : [...currentReferences, referenceData],
+        };
+      })),
     }));
     clearFieldError('steps');
   }
@@ -1680,7 +1844,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
 
           <section className={`project-upload-list-section project-upload-form-section${activeSection === 'steps' ? ' is-active' : ''}`}>
             <div className="project-upload-section-head">
-              <div><h3>Langkah-langkah Pengerjaan *</h3><p>Susun langkah secara berurutan. Judul dan deskripsi bisa diedit langsung tanpa pop-up.</p></div>
+              <div><h3>Langkah-langkah Pengerjaan *</h3><p>Susun langkah secara berurutan. Deskripsi mendukung format teks dan sematan komponen/node.</p></div>
               <button type="button" onClick={() => addStep()}><PlusIcon /> Tambah Langkah</button>
             </div>
             <div className="project-upload-step-templates" aria-label="Template cepat langkah pengerjaan">
@@ -1707,13 +1871,17 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
                       </label>
                       <label>
                         <span>Deskripsi</span>
-                        <textarea
+                        <StepRichTextEditor
                           value={step.description}
-                          onChange={(event) => updateStep(index, 'description', event.target.value)}
-                          placeholder="Tuliskan instruksi langkah ini dengan jelas"
-                          rows={3}
+                          onChange={(value) => updateStep(index, 'description', value)}
+                          references={stepReferenceItems}
                         />
                       </label>
+                      <StepReferencePicker
+                        references={stepReferenceItems}
+                        selectedReferences={normalizeStepReferences(step.references)}
+                        onToggle={(reference) => toggleStepReference(index, reference)}
+                      />
                     </div>
                     <div className="project-upload-step-actions">
                       <button type="button" onClick={() => moveStep(index, -1)} disabled={index === 0}>Naik</button>
@@ -1850,7 +2018,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
                       <button type="button" className="project-upload-file-remove" onClick={() => removeProjectFileRow(index)}>Hapus</button>
                     </div>
                     <small className="project-upload-file-meta">
-                      {fileName ? `${fileName} - ${formatFileSize(fileSize)}` : 'Format: json, flow, schema, txt, md | Maksimal 10 MB per file'}
+                      {fileName ? `${fileName} - ${formatFileSize(fileSize)}` : 'Format: json, flow, schema, txt, md, ino, zip | Maksimal 10 MB per file'}
                     </small>
                     {previewText ? (
                       <div className="project-upload-file-preview" aria-label={`Preview ${entry.label || fileName || `file ${index + 1}`}`}>
