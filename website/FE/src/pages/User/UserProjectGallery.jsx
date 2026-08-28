@@ -301,10 +301,14 @@ function getInitialProjectForm(project) {
     description: projectField(project, 'description'),
     tools: normalizeProjectList(project?.tools || payload.tools).map((tool) => (
       typeof tool === 'string'
-        ? { name: tool, specification: '', image: null, imageFile: null }
-        : { ...tool, imageFile: null }
+        ? { name: tool, specification: '', value: '', image: null, imageFile: null }
+        : { ...tool, value: tool.value || '', imageFile: null }
     )),
-    nodes: normalizeProjectList(project?.nodes || payload.nodes).map(normalizeProjectNode),
+    nodes: normalizeProjectList(project?.nodes || payload.nodes).map((node) => ({
+      ...normalizeProjectNode(node),
+      value: node?.value || '',
+      imageFile: null,
+    })),
     steps: normalizeProjectList(project?.steps || payload.steps),
     isPaid: Boolean(payment.isPaid || project?.isPaid || payload.isPaid),
     price: payment.price || project?.price || payload.price || '',
@@ -375,6 +379,7 @@ function getEmptyManualTool() {
     category: '',
     name: '',
     specification: '',
+    value: '',
   };
 }
 
@@ -383,6 +388,7 @@ function getEmptyManualNode() {
     name: '',
     category: '',
     description: '',
+    value: '',
   };
 }
 
@@ -420,9 +426,9 @@ function WokwiComponentPreview({ elementName, fallback }) {
   );
 }
 
-function ComponentImageField({ tool, index, onChange }) {
-  const imageName = tool.imageFile?.name || getProjectFileName(tool.image);
-  const imageUrl = tool.imageFile ? '' : getProjectFileUrl(tool.image);
+function ComponentImageField({ item, index, onChange, type = 'component' }) {
+  const imageName = item.imageFile?.name || getProjectFileName(item.image);
+  const imageUrl = item.imageFile ? '' : getProjectFileUrl(item.image);
 
   return (
     <label className="project-upload-component-image">
@@ -433,10 +439,12 @@ function ComponentImageField({ tool, index, onChange }) {
       />
       {imageUrl ? (
         <img src={imageUrl} alt="" />
+      ) : type === 'node' ? (
+        <span className="project-upload-node-image-preview"><NodeSprite name={getProjectNodeType(item)} scale={0.22} title={item.name} /></span>
       ) : (
-        <WokwiComponentPreview elementName={tool.wokwiElement} fallback={tool.name} />
+        <WokwiComponentPreview elementName={item.wokwiElement} fallback={item.name} />
       )}
-      <small>{imageName || (tool.wokwiElement ? 'Preview Wokwi' : 'Upload gambar')}</small>
+      <small>{imageName || (type === 'node' ? 'Upload gambar' : (item.wokwiElement ? 'Preview Wokwi' : 'Upload gambar'))}</small>
     </label>
   );
 }
@@ -486,6 +494,8 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
   const [circuitPreviewUrl, setCircuitPreviewUrl] = useState('');
   const [activeSection, setActiveSection] = useState('basic');
   const [selectedToolKey, setSelectedToolKey] = useState('');
+  const [toolSearch, setToolSearch] = useState('');
+  const [isToolPickerOpen, setIsToolPickerOpen] = useState(false);
   const [selectedNodeKey, setSelectedNodeKey] = useState('');
   const [nodeSearch, setNodeSearch] = useState('');
   const [isNodePickerOpen, setIsNodePickerOpen] = useState(false);
@@ -518,6 +528,8 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     setJsonResult(null);
     setNewTag('');
     setSelectedToolKey('');
+    setToolSearch('');
+    setIsToolPickerOpen(false);
     setSelectedNodeKey('');
     setNodeSearch('');
     setIsNodePickerOpen(false);
@@ -591,6 +603,21 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     setManualNode((current) => ({ ...current, [name]: value }));
     clearFieldError('nodes');
   }
+
+  const filteredToolCatalog = useMemo(() => {
+    const keyword = toolSearch.trim().toLowerCase();
+
+    if (!keyword) {
+      return WOKWI_COMPONENT_CATALOG;
+    }
+
+    return WOKWI_COMPONENT_CATALOG.filter((tool) =>
+      [tool.category, tool.name, tool.specification, tool.wokwiElement]
+        .join(' ')
+        .toLowerCase()
+        .includes(keyword)
+    );
+  }, [toolSearch]);
 
   async function handleFileChange(event) {
     const { name, files } = event.target;
@@ -785,6 +812,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
             category: manualTool.category.trim() || 'Manual',
             name,
             specification: manualTool.specification.trim(),
+            value: manualTool.value.trim(),
             wokwiElement: '',
             image: null,
             imageFile: null,
@@ -809,7 +837,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
 
     setFormData((current) => ({
       ...current,
-      tools: [...current.tools, { ...selectedTool, image: null, imageFile: null }],
+      tools: [...current.tools, { ...selectedTool, value: '', image: null, imageFile: null }],
     }));
     setSelectedToolKey('');
     clearFieldError('tools');
@@ -836,6 +864,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
                 category: manualTool.category.trim() || 'Manual',
                 name,
                 specification: manualTool.specification.trim(),
+                value: manualTool.value.trim(),
                 wokwiElement: '',
                 source: 'manual',
               }
@@ -861,7 +890,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
       ...current,
       tools: current.tools.map((tool, toolIndex) =>
         toolIndex === index
-          ? { ...tool, ...selectedTool }
+          ? { ...tool, ...selectedTool, value: tool.value || '', image: tool.image || null, imageFile: tool.imageFile || null }
           : tool
       ),
     }));
@@ -898,6 +927,15 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
       ),
     }));
     clearFieldError('tools');
+  }
+
+  function updateToolValue(index, value) {
+    setFormData((current) => ({
+      ...current,
+      tools: current.tools.map((tool, toolIndex) =>
+        toolIndex === index ? { ...tool, value } : tool
+      ),
+    }));
   }
 
   async function deleteTool(index) {
@@ -949,6 +987,9 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
             name,
             category: manualNode.category.trim() || 'Manual',
             description: manualNode.description.trim(),
+            value: manualNode.value.trim(),
+            image: null,
+            imageFile: null,
             source: 'manual',
           },
         ],
@@ -970,7 +1011,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
 
     setFormData((current) => ({
       ...current,
-      nodes: [...current.nodes, { ...selectedNode }],
+      nodes: [...current.nodes, { ...selectedNode, value: '', image: null, imageFile: null }],
     }));
     setSelectedNodeKey('');
     clearFieldError('nodes');
@@ -998,6 +1039,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
                 name,
                 category: manualNode.category.trim() || 'Manual',
                 description: manualNode.description.trim(),
+                value: manualNode.value.trim(),
                 source: 'manual',
               }
             : node
@@ -1021,7 +1063,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     setFormData((current) => ({
       ...current,
       nodes: current.nodes.map((node, nodeIndex) =>
-        nodeIndex === index ? { ...selectedNode } : node
+        nodeIndex === index ? { ...node, ...selectedNode, value: node.value || '', image: node.image || null, imageFile: node.imageFile || null } : node
       ),
     }));
     setSelectedNodeKey('');
@@ -1039,6 +1081,46 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
       ...current,
       nodes: current.nodes.filter((_, nodeIndex) => nodeIndex !== index),
     }));
+  }
+
+  function updateNodeValue(index, value) {
+    setFormData((current) => ({
+      ...current,
+      nodes: current.nodes.map((node, nodeIndex) =>
+        nodeIndex === index ? { ...node, value } : node
+      ),
+    }));
+  }
+
+  function handleNodeImageChange(index, event) {
+    const file = event.target.files?.[0] || null;
+    event.target.value = '';
+
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setFieldErrors((current) => ({
+        ...current,
+        nodes: 'Gambar node harus berupa file gambar.',
+      }));
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setFieldErrors((current) => ({
+        ...current,
+        nodes: 'Ukuran gambar node maksimal 2 MB.',
+      }));
+      return;
+    }
+
+    setFormData((current) => ({
+      ...current,
+      nodes: current.nodes.map((node, nodeIndex) =>
+        nodeIndex === index ? { ...node, imageFile: file } : node
+      ),
+    }));
+    clearFieldError('nodes');
   }
 
   function addStep(template = null) {
@@ -1147,7 +1229,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
 
   function toolToJson(tool) {
     if (typeof tool === 'string') {
-      return { name: tool, specification: '' };
+      return { name: tool, specification: '', value: '' };
     }
 
     const { imageFile, ...toolData } = tool || {};
@@ -1155,6 +1237,19 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     return {
       ...toolData,
       image: imageFile ? fileToJson(imageFile) : (toolData.image || null),
+    };
+  }
+
+  function nodeToJson(node) {
+    if (typeof node === 'string') {
+      return { name: node, category: '', description: '', value: '' };
+    }
+
+    const { imageFile, ...nodeData } = node || {};
+
+    return {
+      ...nodeData,
+      image: imageFile ? fileToJson(imageFile) : (nodeData.image || null),
     };
   }
 
@@ -1216,7 +1311,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
         category: formData.category.trim(),
         description: formData.description.trim(),
         tools: formData.tools.map(toolToJson),
-        nodes: formData.nodes,
+        nodes: formData.nodes.map(nodeToJson),
         steps: formData.steps,
         payment: {
           isPaid: formData.isPaid,
@@ -1267,6 +1362,18 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
         }
       });
 
+      formData.tools.forEach((tool, index) => {
+        if (tool.imageFile) {
+          payload.append(`component_images[${index}]`, tool.imageFile);
+        }
+      });
+
+      formData.nodes.forEach((node, index) => {
+        if (node.imageFile) {
+          payload.append(`node_images[${index}]`, node.imageFile);
+        }
+      });
+
       if (formData.coverImage) {
         payload.append('cover_image', formData.coverImage);
       }
@@ -1274,12 +1381,6 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
       if (formData.circuitImage) {
         payload.append('circuit_image', formData.circuitImage);
       }
-
-      formData.tools.forEach((tool, index) => {
-        if (tool?.imageFile) {
-          payload.append(`component_images[${index}]`, tool.imageFile);
-        }
-      });
 
       const response = await fetch(isEdit ? `${PROJECT_API_URL}?id=${encodeURIComponent(projectId || initialProject.id)}` : PROJECT_API_URL, {
         method: 'POST',
@@ -1398,49 +1499,84 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
           <section className={`project-upload-list-section project-upload-form-section${activeSection === 'components' ? ' is-active' : ''}`}>
             <div className="project-upload-section-head">
               <div><h3>Alat &amp; Komponen *</h3><p>Pilih alat dan komponen elektronik dari katalog Wokwi yang digunakan dalam proyek ini</p></div>
-            </div>
-            <div className="project-upload-node-picker project-upload-component-picker">
-              <select
-                value={selectedToolKey}
-                onChange={(event) => {
-                  setSelectedToolKey(event.target.value);
-                  clearFieldError('tools');
-                }}
-              >
-                <option value="">Pilih alat atau komponen</option>
-                {WOKWI_COMPONENT_CATALOG.map((tool, index) => (
-                  <option value={index} key={`${tool.category}-${tool.name}`}>
-                    {tool.category} - {tool.name} - {tool.specification}
-                  </option>
-                ))}
-              </select>
               <button
                 type="button"
-                className={selectedToolKey === MANUAL_PICKER_VALUE ? 'is-active' : ''}
-                onClick={() => {
-                  setSelectedToolKey(MANUAL_PICKER_VALUE);
-                  clearFieldError('tools');
-                }}
+                onClick={() => setIsToolPickerOpen((current) => !current)}
               >
-                <PlusIcon /> Add Manual Item
+                <PlusIcon /> {isToolPickerOpen ? 'Tutup Komponen' : 'Tambah Komponen'}
               </button>
-              <button type="button" onClick={addTool}><PlusIcon /> Tambah Item</button>
             </div>
-            {selectedToolKey === MANUAL_PICKER_VALUE ? (
-              <div className="project-upload-manual-grid" aria-label="Tambah alat atau komponen manual">
-                <input name="category" type="text" value={manualTool.category} onChange={handleManualToolChange} placeholder="Kategori manual" />
-                <input name="name" type="text" value={manualTool.name} onChange={handleManualToolChange} placeholder="Nama alat/komponen *" />
-                <input name="specification" type="text" value={manualTool.specification} onChange={handleManualToolChange} placeholder="Keterangan/spesifikasi" />
+            {isToolPickerOpen ? (
+              <div className="project-upload-node-picker-panel">
+                <div className="project-upload-node-search">
+                  <input
+                    type="search"
+                    placeholder="Cari komponen..."
+                    value={toolSearch}
+                    onChange={(event) => setToolSearch(event.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className={selectedToolKey === MANUAL_PICKER_VALUE ? 'is-active' : ''}
+                    onClick={() => {
+                      setSelectedToolKey(MANUAL_PICKER_VALUE);
+                      clearFieldError('tools');
+                    }}
+                  >
+                    <PlusIcon /> Manual
+                  </button>
+                  <button type="button" onClick={addTool}><PlusIcon /> Tambah Komponen</button>
+                </div>
+                {selectedToolKey === MANUAL_PICKER_VALUE ? (
+                  <div className="project-upload-manual-grid" aria-label="Tambah alat atau komponen manual">
+                    <input name="category" type="text" value={manualTool.category} onChange={handleManualToolChange} placeholder="Kategori manual" />
+                    <input name="name" type="text" value={manualTool.name} onChange={handleManualToolChange} placeholder="Nama alat/komponen *" />
+                    <input name="specification" type="text" value={manualTool.specification} onChange={handleManualToolChange} placeholder="Keterangan/spesifikasi" />
+                    <input name="value" type="text" value={manualTool.value} onChange={handleManualToolChange} placeholder="Value, contoh: 10k, D2, HIGH" />
+                  </div>
+                ) : null}
+                <div className="project-upload-node-grid" role="listbox" aria-label="Pilih alat atau komponen">
+                  {filteredToolCatalog.map((tool) => {
+                    const catalogIndex = WOKWI_COMPONENT_CATALOG.indexOf(tool);
+                    const isSelected = selectedToolKey === String(catalogIndex);
+
+                    return (
+                      <button
+                        type="button"
+                        className={`project-upload-node-card${isSelected ? ' is-selected' : ''}`}
+                        key={`${tool.category}-${tool.name}`}
+                        onClick={() => {
+                          setSelectedToolKey(String(catalogIndex));
+                          clearFieldError('tools');
+                        }}
+                        aria-pressed={isSelected}
+                      >
+                        <span className="project-upload-node-card__sprite">
+                          <WokwiComponentPreview elementName={tool.wokwiElement} fallback={tool.name} />
+                        </span>
+                        <span>{tool.name}</span>
+                        <small>{tool.category}</small>
+                      </button>
+                    );
+                  })}
+                  {filteredToolCatalog.length === 0 ? (
+                    <div className="project-upload-node-card project-upload-node-card--empty">
+                      <span>Komponen tidak ditemukan</span>
+                      <small>Coba kata kunci lain</small>
+                    </div>
+                  ) : null}
+                </div>
               </div>
             ) : null}
             <div className={`project-upload-table${fieldErrors.tools ? ' has-error' : ''}`}>
-              <div className="project-upload-table__head project-upload-table__head--components"><span>Kategori</span><span>Nama Alat/Komponen</span><span>Keterangan/Spesifikasi</span><span>Gambar</span><span>Aksi</span></div>
+              <div className="project-upload-table__head project-upload-table__head--components"><span>Kategori</span><span>Nama Alat/Komponen</span><span>Keterangan/Spesifikasi</span><span>Value</span><span>Gambar</span><span>Aksi</span></div>
               {formData.tools.length ? formData.tools.map((tool, index) => (
                 <div className="project-upload-table__head project-upload-table__head--components" key={`${tool.name}-${index}`}>
                   <span>{tool.category || '-'}</span>
                   <span>{tool.name}</span>
                   <span>{tool.specification || '-'}</span>
-                  <ComponentImageField tool={tool} index={index} onChange={handleComponentImageChange} />
+                  <input className="project-upload-table-input" type="text" value={tool.value || ''} onChange={(event) => updateToolValue(index, event.target.value)} placeholder="Value" />
+                  <ComponentImageField item={tool} index={index} onChange={handleComponentImageChange} />
                   <UploadRowActions onEdit={() => editTool(index)} onDelete={() => deleteTool(index)} />
                 </div>
               )) : (
@@ -1486,6 +1622,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
                     <input name="category" type="text" value={manualNode.category} onChange={handleManualNodeChange} placeholder="Kategori manual" />
                     <input name="name" type="text" value={manualNode.name} onChange={handleManualNodeChange} placeholder="Nama node *" />
                     <input name="description" type="text" value={manualNode.description} onChange={handleManualNodeChange} placeholder="Keterangan node" />
+                    <input name="value" type="text" value={manualNode.value} onChange={handleManualNodeChange} placeholder="Value, contoh: D2, 1023, true" />
                   </div>
                 ) : null}
                 <div className="project-upload-node-grid" role="listbox" aria-label="Pilih node ArduFlow">
@@ -1522,7 +1659,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
             ) : null}
             {formData.nodes.length ? (
               <div className={`project-upload-table${fieldErrors.nodes ? ' has-error' : ''}`}>
-                <div className="project-upload-table__head project-upload-table__head--nodes"><span>Node</span><span>Kategori</span><span>Keterangan</span><span>Aksi</span></div>
+                <div className="project-upload-table__head project-upload-table__head--nodes"><span>Node</span><span>Kategori</span><span>Keterangan</span><span>Value</span><span>Gambar</span><span>Aksi</span></div>
                 {formData.nodes.map((node, index) => (
                   <div className="project-upload-table__head project-upload-table__head--nodes" key={`${node.name}-${index}`}>
                     <span className="project-upload-selected-node">
@@ -1531,6 +1668,8 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
                     </span>
                     <span>{node.category || '-'}</span>
                     <span>{node.description || '-'}</span>
+                    <input className="project-upload-table-input" type="text" value={node.value || ''} onChange={(event) => updateNodeValue(index, event.target.value)} placeholder="Value" />
+                    <ComponentImageField item={node} index={index} onChange={handleNodeImageChange} type="node" />
                     <UploadRowActions onEdit={() => editNode(index)} onDelete={() => deleteNode(index)} />
                   </div>
                 ))}

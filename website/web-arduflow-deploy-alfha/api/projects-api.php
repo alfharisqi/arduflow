@@ -548,6 +548,45 @@ function applyComponentImagesToTools(array $tools, array $componentImages): arra
     ));
 }
 
+function storeUploadedNodeImages(array $storage, array $nodes): array
+{
+    $images = [];
+
+    foreach ($nodes as $index => $node) {
+        $uploadedFile = getUploadedFileAtIndex('node_images', (int) $index);
+        $existingImage = is_array($node) && isset($node['image']) && is_array($node['image'])
+            ? $node['image']
+            : null;
+
+        $images[$index] = $uploadedFile === null
+            ? $existingImage
+            : storeUploadedFile($uploadedFile, $storage, 'node-image', ['jpg', 'jpeg', 'png', 'webp'], 2 * 1024 * 1024, true);
+    }
+
+    return $images;
+}
+
+function applyNodeImagesToNodes(array $nodes, array $nodeImages): array
+{
+    return array_values(array_map(
+        static function ($node, int $index) use ($nodeImages) {
+            $normalizedNode = is_array($node)
+                ? $node
+                : ['name' => (string) $node];
+
+            if (isset($nodeImages[$index]) && is_array($nodeImages[$index])) {
+                $normalizedNode['image'] = $nodeImages[$index];
+            } else {
+                unset($normalizedNode['image']);
+            }
+
+            return $normalizedNode;
+        },
+        $nodes,
+        array_keys($nodes)
+    ));
+}
+
 try {
     $projectRoot = dirname(__DIR__);
     $autoloadPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
@@ -673,6 +712,7 @@ try {
         $projectFile = storeUploadedProjectFile($projectImageStorage);
         $projectFiles = storeUploadedProjectFiles($projectImageStorage, is_array($project['projectFiles'] ?? null) ? $project['projectFiles'] : []);
         $componentImages = storeUploadedComponentImages($projectImageStorage, is_array($project['tools'] ?? null) ? $project['tools'] : []);
+        $nodeImages = storeUploadedNodeImages($projectImageStorage, is_array($project['nodes'] ?? null) ? $project['nodes'] : []);
 
         $now = jakartaNow();
         $project['title'] = $title;
@@ -700,6 +740,7 @@ try {
         }
 
         $project['tools'] = applyComponentImagesToTools(is_array($project['tools'] ?? null) ? $project['tools'] : [], $componentImages);
+        $project['nodes'] = applyNodeImagesToNodes(is_array($project['nodes'] ?? null) ? $project['nodes'] : [], $nodeImages);
 
         $payloadJson = json_encode(
             $project,
@@ -863,6 +904,7 @@ try {
         $projectFile = storeUploadedProjectFile($projectImageStorage);
         $projectFiles = storeUploadedProjectFiles($projectImageStorage, is_array($project['projectFiles'] ?? null) ? $project['projectFiles'] : []);
         $componentImages = storeUploadedComponentImages($projectImageStorage, is_array($project['tools'] ?? null) ? $project['tools'] : []);
+        $nodeImages = storeUploadedNodeImages($projectImageStorage, is_array($project['nodes'] ?? null) ? $project['nodes'] : []);
 
         if ($coverImage === null) {
             $coverImage = [
@@ -913,6 +955,7 @@ try {
         }
 
         $project['tools'] = applyComponentImagesToTools(is_array($project['tools'] ?? null) ? $project['tools'] : [], $componentImages);
+        $project['nodes'] = applyNodeImagesToNodes(is_array($project['nodes'] ?? null) ? $project['nodes'] : [], $nodeImages);
 
         $now = jakartaNow();
         $payloadJson = json_encode(

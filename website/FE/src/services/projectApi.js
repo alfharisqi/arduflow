@@ -101,7 +101,7 @@ export async function fetchProjectSubmission(id) {
     throw new Error('ID proyek tidak tersedia.');
   }
 
-  const url = new URL(PROJECT_API_URL);
+  const url = new URL(PROJECT_API_URL, window.location.origin);
   url.searchParams.set('id', projectId);
 
   const response = await fetch(url.toString(), {
