@@ -4,6 +4,7 @@ import { WorkshopImageCropper } from '../../features/profile-image-crop/Workshop
 import { GalleryRichTextEditor } from '../../components/GalleryRichTextEditor.jsx';
 import { AdminNotificationButton } from './AdminChrome.jsx';
 import { AdminSidebar } from './AdminSidebar.jsx';
+import { AdminActionDropdown } from './AdminActionDropdown.jsx';
 import {
   getInitialAdminSidebarCollapsed,
   persistAdminSidebarCollapsed,
@@ -1213,32 +1214,28 @@ export function AdminGallery() {
                         <td>{formatGalleryDate(item.createdAt)}</td>
                         <td>{item.userName || 'Admin'}</td>
                         <td>
-                          <div className="admin-gallery-actions">
-                            <button
-                              className="admin-gallery-action admin-gallery-action--view"
-                              type="button"
-                              onClick={() => handleViewGallery(item)}
-                              disabled={busyGalleryId === item.id}
-                            >
-                              <img src={eyeIcon} alt="" /> Lihat
-                            </button>
-                            <button
-                              className="admin-gallery-action"
-                              type="button"
-                              onClick={() => handleEditGallery(item)}
-                              disabled={busyGalleryId === item.id}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              className="admin-gallery-action admin-gallery-action--delete"
-                              type="button"
-                              onClick={() => handleDeleteGallery(item)}
-                              disabled={busyGalleryId === item.id}
-                            >
-                              Hapus
-                            </button>
-                          </div>
+                          <AdminActionDropdown
+                            label={`Buka aksi untuk ${item.title}`}
+                            items={[
+                              {
+                                label: 'Lihat',
+                                icon: <img src={eyeIcon} alt="" />,
+                                disabled: busyGalleryId === item.id,
+                                onSelect: () => handleViewGallery(item),
+                              },
+                              {
+                                label: 'Edit',
+                                disabled: busyGalleryId === item.id,
+                                onSelect: () => handleEditGallery(item),
+                              },
+                              {
+                                label: 'Hapus',
+                                tone: 'danger',
+                                disabled: busyGalleryId === item.id,
+                                onSelect: () => handleDeleteGallery(item),
+                              },
+                            ]}
+                          />
                         </td>
                       </tr>
                     ))

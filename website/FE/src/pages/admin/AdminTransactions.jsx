@@ -1,6 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AdminPage, AdminTopbar } from './AdminChrome.jsx';
 import settingsIcon from '../../assets/icons/icon-settings-1.svg';
+import usersIcon from '../../assets/icons/icon-users-1.svg';
+import workshopIcon from '../../assets/icons/icon-workshop-1.svg';
+import projectIcon from '../../assets/icons/icon-proyek.svg';
+import ideIcon from '../../assets/icons/icon-workflow-1.svg';
+import revenueIcon from '../../assets/icons/icon-dollar-1.svg';
 import {
   approveTransaction,
   createTransaction,
@@ -41,6 +46,8 @@ const initialPaymentMethodForm = {
   isActive: true,
   imageFile: null,
 };
+
+const TRANSACTIONS_PER_PAGE = 10;
 
 function formatCurrency(value, currency = 'IDR') {
   return new Intl.NumberFormat('id-ID', {
@@ -145,6 +152,10 @@ function PaymentMethodMark({ method }) {
   }
 
   return <span className="admin-payment-methods-bank">{method.channel || method.name.slice(0, 8)}</span>;
+}
+
+function formatNumber(value) {
+  return new Intl.NumberFormat('id-ID').format(Number(value) || 0);
 }
 
 function PaymentMethodsModal({
@@ -295,6 +306,10 @@ export function AdminTransactions() {
   const [paymentMethodForm, setPaymentMethodForm] = useState(initialPaymentMethodForm);
   const [paymentMethodMessage, setPaymentMethodMessage] = useState('');
   const [isPaymentMethodSaving, setPaymentMethodSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [openActionTransactionId, setOpenActionTransactionId] = useState(null);
+  const [actionMenuPosition, setActionMenuPosition] = useState({ top: 0, left: 0 });
+  const actionButtonRefs = useRef(new Map());
 
   async function loadTransactions() {
     setIsLoading(true);
@@ -315,6 +330,7 @@ export function AdminTransactions() {
     setStatusFilter('');
     setItemTypeFilter('');
     setMethodFilter('');
+    setPage(1);
   }
 
   function exportCurrentTransactions() {
@@ -367,6 +383,38 @@ export function AdminTransactions() {
     });
   }, [itemTypeFilter, methodFilter, transactions, searchTerm]);
 
+  const pagination = useMemo(() => {
+    const total = displayedTransactions.length;
+    const lastPage = Math.max(1, Math.ceil(total / TRANSACTIONS_PER_PAGE));
+    const currentPage = Math.min(page, lastPage);
+    const from = total ? (currentPage - 1) * TRANSACTIONS_PER_PAGE + 1 : 0;
+    const to = Math.min(currentPage * TRANSACTIONS_PER_PAGE, total);
+
+    return {
+      page: currentPage,
+      perPage: TRANSACTIONS_PER_PAGE,
+      total,
+      from,
+      to,
+      lastPage,
+    };
+  }, [displayedTransactions.length, page]);
+
+  const paginatedTransactions = useMemo(() => {
+    const start = (pagination.page - 1) * pagination.perPage;
+    return displayedTransactions.slice(start, start + pagination.perPage);
+  }, [displayedTransactions, pagination.page, pagination.perPage]);
+
+  const pages = useMemo(() => {
+    const current = Number(pagination.page) || 1;
+    const last = Number(pagination.lastPage) || 1;
+    return Array.from(new Set([1, current - 1, current, current + 1, last]))
+      .filter((pageNumber) => pageNumber >= 1 && pageNumber <= last)
+      .sort((left, right) => left - right);
+  }, [pagination.page, pagination.lastPage]);
+
+  const openActionTransaction = displayedTransactions.find((transaction) => transaction.id === openActionTransactionId) || null;
+
   const uniquePaymentMethods = useMemo(
     () => {
       const fromTransactions = transactions.map(getPaymentMethodLabel).filter((value) => value && value !== '-');
@@ -375,6 +423,73 @@ export function AdminTransactions() {
     },
     [paymentMethods, transactions]
   );
+
+  useEffect(() => {
+    setPage(1);
+    setOpenActionTransactionId(null);
+  }, [searchTerm, itemTypeFilter, statusFilter, methodFilter]);
+
+  useEffect(() => {
+    if (page > pagination.lastPage) {
+      setPage(pagination.lastPage);
+    }
+  }, [page, pagination.lastPage]);
+
+  useEffect(() => {
+    if (openActionTransactionId === null) {
+      return undefined;
+    }
+
+    function closeActions(event) {
+      if (
+        !event.target.closest?.('.admin-transactions-action-menu')
+        && !event.target.closest?.('.admin-transactions-action-popover')
+      ) {
+        setOpenActionTransactionId(null);
+      }
+    }
+
+    function closeWithEscape(event) {
+      if (event.key === 'Escape') {
+        setOpenActionTransactionId(null);
+      }
+    }
+
+    document.addEventListener('mousedown', closeActions);
+    document.addEventListener('keydown', closeWithEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', closeActions);
+      document.removeEventListener('keydown', closeWithEscape);
+    };
+  }, [openActionTransactionId]);
+
+  useEffect(() => {
+    if (openActionTransactionId === null) {
+      return undefined;
+    }
+
+    function updateActionMenuPosition() {
+      const button = actionButtonRefs.current.get(openActionTransactionId);
+      if (!button) return;
+
+      const rect = button.getBoundingClientRect();
+      const menuWidth = 190;
+      const gap = 8;
+      const left = Math.max(12, Math.min(window.innerWidth - menuWidth - 12, rect.right - menuWidth));
+      const top = Math.max(12, Math.min(window.innerHeight - 12, rect.bottom + gap));
+      setActionMenuPosition({ top, left });
+    }
+
+    updateActionMenuPosition();
+    window.addEventListener('resize', updateActionMenuPosition);
+    window.addEventListener('scroll', updateActionMenuPosition, true);
+
+    return () => {
+      window.removeEventListener('resize', updateActionMenuPosition);
+      window.removeEventListener('scroll', updateActionMenuPosition, true);
+    };
+  }, [openActionTransactionId]);
 
   function updateFormField(name, value) {
     setFormData((current) => ({ ...current, [name]: value }));
@@ -510,6 +625,7 @@ export function AdminTransactions() {
   }
 
   async function handleApprove(transaction) {
+    setOpenActionTransactionId(null);
     setMessage('Menyetujui transaksi dan memberikan produk...');
     try {
       await approveTransaction(transaction.id);
@@ -521,6 +637,7 @@ export function AdminTransactions() {
   }
 
   async function handleReject(transaction) {
+    setOpenActionTransactionId(null);
     const reason = window.prompt('Alasan penolakan bukti pembayaran:', transaction.rejectionReason || '');
     if (reason === null) return;
     setMessage('Menolak transaksi...');
@@ -534,6 +651,7 @@ export function AdminTransactions() {
   }
 
   async function handleDelete(transaction) {
+    setOpenActionTransactionId(null);
     const confirmed = window.confirm(`Hapus transaksi ${transaction.invoiceNumber}?`);
     if (!confirmed) return;
     setMessage('Menghapus transaksi...');
@@ -543,6 +661,18 @@ export function AdminTransactions() {
       setMessage('Transaksi berhasil dihapus.');
     } catch (error) {
       setMessage(error.message || 'Transaksi gagal dihapus.');
+    }
+  }
+
+  function changePage(nextPage) {
+    setPage(Math.max(1, Math.min(nextPage, pagination.lastPage)));
+    setOpenActionTransactionId(null);
+  }
+
+  function openProof(transaction) {
+    setOpenActionTransactionId(null);
+    if (transaction.proofFile?.url) {
+      window.open(transaction.proofFile.url, '_blank', 'noopener,noreferrer');
     }
   }
 
@@ -579,11 +709,26 @@ export function AdminTransactions() {
       </nav>
 
       <section className="admin-transactions-summary" aria-label="Ringkasan transaksi">
-        <article><span>Total Transaksi</span><strong>{summary.total}</strong><small>Semua Waktu</small></article>
-        <article><span>Workshop / Program</span><strong>{summary.workshop}</strong><small>Semua Waktu</small></article>
-        <article><span>Proyek</span><strong>{summary.project}</strong><small>Semua Waktu</small></article>
-        <article><span>ArduFlow IDE</span><strong>{summary.ide}</strong><small>Semua Waktu</small></article>
-        <article><span>Total Pendapatan</span><strong>{formatCurrency(summary.revenue)}</strong><small>Semua Waktu</small></article>
+        <article>
+          <span><img src={usersIcon} alt="" /></span>
+          <div><p>Total Transaksi</p><strong>{formatNumber(summary.total)}</strong><small>Semua waktu</small></div>
+        </article>
+        <article>
+          <span><img src={workshopIcon} alt="" /></span>
+          <div><p>Workshop / Program</p><strong>{formatNumber(summary.workshop)}</strong><small>Semua waktu</small></div>
+        </article>
+        <article>
+          <span><img src={projectIcon} alt="" /></span>
+          <div><p>Proyek</p><strong>{formatNumber(summary.project)}</strong><small>Semua waktu</small></div>
+        </article>
+        <article>
+          <span><img src={ideIcon} alt="" /></span>
+          <div><p>ArduFlow IDE</p><strong>{formatNumber(summary.ide)}</strong><small>Semua waktu</small></div>
+        </article>
+        <article>
+          <span><img src={revenueIcon} alt="" /></span>
+          <div><p>Total Pendapatan</p><strong>{formatCurrency(summary.revenue)}</strong><small>Semua waktu</small></div>
+        </article>
       </section>
 
       <section className="admin-transactions-create">
@@ -639,6 +784,13 @@ export function AdminTransactions() {
           </form>
         ) : null}
         <section className="admin-transactions-panel" aria-label="Daftar transaksi">
+          <div className="admin-transactions-table-header">
+            <div>
+              <h2>Daftar Transaksi</h2>
+              <p>{formatNumber(displayedTransactions.length)} transaksi ditampilkan</p>
+            </div>
+            <span>{statusFilter ? statusLabel(statusFilter) : 'Semua Status'}</span>
+          </div>
           <div className="admin-transactions-toolbar">
             <label className="admin-transactions-search">
               <input
@@ -696,7 +848,7 @@ export function AdminTransactions() {
                     <td colSpan="8">Belum ada transaksi sesuai filter.</td>
                   </tr>
                 ) : (
-                  displayedTransactions.map((transaction) => (
+                  paginatedTransactions.map((transaction) => (
                     <tr key={transaction.id}>
                       <td><strong>{transaction.invoiceNumber}</strong></td>
                       <td>{formatDate(transaction.paidAt || transaction.createdAt)}</td>
@@ -722,11 +874,23 @@ export function AdminTransactions() {
                         </select>
                       </td>
                       <td>
-                        <div className="admin-transactions-actions">
-                          <button type="button" onClick={() => transaction.proofFile?.url && window.open(transaction.proofFile.url, '_blank', 'noopener,noreferrer')} disabled={!transaction.proofFile?.url}>Bukti</button>
-                          <button type="button" aria-label={`Setujui ${transaction.invoiceNumber}`} onClick={() => handleApprove(transaction)} disabled={!transaction.proofFile?.url || transaction.status === 'paid'}>Setujui</button>
-                          <button type="button" aria-label={`Tolak ${transaction.invoiceNumber}`} onClick={() => handleReject(transaction)} disabled={!transaction.proofFile?.url || transaction.status === 'paid'}>Tolak</button>
-                          <button type="button" className="admin-transactions-action-danger" aria-label={`Hapus ${transaction.invoiceNumber}`} onClick={() => handleDelete(transaction)}>Hapus</button>
+                        <div className="admin-transactions-actions admin-transactions-action-menu">
+                          <button
+                            type="button"
+                            className="admin-transactions-action-trigger"
+                            ref={(node) => {
+                              if (node) {
+                                actionButtonRefs.current.set(transaction.id, node);
+                              } else {
+                                actionButtonRefs.current.delete(transaction.id);
+                              }
+                            }}
+                            aria-label={`Buka aksi untuk ${transaction.invoiceNumber}`}
+                            aria-expanded={openActionTransactionId === transaction.id}
+                            onClick={() => setOpenActionTransactionId((current) => (current === transaction.id ? null : transaction.id))}
+                          >
+                            ...
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -735,8 +899,79 @@ export function AdminTransactions() {
               </tbody>
             </table>
           </div>
+          <div className="admin-transactions-pagination">
+            <button type="button" disabled={pagination.page <= 1} onClick={() => changePage(pagination.page - 1)}>
+              Previous
+            </button>
+            <div>
+              {pages.map((pageNumber) => (
+                <button
+                  type="button"
+                  className={pageNumber === pagination.page ? 'is-active' : ''}
+                  onClick={() => changePage(pageNumber)}
+                  key={pageNumber}
+                >
+                  {pageNumber}
+                </button>
+              ))}
+            </div>
+            <span>
+              Page {pagination.page} of {pagination.lastPage}
+              <small>Menampilkan {pagination.from} - {pagination.to} dari {formatNumber(pagination.total)} transaksi</small>
+            </span>
+            <button
+              type="button"
+              disabled={pagination.page >= pagination.lastPage}
+              onClick={() => changePage(pagination.page + 1)}
+            >
+              Next
+            </button>
+          </div>
         </section>
       </section>
+      {openActionTransaction ? (
+        <div
+          className="admin-transactions-action-popover"
+          role="menu"
+          style={{
+            top: `${actionMenuPosition.top}px`,
+            left: `${actionMenuPosition.left}px`,
+          }}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            disabled={!openActionTransaction.proofFile?.url}
+            onClick={() => openProof(openActionTransaction)}
+          >
+            Bukti
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={!openActionTransaction.proofFile?.url || openActionTransaction.status === 'paid'}
+            onClick={() => handleApprove(openActionTransaction)}
+          >
+            Setujui
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={!openActionTransaction.proofFile?.url || openActionTransaction.status === 'paid'}
+            onClick={() => handleReject(openActionTransaction)}
+          >
+            Tolak
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="admin-transactions-action-danger"
+            onClick={() => handleDelete(openActionTransaction)}
+          >
+            Hapus
+          </button>
+        </div>
+      ) : null}
       {isPaymentModalOpen ? (
         <PaymentMethodsModal
           methods={paymentMethods}

@@ -1,7 +1,17 @@
-export const API_BASE_URL = (
-  import.meta.env.VITE_API_URL ||
-  'http://127.0.0.1:8000'
-).replace(/\/$/, '');
+function resolveApiBaseUrl() {
+  const envUrl = String(import.meta.env.VITE_API_URL || '').trim();
+
+  if (
+    import.meta.env.DEV &&
+    /^http:\/\/(127\.0\.0\.1|localhost):8000\/?$/i.test(envUrl)
+  ) {
+    return '';
+  }
+
+  return (envUrl || 'http://127.0.0.1:8000').replace(/\/$/, '');
+}
+
+export const API_BASE_URL = resolveApiBaseUrl();
 
 export function apiUrl(path) {
   return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;

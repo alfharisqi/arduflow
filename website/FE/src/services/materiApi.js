@@ -1,6 +1,7 @@
+import { apiEndpoint } from './apiEndpoints.js';
+
 const MATERI_API_URL =
-  import.meta.env.VITE_MATERI_API_URL ||
-  'http://192.168.130.11:8000/api/materi-api.php';
+  apiEndpoint(import.meta.env.VITE_MATERI_API_URL, '/api/materi-api.php');
 
 function normalizeBoolean(value, defaultValue = false) {
   if (value === undefined || value === null || value === '') {

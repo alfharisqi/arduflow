@@ -479,7 +479,34 @@ function storeUploadedProjectFile(array $storage): ?array
 
     return $file === null
         ? null
-        : storeUploadedFile($file, $storage, 'project-file', ['json', 'flow'], 10 * 1024 * 1024);
+        : storeUploadedFile($file, $storage, 'project-file', ['json', 'flow', 'schema', 'txt', 'md'], 10 * 1024 * 1024);
+}
+
+function storeUploadedProjectFiles(array $storage, array $projectFiles): array
+{
+    $files = [];
+
+    foreach ($projectFiles as $index => $projectFile) {
+        $uploadedFile = getUploadedFileAtIndex('project_files', (int) $index);
+        $existingFile = is_array($projectFile) && isset($projectFile['file']) && is_array($projectFile['file'])
+            ? $projectFile['file']
+            : null;
+        $storedFile = $uploadedFile === null
+            ? $existingFile
+            : storeUploadedFile($uploadedFile, $storage, 'project-file', ['json', 'flow', 'schema', 'txt', 'md'], 10 * 1024 * 1024);
+
+        if ($storedFile === null) {
+            continue;
+        }
+
+        $files[] = [
+            'id' => is_array($projectFile) ? ($projectFile['id'] ?? null) : null,
+            'label' => is_array($projectFile) ? trim((string) ($projectFile['label'] ?? '')) : '',
+            'file' => $storedFile,
+        ];
+    }
+
+    return $files;
 }
 
 function storeUploadedComponentImages(array $storage, array $tools): array
@@ -644,6 +671,7 @@ try {
         $coverImage = storeUploadedCoverImage($projectImageStorage) ?? extractCoverImage($project, $projectImageStorage);
         $circuitImage = storeUploadedCircuitImage($projectImageStorage);
         $projectFile = storeUploadedProjectFile($projectImageStorage);
+        $projectFiles = storeUploadedProjectFiles($projectImageStorage, is_array($project['projectFiles'] ?? null) ? $project['projectFiles'] : []);
         $componentImages = storeUploadedComponentImages($projectImageStorage, is_array($project['tools'] ?? null) ? $project['tools'] : []);
 
         $now = jakartaNow();
@@ -659,6 +687,12 @@ try {
 
         if ($projectFile !== null) {
             $project['projectFile'] = $projectFile;
+        }
+
+        if ($projectFiles !== []) {
+            $project['projectFiles'] = $projectFiles;
+            $project['projectFile'] = $projectFiles[0]['file'] ?? $project['projectFile'] ?? null;
+            $projectFile = $project['projectFile'];
         }
 
         if ($circuitImage !== null) {
@@ -827,6 +861,7 @@ try {
         $coverImage = storeUploadedCoverImage($projectImageStorage) ?? extractCoverImage($incoming, $projectImageStorage);
         $circuitImage = storeUploadedCircuitImage($projectImageStorage);
         $projectFile = storeUploadedProjectFile($projectImageStorage);
+        $projectFiles = storeUploadedProjectFiles($projectImageStorage, is_array($project['projectFiles'] ?? null) ? $project['projectFiles'] : []);
         $componentImages = storeUploadedComponentImages($projectImageStorage, is_array($project['tools'] ?? null) ? $project['tools'] : []);
 
         if ($coverImage === null) {
@@ -855,6 +890,12 @@ try {
 
         if (($projectFile['file_name'] ?? null) !== null) {
             $project['projectFile'] = $projectFile;
+        }
+
+        if ($projectFiles !== []) {
+            $project['projectFiles'] = $projectFiles;
+            $project['projectFile'] = $projectFiles[0]['file'] ?? $project['projectFile'] ?? null;
+            $projectFile = $project['projectFile'];
         }
 
         if ($circuitImage === null) {

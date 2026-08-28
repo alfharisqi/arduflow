@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
 import { apiEndpoint } from '../../services/apiEndpoints.js';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
@@ -6,7 +6,6 @@ import mailIcon from '../../assets/icons/icon-mail-1.svg';
 import messageIcon from '../../assets/icons/icon-message-square-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
-import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
 import phoneIcon from '../../assets/icons/icon-phone-1.svg';
 
 const FORMHANDLE_ENDPOINT = apiEndpoint(
@@ -17,15 +16,7 @@ const FORMHANDLE_ENDPOINT = apiEndpoint(
 const PAGE_SIZE = 8;
 
 function LeadBadge({ children }) {
-  return <span className={`admin-leads-badge admin-leads-badge--${createSlug(children)}`}>{children}</span>;
-}
-
-function LeadAction({ label, children, onClick }) {
-  return (
-    <button className="admin-leads-action" type="button" aria-label={label} onClick={onClick}>
-      {children}
-    </button>
-  );
+  return <span className={`admin-users-badge admin-users-badge--${createSlug(children)}`}>{children}</span>;
 }
 
 function initials(name) {
@@ -242,6 +233,9 @@ export function AdminLeads() {
   const [checkedLeadIds, setCheckedLeadIds] = useState([]);
   const [isDetailOpen, setDetailOpen] = useState(false);
   const [page, setPage] = useState(1);
+  const [openActionLeadId, setOpenActionLeadId] = useState(null);
+  const [actionMenuPosition, setActionMenuPosition] = useState({ top: 12, left: 12 });
+  const actionButtonRefs = useRef(new Map());
 
   useEffect(() => {
     let isActive = true;
@@ -306,6 +300,59 @@ export function AdminLeads() {
     };
   }, [isDetailOpen]);
 
+  useEffect(() => {
+    if (openActionLeadId === null) {
+      return undefined;
+    }
+
+    function closeActions(event) {
+      if (!event.target.closest?.('.admin-users-action-menu') && !event.target.closest?.('.admin-users-action-popover')) {
+        setOpenActionLeadId(null);
+      }
+    }
+
+    function closeWithEscape(event) {
+      if (event.key === 'Escape') {
+        setOpenActionLeadId(null);
+      }
+    }
+
+    document.addEventListener('mousedown', closeActions);
+    document.addEventListener('keydown', closeWithEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', closeActions);
+      document.removeEventListener('keydown', closeWithEscape);
+    };
+  }, [openActionLeadId]);
+
+  useEffect(() => {
+    if (openActionLeadId === null) {
+      return undefined;
+    }
+
+    function updateActionMenuPosition() {
+      const button = actionButtonRefs.current.get(openActionLeadId);
+      if (!button) return;
+
+      const rect = button.getBoundingClientRect();
+      const menuWidth = 190;
+      const gap = 8;
+      const left = Math.max(12, Math.min(window.innerWidth - menuWidth - 12, rect.right - menuWidth));
+      const top = Math.max(12, Math.min(window.innerHeight - 12, rect.bottom + gap));
+      setActionMenuPosition({ top, left });
+    }
+
+    updateActionMenuPosition();
+    window.addEventListener('resize', updateActionMenuPosition);
+    window.addEventListener('scroll', updateActionMenuPosition, true);
+
+    return () => {
+      window.removeEventListener('resize', updateActionMenuPosition);
+      window.removeEventListener('scroll', updateActionMenuPosition, true);
+    };
+  }, [openActionLeadId]);
+
   const filteredLeads = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
 
@@ -333,6 +380,7 @@ export function AdminLeads() {
   const safePage = Math.min(page, totalPages);
   const visibleLeads = filteredLeads.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
   const selectedLead = leads.find((lead) => lead.id === selectedLeadId) || filteredLeads[0] || leads[0] || null;
+  const openActionLead = leads.find((lead) => lead.id === openActionLeadId) || null;
   const stats = getLeadStats(leads);
   const statusOptions = Object.keys(countBy(leads, (lead) => lead.status));
   const topicOptions = Object.keys(countBy(leads, (lead) => lead.topic));
@@ -370,6 +418,7 @@ export function AdminLeads() {
 
   function openLeadDetail(leadId) {
     setSelectedLeadId(leadId);
+    setOpenActionLeadId(null);
     setDetailOpen(true);
   }
 
@@ -524,19 +573,19 @@ export function AdminLeads() {
     <AdminPage pageClassName="admin-leads-page" ariaLabel="Lead dan kontak admin">
       <AdminTopbar searchPlaceholder="Cari lead / kontak" searchLabel="Cari lead atau kontak" />
 
-      <div className="admin-leads-layout">
-        <section className="admin-leads-content">
-          <div className="admin-leads-heading">
+      <div className="admin-users-layout">
+        <section className="admin-users-content">
+          <div className="admin-users-heading">
             <div>
               <h1>Lead / Kontak</h1>
               <p>Dashboard <span>/</span> Lead / Kontak</p>
             </div>
           </div>
 
-          <section className="admin-leads-stats" aria-label="Ringkasan lead kontak">
+          <section className="admin-users-summary" aria-label="Ringkasan lead kontak">
             {stats.map((item) => (
-              <article className="admin-leads-stat" key={item.label}>
-                <span className={`admin-leads-stat-icon is-${item.tone}`}>
+              <article className="admin-users-stat" key={item.label}>
+                <span>
                   <img src={item.icon} alt="" />
                 </span>
                 <div>
@@ -548,63 +597,82 @@ export function AdminLeads() {
             ))}
           </section>
 
-          <section className="admin-leads-filter" aria-label="Filter lead kontak">
-            <label className="admin-leads-search">
-              <input
-                type="search"
-                placeholder="Cari nama, email, atau WhatsApp..."
-                value={searchTerm}
-                onChange={(event) => {
-                  setSearchTerm(event.target.value);
-                  setPage(1);
-                }}
-              />
-            </label>
-            <label>
-              <span>Status</span>
-              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-                <option value="">Semua Status</option>
-                {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
-              </select>
-            </label>
-            <label>
-              <span>Topik</span>
-              <select value={topicFilter} onChange={(event) => setTopicFilter(event.target.value)}>
-                <option value="">Semua Topik</option>
-                {topicOptions.map((topic) => <option key={topic} value={topic}>{topic}</option>)}
-              </select>
-            </label>
-            <label>
-              <span>Tanggal Masuk</span>
-              <input type="date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} />
-            </label>
-            <label>
-              <span>PIC / Penanggung Jawab</span>
-              <select value={picFilter} onChange={(event) => setPicFilter(event.target.value)}>
-                <option value="">Semua PIC</option>
-                {picOptions.map((pic) => <option key={pic} value={pic}>{pic}</option>)}
-              </select>
-            </label>
-            <button type="button" onClick={resetFilters}>Reset Filter</button>
+          <section className="admin-users-filter" aria-label="Filter lead kontak">
+            <div className="admin-users-filter-row">
+              <label className="admin-users-search">
+                <input
+                  type="search"
+                  placeholder="Cari nama, email, atau WhatsApp..."
+                  value={searchTerm}
+                  onChange={(event) => {
+                    setSearchTerm(event.target.value);
+                    setPage(1);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      setPage(1);
+                    }
+                  }}
+                />
+              </label>
+              <button type="button" onClick={() => setPage(1)}>Cari</button>
+              <button type="button" onClick={resetFilters}>Reset Filter</button>
+              <button type="button" onClick={() => setPage(1)}>Refresh</button>
+            </div>
+            <div className="admin-users-select-grid">
+              <label>
+                <span>Status</span>
+                <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}>
+                  <option value="">Semua Status</option>
+                  {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Topik</span>
+                <select value={topicFilter} onChange={(event) => { setTopicFilter(event.target.value); setPage(1); }}>
+                  <option value="">Semua Topik</option>
+                  {topicOptions.map((topic) => <option key={topic} value={topic}>{topic}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Tanggal Masuk</span>
+                <input type="date" value={dateFilter} onChange={(event) => { setDateFilter(event.target.value); setPage(1); }} />
+              </label>
+              <label>
+                <span>PIC / Penanggung Jawab</span>
+                <select value={picFilter} onChange={(event) => { setPicFilter(event.target.value); setPage(1); }}>
+                  <option value="">Semua PIC</option>
+                  {picOptions.map((pic) => <option key={pic} value={pic}>{pic}</option>)}
+                </select>
+              </label>
+            </div>
           </section>
 
           {error && <p className="admin-leads-error">{error}</p>}
 
-          <section className="admin-leads-table-card">
-            <div className="admin-leads-selection-toolbar">
+          <section className="admin-users-toolbar">
+            <span>{checkedLeads.length} dipilih</span>
+            <button type="button" disabled={!checkedLeads.length} onClick={() => copyCheckedLeads()}>Salin Terpilih</button>
+            <button type="button" className="admin-users-primary" disabled={!checkedLeads.length} onClick={() => exportLeadsCsv(checkedLeads)}>Export Terpilih</button>
+            <button type="button" disabled={!checkedLeads.length} onClick={() => updateCheckedLeadStatus('Diproses')}>Tandai Diproses</button>
+            <button type="button" disabled={!checkedLeads.length} onClick={() => updateCheckedLeadStatus('Selesai')}>Tandai Selesai</button>
+            <button type="button" disabled={!checkedLeads.length} onClick={() => setCheckedLeadIds([])}>Batal Pilih</button>
+            <button type="button" disabled={!filteredLeads.length} onClick={() => exportLeadsCsv(filteredLeads)}>Export CSV</button>
+            <button type="button" disabled={!leads.length} onClick={() => setCheckedLeadIds(leads.filter((lead) => lead.status === 'Baru').map((lead) => lead.id))}>Pilih Lead Baru</button>
+            <button type="button" onClick={openFirstCheckedEmail}>Email</button>
+            <button type="button" onClick={openFirstCheckedWhatsapp}>WhatsApp</button>
+          </section>
+
+          <section className="admin-users-table-card admin-leads-users-table-card">
+            <div className="admin-users-table-header">
               <div>
-                <strong>{checkedLeads.length} lead dipilih</strong>
-                <span>{someVisibleChecked && !allVisibleChecked ? 'Sebagian lead di halaman ini dipilih' : 'Pilih checkbox untuk menjalankan aksi massal'}</span>
+                <h2>Daftar Lead / Kontak</h2>
+                <p>{filteredLeads.length} lead sesuai filter</p>
               </div>
-              <div>
-                <button type="button" disabled={checkedLeads.length < 1} onClick={() => copyCheckedLeads()}>Salin Terpilih</button>
-                <button type="button" disabled={checkedLeads.length < 1} onClick={() => exportLeadsCsv(checkedLeads)}>Export Terpilih</button>
-                <button type="button" disabled={checkedLeads.length < 1} onClick={() => updateCheckedLeadStatus('Diproses')}>Tandai Diproses</button>
-                <button type="button" disabled={checkedLeads.length < 1} onClick={() => updateCheckedLeadStatus('Selesai')}>Tandai Selesai</button>
-                <button type="button" disabled={checkedLeads.length < 1} onClick={() => setCheckedLeadIds([])}>Batal Pilih</button>
-              </div>
+              <span>{checkedLeads.length} dipilih</span>
             </div>
-            <table className="admin-leads-table">
+            <table className="admin-users-table admin-leads-users-table">
               <thead>
                 <tr>
                   <th>
@@ -642,7 +710,14 @@ export function AdminLeads() {
                           onChange={() => toggleLeadChecked(lead.id)}
                         />
                       </td>
-                      <td><span className="admin-leads-avatar" />{lead.name}</td>
+                      <td>
+                        <button type="button" className="admin-users-name-button" onClick={() => openLeadDetail(lead.id)}>
+                          <span>
+                            <b>{lead.name}</b>
+                            <small>{lead.email}</small>
+                          </span>
+                        </button>
+                      </td>
                       <td>{lead.email}</td>
                       <td>{lead.whatsapp}</td>
                       <td>{lead.topic}</td>
@@ -652,9 +727,23 @@ export function AdminLeads() {
                       <td>{lead.createdAtLabel}</td>
                       <td>{lead.updatedAtLabel}</td>
                       <td>
-                        <div className="admin-leads-actions">
-                          <LeadAction label={`Lihat ${lead.name}`} onClick={() => openLeadDetail(lead.id)}><img src={eyeIcon} alt="" /></LeadAction>
-                          <LeadAction label={`Salin ${lead.name}`} onClick={() => navigator.clipboard?.writeText(`${lead.name}\n${lead.email}\n${lead.whatsapp}`)}>Copy</LeadAction>
+                        <div className="admin-users-actions admin-users-action-menu">
+                          <button
+                            type="button"
+                            className="admin-users-action-trigger"
+                            ref={(node) => {
+                              if (node) {
+                                actionButtonRefs.current.set(lead.id, node);
+                              } else {
+                                actionButtonRefs.current.delete(lead.id);
+                              }
+                            }}
+                            aria-label={`Buka aksi untuk ${lead.name}`}
+                            aria-expanded={openActionLeadId === lead.id}
+                            onClick={() => setOpenActionLeadId((current) => (current === lead.id ? null : lead.id))}
+                          >
+                            ...
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -664,14 +753,11 @@ export function AdminLeads() {
                 )}
               </tbody>
             </table>
-            <div className="admin-leads-pagination">
-              <div className="admin-leads-pagination-summary">
-                <span>Menampilkan {visibleLeads.length ? (safePage - 1) * PAGE_SIZE + 1 : 0} - {Math.min(safePage * PAGE_SIZE, filteredLeads.length)} dari {filteredLeads.length} lead</span>
-                <strong>Halaman {safePage} dari {totalPages}</strong>
-              </div>
-              <div className="admin-leads-pagination-controls">
-                <button type="button" disabled={safePage <= 1} onClick={() => setPage(1)}>Awal</button>
-                <button type="button" disabled={safePage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>Sebelumnya</button>
+            <div className="admin-users-pagination">
+                <button type="button" disabled={safePage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>
+                  Previous
+                </button>
+                <div>
                 {visiblePages.map((pageItem) => (
                   typeof pageItem === 'string' ? (
                     <span className="admin-leads-pagination-gap" key={pageItem}>...</span>
@@ -686,18 +772,21 @@ export function AdminLeads() {
                     </button>
                   )
                 ))}
-                <button type="button" disabled={safePage >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>Berikutnya</button>
-                <button type="button" disabled={safePage >= totalPages} onClick={() => setPage(totalPages)}>Akhir</button>
+                </div>
+                <span>
+                  Page {safePage} of {totalPages}
+                  <small>Menampilkan {visibleLeads.length ? (safePage - 1) * PAGE_SIZE + 1 : 0} - {Math.min(safePage * PAGE_SIZE, filteredLeads.length)} dari {filteredLeads.length} lead</small>
+                </span>
+                <button type="button" disabled={safePage >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>
+                  Next
+                </button>
               </div>
-            </div>
           </section>
 
-          <section className="admin-leads-bottom">
-            <article className="admin-leads-panel">
-              <div className="admin-leads-panel-head">
-                <h2>Aktivitas Terbaru</h2>
-                <span>{activityItems.length} aktivitas</span>
-              </div>
+          <section className="admin-users-bottom">
+            <article className="admin-users-panel">
+              <h2>Aktivitas Terbaru</h2>
+              <p className="admin-leads-panel-meta">{activityItems.length} aktivitas</p>
               {activityItems.map((item) => (
                 <p key={`${item.text}-${item.time}`} className="admin-leads-activity-row">
                   <span className={`admin-leads-dot is-${item.tone}`} />
@@ -707,11 +796,9 @@ export function AdminLeads() {
               ))}
             </article>
 
-            <article className="admin-leads-panel admin-leads-problems">
-              <div className="admin-leads-panel-head">
-                <h2>Lead Bermasalah</h2>
-                <span>Validasi data</span>
-              </div>
+            <article className="admin-users-panel">
+              <h2>Lead Bermasalah</h2>
+              <p className="admin-leads-panel-meta">Validasi data</p>
               {leadProblems.map((item) => (
                 <p key={item[0]}>
                   <span>{item[0]}</span>
@@ -720,11 +807,9 @@ export function AdminLeads() {
               ))}
             </article>
 
-            <article className="admin-leads-panel admin-leads-conversion">
-              <div className="admin-leads-panel-head">
-                <h2>Jenis Lead</h2>
-                <span>Semua Data</span>
-              </div>
+            <article className="admin-users-panel admin-leads-conversion">
+              <h2>Jenis Lead</h2>
+              <p className="admin-leads-panel-meta">Semua Data</p>
               <div className="admin-leads-donut">
                 <strong>Total<br />{leads.length}<br />Lead</strong>
               </div>
@@ -736,23 +821,13 @@ export function AdminLeads() {
             </article>
           </section>
 
-          <section className="admin-leads-quick">
-            <h2>Aksi Cepat</h2>
-            <div>
-              <button type="button" onClick={() => exportLeadsCsv(filteredLeads)}>Export CSV Lead</button>
-              <button type="button" onClick={() => setCheckedLeadIds(leads.filter((lead) => lead.status === 'Baru').map((lead) => lead.id))}>Pilih Lead Baru</button>
-              <button type="button" onClick={openFirstCheckedEmail}>Kirim Template Email</button>
-              <button type="button" onClick={openFirstCheckedWhatsapp}>Hubungi WhatsApp</button>
-              <button type="button" onClick={copyCheckedLeads}>Salin Template Follow-up</button>
-            </div>
-          </section>
         </section>
 
       </div>
 
       {isDetailOpen && selectedLead && (
         <div
-          className="admin-leads-modal"
+          className="admin-users-modal admin-leads-modal"
           role="dialog"
           aria-modal="true"
           aria-label={`Detail lead ${selectedLead.name}`}
@@ -762,8 +837,8 @@ export function AdminLeads() {
             }
           }}
         >
-          <aside className="admin-leads-detail admin-leads-detail--modal">
-            <div className="admin-leads-detail-head">
+          <aside className="admin-users-detail admin-leads-detail admin-leads-detail--modal">
+            <div className="admin-users-detail-head admin-leads-detail-head">
               <div>
                 <h2>Detail Lead</h2>
                 <span>{selectedLead.id}</span>
@@ -773,7 +848,7 @@ export function AdminLeads() {
 
             <div className="admin-leads-detail-body">
               <section className="admin-leads-detail-hero">
-                <div className="admin-leads-detail-profile">
+                <div className="admin-users-detail-profile admin-leads-detail-profile">
                   <span className="admin-leads-detail-avatar">{initials(selectedLead.name)}</span>
                   <div>
                     <h3>{selectedLead.name}</h3>
@@ -889,6 +964,37 @@ export function AdminLeads() {
           </aside>
         </div>
       )}
+
+      {openActionLead ? (
+        <div
+          className="admin-users-action-popover"
+          role="menu"
+          style={{
+            top: `${actionMenuPosition.top}px`,
+            left: `${actionMenuPosition.left}px`,
+          }}
+        >
+          <button type="button" role="menuitem" onClick={() => openLeadDetail(openActionLead.id)}>Detail</button>
+          <button type="button" role="menuitem" onClick={() => {
+            copyLeadSummary(openActionLead);
+            setOpenActionLeadId(null);
+          }}>Copy</button>
+          <button type="button" role="menuitem" onClick={() => { setOpenActionLeadId(null); updateLeadStatus(openActionLead, 'Diproses'); }}>Tandai Diproses</button>
+          <button type="button" role="menuitem" onClick={() => { setOpenActionLeadId(null); updateLeadStatus(openActionLead, 'Selesai'); }}>Tandai Selesai</button>
+          <a href={makeMailtoUrl(openActionLead)} role="menuitem" onClick={() => setOpenActionLeadId(null)}>Email</a>
+          {makeWhatsappUrl(openActionLead) ? (
+            <a
+              href={makeWhatsappUrl(openActionLead)}
+              target="_blank"
+              rel="noreferrer"
+              role="menuitem"
+              onClick={() => setOpenActionLeadId(null)}
+            >
+              WhatsApp
+            </a>
+          ) : null}
+        </div>
+      ) : null}
     </AdminPage>
   );
 }

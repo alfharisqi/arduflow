@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
+import { AdminActionDropdown } from './AdminActionDropdown.jsx';
 import calendarIcon from '../../assets/icons/icon-clock-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
 import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
@@ -524,14 +525,29 @@ export function AdminPartners() {
                     <td>{formatDate(partner.startDate)}</td>
                     <td>{formatDate(partner.updatedAt)}</td>
                     <td>
-                      <div className="admin-partners-actions">
-                        <PartnerAction label={`Preview ${partner.name}`} onClick={() => openDetail(partner)}><img src={eyeIcon} alt="" /></PartnerAction>
-                        {partner.status === 'Menunggu' ? (
-                          <PartnerAction label={`Terima ${partner.name}`} tone="is-accept" onClick={() => acceptPartner(partner)}>Terima</PartnerAction>
-                        ) : null}
-                        <PartnerAction label={`Follow-up ${partner.name}`} onClick={() => markFollowUp(partner)}>Follow</PartnerAction>
-                        <PartnerAction label={`Email ${partner.name}`} onClick={() => emailPartner(partner)}><img src={mailIcon} alt="" /></PartnerAction>
-                      </div>
+                      <AdminActionDropdown
+                        label={`Buka aksi untuk ${partner.name}`}
+                        items={[
+                          {
+                            label: 'Preview',
+                            icon: <img src={eyeIcon} alt="" />,
+                            onSelect: () => openDetail(partner),
+                          },
+                          ...(partner.status === 'Menunggu' ? [{
+                            label: 'Terima',
+                            onSelect: () => acceptPartner(partner),
+                          }] : []),
+                          {
+                            label: 'Follow-up',
+                            onSelect: () => markFollowUp(partner),
+                          },
+                          {
+                            label: 'Email',
+                            icon: <img src={mailIcon} alt="" />,
+                            onSelect: () => emailPartner(partner),
+                          },
+                        ]}
+                      />
                     </td>
                   </tr>
                 )) : (

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AdminNotificationButton } from './AdminChrome.jsx';
 import { AdminSidebar } from './AdminSidebar.jsx';
+import { AdminActionDropdown } from './AdminActionDropdown.jsx';
 import {
   getInitialAdminSidebarCollapsed,
   persistAdminSidebarCollapsed,
@@ -12,10 +13,10 @@ import fileIcon from '../../assets/icons/icon-file-text-1.svg';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
 import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
 import zapIcon from '../../assets/icons/icon-zap-1.svg';
+import { apiEndpoint } from '../../services/apiEndpoints.js';
 
 const TUTORIAL_API_URL = (
-  import.meta.env.VITE_TUTORIAL_API_URL ||
-  'http://192.168.130.11:8000/api/'
+  apiEndpoint(import.meta.env.VITE_TUTORIAL_API_URL, '/api/')
 ).replace(/\/+$/, '');
 
 const ARTICLE_API_URL = `${TUTORIAL_API_URL}/materi-api.php`;
@@ -1623,29 +1624,25 @@ export function AdminTutorial() {
                         <td>{item.updatedAt}</td>
 
                         <td>
-                          <div className="admin-tutorial-actions">
-                            <TutorialAction
-                              label={`Lihat ${item.title}`}
-                              onClick={() => setSelectedTutorial(item)}
-                            >
-                              <img src={eyeIcon} alt="" />
-                            </TutorialAction>
-
-                            <TutorialAction
-                              label={`Edit ${item.title}`}
-                              onClick={() => handleEditTutorial(item)}
-                            >
-                              Edit
-                            </TutorialAction>
-
-                            <TutorialAction
-                              label={`Delete ${item.title}`}
-                              onClick={() => handleDeleteTutorial(item)}
-                              tone="danger"
-                            >
-                              Delete
-                            </TutorialAction>
-                          </div>
+                          <AdminActionDropdown
+                            label={`Buka aksi untuk ${item.title}`}
+                            items={[
+                              {
+                                label: 'Lihat',
+                                icon: <img src={eyeIcon} alt="" />,
+                                onSelect: () => setSelectedTutorial(item),
+                              },
+                              {
+                                label: 'Edit',
+                                onSelect: () => handleEditTutorial(item),
+                              },
+                              {
+                                label: 'Delete',
+                                tone: 'danger',
+                                onSelect: () => handleDeleteTutorial(item),
+                              },
+                            ]}
+                          />
                         </td>
                       </tr>
                     ))}

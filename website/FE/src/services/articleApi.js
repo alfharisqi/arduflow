@@ -1,6 +1,7 @@
+import { apiEndpoint } from './apiEndpoints.js';
+
 const ARTICLE_API_URL =
-  import.meta.env.VITE_ARTICLE_API_URL ||
-  'http://192.168.130.10:8000/api/article-api.php';
+  apiEndpoint(import.meta.env.VITE_ARTICLE_API_URL, '/api/article-api.php');
 
 function normalizeBoolean(value, defaultValue = false) {
   if (value === undefined || value === null || value === '') {
