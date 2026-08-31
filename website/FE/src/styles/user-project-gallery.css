@@ -771,12 +771,12 @@
 }
 
 .project-upload-table__head--components {
-  grid-template-columns: minmax(96px, 0.75fr) minmax(130px, 1fr) minmax(150px, 1.1fr) minmax(130px, 0.85fr) 112px;
+  grid-template-columns: minmax(88px, 0.65fr) minmax(124px, 1fr) minmax(140px, 1.1fr) minmax(110px, 0.8fr) minmax(120px, 0.8fr) 112px;
   gap: 8px;
 }
 
 .project-upload-table__head--nodes {
-  grid-template-columns: minmax(190px, 1.1fr) minmax(120px, 0.75fr) minmax(170px, 1.1fr) 112px;
+  grid-template-columns: minmax(160px, 1.1fr) minmax(110px, 0.7fr) minmax(150px, 1fr) minmax(110px, 0.8fr) minmax(120px, 0.8fr) 112px;
   gap: 8px;
 }
 
@@ -889,7 +889,7 @@
 
 .project-upload-manual-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
   margin: 0 0 12px;
   padding: 12px;
@@ -1044,6 +1044,12 @@
 .project-upload-wokwi-preview {
   position: relative;
   overflow: hidden;
+}
+
+.project-upload-node-card__sprite .project-upload-wokwi-preview {
+  display: block;
+  width: 128px;
+  height: 96px;
 }
 
 .project-upload-wokwi-preview > * {
@@ -1626,11 +1632,11 @@
 }
 
 .project-upload-table__head--components {
-  grid-template-columns: minmax(100px, 0.75fr) minmax(140px, 1fr) minmax(160px, 1.1fr) minmax(140px, 0.8fr) 128px;
+  grid-template-columns: minmax(88px, 0.65fr) minmax(124px, 1fr) minmax(140px, 1.1fr) minmax(110px, 0.8fr) minmax(120px, 0.8fr) 128px;
 }
 
 .project-upload-table__head--nodes {
-  grid-template-columns: minmax(200px, 1.1fr) minmax(130px, 0.75fr) minmax(170px, 1.1fr) 128px;
+  grid-template-columns: minmax(160px, 1.1fr) minmax(110px, 0.7fr) minmax(150px, 1fr) minmax(110px, 0.8fr) minmax(120px, 0.8fr) 128px;
 }
 
 .project-upload-empty {
@@ -1704,9 +1710,28 @@
 }
 
 .project-upload-tabs button.is-active {
+  background: #4285f4;
+  color: #ffffff;
+  box-shadow: 0 6px 14px rgba(66, 133, 244, 0.22);
+}
+
+.project-upload-table-input {
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
   background: #ffffff;
-  color: #1d2939;
-  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.14), 0 0 0 1px #eaecf0;
+  color: #111827;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.project-upload-node-image-preview .node-sprite {
+  transform: scale(0.42);
+  transform-origin: center;
 }
 
 .project-upload-main > .project-upload-form-section {
@@ -1801,8 +1826,7 @@
   font-weight: 700;
 }
 
-.project-upload-step-fields input,
-.project-upload-step-fields textarea {
+.project-upload-step-fields input {
   box-sizing: border-box;
   width: 100%;
   border: 1px solid #d0d5dd;
@@ -1820,11 +1844,85 @@
   padding: 0 12px;
 }
 
-.project-upload-step-fields textarea {
-  min-height: 92px;
-  resize: vertical;
-  padding: 10px 12px;
-  line-height: 1.45;
+.project-upload-step-editor {
+  min-width: 0;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.project-upload-step-editor .tox-tinymce {
+  border: 0;
+}
+
+.project-upload-step-linked {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #f9fafb;
+}
+
+.project-upload-step-linked > span {
+  color: #344054;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.project-upload-step-linked > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.project-upload-step-linked button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid #d0d5dd;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #344054;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.project-upload-step-linked button.is-selected {
+  border-color: #4285f4;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.project-upload-step-linked button b {
+  color: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.project-upload-step-linked button small {
+  overflow: hidden;
+  max-width: 90px;
+  color: inherit;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.75;
+}
+
+.project-upload-step-linked.is-empty {
+  color: #667085;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .project-upload-step-actions {
@@ -2028,15 +2126,16 @@
   }
 
   .project-upload-table__head--components {
-    grid-template-columns: minmax(100px, 0.8fr) minmax(120px, 1fr) minmax(140px, 1fr) minmax(130px, 0.9fr) 118px;
+    grid-template-columns: minmax(96px, 0.75fr) minmax(120px, 1fr) minmax(140px, 1fr) minmax(108px, 0.8fr) minmax(120px, 0.8fr) 118px;
   }
 
   .project-upload-table__head--nodes {
-    grid-template-columns: minmax(180px, 1.1fr) minmax(120px, 0.75fr) minmax(150px, 1.1fr) 118px;
+    grid-template-columns: minmax(160px, 1.1fr) minmax(110px, 0.75fr) minmax(140px, 1fr) minmax(108px, 0.8fr) minmax(120px, 0.8fr) 118px;
   }
 
   .project-upload-node-picker,
-  .project-upload-node-search {
+  .project-upload-node-search,
+  .project-upload-manual-grid {
     grid-template-columns: 1fr;
   }
 

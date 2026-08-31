@@ -164,7 +164,7 @@ function getProjectItemLabel(item, fallback = '-') {
   if (typeof item === 'string') return item;
   if (!item || typeof item !== 'object') return fallback;
 
-  return (
+  return stripProjectHtml(
     item.name ||
     item.title ||
     item.label ||
@@ -180,7 +180,7 @@ function getProjectStepLabel(step, index) {
   if (typeof step === 'string') return step;
   if (!step || typeof step !== 'object') return `Langkah ${index + 1}`;
 
-  return step.title || step.description || step.name || `Langkah ${step.order || index + 1}`;
+  return stripProjectHtml(step.title || step.description || step.name || `Langkah ${step.order || index + 1}`);
 }
 
 function formatProjectPrice(project) {
@@ -239,6 +239,13 @@ function getProjectFileUrl(project) {
     .replace(/^storage\/uploads\//i, 'uploads/');
 
   return `${API_BASE_URL}/${normalizedPath}`;
+}
+
+function getProjectArchiveUrl(project) {
+  if (!project?.id) return '';
+
+  const separator = PROJECT_API_URL.includes('?') ? '&' : '?';
+  return `${PROJECT_API_URL}${separator}id=${encodeURIComponent(project.id)}&action=download`;
 }
 
 function resolveProjectCoverUrl(project) {
@@ -321,7 +328,7 @@ function getProjectItemDescription(item, fallback = '') {
   if (typeof item === 'string') return fallback;
   if (!item || typeof item !== 'object') return fallback;
 
-  return item.description || item.desc || item.note || item.function || fallback;
+  return stripProjectHtml(item.description || item.desc || item.note || item.function || fallback);
 }
 
 function getProjectItemImageUrl(item) {
@@ -939,7 +946,7 @@ export function AdminProjects() {
     const projectFileUrl = getProjectFileUrl(project);
 
     if (projectFileUrl) {
-      window.open(projectFileUrl, '_blank', 'noopener,noreferrer');
+      window.open(getProjectArchiveUrl(project) || projectFileUrl, '_blank', 'noopener,noreferrer');
       return;
     }
 
@@ -1207,6 +1214,7 @@ export function AdminProjects() {
                   <col className="admin-projects-col-status" />
                   <col className="admin-projects-col-viewer" />
                   <col className="admin-projects-col-like" />
+                  <col className="admin-projects-col-like" />
                   <col className="admin-projects-col-date" />
                   <col className="admin-projects-col-date" />
                   <col className="admin-projects-col-actions" />
@@ -1232,8 +1240,9 @@ export function AdminProjects() {
                     <th>Langkah</th>
                     <th>Harga</th>
                     <th>Status</th>
-                    <th>Viewer</th>
-                    <th>Like / Save</th>
+                    <th>Viewers</th>
+                    <th>Like</th>
+                    <th>Save</th>
                     <th>Tgl Upload</th>
                     <th>Update Terakhir</th>
                     <th>Aksi</th>
@@ -1242,15 +1251,15 @@ export function AdminProjects() {
                 <tbody>
                   {isLoading ? (
                     <tr>
-                      <td colSpan="15">Memuat data proyek...</td>
+                      <td colSpan="16">Memuat data proyek...</td>
                     </tr>
                   ) : projectError ? (
                     <tr>
-                      <td colSpan="15">{projectError}</td>
+                      <td colSpan="16">{projectError}</td>
                     </tr>
                   ) : filteredProjects.length === 0 ? (
                     <tr>
-                      <td colSpan="15">Tidak ada proyek yang cocok dengan filter.</td>
+                      <td colSpan="16">Tidak ada proyek yang cocok dengan filter.</td>
                     </tr>
                   ) : (
                     paginatedProjects.map((project, index) => {
@@ -1339,11 +1348,11 @@ export function AdminProjects() {
                             <ProjectBadge>{status}</ProjectBadge>
                           </td>
 
-                          <td>{project.viewer ?? 0}</td>
+                          <td>{formatProjectNumber(project.viewer ?? project.viewers)}</td>
 
-                          <td>
-                            {`${project.likes ?? 0} / ${project.saves ?? 0}`}
-                          </td>
+                          <td>{formatProjectNumber(project.likes)}</td>
+
+                          <td>{formatProjectNumber(project.saves)}</td>
 
                           <td><ProjectDateTime value={project.createdAt} /></td>
                           <td><ProjectDateTime value={project.updatedAt} /></td>
@@ -1417,7 +1426,7 @@ export function AdminProjects() {
                   <span>{formatProjectNumber(popularProjects.length)} item</span>
                 </div>
                 <table>
-                  <thead><tr><th>#</th><th>Judul</th><th>Viewer</th><th>Like</th></tr></thead>
+                  <thead><tr><th>#</th><th>Judul</th><th>Viewers</th><th>Like</th><th>Save</th></tr></thead>
                   <tbody>
                     {popularProjects.length ? popularProjects.map((project, index) => (
                       <tr key={project.id ?? project.title}>
@@ -1425,9 +1434,10 @@ export function AdminProjects() {
                         <td>{project.title || '-'}</td>
                         <td>{formatProjectNumber(project.viewer ?? project.viewers)}</td>
                         <td>{formatProjectNumber(project.likes)}</td>
+                        <td>{formatProjectNumber(project.saves)}</td>
                       </tr>
                     )) : (
-                      <tr><td colSpan="4">Belum ada proyek.</td></tr>
+                      <tr><td colSpan="5">Belum ada proyek.</td></tr>
                     )}
                   </tbody>
                 </table>

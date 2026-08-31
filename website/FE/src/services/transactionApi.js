@@ -41,12 +41,37 @@ function buildQuery(params = {}) {
   return queryString ? `?${queryString}` : '';
 }
 
+function normalizeTransactionPayload(transaction) {
+  const payload =
+    transaction.payload ??
+    transaction.payload_json ??
+    transaction.payloadJson ??
+    transaction.data ??
+    {};
+
+  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (typeof payload === 'string' && payload.trim()) {
+    try {
+      const parsed = JSON.parse(payload);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  return {};
+}
+
 function normalizeTransaction(transaction) {
   if (!transaction || typeof transaction !== 'object') return null;
   const proofFile = transaction.proofFile ?? transaction.proof_file ?? null;
   const proofUrl = proofFile?.url || proofFile?.file_url || '';
   const qrisFile = transaction.qrisFile ?? transaction.qris_file ?? null;
   const qrisUrl = qrisFile?.url || qrisFile?.file_url || '';
+  const payload = normalizeTransactionPayload(transaction);
 
   return {
     id: transaction.id,
@@ -84,7 +109,7 @@ function normalizeTransaction(transaction) {
     reviewedAt: transaction.reviewedAt ?? transaction.reviewed_at ?? null,
     reviewedBy: transaction.reviewedBy ?? transaction.reviewed_by ?? '',
     rejectionReason: transaction.rejectionReason ?? transaction.rejection_reason ?? '',
-    payload: transaction.payload && typeof transaction.payload === 'object' ? transaction.payload : {},
+    payload,
     createdAt: transaction.createdAt ?? transaction.created_at ?? '',
     updatedAt: transaction.updatedAt ?? transaction.updated_at ?? '',
   };

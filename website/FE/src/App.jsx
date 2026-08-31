@@ -45,6 +45,7 @@ import { UserWorkshopSchedule } from './pages/User/UserWorkshopSchedule.jsx';
 import { UserTransactions } from './pages/User/UserTransactions.jsx';
 import { UserCertificates } from './pages/User/UserCertificates.jsx';
 import { UserLeadDashboard } from './pages/User/UserLeadDashboard.jsx';
+import { UserPartnerDashboard } from './pages/User/UserPartnerDashboard.jsx';
 import { UserIdeAccess } from './pages/User/UserIdeAccess.jsx';
 
 /* =========================
@@ -177,6 +178,7 @@ const routes = {
   '/proyek-saya': UserProjectGallery,
   '/workshop-program': UserWorkshopSchedule,
   '/lead-saya': UserLeadDashboard,
+  '/partner-saya': UserPartnerDashboard,
   '/ide-saya': UserIdeAccess,
   '/transaksi': UserTransactions,
   '/sertifikat': UserCertificates,
@@ -244,6 +246,7 @@ const standaloneRoutes = new Set([
   '/proyek-saya',
   '/workshop-program',
   '/lead-saya',
+  '/partner-saya',
   '/ide-saya',
   '/transaksi',
   '/sertifikat',
@@ -289,6 +292,7 @@ const userProtectedRoutes = new Set([
   '/proyek-saya',
   '/workshop-program',
   '/lead-saya',
+  '/partner-saya',
   '/ide-saya',
   '/transaksi',
   '/sertifikat',

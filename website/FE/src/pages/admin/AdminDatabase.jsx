@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { AdminPage, AdminTopbar } from './AdminChrome.jsx';
 import { ADMIN_REALTIME_EVENT } from './AdminRealtimeBridge.jsx';
 import {
+  clearAdminDatabaseSyncLogs,
   createAdminDatabaseBackup,
+  deleteAdminDatabaseSyncLog,
   getAdminDatabaseBackups,
   getAdminDatabaseStatus,
   retryAdminDatabaseSync,
@@ -118,6 +120,26 @@ export function AdminDatabase() {
     }
   };
 
+  const deleteLog = async (log) => {
+    if (!log?.id || !window.confirm('Hapus log sinkronisasi ini?')) return;
+
+    await runAction(
+      `delete-log-${log.id}`,
+      () => deleteAdminDatabaseSyncLog(log.id),
+      'Log sinkronisasi berhasil dihapus.',
+    );
+  };
+
+  const clearLogs = async () => {
+    if (!syncLogs.length || !window.confirm(`Hapus ${syncLogs.length} log sinkronisasi yang tampil?`)) return;
+
+    await runAction(
+      'clear-logs',
+      clearAdminDatabaseSyncLogs,
+      'Log sinkronisasi berhasil dihapus.',
+    );
+  };
+
   return (
     <AdminPage pageClassName="admin-db-page" ariaLabel="Backup dan database">
       <AdminTopbar
@@ -229,8 +251,18 @@ export function AdminDatabase() {
 
         <section className="admin-db-panel admin-db-panel--wide">
           <header>
-            <h2>Log Sinkronisasi Terbaru</h2>
-            <p>Riwayat worker SQLite ke MySQL, termasuk eksekusi otomatis dari scheduler.</p>
+            <div>
+              <h2>Log Sinkronisasi Terbaru</h2>
+              <p>Riwayat worker SQLite ke MySQL, termasuk eksekusi otomatis dari scheduler.</p>
+            </div>
+            <button
+              className="admin-db-danger-button"
+              type="button"
+              onClick={clearLogs}
+              disabled={Boolean(busyAction) || syncLogs.length === 0}
+            >
+              {busyAction === 'clear-logs' ? 'Menghapus...' : 'Hapus Semua Log'}
+            </button>
           </header>
 
           <table className="admin-db-table">
@@ -243,6 +275,7 @@ export function AdminDatabase() {
                 <th>Gagal</th>
                 <th>MySQL</th>
                 <th>Durasi</th>
+                <th>Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -256,11 +289,21 @@ export function AdminDatabase() {
                     <td>{formatNumber(log.failed_events)}</td>
                     <td>{log.mysql_status || '-'}</td>
                     <td>{log.duration_ms === null || log.duration_ms === undefined ? '-' : `${log.duration_ms} ms`}</td>
+                    <td>
+                      <button
+                        className="admin-db-table-action admin-db-table-action--danger"
+                        type="button"
+                        onClick={() => deleteLog(log)}
+                        disabled={Boolean(busyAction)}
+                      >
+                        {busyAction === `delete-log-${log.id}` ? '...' : 'Hapus'}
+                      </button>
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7">{isLoading ? 'Memuat log sync...' : 'Belum ada log sinkronisasi.'}</td>
+                  <td colSpan="8">{isLoading ? 'Memuat log sync...' : 'Belum ada log sinkronisasi.'}</td>
                 </tr>
               )}
             </tbody>

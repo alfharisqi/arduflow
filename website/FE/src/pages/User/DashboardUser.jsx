@@ -62,6 +62,11 @@ const menuItems = [
     href: '/lead-saya',
   },
   {
+    label: 'Partner Saya',
+    icon: 'partner',
+    href: '/partner-saya',
+  },
+  {
     label: 'Transaksi',
     icon: 'transaction',
     href: '/transaksi',
