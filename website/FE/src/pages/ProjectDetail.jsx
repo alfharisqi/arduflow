@@ -353,13 +353,44 @@ function CircuitDiagram({ tools }) {
 }
 
 function CircuitSection({ project, tools }) {
+  const [isPreviewOpen, setPreviewOpen] = useState(false);
+
   return (
     <section id="rangkaian" className="detail-card detail-circuit" aria-labelledby="circuit-title">
       <h2 id="circuit-title">Gambar Rangkaian</h2>
       {project.circuitImageUrl ? (
-        <div className="project-circuit project-circuit--image">
-          <img src={project.circuitImageUrl} alt={`Gambar rangkaian ${project.title}`} />
-        </div>
+        <>
+          <button
+            className="project-circuit project-circuit--image project-circuit--preview"
+            type="button"
+            onClick={() => setPreviewOpen(true)}
+            aria-label={`Perbesar gambar rangkaian ${project.title}`}
+          >
+            <img src={project.circuitImageUrl} alt={`Gambar rangkaian ${project.title}`} />
+            <span> Klik untuk perbesar</span>
+          </button>
+
+          {isPreviewOpen ? (
+            <div
+              className="project-circuit-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="circuit-preview-title"
+              onClick={() => setPreviewOpen(false)}
+            >
+              <figure className="project-circuit-modal__content" onClick={(event) => event.stopPropagation()}>
+                <figcaption>
+                  <div>
+                    <span>Preview Rangkaian</span>
+                    <strong id="circuit-preview-title">{project.title}</strong>
+                  </div>
+                  <button type="button" aria-label="Tutup preview gambar rangkaian" onClick={() => setPreviewOpen(false)}>x</button>
+                </figcaption>
+                <img src={project.circuitImageUrl} alt={`Preview besar gambar rangkaian ${project.title}`} />
+              </figure>
+            </div>
+          ) : null}
+        </>
       ) : (
         <CircuitDiagram tools={tools} />
       )}
