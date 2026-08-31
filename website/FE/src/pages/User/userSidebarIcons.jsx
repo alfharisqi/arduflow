@@ -18,6 +18,7 @@ const sidebarIconMap = {
   calendar: workshopIcon,
   workshop: workshopIcon,
   lead: contactIcon,
+  partner: contactIcon,
   transaction: dollarIcon,
   certificate: fileIcon,
   cpu: cpuIcon,

@@ -25,6 +25,7 @@ const menuItems = [
   { label: 'Proyek Saya', icon: 'folder', href: '/proyek-saya', active: true },
   { label: 'Workshop / Program', icon: 'calendar', href: '/workshop-program' },
   { label: 'Lead Saya', icon: 'lead', href: '/lead-saya' },
+  { label: 'Partner Saya', icon: 'partner', href: '/partner-saya' },
   { label: 'Transaksi', icon: 'transaction', href: '/transaksi' },
   { label: 'IDE', icon: 'cpu', href: '/ide-saya' },
   { label: 'Sertifikat', icon: 'certificate', href: '/sertifikat' },

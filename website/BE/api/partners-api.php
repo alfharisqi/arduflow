@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/support/bootstrap.php';
+require_once __DIR__ . '/support/image-storage.php';
 
 $autoload = AFW_PROJECT_ROOT . '/vendor/autoload.php';
 if (is_file($autoload)) {
@@ -24,6 +25,7 @@ if (is_file($mqttEventsPath)) {
 afwApplyCors(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
 
 $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
+$action = trim((string) ($_GET['action'] ?? ''));
 if ($method === 'POST' && isset($_GET['_method'])) {
     $override = strtoupper((string) $_GET['_method']);
     if (in_array($override, ['PUT', 'PATCH', 'DELETE'], true)) {
@@ -51,6 +53,7 @@ function partnersEnsureTables(PDO $pdo): void
             province TEXT NOT NULL DEFAULT "",
             website TEXT NOT NULL DEFAULT "",
             social_media TEXT NOT NULL DEFAULT "",
+            logo_url TEXT NOT NULL DEFAULT "",
             description TEXT NOT NULL DEFAULT "",
             programs_json TEXT NOT NULL DEFAULT "[]",
             status TEXT NOT NULL DEFAULT "Draft",
@@ -64,6 +67,7 @@ function partnersEnsureTables(PDO $pdo): void
             updated_at TEXT NOT NULL
         )'
     );
+    partnersAddColumnIfMissing($pdo, 'partners', 'logo_url', 'TEXT NOT NULL DEFAULT ""');
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_partners_status ON partners(status)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_partners_homepage ON partners(show_homepage, featured)');
 
@@ -357,6 +361,7 @@ function partnerFromRow(array $row): array
         'province' => (string) $row['province'],
         'website' => (string) $row['website'],
         'socialMedia' => (string) $row['social_media'],
+        'logoUrl' => (string) ($row['logo_url'] ?? ''),
         'description' => (string) $row['description'],
         'programs' => is_array($programs) ? array_values(array_filter($programs)) : [],
         'status' => (string) $row['status'],
@@ -388,6 +393,7 @@ function partnerPayload(array $data, ?array $existing = null): array
         'province' => trim((string) ($data['province'] ?? $existing['province'] ?? '')),
         'website' => trim((string) ($data['website'] ?? $existing['website'] ?? '')),
         'socialMedia' => trim((string) ($data['socialMedia'] ?? $data['social_media'] ?? $existing['socialMedia'] ?? '')),
+        'logoUrl' => trim((string) ($data['logoUrl'] ?? $data['logo_url'] ?? $existing['logoUrl'] ?? '')),
         'description' => trim((string) ($data['description'] ?? $existing['description'] ?? '')),
         'programs' => array_values(array_filter(array_map('trim', is_array($programs) ? $programs : []))),
         'status' => trim((string) ($data['status'] ?? $existing['status'] ?? 'Draft')),
@@ -412,6 +418,99 @@ function validatePartner(array $partner): array
         $errors['status'] = 'Status partner tidak valid.';
     }
     return $errors;
+}
+
+function handlePartnerLogoUpload(): void
+{
+    if (!isset($_FILES['logo']) || !is_array($_FILES['logo'])) {
+        afwSendJson(400, false, 'File logo tidak ditemukan. Gunakan field multipart bernama logo.');
+    }
+
+    $file = $_FILES['logo'];
+    $errorCode = isset($file['error']) ? (int) $file['error'] : UPLOAD_ERR_NO_FILE;
+
+    if ($errorCode !== UPLOAD_ERR_OK) {
+        $uploadMessages = [
+            UPLOAD_ERR_INI_SIZE => 'Ukuran file melebihi upload_max_filesize PHP.',
+            UPLOAD_ERR_FORM_SIZE => 'Ukuran file melebihi batas form.',
+            UPLOAD_ERR_PARTIAL => 'File hanya terupload sebagian.',
+            UPLOAD_ERR_NO_FILE => 'Tidak ada file yang dipilih.',
+            UPLOAD_ERR_NO_TMP_DIR => 'Folder temporary PHP tidak tersedia.',
+            UPLOAD_ERR_CANT_WRITE => 'PHP gagal menulis file ke disk.',
+            UPLOAD_ERR_EXTENSION => 'Upload dihentikan oleh ekstensi PHP.',
+        ];
+
+        afwSendJson(400, false, $uploadMessages[$errorCode] ?? 'Upload logo gagal.', ['errorCode' => $errorCode]);
+    }
+
+    $tmpName = (string) ($file['tmp_name'] ?? '');
+    $originalName = basename((string) ($file['name'] ?? 'partner-logo'));
+    $fileSize = (int) ($file['size'] ?? 0);
+
+    if ($tmpName === '' || !is_uploaded_file($tmpName)) {
+        afwSendJson(400, false, 'Temporary file upload tidak valid.');
+    }
+
+    if ($fileSize <= 0) {
+        afwSendJson(400, false, 'Ukuran file logo tidak valid.');
+    }
+
+    if ($fileSize > 2 * 1024 * 1024) {
+        afwSendJson(413, false, 'Ukuran logo maksimal 2 MB.');
+    }
+
+    if (!class_exists('finfo')) {
+        afwSendJson(500, false, 'Ekstensi PHP fileinfo belum aktif.');
+    }
+
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mimeType = (string) $finfo->file($tmpName);
+    $allowedTypes = [
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/webp' => 'webp',
+        'image/gif' => 'gif',
+        'image/svg+xml' => 'svg',
+    ];
+
+    if (!isset($allowedTypes[$mimeType])) {
+        afwSendJson(415, false, 'Format logo harus JPG, PNG, WEBP, GIF, atau SVG.', ['detectedType' => $mimeType]);
+    }
+
+    $storage = ensureUploadStorage(AFW_PROJECT_ROOT, 'partners');
+    $extension = $allowedTypes[$mimeType];
+
+    try {
+        $randomPart = bin2hex(random_bytes(6));
+    } catch (Throwable) {
+        $randomPart = str_replace('.', '', uniqid('', true));
+    }
+
+    $storedName = sanitizeStoredFileName(sprintf(
+        'partner-logo-%s-%s.%s',
+        date('YmdHis'),
+        $randomPart,
+        $extension
+    ));
+    $destination = $storage['path'] . DIRECTORY_SEPARATOR . $storedName;
+
+    if (!move_uploaded_file($tmpName, $destination)) {
+        afwSendJson(500, false, 'Logo gagal disimpan ke folder upload partner.', ['destination' => $destination]);
+    }
+
+    $relativeUrl = rtrim((string) $storage['url'], '/') . '/' . rawurlencode($storedName);
+
+    afwSendJson(201, true, 'Logo partner berhasil diupload.', [
+        'logo' => [
+            'name' => $storedName,
+            'originalName' => $originalName,
+            'type' => $mimeType,
+            'size' => $fileSize,
+            'sizeKB' => round($fileSize / 1024, 2),
+            'url' => $relativeUrl,
+            'uploadedAt' => date('Y-m-d H:i:s'),
+        ],
+    ]);
 }
 
 function findPartner(PDO $pdo, int $id): ?array
@@ -443,6 +542,19 @@ try {
     partnersSyncCollaborations($pdo);
     partnersSyncLeads($pdo);
     $id = isset($_GET['id']) && $_GET['id'] !== '' ? (int) $_GET['id'] : null;
+
+    if ($action === 'upload-logo') {
+        if ($method !== 'POST') {
+            header('Allow: POST, OPTIONS');
+            afwSendJson(405, false, 'Upload logo hanya menerima method POST.');
+        }
+
+        handlePartnerLogoUpload();
+    }
+
+    if ($action !== '') {
+        afwSendJson(400, false, 'Action API partner tidak dikenal.', ['action' => $action]);
+    }
 
     if ($method === 'GET') {
         if ($id !== null) {
@@ -511,11 +623,11 @@ try {
         $now = partnersNow();
         $statement = $pdo->prepare(
             'INSERT INTO partners (
-                name, type, pic_name, pic_role, email, whatsapp, city, province, website, social_media,
+                name, type, pic_name, pic_role, email, whatsapp, city, province, website, social_media, logo_url,
                 description, programs_json, status, show_homepage, featured, follow_up_note,
                 start_date, last_contact_at, created_at, updated_at
             ) VALUES (
-                :name, :type, :pic_name, :pic_role, :email, :whatsapp, :city, :province, :website, :social_media,
+                :name, :type, :pic_name, :pic_role, :email, :whatsapp, :city, :province, :website, :social_media, :logo_url,
                 :description, :programs_json, :status, :show_homepage, :featured, :follow_up_note,
                 :start_date, :last_contact_at, :created_at, :updated_at
             )'
@@ -531,6 +643,7 @@ try {
             ':province' => $payload['province'],
             ':website' => $payload['website'],
             ':social_media' => $payload['socialMedia'],
+            ':logo_url' => $payload['logoUrl'],
             ':description' => $payload['description'],
             ':programs_json' => json_encode($payload['programs'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
             ':status' => $payload['status'],
@@ -565,7 +678,7 @@ try {
             'UPDATE partners SET
                 name = :name, type = :type, pic_name = :pic_name, pic_role = :pic_role,
                 email = :email, whatsapp = :whatsapp, city = :city, province = :province,
-                website = :website, social_media = :social_media, description = :description,
+                website = :website, social_media = :social_media, logo_url = :logo_url, description = :description,
                 programs_json = :programs_json, status = :status, show_homepage = :show_homepage,
                 featured = :featured, follow_up_note = :follow_up_note, start_date = :start_date,
                 last_contact_at = :last_contact_at, updated_at = :updated_at
@@ -582,6 +695,7 @@ try {
             ':province' => $payload['province'],
             ':website' => $payload['website'],
             ':social_media' => $payload['socialMedia'],
+            ':logo_url' => $payload['logoUrl'],
             ':description' => $payload['description'],
             ':programs_json' => json_encode($payload['programs'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
             ':status' => $payload['status'],

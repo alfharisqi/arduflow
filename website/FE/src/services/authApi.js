@@ -337,6 +337,33 @@ export function getAdminDatabaseBackups(
   });
 }
 
+export function deleteAdminDatabaseSyncLog(
+  logId,
+  token = window.localStorage.getItem(
+    "arduflow_admin_token"
+  )
+) {
+  return request(`/api/admin/database-sync/logs/${encodeURIComponent(logId)}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token || ""}`,
+    },
+  });
+}
+
+export function clearAdminDatabaseSyncLogs(
+  token = window.localStorage.getItem(
+    "arduflow_admin_token"
+  )
+) {
+  return request("/api/admin/database-sync/logs", {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token || ""}`,
+    },
+  });
+}
+
 /*
 |--------------------------------------------------------------------------
 | Email verification
