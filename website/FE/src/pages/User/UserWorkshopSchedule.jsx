@@ -201,7 +201,7 @@ export function UserWorkshopSchedule() {
         ]);
         if (isMounted) {
           const paidWorkshopTransactions = transactionRecords.filter(
-            (transaction) => transaction.itemType !== 'project' && transaction.status === 'paid'
+            (transaction) => ['workshop', 'program', 'course'].includes(transaction.itemType) && transaction.status === 'paid'
           );
           const paidWorkshopIds = new Set(
             paidWorkshopTransactions

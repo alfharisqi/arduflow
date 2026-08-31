@@ -80,6 +80,7 @@ $legacyRoutes = [
     '/api/workshops' => $root . '/api/workshop-api.php',
     '/api/workshops-api.php' => $root . '/api/workshop-api.php',
     '/api/workshops-api' => $root . '/api/workshop-api.php',
+    '/api/sqlite_odbc.php' => $root . '/api/sqlite_odbc.php',
     '/api/auth/login.php' => $root . '/api/auth/login.php',
     '/api/auth/session.php' => $root . '/api/auth/session.php',
     '/api/auth/profile.php' => $root . '/api/auth/profile.php',

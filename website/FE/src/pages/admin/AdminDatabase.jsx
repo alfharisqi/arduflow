@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AdminPage, AdminTopbar } from './AdminChrome.jsx';
 import { ADMIN_REALTIME_EVENT } from './AdminRealtimeBridge.jsx';
+import databaseIcon from '../../assets/icons/icons-database-1.svg';
+import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
+import clockIcon from '../../assets/icons/icon-clock-1.svg';
 import {
   clearAdminDatabaseSyncLogs,
   createAdminDatabaseBackup,
@@ -41,12 +44,17 @@ function StatusPill({ online, children }) {
   );
 }
 
-function StatCard({ label, value, note, tone = 'neutral' }) {
+function StatCard({ label, value, note, tone = 'neutral', icon = databaseIcon }) {
   return (
     <article className={`admin-db-stat admin-db-stat--${tone}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{note}</small>
+      <span className="admin-db-stat-icon" aria-hidden="true">
+        <img src={icon} alt="" />
+      </span>
+      <div>
+        <span>{label}</span>
+        <strong>{value}</strong>
+        <small>{note}</small>
+      </div>
     </article>
   );
 }
@@ -172,30 +180,35 @@ export function AdminDatabase() {
             value={mysqlOnline ? 'Online' : 'Offline'}
             note="Target sinkronisasi SQLite"
             tone={mysqlOnline ? 'green' : 'red'}
+            icon={databaseIcon}
           />
           <StatCard
             label="SQLite Operasional"
             value={isLoading ? 'Memuat' : 'Aktif'}
             note="Sumber data utama aplikasi"
             tone="blue"
+            icon={databaseIcon}
           />
           <StatCard
             label="Antrean Sync"
             value={formatNumber(queueTotal)}
             note={`${formatNumber(status?.pending)} pending, ${formatNumber(status?.failed)} failed`}
             tone={Number(status?.failed || 0) > 0 ? 'red' : 'neutral'}
+            icon={clockIcon}
           />
           <StatCard
             label="Synced Hari Ini"
             value={formatNumber(status?.synced_today)}
             note={`Terakhir sukses: ${formatDate(status?.last_success_at)}`}
             tone="green"
+            icon={checkIcon}
           />
           <StatCard
             label="Scheduler 5 Menit"
             value={schedulerInstalled ? 'Terpasang' : 'Belum Aktif'}
             note={schedulerInstalled ? `Next run: ${status?.scheduler?.next_run_at || '-'}` : status?.scheduler?.message || 'Task belum ditemukan'}
             tone={schedulerInstalled ? 'green' : 'red'}
+            icon={clockIcon}
           />
         </section>
 
@@ -249,7 +262,7 @@ export function AdminDatabase() {
           </article>
         </section>
 
-        <section className="admin-db-panel admin-db-panel--wide">
+        <section className="admin-db-panel admin-db-panel--wide admin-db-panel--logs">
           <header>
             <div>
               <h2>Log Sinkronisasi Terbaru</h2>
@@ -310,10 +323,12 @@ export function AdminDatabase() {
           </table>
         </section>
 
-        <section className="admin-db-panel admin-db-panel--wide">
+        <section className="admin-db-panel admin-db-panel--wide admin-db-panel--backups">
           <header>
-            <h2>Riwayat Backup Terbaru</h2>
-            <p>Menampilkan maksimal 8 backup SQLite terbaru dari folder storage backend.</p>
+            <div>
+              <h2>Riwayat Backup Terbaru</h2>
+              <p>Menampilkan maksimal 8 backup SQLite terbaru dari folder storage backend.</p>
+            </div>
           </header>
 
           <table className="admin-db-table">
