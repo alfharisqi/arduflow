@@ -109,6 +109,13 @@ const PROJECT_FORM_TABS = [
   { id: 'publish', label: 'Publish' },
 ];
 
+const PROJECT_FILTER_OPTIONS = [
+  { value: 'all', label: 'Semua Proyek' },
+  { value: 'uploaded', label: 'Di-upload Sendiri' },
+  { value: 'purchased', label: 'Dibeli' },
+  { value: 'selling', label: 'Sedang Dijual' },
+];
+
 const STEP_TEMPLATES = [
   {
     title: 'Persiapan Komponen',
@@ -2109,6 +2116,28 @@ function formatProjectPrice(project) {
   }).format(price);
 }
 
+function isPaidProject(project) {
+  const payment = project?.payment || {};
+  return Boolean(payment.isPaid || project?.isPaid) && Number(payment.price || project?.price || 0) > 0;
+}
+
+function formatTransactionAmount(transaction) {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: transaction?.currency || 'IDR',
+    maximumFractionDigits: 0,
+  }).format(Number(transaction?.amount || 0));
+}
+
+function getProjectDetailItems(project, fieldName) {
+  const payload = projectPayload(project);
+  return normalizeProjectList(project?.[fieldName] || payload?.[fieldName]);
+}
+
+function getProjectDescription(project) {
+  return projectField(project, 'description', 'Belum ada deskripsi proyek.');
+}
+
 export function UserProjectGallery() {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialSidebarCollapsed);
   const searchParams = new URLSearchParams(window.location.search);
@@ -2127,6 +2156,9 @@ export function UserProjectGallery() {
   const [projectsError, setProjectsError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('Terbaru');
+  const [filterBy, setFilterBy] = useState('all');
+  const [selectedSalesProject, setSelectedSalesProject] = useState(null);
+  const [selectedDetailProject, setSelectedDetailProject] = useState(null);
 
   async function loadProjects() {
     setProjectsLoading(true);
@@ -2156,6 +2188,7 @@ export function UserProjectGallery() {
       if (currentUserId) transactionParams.userId = currentUserId;
       if (user.email) transactionParams.email = user.email;
       const paidProjectIds = new Set();
+      const projectSales = new Map();
 
       if (transactionParams.userId || transactionParams.email) {
         try {
@@ -2172,12 +2205,35 @@ export function UserProjectGallery() {
         }
       }
 
+      try {
+        const transactions = await fetchTransactions();
+        transactions
+          .filter((transaction) => transaction.itemType === 'project' && transaction.status === 'paid' && transaction.itemId !== null && transaction.itemId !== undefined)
+          .forEach((transaction) => {
+            const projectId = String(transaction.itemId);
+            const sales = projectSales.get(projectId) || [];
+            sales.push(transaction);
+            projectSales.set(projectId, sales);
+          });
+      } catch (salesError) {
+        console.error('Gagal mengambil histori penjualan proyek:', salesError);
+      }
+
       const ownedProjects = currentUserId
-        ? rows.filter((project) => {
+        ? rows.map((project) => {
             const isOwner = String(project.userId || project.payload?.userId || '') === String(currentUserId);
             const isPurchased = paidProjectIds.has(String(project.id || ''));
-            return isOwner || isPurchased;
-          })
+            const salesHistory = projectSales.get(String(project.id || '')) || [];
+
+            return {
+              ...project,
+              salesCount: salesHistory.length,
+              salesHistory,
+              accessType: isOwner ? 'uploaded' : 'purchased',
+              isOwnerProject: isOwner,
+              isPurchasedProject: !isOwner && isPurchased,
+            };
+          }).filter((project) => project.isOwnerProject || project.isPurchasedProject)
         : rows;
 
       setProjects(ownedProjects);
@@ -2199,8 +2255,15 @@ export function UserProjectGallery() {
 
   const visibleProjects = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
+    const scopedProjects = projects.filter((project) => {
+      if (filterBy === 'uploaded') return project.accessType === 'uploaded';
+      if (filterBy === 'purchased') return project.accessType === 'purchased';
+      if (filterBy === 'selling') return project.accessType === 'uploaded' && isPaidProject(project);
+      return true;
+    });
+
     const filtered = query
-      ? projects.filter((project) => {
+      ? scopedProjects.filter((project) => {
           const haystack = [
             project.title,
             project.category,
@@ -2210,7 +2273,7 @@ export function UserProjectGallery() {
 
           return haystack.includes(query);
         })
-      : [...projects];
+      : [...scopedProjects];
 
     return filtered.sort((first, second) => {
       if (sortBy === 'Nama') {
@@ -2221,7 +2284,7 @@ export function UserProjectGallery() {
       const secondTime = new Date(second.updatedAt || second.createdAt || 0).getTime() || 0;
       return secondTime - firstTime;
     });
-  }, [projects, searchQuery, sortBy]);
+  }, [filterBy, projects, searchQuery, sortBy]);
 
   const editingInitialProject = useMemo(() => {
     if (projectFormMode !== 'edit' || !editProjectId) {
@@ -2339,10 +2402,15 @@ export function UserProjectGallery() {
                       <option>Nama</option>
                     </select>
                   </div>
-                  <button className="user-project-filter" type="button">
+                  <label className="user-project-filter">
+                    <span className="sr-only">Filter proyek</span>
                     <FilterIcon />
-                    <span>Filter</span>
-                  </button>
+                    <select value={filterBy} onChange={(event) => setFilterBy(event.target.value)} aria-label="Filter proyek">
+                      {PROJECT_FILTER_OPTIONS.map((option) => (
+                        <option value={option.value} key={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
                   <button className="user-project-upload" type="button" onClick={() => setUploadFormOpen(true)}>
                     <UploadIcon />
                     <span>Upload</span>
@@ -2368,11 +2436,29 @@ export function UserProjectGallery() {
                       <div className="user-project-card__body">
                         <h3>{project.title || 'Tanpa judul'}</h3>
                         <p>{project.category || '-'}</p>
+                        <div className="user-project-card__meta">
+                          <span>{project.accessType === 'purchased' ? 'Dibeli' : 'Di-upload sendiri'}</span>
+                          {isPaidProject(project) ? <span>Dijual</span> : <span>Gratis</span>}
+                        </div>
                         <time>{formatProjectDate(project)}</time>
                         <strong>{formatProjectPrice(project)}</strong>
-                        <a className="user-project-card__action" href={`/project/detail?id=${encodeURIComponent(project.id)}`}>
-                          Buka Proyek
-                        </a>
+                        <small className="user-project-card__sold">{Number(project.salesCount || 0).toLocaleString('id-ID')} terjual</small>
+                        {project.isOwnerProject ? (
+                          <button
+                            className="user-project-card__history"
+                            type="button"
+                            onClick={() => setSelectedSalesProject(project)}
+                          >
+                            Histori Penjualan
+                          </button>
+                        ) : null}
+                        <button
+                          className="user-project-card__action"
+                          type="button"
+                          onClick={() => setSelectedDetailProject(project)}
+                        >
+                          Detail Proyek
+                        </button>
                       </div>
                     </article>
                   );
@@ -2387,6 +2473,166 @@ export function UserProjectGallery() {
             </nav>
             </section>
           )}
+
+          {selectedSalesProject ? (
+            <section className="user-project-sales-modal" role="dialog" aria-modal="true" aria-labelledby="user-project-sales-title">
+              <button
+                className="user-project-sales-modal__backdrop"
+                type="button"
+                aria-label="Tutup histori penjualan"
+                onClick={() => setSelectedSalesProject(null)}
+              />
+              <article className="user-project-sales-panel">
+                <header>
+                  <div>
+                    <span>Histori Penjualan Proyek</span>
+                    <h2 id="user-project-sales-title">{selectedSalesProject.title || 'Tanpa judul'}</h2>
+                    <p>{Number(selectedSalesProject.salesCount || 0).toLocaleString('id-ID')} transaksi berhasil</p>
+                  </div>
+                  <button type="button" onClick={() => setSelectedSalesProject(null)} aria-label="Tutup">x</button>
+                </header>
+                {selectedSalesProject.salesHistory?.length ? (
+                  <div className="user-project-sales-table" role="table" aria-label="Histori transaksi penjualan proyek">
+                    <div className="user-project-sales-table__head" role="row">
+                      <span>Pembeli</span>
+                      <span>Invoice</span>
+                      <span>Tanggal</span>
+                      <span>Nominal</span>
+                      <span>Status</span>
+                    </div>
+                    {selectedSalesProject.salesHistory.map((transaction) => (
+                      <div className="user-project-sales-table__row" role="row" key={transaction.id || transaction.invoiceNumber}>
+                        <span>{transaction.userName || transaction.email || '-'}</span>
+                        <span>{transaction.invoiceNumber || '-'}</span>
+                        <time>{formatProjectDate({ updatedAt: transaction.paidAt || transaction.createdAt })}</time>
+                        <span>{formatTransactionAmount(transaction)}</span>
+                        <span><b>Paid</b></span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="user-project-sales-empty">Belum ada pembelian untuk proyek ini.</p>
+                )}
+              </article>
+            </section>
+          ) : null}
+
+          {selectedDetailProject ? (() => {
+            const coverUrl = resolveProjectCoverUrl(selectedDetailProject) || projectImage;
+            const tools = getProjectDetailItems(selectedDetailProject, 'tools');
+            const nodes = getProjectDetailItems(selectedDetailProject, 'nodes');
+            const steps = getProjectDetailItems(selectedDetailProject, 'steps');
+            const projectFiles = normalizeProjectFiles(selectedDetailProject)
+              .map((entry) => ({
+                label: entry.label,
+                name: getProjectFileEntryName(entry),
+                url: getProjectFileUrl(entry.existingFile),
+              }))
+              .filter((entry) => entry.name || entry.url);
+            const description = getProjectDescription(selectedDetailProject);
+
+            return (
+              <section className="user-project-detail-modal" role="dialog" aria-modal="true" aria-labelledby="user-project-detail-title">
+                <button
+                  className="user-project-detail-modal__backdrop"
+                  type="button"
+                  aria-label="Tutup detail proyek"
+                  onClick={() => setSelectedDetailProject(null)}
+                />
+                <article className="user-project-detail-panel">
+                  <header>
+                    <div>
+                      <span>{selectedDetailProject.accessType === 'purchased' ? 'Proyek Dibeli' : 'Proyek Upload Sendiri'}</span>
+                      <h2 id="user-project-detail-title">{selectedDetailProject.title || 'Tanpa judul'}</h2>
+                      <p>{selectedDetailProject.category || 'Tanpa kategori'}</p>
+                    </div>
+                    <button type="button" onClick={() => setSelectedDetailProject(null)} aria-label="Tutup">x</button>
+                  </header>
+
+                  <div className="user-project-detail-body">
+                    <aside className="user-project-detail-media">
+                      <img src={coverUrl} alt={selectedDetailProject.coverImage?.altText || selectedDetailProject.title || 'Cover proyek'} />
+                      <div className="user-project-detail-summary">
+                        <article><small>Harga</small><strong>{formatProjectPrice(selectedDetailProject)}</strong></article>
+                        <article><small>Terjual</small><strong>{Number(selectedDetailProject.salesCount || 0).toLocaleString('id-ID')}</strong></article>
+                        <article><small>Akses</small><strong>{selectedDetailProject.accessType === 'purchased' ? 'Dibeli' : 'Pemilik'}</strong></article>
+                        <article><small>Status</small><strong>{isPaidProject(selectedDetailProject) ? 'Dijual' : 'Gratis'}</strong></article>
+                      </div>
+                    </aside>
+
+                    <div className="user-project-detail-main">
+                      <section className="user-project-detail-section user-project-detail-section--description">
+                        <h3>Deskripsi</h3>
+                        <p>{stripHtml(description) || 'Belum ada deskripsi proyek.'}</p>
+                      </section>
+
+                      <section className="user-project-detail-grid">
+                        <div className="user-project-detail-section">
+                          <h3>Komponen</h3>
+                          {tools.length ? (
+                            <ul>
+                              {tools.map((tool, index) => (
+                                <li key={`${tool?.name || tool}-${index}`}>{tool?.name || tool}{tool?.value ? ` - ${tool.value}` : ''}</li>
+                              ))}
+                            </ul>
+                          ) : <p>Belum ada komponen.</p>}
+                        </div>
+
+                        <div className="user-project-detail-section">
+                          <h3>Node</h3>
+                          {nodes.length ? (
+                            <ul>
+                              {nodes.map((node, index) => (
+                                <li key={`${node?.name || node}-${index}`}>{node?.name || node}{node?.value ? ` - ${node.value}` : ''}</li>
+                              ))}
+                            </ul>
+                          ) : <p>Belum ada node.</p>}
+                        </div>
+                      </section>
+
+                      <section className="user-project-detail-section">
+                        <h3>Langkah Pengerjaan</h3>
+                        {steps.length ? (
+                          <ol>
+                            {steps.map((step, index) => (
+                              <li key={`${step?.title || 'step'}-${index}`}>
+                                <strong>{step?.title || `Langkah ${index + 1}`}</strong>
+                                <span>{stripHtml(step?.description || '') || '-'}</span>
+                              </li>
+                            ))}
+                          </ol>
+                        ) : <p>Belum ada langkah pengerjaan.</p>}
+                      </section>
+
+                      <section className="user-project-detail-section">
+                        <h3>File Proyek</h3>
+                        {projectFiles.length ? (
+                          <div className="user-project-detail-files">
+                            {projectFiles.map((file, index) => (
+                              file.url ? (
+                                <a href={file.url} target="_blank" rel="noreferrer" key={`${file.name}-${index}`}>
+                                  {file.label || file.name}
+                                </a>
+                              ) : (
+                                <span key={`${file.name}-${index}`}>{file.label || file.name}</span>
+                              )
+                            ))}
+                          </div>
+                        ) : <p>Belum ada file proyek.</p>}
+                      </section>
+
+                      <footer>
+                        <a href={`/project/detail?id=${encodeURIComponent(selectedDetailProject.id)}`}>Buka Halaman Proyek</a>
+                        {selectedDetailProject.isOwnerProject ? (
+                          <a href={`/proyek-saya?mode=edit&projectId=${encodeURIComponent(selectedDetailProject.id)}`}>Edit Proyek</a>
+                        ) : null}
+                      </footer>
+                    </div>
+                  </div>
+                </article>
+              </section>
+            );
+          })() : null}
         </main>
       </section>
     </div>
