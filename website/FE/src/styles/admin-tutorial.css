@@ -1617,3 +1617,196 @@
     padding-right: 14px;
   }
 }
+
+
+/* =========================================================
+   Admin Tutorial - final polish
+   Aksi: Lihat | Edit | Delete
+   Detail: modal lebih ringan dan rapi
+   ========================================================= */
+
+/* Kolom aksi */
+.admin-tutorial-table th:last-child,
+.admin-tutorial-table td:last-child {
+  min-width: 190px;
+  text-align: center;
+}
+
+.admin-tutorial-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 7px;
+  min-width: 180px;
+}
+
+/* Tombol mata */
+.admin-tutorial-action {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 34px;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid #bfdbfe;
+  border-radius: 7px;
+  background: #eff6ff;
+  color: #2563eb;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.admin-tutorial-action:hover {
+  border-color: #93c5fd;
+  background: #dbeafe;
+  box-shadow: 0 2px 7px rgba(37, 99, 235, 0.12);
+  transform: translateY(-1px);
+}
+
+.admin-tutorial-action img {
+  display: block;
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+/* Edit/Delete dibuat seperti action pada Admin Artikel */
+.admin-article-action {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: 58px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid #d8dde6;
+  border-radius: 7px;
+  background: #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  color: #374151;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+/* Edit */
+a.admin-article-action {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #d97706;
+}
+
+a.admin-article-action:hover {
+  border-color: #fbbf24;
+  background: #fef3c7;
+  color: #b45309;
+  box-shadow: 0 2px 7px rgba(217, 119, 6, 0.12);
+  transform: translateY(-1px);
+}
+
+/* Delete */
+button.admin-article-action {
+  border-color: #fecaca;
+  background: #fff5f5;
+  color: #dc2626;
+}
+
+button.admin-article-action:hover:not(:disabled) {
+  border-color: #f87171;
+  background: #fee2e2;
+  color: #b91c1c;
+  box-shadow: 0 2px 7px rgba(220, 38, 38, 0.12);
+  transform: translateY(-1px);
+}
+
+button.admin-article-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Baris tabel sedikit lebih lega agar tombol tidak berdesakan */
+.admin-tutorial-table th,
+.admin-tutorial-table td {
+  height: 54px;
+}
+
+.admin-tutorial-table td:last-child {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+/* Popup detail - background tidak terlalu gelap */
+.admin-tutorial-detail-modal,
+.admin-tutorial-modal-backdrop {
+  backdrop-filter: blur(1px);
+}
+
+.admin-tutorial-detail-backdrop {
+  background: rgba(15, 23, 42, 0.25);
+}
+
+/* Untuk modal versi JSX terbaru */
+.admin-tutorial-modal-backdrop {
+  background: rgba(15, 23, 42, 0.22) !important;
+  backdrop-filter: blur(1px) !important;
+}
+
+.admin-tutorial-modal {
+  width: min(760px, calc(100vw - 40px));
+  max-height: calc(100vh - 48px);
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 18px 55px rgba(15, 23, 42, 0.18);
+}
+
+/* Responsif */
+@media (max-width: 760px) {
+  .admin-tutorial-table th:last-child,
+  .admin-tutorial-table td:last-child {
+    min-width: 170px;
+  }
+
+  .admin-tutorial-actions {
+    min-width: 160px;
+    gap: 5px;
+  }
+
+  .admin-article-action {
+    min-width: 54px;
+    height: 32px;
+    padding: 0 9px;
+    font-size: 10px;
+  }
+
+  .admin-tutorial-action {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    flex-basis: 32px;
+  }
+
+  .admin-tutorial-modal {
+    width: calc(100vw - 24px);
+    max-height: calc(100vh - 24px);
+  }
+}

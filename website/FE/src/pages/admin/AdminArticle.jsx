@@ -26,6 +26,64 @@ import zapIcon from '../../assets/icons/icon-zap-1.svg';
 import '../../styles/admin-article.css';
 
 
+const DEPLOY_URL = (
+  import.meta.env.VITE_DEPLOY_URL ||
+  'https://arduflow.indobilliard.com/apk/uploads/web-arduflow-deploy-alfha/'
+).replace(/\/+$/, '');
+
+const ARTICLE_IMAGE_BASE_URL = `${DEPLOY_URL}/uploads/articles`;
+
+function getArticleCoverUrl(article) {
+  const apiUrl = String(
+    article?.coverImageUrl ||
+      article?.cover_image_url ||
+      ''
+  ).trim();
+
+  /*
+   * Jika API sudah mengirim URL gambar, gunakan URL tersebut apa adanya.
+   * Ini penting untuk kompatibilitas cover lama yang masih dilayani
+   * lewat article-api.php?action=image&file=...
+   */
+  if (/^(https?:\/\/|data:image\/|blob:)/i.test(apiUrl)) {
+    return apiUrl;
+  }
+
+  if (apiUrl.startsWith('/')) {
+    try {
+      return `${new URL(DEPLOY_URL).origin}${apiUrl}`;
+    } catch {
+      // Lanjut ke fallback nama file.
+    }
+  }
+
+  const fileName = String(
+    article?.coverImageName ||
+      article?.cover_image_name ||
+      article?.cover?.file_name ||
+      article?.cover?.fileName ||
+      ''
+  )
+    .trim()
+    .replace(/\\/g, '/')
+    .split('/')
+    .pop();
+
+  if (!fileName) {
+    return '';
+  }
+
+  return `${ARTICLE_IMAGE_BASE_URL}/${encodeURIComponent(fileName)}`;
+}
+
+function normalizeAdminArticleImage(article) {
+  return {
+    ...article,
+    coverImageUrl: getArticleCoverUrl(article),
+  };
+}
+
+
 function AdminArticleTopbar({ search, onSearchChange }) {
   return (
     <header className="admin-dashboard-topbar">
@@ -244,12 +302,15 @@ export function AdminArticle() {
       setLoadError('');
 
       const rows = await fetchArticles();
+      const normalizedRows = Array.isArray(rows)
+        ? rows.map(normalizeAdminArticleImage)
+        : [];
 
-      setArticles(rows);
+      setArticles(normalizedRows);
 
       setCheckedArticleKeys((current) =>
         current.filter((key) =>
-          rows.some(
+          normalizedRows.some(
             (article) =>
               getArticleKey(article) === key
           )

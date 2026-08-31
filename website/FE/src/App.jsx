@@ -96,8 +96,7 @@ const AdminTutorial = lazyNamed(() => import('./pages/admin/AdminTutorial.jsx'),
 const AdminTutorialCreate = lazyNamed(() => import('./pages/admin/AdminTutorialForm.jsx'), 'AdminTutorialCreate');
 const AdminTutorialEdit = lazyNamed(() => import('./pages/admin/AdminTutorialForm.jsx'), 'AdminTutorialEdit');
 const AdminArticle = lazyNamed(() => import('./pages/admin/AdminArticle.jsx'), 'AdminArticle');
-const AdminArticleCreate = lazyNamed(() => import('./pages/admin/AdminArticleForm.jsx'), 'AdminArticleCreate');
-const AdminArticleEdit = lazyNamed(() => import('./pages/admin/AdminArticleForm.jsx'), 'AdminArticleEdit');
+const AdminArticleForm = lazyNamed(() => import('./pages/admin/AdminArticleForm.jsx'), 'AdminArticleForm');
 const AdminProjects = lazyNamed(() => import('./pages/admin/AdminProjects.jsx'), 'AdminProjects');
 const AdminGallery = lazyNamed(() => import('./pages/admin/AdminGallery.jsx'), 'AdminGallery');
 const AdminPartners = lazyNamed(() => import('./pages/admin/AdminPartners.jsx'), 'AdminPartners');
@@ -200,8 +199,8 @@ const routes = {
   '/admin/tutorial/tambah': AdminTutorialCreate,
   '/admin/tutorial/edit': AdminTutorialEdit,
   '/admin/artikel': AdminArticle,
-  '/admin/artikel/tambah': AdminArticleCreate,
-  '/admin/artikel/edit': AdminArticleEdit,
+  '/admin/artikel/tambah': AdminArticleForm,
+  '/admin/artikel/edit': AdminArticleForm,
 
   '/admin/projects': AdminProjects,
   '/admin/gallery': AdminGallery,

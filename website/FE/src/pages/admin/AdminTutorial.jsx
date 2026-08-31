@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AdminNotificationButton } from './AdminChrome.jsx';
 import { AdminSidebar } from './AdminSidebar.jsx';
 import {
   getInitialAdminSidebarCollapsed,
   persistAdminSidebarCollapsed,
 } from './adminSidebarState.js';
+import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import bookIcon from '../../assets/icons/icon-book-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
@@ -13,43 +13,145 @@ import usersIcon from '../../assets/icons/icon-users-1.svg';
 import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
 import zapIcon from '../../assets/icons/icon-zap-1.svg';
 
-const TUTORIAL_API_URL = (
-  import.meta.env.VITE_TUTORIAL_API_URL ||
-  'http://192.168.130.11:8000/api/'
+const DEPLOY_URL = (
+  import.meta.env.VITE_DEPLOY_URL ||
+  'https://arduflow.indobilliard.com/apk/uploads/web-arduflow-deploy-alfha/'
 ).replace(/\/+$/, '');
 
-const ARTICLE_API_URL = `${TUTORIAL_API_URL}/materi-api.php`;
+const MATERI_API_URL =
+  `${DEPLOY_URL}/api/materi-api.php`;
 
-const TUTORIAL_API_ORIGIN = (() => {
-  try {
-    return new URL(ARTICLE_API_URL).origin;
-  } catch {
+const MATERI_IMAGE_BASE_URL =
+  `${DEPLOY_URL}/uploads/materi`;
+
+function extractMateriImageFileName(value) {
+  const candidate = String(value || '').trim();
+
+  if (!candidate) {
     return '';
   }
-})();
 
-const tutorialImageModules = import.meta.glob('../../assets/images/*', {
-  eager: true,
-  import: 'default',
-  query: '?url',
-});
+  try {
+    const parsed = new URL(
+      candidate,
+      window.location.origin
+    );
 
-const tutorialImageMap = Object.entries(tutorialImageModules).reduce(
-  (images, [path, url]) => {
-    const fileName = path.split('/').pop() || '';
-    const key = fileName
-      .replace(/\.[^.]+$/, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
+    const queryFile =
+      parsed.searchParams.get('file');
 
-    images[key] = url;
-    images[fileName.toLowerCase()] = url;
+    if (queryFile) {
+      return (
+        String(queryFile)
+          .split(/[\\/]/)
+          .pop() || ''
+      );
+    }
 
-    return images;
-  },
-  {}
-);
+    const path = decodeURIComponent(
+      parsed.pathname || ''
+    );
+
+    if (
+      /\/uploads\/materi\//i.test(path) ||
+      /\/storage\/materi\//i.test(path)
+    ) {
+      return path.split('/').pop() || '';
+    }
+  } catch {
+    // Bukan URL, lanjutkan sebagai nama file.
+  }
+
+  if (
+    /^[^/\\]+\.(jpe?g|png|webp|gif|svg)$/i.test(
+      candidate
+    )
+  ) {
+    return candidate;
+  }
+
+  if (
+    /(?:uploads|storage)\/materi\//i.test(
+      candidate
+    )
+  ) {
+    return (
+      candidate
+        .split(/[\\/]/)
+        .pop() || ''
+    );
+  }
+
+  return '';
+}
+
+function resolveMateriImageUrl(
+  value,
+  fallbackFileName = ''
+) {
+  const candidate = String(value || '').trim();
+
+  if (
+    /^(data:image\/|blob:)/i.test(
+      candidate
+    )
+  ) {
+    return candidate;
+  }
+
+  const fileName =
+    extractMateriImageFileName(candidate) ||
+    extractMateriImageFileName(fallbackFileName);
+
+  if (fileName) {
+    return (
+      `${MATERI_IMAGE_BASE_URL}/` +
+      encodeURIComponent(fileName)
+    );
+  }
+
+  if (/^https?:\/\//i.test(candidate)) {
+    return candidate;
+  }
+
+  return '';
+}
+
+function getMateriImageProxyUrl(fileName) {
+  const safeFileName =
+    extractMateriImageFileName(fileName);
+
+  if (!safeFileName) {
+    return '';
+  }
+
+  return (
+    `${MATERI_API_URL}?action=image&scope=card&file=` +
+    encodeURIComponent(safeFileName)
+  );
+}
+
+function handleMateriImageError(event, fileName) {
+  const image = event.currentTarget;
+
+  if (
+    image.dataset.fallbackApplied === '1'
+  ) {
+    image.style.display = 'none';
+    return;
+  }
+
+  const proxyUrl =
+    getMateriImageProxyUrl(fileName);
+
+  if (!proxyUrl) {
+    image.style.display = 'none';
+    return;
+  }
+
+  image.dataset.fallbackApplied = '1';
+  image.src = proxyUrl;
+}
 
 function AdminTutorialTopbar() {
   return (
@@ -64,7 +166,13 @@ function AdminTutorialTopbar() {
       </label>
 
       <div className="admin-dashboard-account">
-        <AdminNotificationButton />
+        <button
+          className="admin-dashboard-notif"
+          type="button"
+          aria-label="Notifikasi"
+        >
+          <img src={bellIcon} alt="" />
+        </button>
 
         <span className="admin-dashboard-avatar" aria-hidden="true" />
 
@@ -90,38 +198,57 @@ function TutorialBadge({ children }) {
   );
 }
 
-function TutorialAction({ label, children, onClick, tone = '' }) {
+function TutorialAction({
+  label,
+  children,
+  onClick,
+  variant = 'default',
+  disabled = false,
+}) {
+  const variantStyle = {
+    view: {
+      color: '#2563eb',
+      background: '#eff6ff',
+      borderColor: '#bfdbfe',
+    },
+    edit: {
+      color: '#d97706',
+      background: '#fffbeb',
+      borderColor: '#fde68a',
+    },
+    delete: {
+      color: '#dc2626',
+      background: '#fef2f2',
+      borderColor: '#fecaca',
+    },
+    default: {},
+  }[variant] || {};
+
   return (
     <button
-      className={`admin-tutorial-action${
-        tone ? ` admin-tutorial-action--${tone}` : ''
-      }`}
+      className={`admin-tutorial-action admin-tutorial-action--${variant}`}
       type="button"
       aria-label={label}
+      title={label}
       onClick={onClick}
+      disabled={disabled}
+      style={{
+        width: 34,
+        height: 34,
+        minWidth: 34,
+        padding: 0,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        border: '1px solid #e5e7eb',
+        borderRadius: 8,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.55 : 1,
+        ...variantStyle,
+      }}
     >
       {children}
     </button>
-  );
-}
-
-function TutorialThumbnail({ src, index = 0, large = false }) {
-  const [hasError, setHasError] = useState(false);
-  const fallbackClassName = large
-    ? 'admin-tutorial-detail-image'
-    : `admin-tutorial-thumb is-${index % 4}`;
-
-  if (!src || hasError) {
-    return <span className={fallbackClassName} />;
-  }
-
-  return (
-    <img
-      className={large ? 'admin-tutorial-detail-image' : 'admin-tutorial-thumb'}
-      src={src}
-      alt=""
-      onError={() => setHasError(true)}
-    />
   );
 }
 
@@ -143,110 +270,37 @@ function normalizeStatus(value) {
   return 'Draft';
 }
 
-function getTutorialKey(tutorial) {
-  const key = tutorial?.id ?? tutorial?.slug ?? tutorial?.title;
-  return key === undefined || key === null ? '' : String(key);
+function htmlToPlainText(value = '') {
+  return String(value || '')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
-function toApiStatus(value) {
-  const status = String(value || 'draft').trim().toLowerCase();
+function getSlideSummary(slide) {
+  const source =
+    slide?.body_text ??
+    slide?.content ??
+    slide?.code_content ??
+    '';
 
-  if (status === 'published') {
-    return 'published';
+  const plainText = htmlToPlainText(source);
+
+  if (!plainText) {
+    return '';
   }
 
-  if (status === 'pending review' || status === 'pending_review') {
-    return 'pending_review';
-  }
-
-  if (status === 'archived') {
-    return 'archived';
-  }
-
-  return 'draft';
-}
-
-function buildTutorialUpdatePayload(tutorial, nextStatus) {
-  const apiStatus = toApiStatus(nextStatus ?? tutorial.status);
-  const pageSettings = tutorial.page_settings || {};
-  const accessSettings = tutorial.access_settings || {};
-  const cta = tutorial.cta || {};
-  const slides = Array.isArray(tutorial.slides) ? tutorial.slides : [];
-  const fallbackContent =
-    tutorial.full_description ||
-    tutorial.fullDescription ||
-    tutorial.short_description ||
-    tutorial.description ||
-    '-';
-
-  return {
-    title: tutorial.title || 'Tanpa Judul',
-    slug: tutorial.slug || `tutorial-${tutorial.id || Date.now()}`,
-    category: tutorial.category && tutorial.category !== '-' ? tutorial.category : 'Umum',
-    display_order: Number(tutorial.display_order || 1),
-    descriptions: {
-      short_description: tutorial.short_description || tutorial.description || '-',
-      full_description: tutorial.full_description || tutorial.fullDescription || fallbackContent,
-    },
-    learning_information: {
-      difficulty_level: tutorial.difficulty_level || tutorial.level || '',
-      estimated_time: tutorial.estimated_time || tutorial.estimatedTime || '',
-    },
-    page_settings: {
-      ...pageSettings,
-      page_order: Number(tutorial.page_order || pageSettings.page_order || 1),
-      status: apiStatus,
-      active: tutorial.active ?? pageSettings.active ?? true,
-      show_on_page: tutorial.show_on_page ?? pageSettings.show_on_page ?? true,
-      featured: tutorial.featured ?? pageSettings.featured ?? false,
-      comments: tutorial.comments ?? pageSettings.comments ?? true,
-    },
-    access_settings: {
-      user_level: accessSettings.user_level || tutorial.user_level || 'semua_pengguna',
-      access_requirement:
-        accessSettings.access_requirement ?? tutorial.access_requirement ?? '',
-      prerequisite: accessSettings.prerequisite ?? tutorial.prerequisite ?? '',
-    },
-    cta: {
-      text: cta.text ?? tutorial.cta_text ?? '',
-      target_link: cta.target_link ?? tutorial.cta_target_link ?? '',
-      url_slug: cta.url_slug ?? tutorial.cta_url_slug ?? '',
-      publish_schedule: cta.publish_schedule ?? tutorial.publish_schedule ?? '',
-    },
-    card_image: tutorial.card_image_name
-      ? {
-          file_name: tutorial.card_image_name,
-          file_type: tutorial.card_image_type || null,
-          file_size: tutorial.card_image_size || null,
-        }
-      : null,
-    slides: slides.length
-      ? slides.map((slide, index) => ({
-          order: Number(slide.order || slide.slide_order || index + 1),
-          title: slide.title || `Halaman ${index + 1}`,
-          content_type: slide.content_type || 'text',
-          body_text: slide.body_text ?? slide.content ?? '',
-          content: slide.content ?? slide.body_text ?? '',
-          estimated_time: slide.estimated_time || '',
-          status: slide.status || apiStatus,
-          image: slide.image || null,
-          image_name: slide.image_name || slide.image?.file_name || null,
-          image_type: slide.image_type || slide.image?.file_type || null,
-          image_size: slide.image_size || slide.image?.file_size || null,
-          video_url: slide.video_url || '',
-        }))
-      : [
-          {
-            order: 1,
-            title: tutorial.title || 'Materi',
-            content_type: 'text',
-            body_text: fallbackContent,
-            content: fallbackContent,
-            estimated_time: tutorial.estimated_time || '',
-            status: apiStatus,
-          },
-        ],
-  };
+  return plainText.length > 180
+    ? `${plainText.slice(0, 180)}…`
+    : plainText;
 }
 
 function formatDate(value, includeTime = false) {
@@ -273,167 +327,22 @@ function formatDate(value, includeTime = false) {
   }).format(date);
 }
 
-function parseImageValue(value) {
-  if (!value) {
-    return null;
-  }
-
-  if (typeof value === 'object') {
-    return value;
-  }
-
-  if (typeof value !== 'string') {
-    return null;
-  }
-
-  try {
-    return JSON.parse(value);
-  } catch {
-    return value;
-  }
-}
-
-function normalizeImageKey(value) {
-  return String(value || '')
-    .split(/[\\/]/)
-    .pop()
-    .replace(/\.[^.]+$/, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
-}
-
-function resolvePublicImageUrl(value) {
-  const candidate = String(value || '').trim();
-
-  if (!candidate) {
-    return '';
-  }
-
-  if (/^(data:image\/|https?:\/\/|blob:)/i.test(candidate)) {
-    return candidate;
-  }
-
-  if (candidate.startsWith('/') && TUTORIAL_API_ORIGIN) {
-    return `${TUTORIAL_API_ORIGIN}${candidate}`;
-  }
-
-  if (
-    /^storage\/uploads\//i.test(candidate) &&
-    TUTORIAL_API_ORIGIN
-  ) {
-    return `${TUTORIAL_API_ORIGIN}/${candidate}`;
-  }
-
-  return '';
-}
-
-function resolveTutorialImage(item) {
-  const imageData = parseImageValue(
-    item.card_image ||
-      item.cardImage ||
-      item.thumbnail ||
-      item.image ||
-      item.card_image_name
-  );
-
-  const candidates = [];
-
-  if (typeof imageData === 'string') {
-    candidates.push(imageData);
-  }
-
-  if (imageData && typeof imageData === 'object') {
-    candidates.push(
-      imageData.data_url,
-      imageData.dataUrl,
-      imageData.url,
-      imageData.src,
-      imageData.path,
-      imageData.file_name,
-      imageData.fileName,
-      imageData.name
-    );
-  }
-
-  candidates.push(
-    item.card_image_url,
-    item.image_url,
-    item.thumbnail_url,
-    item.card_image_name,
-    item.title
-  );
-
-  for (const candidate of candidates.filter(Boolean)) {
-    const publicUrl = resolvePublicImageUrl(candidate);
-
-    if (publicUrl) {
-      return publicUrl;
-    }
-
-    const key = normalizeImageKey(candidate);
-    const fileName = String(candidate).split(/[\\/]/).pop().toLowerCase();
-
-    if (tutorialImageMap[fileName]) {
-      return tutorialImageMap[fileName];
-    }
-
-    if (tutorialImageMap[key]) {
-      return tutorialImageMap[key];
-    }
-  }
-
-  return '';
-}
-
-
-function getYoutubeEmbedUrl(value) {
-  const url = String(value || '').trim();
-
-  if (!url) {
-    return '';
-  }
-
-  try {
-    const parsedUrl = new URL(url);
-
-    if (parsedUrl.hostname === 'youtu.be') {
-      const videoId = parsedUrl.pathname.replace(/^\/+/, '');
-
-      return videoId
-        ? `https://www.youtube.com/embed/${videoId}`
-        : '';
-    }
-
-    if (parsedUrl.hostname.includes('youtube.com')) {
-      const videoId = parsedUrl.searchParams.get('v');
-
-      if (videoId) {
-        return `https://www.youtube.com/embed/${videoId}`;
-      }
-
-      if (parsedUrl.pathname.startsWith('/embed/')) {
-        return url;
-      }
-    }
-  } catch {
-    return '';
-  }
-
-  return '';
-}
-
-function isDirectVideoUrl(value) {
-  return /\.(mp4|webm|ogg)(\?.*)?$/i.test(String(value || ''));
-}
-
-function isM3u8Url(value) {
-  return /\.m3u8(\?.*)?$/i.test(String(value || ''));
-}
-
 function normalizeTutorial(item) {
   const status = normalizeStatus(item.status);
-  const imageSrc = resolveTutorialImage(item);
+
+  const cardImageName = String(
+    item.card_image_name ||
+    item.cardImageName ||
+    ''
+  ).trim();
+
+  const cardImageUrl =
+    resolveMateriImageUrl(
+      item.card_image_url ||
+      item.cardImageUrl ||
+      '',
+      cardImageName
+    );
 
   return {
     ...item,
@@ -445,18 +354,20 @@ function normalizeTutorial(item) {
     category: item.category || '-',
     level: item.difficulty_level || '-',
     estimatedTime: item.estimated_time || '-',
+    cardImageName,
+    cardImageUrl,
     status,
-    author: 'Admin',
-    viewer: 0,
-    completed: 0,
-    imageSrc,
-    slides: Array.isArray(item.slides) ? item.slides : [],
+    author: item.author || 'Admin',
+    viewer: Number(item.viewer || 0),
+    completed: Number(item.completed || 0),
     totalSlides: Number(item.total_slides || item.slides?.length || 0),
     createdAtRaw: item.created_at || null,
     updatedAtRaw: item.updated_at || item.created_at || null,
     createdAt: formatDate(item.created_at),
     publishedAt:
-      status === 'Published' ? formatDate(item.created_at) : '-',
+      status === 'Published'
+        ? formatDate(item.published_at || item.created_at)
+        : '-',
     updatedAt: formatDate(item.updated_at || item.created_at),
     updatedAtWithTime: formatDate(
       item.updated_at || item.created_at,
@@ -472,12 +383,9 @@ export function AdminTutorial() {
 
   const [tutorials, setTutorials] = useState([]);
   const [selectedTutorial, setSelectedTutorial] = useState(null);
-  const [checkedTutorialKeys, setCheckedTutorialKeys] = useState([]);
-  const [busyTutorialId, setBusyTutorialId] = useState(null);
-  const [actionMessage, setActionMessage] = useState('');
-  const [actionError, setActionError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [deletingId, setDeletingId] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -492,94 +400,12 @@ export function AdminTutorial() {
     });
   };
 
-  const handleEditTutorial = (tutorial) => {
-    if (!tutorial?.id) {
-      return;
-    }
-
-    window.location.href = `/admin/tutorial/edit?id=${encodeURIComponent(
-      tutorial.id
-    )}`;
-  };
-
-  const parseApiResponse = async (response) => {
-    const responseText = await response.text();
-    let result = {};
-
-    try {
-      result = responseText ? JSON.parse(responseText) : {};
-    } catch {
-      throw new Error(
-        `Response API bukan JSON yang valid. Isi response: ${responseText.slice(
-          0,
-          250
-        )}`
-      );
-    }
-
-    if (!response.ok || result.success === false) {
-      throw new Error(
-        result.message || `API mengembalikan HTTP ${response.status}.`
-      );
-    }
-
-    return result;
-  };
-
-  const handleDeleteTutorial = async (tutorial) => {
-    if (!tutorial?.id) {
-      return;
-    }
-
-    const isConfirmed = window.confirm(
-      `Hapus materi "${tutorial.title}"? Data yang sudah dihapus tidak bisa dikembalikan.`
-    );
-
-    if (!isConfirmed) {
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `${ARTICLE_API_URL}?id=${encodeURIComponent(
-          tutorial.id
-        )}`,
-        {
-          method: 'DELETE',
-          headers: {
-            Accept: 'application/json',
-          },
-        }
-      );
-
-      const result = await parseApiResponse(response);
-
-      setTutorials((current) =>
-        current.filter((item) => String(item.id) !== String(tutorial.id))
-      );
-
-      setSelectedTutorial((current) =>
-        current && String(current.id) === String(tutorial.id) ? null : current
-      );
-      setCheckedTutorialKeys((current) =>
-        current.filter((key) => key !== getTutorialKey(tutorial))
-      );
-
-      setActionError('');
-      setActionMessage(result.message || 'Materi berhasil dihapus.');
-    } catch (error) {
-      console.error('Gagal menghapus materi tutorial:', error);
-      setActionMessage('');
-      setActionError(error.message || 'Materi gagal dihapus dari database.');
-    }
-  };
-
   const fetchTutorials = async () => {
     setIsLoading(true);
     setLoadError('');
 
     try {
-      const response = await fetch(ARTICLE_API_URL, {
+      const response = await fetch(MATERI_API_URL, {
         method: 'GET',
         headers: {
           Accept: 'application/json',
@@ -611,40 +437,108 @@ export function AdminTutorial() {
       const normalizedRows = rows.map(normalizeTutorial);
 
       setTutorials(normalizedRows);
-      setCheckedTutorialKeys((current) => {
-        const availableKeys = new Set(normalizedRows.map(getTutorialKey));
-        return current.filter((key) => availableKeys.has(key));
-      });
 
+      // Jangan membuka detail otomatis saat halaman Tutorial dibuka.
+      // Popup detail hanya boleh muncul setelah tombol mata diklik.
       setSelectedTutorial((current) => {
-        if (!normalizedRows.length) {
-          return null;
-        }
-
         if (!current) {
           return null;
         }
 
-        return normalizedRows.find((item) => item.id === current.id) || null;
+        return (
+          normalizedRows.find(
+            (item) => String(item.id) === String(current.id)
+          ) || null
+        );
       });
 
       console.group('DEBUG ADMIN TUTORIAL SQLITE');
       console.log('Method:', 'GET');
-      console.log('Endpoint:', ARTICLE_API_URL);
+      console.log('Endpoint:', MATERI_API_URL);
       console.log('Response:', result);
       console.log('Data tabel:', normalizedRows);
       console.groupEnd();
     } catch (error) {
-      console.error('Gagal mengambil data tutorial SQLite:', error);
+      console.error('Gagal mengambil data materi:', error);
       setTutorials([]);
       setSelectedTutorial(null);
-      setCheckedTutorialKeys([]);
       setLoadError(
         error.message ||
-          'Data tutorial tidak dapat diambil dari API SQLite.'
+          'Data materi tidak dapat diambil dari API deploy.'
       );
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleViewTutorial = (item) => {
+    setSelectedTutorial(item);
+  };
+
+  const handleEditTutorial = (item) => {
+    if (!item?.id) {
+      return;
+    }
+
+    window.location.href =
+      `/admin/tutorial/tambah?id=${encodeURIComponent(item.id)}`;
+  };
+
+  const handleDeleteTutorial = async (item) => {
+    if (!item?.id || deletingId !== null) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Hapus materi "${item.title}"? Data materi dan file gambar terkait akan dihapus.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingId(item.id);
+
+    try {
+      const response = await fetch(
+        `${MATERI_API_URL}?id=${encodeURIComponent(item.id)}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Accept: 'application/json',
+          },
+        }
+      );
+
+      const responseText = await response.text();
+      let result = {};
+
+      try {
+        result = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        throw new Error(
+          `Response hapus bukan JSON yang valid. HTTP ${response.status}.`
+        );
+      }
+
+      if (!response.ok || result.success === false) {
+        throw new Error(
+          result.message || `Gagal menghapus materi. HTTP ${response.status}.`
+        );
+      }
+
+      setSelectedTutorial((current) =>
+        current?.id === item.id ? null : current
+      );
+
+      await fetchTutorials();
+    } catch (error) {
+      console.error('Gagal menghapus materi:', error);
+      window.alert(
+        error.message || 'Materi gagal dihapus dari server.'
+      );
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -676,7 +570,7 @@ export function AdminTutorial() {
       {
         label: 'Total Tutorial',
         value: String(total),
-        note: 'Data dari SQLite',
+        note: 'Data dari API',
         icon: bookIcon,
         tone: 'blue',
       },
@@ -759,26 +653,6 @@ export function AdminTutorial() {
     levelFilter,
   ]);
 
-  const filteredTutorialKeys = useMemo(
-    () => filteredTutorials.map(getTutorialKey).filter(Boolean),
-    [filteredTutorials]
-  );
-
-  const isFilteredTutorialsChecked =
-    filteredTutorialKeys.length > 0 &&
-    filteredTutorialKeys.every((key) => checkedTutorialKeys.includes(key));
-
-  const selectedTutorials = useMemo(
-    () =>
-      tutorials.filter((tutorial) =>
-        checkedTutorialKeys.includes(getTutorialKey(tutorial))
-      ),
-    [tutorials, checkedTutorialKeys]
-  );
-
-  const selectedTutorialCount = selectedTutorials.length;
-  const isBulkActionBusy = busyTutorialId === 'bulk';
-
   const latestTutorials = useMemo(() => {
     return [...tutorials]
       .sort((a, b) => {
@@ -845,484 +719,12 @@ export function AdminTutorial() {
     setLevelFilter('');
   };
 
-  const handleToggleTutorialCheck = (tutorial) => {
-    const tutorialKey = getTutorialKey(tutorial);
-
-    if (!tutorialKey) {
-      return;
-    }
-
-    setCheckedTutorialKeys((current) =>
-      current.includes(tutorialKey)
-        ? current.filter((key) => key !== tutorialKey)
-        : [...current, tutorialKey]
-    );
-  };
-
-  const handleToggleFilteredTutorialChecks = () => {
-    if (!filteredTutorialKeys.length) {
-      return;
-    }
-
-    setCheckedTutorialKeys((current) => {
-      const currentSet = new Set(current);
-      const shouldUncheck = filteredTutorialKeys.every((key) =>
-        currentSet.has(key)
-      );
-
-      if (shouldUncheck) {
-        return current.filter((key) => !filteredTutorialKeys.includes(key));
-      }
-
-      filteredTutorialKeys.forEach((key) => currentSet.add(key));
-      return [...currentSet];
-    });
-  };
-
-  const updateTutorialStatus = async (tutorial, status) => {
-    if (!tutorial?.id) {
-      throw new Error('ID tutorial tidak tersedia.');
-    }
-
-    const response = await fetch(
-      `${ARTICLE_API_URL}?id=${encodeURIComponent(tutorial.id)}`,
-      {
-        method: 'PUT',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(buildTutorialUpdatePayload(tutorial, status)),
-      }
-    );
-
-    const result = await parseApiResponse(response);
-    return normalizeTutorial({ ...tutorial, ...(result.data || {}) });
-  };
-
-  const handleBulkStatus = async (status, successMessage) => {
-    if (!selectedTutorials.length) {
-      setActionError('Pilih minimal satu tutorial terlebih dahulu.');
-      return;
-    }
-
-    try {
-      setBusyTutorialId('bulk');
-      setActionError('');
-      setActionMessage('');
-
-      const updatedTutorials = [];
-
-      for (const tutorial of selectedTutorials) {
-        updatedTutorials.push(await updateTutorialStatus(tutorial, status));
-      }
-
-      setTutorials((current) =>
-        current.map(
-          (tutorial) =>
-            updatedTutorials.find(
-              (updated) => String(updated.id) === String(tutorial.id)
-            ) || tutorial
-        )
-      );
-      setSelectedTutorial((current) =>
-        current
-          ? updatedTutorials.find(
-              (updated) => String(updated.id) === String(current.id)
-            ) || current
-          : current
-      );
-      setCheckedTutorialKeys([]);
-      setActionMessage(
-        `${successMessage} (${updatedTutorials.length} tutorial).`
-      );
-    } catch (error) {
-      console.error('Gagal menjalankan aksi cepat tutorial:', error);
-      setActionMessage('');
-      setActionError(
-        error.message || 'Gagal menjalankan aksi cepat tutorial.'
-      );
-    } finally {
-      setBusyTutorialId(null);
-    }
-  };
-
-  const handleBulkDelete = async () => {
-    if (!selectedTutorials.length) {
-      setActionError('Pilih minimal satu tutorial terlebih dahulu.');
-      return;
-    }
-
-    const isConfirmed = window.confirm(
-      `${selectedTutorialCount} tutorial akan dihapus permanen. Lanjutkan?`
-    );
-
-    if (!isConfirmed) {
-      return;
-    }
-
-    try {
-      setBusyTutorialId('bulk');
-      setActionError('');
-      setActionMessage('');
-
-      for (const tutorial of selectedTutorials) {
-        const response = await fetch(
-          `${ARTICLE_API_URL}?id=${encodeURIComponent(tutorial.id)}`,
-          {
-            method: 'DELETE',
-            headers: {
-              Accept: 'application/json',
-            },
-          }
-        );
-        await parseApiResponse(response);
-      }
-
-      const deletedKeys = selectedTutorials.map(getTutorialKey);
-      setTutorials((current) =>
-        current.filter(
-          (tutorial) => !deletedKeys.includes(getTutorialKey(tutorial))
-        )
-      );
-      setSelectedTutorial((current) =>
-        current && deletedKeys.includes(getTutorialKey(current)) ? null : current
-      );
-      setCheckedTutorialKeys([]);
-      setActionMessage(
-        `Tutorial terpilih berhasil dihapus (${selectedTutorialCount} tutorial).`
-      );
-    } catch (error) {
-      console.error('Gagal menghapus tutorial terpilih:', error);
-      setActionMessage('');
-      setActionError(error.message || 'Gagal menghapus tutorial terpilih.');
-    } finally {
-      setBusyTutorialId(null);
-    }
-  };
-
   return (
     <main
       className={`admin-dashboard-page admin-tutorial-page${
         isSidebarCollapsed ? ' admin-dashboard-page--collapsed' : ''
       }`}
     >
-      <style>{`
-        .admin-tutorial-detail--complete {
-          width: min(900px, 94vw);
-          max-width: 900px;
-          padding: 0 24px 30px;
-          background:
-            linear-gradient(180deg, #f8fbff 0, #ffffff 180px);
-        }
-
-        .admin-tutorial-detail--complete .admin-tutorial-detail-head {
-          position: sticky;
-          top: 0;
-          z-index: 20;
-          margin: 0 -24px;
-          padding: 18px 24px;
-          border-bottom: 1px solid #e7edf5;
-          background: rgba(255, 255, 255, .96);
-          backdrop-filter: blur(12px);
-        }
-
-        .admin-tutorial-detail--complete .admin-tutorial-detail-profile {
-          display: grid;
-          grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
-          align-items: center;
-          gap: 22px;
-          margin-top: 22px;
-          padding: 18px;
-          border: 1px solid #dbe8ff;
-          border-radius: 18px;
-          background:
-            radial-gradient(circle at top right, rgba(37, 99, 235, .10), transparent 42%),
-            #fff;
-          box-shadow: 0 12px 32px rgba(16, 24, 40, .06);
-        }
-
-        .admin-tutorial-detail--complete .admin-tutorial-detail-profile h3 {
-          margin: 0 0 10px;
-          font-size: 22px;
-          line-height: 1.3;
-          color: #101828;
-        }
-
-        .admin-tutorial-detail--complete .admin-tutorial-detail-image {
-          width: 100%;
-          height: 145px;
-          border-radius: 14px;
-          object-fit: cover;
-          background: #eef2f6;
-        }
-
-        .admin-tutorial-detail--complete > dl {
-          display: grid;
-          grid-template-columns: 160px minmax(0, 1fr);
-          margin: 18px 0 0;
-          overflow: hidden;
-          border: 1px solid #e4e7ec;
-          border-radius: 14px;
-          background: #fff;
-        }
-
-        .admin-tutorial-detail--complete > dl dt,
-        .admin-tutorial-detail--complete > dl dd {
-          margin: 0;
-          padding: 11px 14px;
-          border-bottom: 1px solid #f0f2f5;
-          font-size: 12px;
-        }
-
-        .admin-tutorial-detail--complete > dl dt {
-          background: #f8fafc;
-          color: #667085;
-          font-weight: 700;
-        }
-
-        .admin-tutorial-detail--complete > dl dd {
-          color: #344054;
-          overflow-wrap: anywhere;
-        }
-
-        .admin-tutorial-detail-section {
-          margin-top: 20px;
-          overflow: hidden;
-          border: 1px solid #e4e7ec;
-          border-radius: 16px;
-          background: #fff;
-          box-shadow: 0 8px 24px rgba(16, 24, 40, .045);
-        }
-
-        .admin-tutorial-detail-section-head {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 14px;
-          padding: 16px 18px;
-          border-bottom: 1px solid #eef2f6;
-          background: linear-gradient(135deg, #f8fbff 0%, #f5f3ff 100%);
-        }
-
-        .admin-tutorial-detail-section-head h3 {
-          margin: 2px 0 0;
-          color: #101828;
-          font-size: 16px;
-        }
-
-        .admin-tutorial-detail-kicker {
-          display: block;
-          color: #2563eb;
-          font-size: 10px;
-          font-weight: 800;
-          letter-spacing: .08em;
-          text-transform: uppercase;
-        }
-
-        .admin-tutorial-detail-count {
-          display: inline-flex;
-          align-items: center;
-          min-height: 28px;
-          padding: 4px 10px;
-          border: 1px solid #bfdbfe;
-          border-radius: 999px;
-          background: #eff6ff;
-          color: #1d4ed8;
-          font-size: 10px;
-          font-weight: 800;
-          white-space: nowrap;
-        }
-
-        .admin-tutorial-full-description {
-          padding: 18px;
-          color: #344054;
-          font-size: 12px;
-          line-height: 1.8;
-        }
-
-        .admin-tutorial-full-description > :first-child {
-          margin-top: 0;
-        }
-
-        .admin-tutorial-full-description > :last-child {
-          margin-bottom: 0;
-        }
-
-        .admin-tutorial-full-description h1,
-        .admin-tutorial-full-description h2,
-        .admin-tutorial-full-description h3 {
-          margin: 20px 0 8px;
-          color: #101828;
-          line-height: 1.35;
-        }
-
-        .admin-tutorial-full-description h2 {
-          font-size: 17px;
-        }
-
-        .admin-tutorial-full-description h3 {
-          font-size: 15px;
-        }
-
-        .admin-tutorial-full-description p {
-          margin: 0 0 12px;
-        }
-
-        .admin-tutorial-full-description ul,
-        .admin-tutorial-full-description ol {
-          margin: 10px 0 14px;
-          padding-left: 22px;
-        }
-
-        .admin-tutorial-full-description blockquote {
-          margin: 14px 0;
-          padding: 12px 14px;
-          border-left: 3px solid #2563eb;
-          border-radius: 0 10px 10px 0;
-          background: #f8fbff;
-          color: #475467;
-        }
-
-        .admin-tutorial-full-description pre {
-          overflow-x: auto;
-          padding: 13px;
-          border-radius: 10px;
-          background: #101828;
-          color: #f8fafc;
-        }
-
-        .admin-tutorial-slides-list {
-          display: grid;
-          gap: 12px;
-          padding: 16px;
-          background: #fbfcfe;
-        }
-
-        .admin-tutorial-slide-card {
-          overflow: hidden;
-          border: 1px solid #e4e7ec;
-          border-radius: 13px;
-          background: #fff;
-        }
-
-        .admin-tutorial-slide-card-head {
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: 12px;
-          padding: 12px 14px;
-          border-bottom: 1px solid #eef2f6;
-          background: #f8fafc;
-        }
-
-        .admin-tutorial-slide-number {
-          display: block;
-          margin-bottom: 3px;
-          color: #2563eb;
-          font-size: 9px;
-          font-weight: 800;
-          text-transform: uppercase;
-        }
-
-        .admin-tutorial-slide-card-head strong {
-          display: block;
-          color: #101828;
-          font-size: 13px;
-        }
-
-        .admin-tutorial-slide-type {
-          color: #667085;
-          font-size: 10px;
-          font-weight: 700;
-          white-space: nowrap;
-        }
-
-        .admin-tutorial-slide-card-body {
-          padding: 14px;
-        }
-
-        .admin-tutorial-slide-text {
-          margin: 0;
-          color: #344054;
-          font-size: 12px;
-          line-height: 1.75;
-          white-space: pre-wrap;
-        }
-
-        .admin-tutorial-slide-image {
-          display: block;
-          width: 100%;
-          max-height: 360px;
-          margin-top: 12px;
-          border: 1px solid #e4e7ec;
-          border-radius: 10px;
-          object-fit: contain;
-          background: #f8fafc;
-        }
-
-        .admin-tutorial-slide-video {
-          display: block;
-          width: 100%;
-          aspect-ratio: 16 / 9;
-          border: 0;
-          border-radius: 10px;
-          background: #000;
-        }
-
-        .admin-tutorial-slide-link {
-          display: inline-flex;
-          margin-top: 8px;
-          color: #2563eb;
-          font-size: 11px;
-          font-weight: 700;
-          text-decoration: none;
-        }
-
-        .admin-tutorial-slide-empty {
-          margin: 0;
-          color: #98a2b3;
-          font-size: 11px;
-        }
-
-        @media (max-width: 720px) {
-          .admin-tutorial-detail--complete {
-            width: 100vw;
-            max-width: 100vw;
-            padding-left: 16px;
-            padding-right: 16px;
-          }
-
-          .admin-tutorial-detail--complete .admin-tutorial-detail-head {
-            margin-left: -16px;
-            margin-right: -16px;
-            padding-left: 16px;
-            padding-right: 16px;
-          }
-
-          .admin-tutorial-detail--complete .admin-tutorial-detail-profile {
-            grid-template-columns: 1fr;
-          }
-
-          .admin-tutorial-detail--complete > dl {
-            grid-template-columns: 1fr;
-          }
-
-          .admin-tutorial-detail--complete > dl dt {
-            padding-bottom: 4px;
-            border-bottom: 0;
-          }
-
-          .admin-tutorial-detail--complete > dl dd {
-            padding-top: 4px;
-          }
-
-          .admin-tutorial-detail-section-head {
-            align-items: flex-start;
-          }
-        }
-      `}</style>
-
       <AdminSidebar
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={handleToggleSidebar}
@@ -1344,68 +746,6 @@ export function AdminTutorial() {
                 </p>
               </div>
             </div>
-
-            {actionMessage ? (
-              <p role="status" className="admin-tutorial-feedback is-success">
-                {actionMessage}
-              </p>
-            ) : null}
-
-            {actionError ? (
-              <p role="alert" className="admin-tutorial-feedback is-error">
-                {actionError}
-              </p>
-            ) : null}
-
-            {selectedTutorialCount ? (
-              <section
-                className="admin-tutorial-bulk-actions"
-                aria-label="Aksi tutorial terpilih"
-              >
-                <span>{selectedTutorialCount} tutorial dipilih</span>
-                <div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleBulkStatus(
-                        'published',
-                        'Tutorial terpilih berhasil dipublish'
-                      )
-                    }
-                    disabled={isBulkActionBusy}
-                  >
-                    Publish Terpilih
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleBulkStatus(
-                        'draft',
-                        'Tutorial terpilih berhasil dijadikan draft'
-                      )
-                    }
-                    disabled={isBulkActionBusy}
-                  >
-                    Jadikan Draft
-                  </button>
-                  <button
-                    type="button"
-                    className="is-danger"
-                    onClick={handleBulkDelete}
-                    disabled={isBulkActionBusy}
-                  >
-                    Hapus
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCheckedTutorialKeys([])}
-                    disabled={isBulkActionBusy}
-                  >
-                    Batal Pilih
-                  </button>
-                </div>
-              </section>
-            ) : null}
 
             <section
               className="admin-tutorial-stats"
@@ -1513,10 +853,6 @@ export function AdminTutorial() {
               >
                 + Tambah Materi
               </a>
-
-              {/* <button type="button" onClick={fetchTutorials}>
-                {isLoading ? 'Memuat...' : 'Muat Ulang SQLite'}
-              </button> */}
             </div>
 
             <section className="admin-tutorial-table-card">
@@ -1527,10 +863,6 @@ export function AdminTutorial() {
                       <input
                         type="checkbox"
                         aria-label="Pilih semua tutorial"
-                        checked={isFilteredTutorialsChecked}
-                        disabled={filteredTutorials.length === 0}
-                        onClick={(event) => event.stopPropagation()}
-                        onChange={handleToggleFilteredTutorialChecks}
                       />
                     </th>
                     <th>Judul Tutorial</th>
@@ -1550,19 +882,19 @@ export function AdminTutorial() {
                 <tbody>
                   {isLoading && (
                     <tr>
-                      <td colSpan="12">Memuat data dari materi</td>
+                      <td colSpan="12">Memuat data materi dari API deploy...</td>
                     </tr>
                   )}
 
                   {!isLoading && loadError && (
                     <tr>
                       <td colSpan="12">
-                        <strong>Gagal mengambil data dari materi.</strong>
+                        <strong>Gagal mengambil data SQLite.</strong>
                         <br />
                         <small>{loadError}</small>
                         <br />
                         <small>
-                          Endpoint: {ARTICLE_API_URL}
+                          Endpoint: {MATERI_API_URL}
                         </small>
                       </td>
                     </tr>
@@ -1571,7 +903,7 @@ export function AdminTutorial() {
                   {!isLoading && !loadError && filteredTutorials.length === 0 && (
                     <tr>
                       <td colSpan="12">
-                        Belum ada data materi yang sesuai di SQLite.
+                        Belum ada data materi yang sesuai di server.
                       </td>
                     </tr>
                   )}
@@ -1584,19 +916,38 @@ export function AdminTutorial() {
                           <input
                             type="checkbox"
                             aria-label={`Pilih ${item.title}`}
-                            checked={checkedTutorialKeys.includes(
-                              getTutorialKey(item)
-                            )}
-                            onClick={(event) => event.stopPropagation()}
-                            onChange={() => handleToggleTutorialCheck(item)}
                           />
                         </td>
 
                         <td>
-                          <TutorialThumbnail
-                            src={item.imageSrc}
-                            index={index}
-                          />
+                          {item.cardImageUrl ? (
+                            <img
+                              className={`admin-tutorial-thumb is-${index % 4}`}
+                              src={item.cardImageUrl}
+                              alt={`Thumbnail ${item.title}`}
+                              loading="lazy"
+                              onError={(event) =>
+                                handleMateriImageError(
+                                  event,
+                                  item.cardImageName
+                                )
+                              }
+                              style={{
+                                display: 'block',
+                                width: 56,
+                                height: 42,
+                                minWidth: 56,
+                                objectFit: 'cover',
+                                borderRadius: 8,
+                                background: '#eef2f7',
+                              }}
+                            />
+                          ) : (
+                            <span
+                              className={`admin-tutorial-thumb is-${index % 4}`}
+                              aria-hidden="true"
+                            />
+                          )}
                           <span>
                             <b>{item.title}</b>
                             <small>{item.description}</small>
@@ -1623,28 +974,48 @@ export function AdminTutorial() {
                         <td>{item.updatedAt}</td>
 
                         <td>
-                          <div className="admin-tutorial-actions">
+                          <div
+                            className="admin-tutorial-actions"
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: 6,
+                              flexWrap: 'nowrap',
+                              minWidth: 176,
+                            }}
+                          >
                             <TutorialAction
-                              label={`Lihat ${item.title}`}
-                              onClick={() => setSelectedTutorial(item)}
+                              label={`Lihat detail ${item.title}`}
+                              variant="view"
+                              onClick={() => handleViewTutorial(item)}
                             >
-                              <img src={eyeIcon} alt="" />
+                              <img
+                                src={eyeIcon}
+                                alt=""
+                                style={{ width: 17, height: 17 }}
+                              />
                             </TutorialAction>
 
-                            <TutorialAction
-                              label={`Edit ${item.title}`}
-                              onClick={() => handleEditTutorial(item)}
+                            <a
+                              className="admin-article-action"
+                              href={`/admin/tutorial/tambah?id=${encodeURIComponent(
+                                item.id
+                              )}`}
+                              aria-label={`Edit ${item.title}`}
                             >
                               Edit
-                            </TutorialAction>
+                            </a>
 
-                            <TutorialAction
-                              label={`Delete ${item.title}`}
+                            <button
+                              className="admin-article-action"
+                              type="button"
+                              aria-label={`Delete ${item.title}`}
+                              disabled={deletingId === item.id}
                               onClick={() => handleDeleteTutorial(item)}
-                              tone="danger"
                             >
-                              Delete
-                            </TutorialAction>
+                              {deletingId === item.id ? 'Menghapus...' : 'Delete'}
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -1680,7 +1051,7 @@ export function AdminTutorial() {
             <section className="admin-tutorial-bottom">
               <article className="admin-tutorial-panel">
                 <div className="admin-tutorial-panel-head">
-                  <h2>Materi Terbaru dari SQLite</h2>
+                  <h2>Materi Terbaru</h2>
                 </div>
 
                 <table>
@@ -1784,9 +1155,6 @@ export function AdminTutorial() {
               <h2>Aksi Cepat</h2>
               <div>
                 <a href="/admin/tutorial/tambah">Buat Tutorial Baru</a>
-                <button type="button" onClick={fetchTutorials}>
-                  Muat Ulang Data Materi
-                </button>
                 <button type="button">Export Data Tutorial</button>
                 <button type="button">Cek Link Rusak</button>
                 <button type="button">Reorder Materi Belajar</button>
@@ -1794,320 +1162,471 @@ export function AdminTutorial() {
             </section>
           </section>
 
-          {selectedTutorial ? (
-            <div
-              className="admin-tutorial-detail-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Detail tutorial"
-            >
-              <button
-                type="button"
-                className="admin-tutorial-detail-backdrop"
-                aria-label="Tutup detail"
-                onClick={() => setSelectedTutorial(null)}
-              />
+          <style>{`
+            .admin-tutorial-modal-backdrop {
+              position: fixed;
+              inset: 0;
+              z-index: 10000;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              padding: 24px;
+              background: rgba(15, 23, 42, 0.22);
+              backdrop-filter: blur(1px);
+            }
 
-              <aside className="admin-tutorial-detail admin-tutorial-detail--complete">
+            .admin-tutorial-modal {
+              width: min(760px, calc(100vw - 32px));
+              max-height: calc(100vh - 48px);
+              overflow: hidden;
+              border: 1px solid #e2e8f0;
+              border-radius: 18px;
+              background: #fff;
+              box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+            }
+
+            .admin-tutorial-modal .admin-tutorial-detail-head {
+              position: sticky;
+              top: 0;
+              z-index: 2;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              padding: 18px 22px;
+              border-bottom: 1px solid #e5e7eb;
+              background: #fff;
+            }
+
+            .admin-tutorial-modal .admin-tutorial-detail-head h2 {
+              margin: 0;
+              font-size: 18px;
+            }
+
+            .admin-tutorial-modal .admin-tutorial-detail-head button {
+              width: 36px;
+              height: 36px;
+              border: 0;
+              border-radius: 10px;
+              background: #f1f5f9;
+              font-size: 24px;
+              line-height: 1;
+              cursor: pointer;
+            }
+
+            .admin-tutorial-modal-body {
+              max-height: calc(100vh - 132px);
+              overflow-y: auto;
+              padding: 22px;
+            }
+
+            .admin-tutorial-modal .admin-tutorial-detail-profile {
+              display: flex;
+              align-items: center;
+              gap: 16px;
+              padding-bottom: 20px;
+              border-bottom: 1px solid #eef2f7;
+            }
+
+            .admin-tutorial-modal .admin-tutorial-detail-image {
+              width: 108px;
+              height: 80px;
+              min-width: 108px;
+              object-fit: cover;
+              border-radius: 12px;
+              background: #eef2f7;
+            }
+
+            .admin-tutorial-modal .admin-tutorial-detail-profile h3 {
+              margin: 0 0 10px;
+              font-size: 21px;
+            }
+
+            .admin-tutorial-detail-list {
+              display: grid;
+              grid-template-columns: 150px minmax(0, 1fr);
+              gap: 12px 18px;
+              margin: 22px 0;
+            }
+
+            .admin-tutorial-detail-list dt {
+              font-weight: 700;
+              color: #475569;
+            }
+
+            .admin-tutorial-detail-list dd {
+              margin: 0;
+              color: #1e293b;
+              overflow-wrap: anywhere;
+            }
+
+            .admin-tutorial-modal-section {
+              margin-top: 20px;
+              padding-top: 18px;
+              border-top: 1px solid #e2e8f0;
+            }
+
+            .admin-tutorial-modal-section > h3 {
+              margin: 0 0 10px;
+              font-size: 15px;
+              color: #0f172a;
+            }
+
+            .admin-tutorial-modal-section > p {
+              margin: 0;
+              color: #475569;
+              line-height: 1.65;
+              white-space: pre-wrap;
+            }
+
+            .admin-tutorial-chapter-list {
+              display: grid;
+              gap: 12px;
+            }
+
+            .admin-tutorial-chapter-card {
+              padding: 14px;
+              border: 1px solid #e2e8f0;
+              border-radius: 12px;
+              background: #f8fafc;
+            }
+
+            .admin-tutorial-chapter-card > header {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              gap: 12px;
+              margin-bottom: 10px;
+            }
+
+            .admin-tutorial-chapter-card > header strong {
+              color: #0f172a;
+            }
+
+            .admin-tutorial-chapter-card > header small {
+              color: #64748b;
+            }
+
+            .admin-tutorial-material-list {
+              display: grid;
+              gap: 8px;
+            }
+
+            .admin-tutorial-material-item {
+              padding: 11px 12px;
+              border: 1px solid #e2e8f0;
+              border-radius: 10px;
+              background: #fff;
+            }
+
+            .admin-tutorial-material-item strong {
+              display: block;
+              margin-bottom: 4px;
+              color: #1e293b;
+              font-size: 14px;
+            }
+
+            .admin-tutorial-material-item small {
+              display: block;
+              color: #64748b;
+              line-height: 1.5;
+            }
+
+            .admin-tutorial-modal .admin-tutorial-detail-stats {
+              display: grid;
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+              gap: 12px;
+              margin-top: 20px;
+            }
+
+            .admin-tutorial-modal .admin-tutorial-detail-stats article {
+              padding: 16px;
+              border: 1px solid #e2e8f0;
+              border-radius: 12px;
+              background: #fff;
+            }
+
+            .admin-tutorial-modal .admin-tutorial-detail-stats article span,
+            .admin-tutorial-modal .admin-tutorial-detail-stats article strong {
+              display: block;
+            }
+
+            .admin-tutorial-modal .admin-tutorial-detail-stats article span {
+              margin-bottom: 8px;
+              color: #64748b;
+              font-size: 13px;
+            }
+
+            .admin-tutorial-modal .admin-tutorial-history {
+              margin-top: 18px;
+              padding-top: 18px;
+              border-top: 1px solid #e2e8f0;
+            }
+
+            .admin-tutorial-modal .admin-tutorial-history h3 {
+              margin: 0 0 8px;
+              font-size: 15px;
+            }
+
+            .admin-tutorial-modal .admin-tutorial-history p {
+              margin: 0;
+              color: #64748b;
+            }
+
+            @media (max-width: 640px) {
+              .admin-tutorial-modal-backdrop {
+                padding: 12px;
+              }
+
+              .admin-tutorial-modal {
+                width: 100%;
+                max-height: calc(100vh - 24px);
+                border-radius: 14px;
+              }
+
+              .admin-tutorial-modal-body {
+                padding: 16px;
+              }
+
+              .admin-tutorial-detail-list {
+                grid-template-columns: 1fr;
+                gap: 5px;
+              }
+
+              .admin-tutorial-detail-list dd {
+                margin-bottom: 10px;
+              }
+
+              .admin-tutorial-modal .admin-tutorial-detail-stats {
+                grid-template-columns: 1fr;
+              }
+            }
+          `}</style>
+          {selectedTutorial && (
+            <div
+              className="admin-tutorial-modal-backdrop"
+              role="presentation"
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget) {
+                  setSelectedTutorial(null);
+                }
+              }}
+            >
+              <section
+                className="admin-tutorial-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="admin-tutorial-detail-title"
+              >
                 <div className="admin-tutorial-detail-head">
-                  <h2>Detail Tutorial</h2>
+                  <h2 id="admin-tutorial-detail-title">Detail Materi</h2>
                   <button
                     type="button"
                     aria-label="Tutup detail"
                     onClick={() => setSelectedTutorial(null)}
                   >
-                    x
+                    ×
                   </button>
                 </div>
 
-                <div className="admin-tutorial-detail-profile">
-                  <TutorialThumbnail
-                    src={selectedTutorial.imageSrc}
-                    large
-                  />
-                  <div>
-                    <h3>{selectedTutorial.title}</h3>
-                    <TutorialBadge>{selectedTutorial.status}</TutorialBadge>
-                  </div>
-                </div>
+                <div className="admin-tutorial-modal-body">
+                  <div className="admin-tutorial-detail-profile">
+                    {selectedTutorial.cardImageUrl ? (
+                      <img
+                        className="admin-tutorial-detail-image"
+                        src={selectedTutorial.cardImageUrl}
+                        alt={`Thumbnail ${selectedTutorial.title}`}
+                        onError={(event) =>
+                          handleMateriImageError(
+                            event,
+                            selectedTutorial.cardImageName
+                          )
+                        }
+                      />
+                    ) : (
+                      <span
+                        className="admin-tutorial-detail-image"
+                        aria-hidden="true"
+                      />
+                    )}
 
-                <dl>
-                  <dt>Kategori</dt>
-                  <dd>{selectedTutorial.category}</dd>
-
-                  <dt>Level</dt>
-                  <dd>{selectedTutorial.level}</dd>
-
-                  <dt>Author</dt>
-                  <dd>{selectedTutorial.author}</dd>
-
-                  <dt>Slug</dt>
-                  <dd>{selectedTutorial.slug || '-'}</dd>
-
-                  <dt>Deskripsi Singkat</dt>
-                  <dd>{selectedTutorial.description}</dd>
-
-                  <dt>Total Slide</dt>
-                  <dd>{selectedTutorial.totalSlides}</dd>
-                </dl>
-
-                <section
-                  className="admin-tutorial-detail-section"
-                  aria-label="Deskripsi lengkap materi"
-                >
-                  <div className="admin-tutorial-detail-section-head">
                     <div>
-                      <span className="admin-tutorial-detail-kicker">
-                        Tentang Materi
-                      </span>
-                      <h3>Deskripsi Lengkap</h3>
+                      <h3>{selectedTutorial.title}</h3>
+                      <TutorialBadge>
+                        {selectedTutorial.status}
+                      </TutorialBadge>
                     </div>
-
-                    <span className="admin-tutorial-detail-count">
-                      {selectedTutorial.totalSlides} Slide
-                    </span>
                   </div>
 
-                  <div
-                    className="admin-tutorial-full-description"
-                    dangerouslySetInnerHTML={{
-                      __html:
-                        selectedTutorial.fullDescription &&
-                        selectedTutorial.fullDescription !== '-'
-                          ? selectedTutorial.fullDescription
-                          : '<p>Deskripsi lengkap materi belum tersedia.</p>',
-                    }}
-                  />
-                </section>
+                  <dl className="admin-tutorial-detail-list">
+                    <dt>Kategori</dt>
+                    <dd>{selectedTutorial.category}</dd>
 
-                <section
-                  className="admin-tutorial-detail-section"
-                  aria-label="Isi slide materi"
-                >
-                  <div className="admin-tutorial-detail-section-head">
-                    <div>
-                      <span className="admin-tutorial-detail-kicker">
-                        Materi Pembelajaran
-                      </span>
-                      <h3>Isi Slide Materi</h3>
-                    </div>
+                    <dt>Level</dt>
+                    <dd>{selectedTutorial.level}</dd>
 
-                    <span className="admin-tutorial-detail-count">
-                      {selectedTutorial.totalSlides} Slide
-                    </span>
-                  </div>
+                    <dt>Author</dt>
+                    <dd>{selectedTutorial.author}</dd>
 
-                  {selectedTutorial.slides.length === 0 ? (
-                    <div className="admin-tutorial-slides-list">
-                      <p className="admin-tutorial-slide-empty">
-                        Materi ini belum memiliki slide.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="admin-tutorial-slides-list">
-                      {selectedTutorial.slides.map((slide, index) => {
-                        const contentType = String(
-                          slide.content_type || 'text'
-                        ).toLowerCase();
+                    <dt>Slug</dt>
+                    <dd>{selectedTutorial.slug || '-'}</dd>
 
-                        const usesText = ['text', 'text_image'].includes(
-                          contentType
-                        );
+                    <dt>Total Bab</dt>
+                    <dd>
+                      {Array.isArray(selectedTutorial.chapters)
+                        ? selectedTutorial.chapters.length
+                        : 0}
+                    </dd>
 
-                        const usesImage = ['image', 'text_image'].includes(
-                          contentType
-                        );
+                    <dt>Total Materi</dt>
+                    <dd>{selectedTutorial.totalSlides}</dd>
+                  </dl>
 
-                        const slideText =
-                          slide.body_text ?? slide.content ?? '';
+                  <section className="admin-tutorial-modal-section">
+                    <h3>Deskripsi Singkat</h3>
+                    <p>{selectedTutorial.description || '-'}</p>
+                  </section>
 
-                        const slideImageUrl = resolvePublicImageUrl(
-                          slide.image_url ||
-                            slide.image?.url ||
-                            slide.image?.file_url ||
-                            slide.image_path ||
-                            ''
-                        );
+                  <section className="admin-tutorial-modal-section">
+                    <h3>Deskripsi Lengkap</h3>
+                    <p>
+                      {htmlToPlainText(selectedTutorial.fullDescription) || '-'}
+                    </p>
+                  </section>
 
-                        const videoUrl = String(
-                          slide.video_url || ''
-                        ).trim();
+                  <section className="admin-tutorial-modal-section">
+                    <h3>Bab & Materi</h3>
 
-                        const youtubeEmbedUrl =
-                          getYoutubeEmbedUrl(videoUrl);
-
-                        const contentLabel =
-                          contentType === 'text_image'
-                            ? 'Teks + Gambar'
-                            : contentType === 'text'
-                              ? 'Teks'
-                              : contentType === 'image'
-                                ? 'Gambar'
-                                : contentType === 'video'
-                                  ? 'Video'
-                                  : contentType;
-
-                        return (
-                          <article
-                            className="admin-tutorial-slide-card"
-                            key={
-                              slide.id ||
-                              `${selectedTutorial.id}-${index}`
-                            }
-                          >
-                            <div className="admin-tutorial-slide-card-head">
-                              <div>
-                                <span className="admin-tutorial-slide-number">
-                                  Slide {slide.order || slide.slide_order || index + 1}
-                                </span>
-
-                                <strong>
-                                  {slide.title || `Slide ${index + 1}`}
-                                </strong>
-                              </div>
-
-                              <span className="admin-tutorial-slide-type">
-                                {contentLabel}
-                              </span>
-                            </div>
-
-                            <div className="admin-tutorial-slide-card-body">
-                              {usesText ? (
-                                <p className="admin-tutorial-slide-text">
-                                  {slideText || 'Belum ada isi teks.'}
-                                </p>
-                              ) : null}
-
-                              {usesImage ? (
-                                slideImageUrl ? (
-                                  <img
-                                    className="admin-tutorial-slide-image"
-                                    src={slideImageUrl}
-                                    alt={slide.title || `Slide ${index + 1}`}
-                                    loading="lazy"
-                                  />
-                                ) : (
-                                  <p className="admin-tutorial-slide-empty">
-                                    Gambar slide belum tersedia.
-                                  </p>
+                    {Array.isArray(selectedTutorial.chapters) &&
+                    selectedTutorial.chapters.length > 0 ? (
+                      <div className="admin-tutorial-chapter-list">
+                        {selectedTutorial.chapters.map(
+                          (chapter, chapterIndex) => {
+                            const chapterSlides = Array.isArray(
+                              selectedTutorial.slides
+                            )
+                              ? selectedTutorial.slides.filter(
+                                  (slide) =>
+                                    String(slide.chapter_id ?? '') ===
+                                    String(chapter.id ?? '')
                                 )
-                              ) : null}
+                              : [];
 
-                              {contentType === 'video' ? (
-                                videoUrl ? (
-                                  youtubeEmbedUrl ? (
-                                    <iframe
-                                      className="admin-tutorial-slide-video"
-                                      src={youtubeEmbedUrl}
-                                      title={
-                                        slide.title ||
-                                        `Video slide ${index + 1}`
-                                      }
-                                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                      allowFullScreen
-                                    />
-                                  ) : isDirectVideoUrl(videoUrl) ? (
-                                    <video
-                                      className="admin-tutorial-slide-video"
-                                      src={videoUrl}
-                                      controls
-                                      playsInline
-                                      preload="metadata"
-                                    />
-                                  ) : isM3u8Url(videoUrl) ? (
-                                    <>
-                                      <video
-                                        className="admin-tutorial-slide-video"
-                                        src={videoUrl}
-                                        controls
-                                        playsInline
-                                        preload="metadata"
-                                      />
-                                      <a
-                                        className="admin-tutorial-slide-link"
-                                        href={videoUrl}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                      >
-                                        Buka streaming .m3u8
-                                      </a>
-                                    </>
-                                  ) : (
-                                    <a
-                                      className="admin-tutorial-slide-link"
-                                      href={videoUrl}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                    >
-                                      Buka Video
-                                    </a>
-                                  )
+                            return (
+                              <article
+                                className="admin-tutorial-chapter-card"
+                                key={
+                                  chapter.id ??
+                                  `detail-chapter-${chapterIndex}`
+                                }
+                              >
+                                <header>
+                                  <strong>
+                                    {chapter.title ||
+                                      `Bab ${chapterIndex + 1}`}
+                                  </strong>
+                                  <small>
+                                    {chapterSlides.length} materi
+                                  </small>
+                                </header>
+
+                                {chapterSlides.length > 0 ? (
+                                  <div className="admin-tutorial-material-list">
+                                    {chapterSlides.map(
+                                      (slide, slideIndex) => (
+                                        <div
+                                          className="admin-tutorial-material-item"
+                                          key={
+                                            slide.id ??
+                                            `detail-slide-${chapterIndex}-${slideIndex}`
+                                          }
+                                        >
+                                          <strong>
+                                            {slide.title ||
+                                              `Materi ${slideIndex + 1}`}
+                                          </strong>
+                                          <small>
+                                            {getSlideSummary(slide) ||
+                                              `Jenis: ${
+                                                slide.content_type ||
+                                                'materi'
+                                              }`}
+                                          </small>
+                                        </div>
+                                      )
+                                    )}
+                                  </div>
                                 ) : (
-                                  <p className="admin-tutorial-slide-empty">
-                                    Link video belum tersedia.
-                                  </p>
-                                )
-                              ) : null}
+                                  <small>Belum ada materi pada bab ini.</small>
+                                )}
+                              </article>
+                            );
+                          }
+                        )}
+                      </div>
+                    ) : Array.isArray(selectedTutorial.slides) &&
+                      selectedTutorial.slides.length > 0 ? (
+                      <div className="admin-tutorial-material-list">
+                        {selectedTutorial.slides.map(
+                          (slide, slideIndex) => (
+                            <div
+                              className="admin-tutorial-material-item"
+                              key={
+                                slide.id ??
+                                `detail-slide-${slideIndex}`
+                              }
+                            >
+                              <strong>
+                                {slide.title ||
+                                  `Materi ${slideIndex + 1}`}
+                              </strong>
+                              <small>
+                                {getSlideSummary(slide) ||
+                                  `Jenis: ${
+                                    slide.content_type || 'materi'
+                                  }`}
+                              </small>
                             </div>
-                          </article>
-                        );
-                      })}
-                    </div>
-                  )}
-                </section>
+                          )
+                        )}
+                      </div>
+                    ) : (
+                      <p>Belum ada bab atau materi.</p>
+                    )}
+                  </section>
 
-                <section className="admin-tutorial-detail-stats">
-                  <article>
-                    <span>Viewer</span>
-                    <strong>{selectedTutorial.viewer}</strong>
-                  </article>
+                  <section className="admin-tutorial-detail-stats">
+                    <article>
+                      <span>Viewer</span>
+                      <strong>{selectedTutorial.viewer}</strong>
+                    </article>
 
-                  <article>
-                    <span>User Selesai</span>
-                    <strong>{selectedTutorial.completed}</strong>
-                  </article>
+                    <article>
+                      <span>User Selesai</span>
+                      <strong>{selectedTutorial.completed}</strong>
+                    </article>
 
-                  <article>
-                    <span>Estimasi Waktu</span>
-                    <strong>{selectedTutorial.estimatedTime}</strong>
-                  </article>
+                    <article>
+                      <span>Estimasi Waktu</span>
+                      <strong>{selectedTutorial.estimatedTime}</strong>
+                    </article>
 
-                  <article>
-                    <span>Tanggal Publish</span>
-                    <strong>{selectedTutorial.publishedAt}</strong>
-                  </article>
-                </section>
+                    <article>
+                      <span>Tanggal Publish</span>
+                      <strong>{selectedTutorial.publishedAt}</strong>
+                    </article>
+                  </section>
 
-                <section className="admin-tutorial-history">
-                  <h3>Riwayat Update Terakhir</h3>
-                  <p>
-                    {selectedTutorial.updatedAtWithTime} oleh{' '}
-                    {selectedTutorial.author}
-                  </p>
-                </section>
-
-                <div className="admin-tutorial-detail-actions">
-                  <button
-                    type="button"
-                    className="is-blue"
-                    onClick={() => handleEditTutorial(selectedTutorial)}
-                  >
-                    Edit Tutorial
-                  </button>
-                  {/* <button type="button">Preview</button>
-                  <button type="button" className="is-green">
-                    Publish / Unpublish
-                  </button>
-                  <button type="button" className="is-purple">
-                    Lihat Statistik
-                  </button>
-                  <button type="button" className="is-orange">
-                    Arsipkan Tutorial
-                  </button> */}
+                  <section className="admin-tutorial-history">
+                    <h3>Riwayat Update Terakhir</h3>
+                    <p>
+                      {selectedTutorial.updatedAtWithTime} oleh{' '}
+                      {selectedTutorial.author}
+                    </p>
+                  </section>
                 </div>
-              </aside>
+              </section>
             </div>
-          ) : null}
+          )}
         </div>
       </section>
     </main>

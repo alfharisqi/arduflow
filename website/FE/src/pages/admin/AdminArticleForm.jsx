@@ -1,14 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
+
 import { TinyMCEEditor } from '../../components/TinyMCEEditor.jsx';
+
 import {
   fetchArticle,
   saveArticle,
 } from '../../services/articleApi.js';
+
 import {
   showErrorAlert,
   showSuccessAlert,
 } from '../../utils/alerts.js';
+
 import '../../styles/admin-article.css';
+
 
 function slugifyClient(value) {
   return String(value || '')
@@ -19,6 +24,7 @@ function slugifyClient(value) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 }
+
 
 const initialForm = {
   title: '',
@@ -32,6 +38,7 @@ const initialForm = {
   featured: false,
 };
 
+
 export function AdminArticleForm() {
   const params = useMemo(
     () => new URLSearchParams(window.location.search),
@@ -39,58 +46,142 @@ export function AdminArticleForm() {
   );
 
   const articleId = params.get('id');
+
   const isEdit = Boolean(articleId);
 
+
   const [form, setForm] = useState(initialForm);
+
   const [coverFile, setCoverFile] = useState(null);
-  const [coverPreview, setCoverPreview] = useState('');
-  const [existingCoverUrl, setExistingCoverUrl] = useState('');
-  const [removeCover, setRemoveCover] = useState(false);
-  const [isLoading, setIsLoading] = useState(isEdit);
-  const [isSaving, setIsSaving] = useState(false);
-  const [formError, setFormError] = useState('');
+
+  const [
+    coverPreview,
+    setCoverPreview,
+  ] = useState('');
+
+  const [
+    existingCoverUrl,
+    setExistingCoverUrl,
+  ] = useState('');
+
+  const [
+    removeCover,
+    setRemoveCover,
+  ] = useState(false);
+
+  const [
+    isLoading,
+    setIsLoading,
+  ] = useState(isEdit);
+
+  const [
+    isSaving,
+    setIsSaving,
+  ] = useState(false);
+
+  const [
+    formError,
+    setFormError,
+  ] = useState('');
+
+
+  /* =========================================================
+     PREVIEW COVER BARU
+  ========================================================= */
 
   useEffect(() => {
     if (!coverFile) {
       setCoverPreview('');
+
       return undefined;
     }
 
-    const url = URL.createObjectURL(coverFile);
+    const url =
+      URL.createObjectURL(
+        coverFile
+      );
+
     setCoverPreview(url);
 
-    return () => URL.revokeObjectURL(url);
+    return () => {
+      URL.revokeObjectURL(url);
+    };
   }, [coverFile]);
 
+
+  /* =========================================================
+     LOAD DATA SAAT EDIT
+  ========================================================= */
+
   useEffect(() => {
-    if (!isEdit) return;
+    if (!isEdit) {
+      return;
+    }
 
     let active = true;
+
 
     const loadArticle = async () => {
       try {
         setIsLoading(true);
         setFormError('');
 
-        const article = await fetchArticle(articleId);
+        const article =
+          await fetchArticle(
+            articleId
+          );
 
-        if (!active) return;
+        if (!active) {
+          return;
+        }
+
 
         setForm({
-          title: article.title,
-          slug: article.slug,
-          category: article.category,
-          author: article.author,
-          excerpt: article.excerpt,
-          content: article.content,
-          tags: article.tags.join(', '),
-          status: article.status,
-          featured: article.featured,
+          title:
+            article.title || '',
+
+          slug:
+            article.slug || '',
+
+          category:
+            article.category || '',
+
+          author:
+            article.author ||
+            'Admin ArduFlow',
+
+          excerpt:
+            article.excerpt || '',
+
+          content:
+            article.content || '',
+
+          tags:
+            Array.isArray(
+              article.tags
+            )
+              ? article.tags.join(', ')
+              : '',
+
+          status:
+            article.status ||
+            'draft',
+
+          featured:
+            Boolean(
+              article.featured
+            ),
         });
 
-        setExistingCoverUrl(article.coverImageUrl || '');
+
+        setExistingCoverUrl(
+          article.coverImageUrl || ''
+        );
+
       } catch (error) {
-        if (!active) return;
+        if (!active) {
+          return;
+        }
 
         const message =
           error instanceof Error
@@ -98,332 +189,816 @@ export function AdminArticleForm() {
             : 'Artikel gagal dimuat.';
 
         setFormError(message);
-        await showErrorAlert('Gagal Memuat Artikel', message);
+
+        await showErrorAlert(
+          'Gagal Memuat Artikel',
+          message
+        );
+
       } finally {
-        if (active) setIsLoading(false);
+        if (active) {
+          setIsLoading(false);
+        }
       }
     };
 
+
     loadArticle();
+
 
     return () => {
       active = false;
     };
-  }, [articleId, isEdit]);
 
-  const updateField = (name, value) => {
-    setForm((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
-  };
+  }, [
+    articleId,
+    isEdit,
+  ]);
 
-  const handleTitleChange = (value) => {
-    setForm((previous) => {
-      const shouldUpdateSlug =
-        !previous.slug ||
-        previous.slug === slugifyClient(previous.title);
 
-      return {
+  /* =========================================================
+     UPDATE FIELD
+  ========================================================= */
+
+  const updateField = (
+    name,
+    value
+  ) => {
+    setForm(
+      (previous) => ({
         ...previous,
-        title: value,
-        slug: shouldUpdateSlug
-          ? slugifyClient(value)
-          : previous.slug,
-      };
-    });
+
+        [name]: value,
+      })
+    );
   };
+
+
+  /* =========================================================
+     AUTO SLUG DARI JUDUL
+  ========================================================= */
+
+  const handleTitleChange = (
+    value
+  ) => {
+    setForm(
+      (previous) => {
+        const shouldUpdateSlug =
+          !previous.slug ||
+          previous.slug ===
+            slugifyClient(
+              previous.title
+            );
+
+        return {
+          ...previous,
+
+          title: value,
+
+          slug:
+            shouldUpdateSlug
+              ? slugifyClient(
+                  value
+                )
+              : previous.slug,
+        };
+      }
+    );
+  };
+
+
+  /* =========================================================
+     VALIDASI
+  ========================================================= */
 
   const validate = () => {
-    if (form.title.trim().length < 3) {
+    if (
+      form.title
+        .trim()
+        .length < 3
+    ) {
       return 'Judul artikel minimal 3 karakter.';
     }
+
 
     if (!form.slug.trim()) {
       return 'Slug artikel wajib diisi.';
     }
 
+
     if (!form.category.trim()) {
       return 'Kategori artikel wajib diisi.';
     }
+
 
     if (!form.content.trim()) {
       return 'Isi artikel wajib diisi.';
     }
 
+
     return '';
   };
 
-  const handleSubmit = async (status) => {
-    const validationMessage = validate();
+
+  /* =========================================================
+     SIMPAN ARTICLE
+  ========================================================= */
+
+  const handleSubmit = async (
+    status
+  ) => {
+    const validationMessage =
+      validate();
+
 
     if (validationMessage) {
-      setFormError(validationMessage);
-      await showErrorAlert('Form Belum Lengkap', validationMessage);
+      setFormError(
+        validationMessage
+      );
+
+      await showErrorAlert(
+        'Form Belum Lengkap',
+        validationMessage
+      );
+
       return;
     }
 
+
     try {
       setIsSaving(true);
+
       setFormError('');
 
-      const result = await saveArticle(
-        {
-          ...form,
-          slug: slugifyClient(form.slug),
-          status,
-          tags: form.tags,
-          removeCover,
-        },
-        {
-          id: isEdit ? articleId : null,
-          coverFile,
-        }
-      );
+
+      const result =
+        await saveArticle(
+          {
+            ...form,
+
+            slug:
+              slugifyClient(
+                form.slug
+              ),
+
+            status,
+
+            tags:
+              form.tags,
+
+            removeCover,
+          },
+          {
+            id:
+              isEdit
+                ? articleId
+                : null,
+
+            coverFile,
+          }
+        );
+
 
       await showSuccessAlert(
         'Berhasil',
+
         result.message ||
-          (status === 'published'
-            ? 'Artikel berhasil dipublikasikan.'
-            : 'Draft artikel berhasil disimpan.')
+          (
+            status ===
+            'published'
+              ? 'Artikel berhasil dipublikasikan.'
+              : 'Draft artikel berhasil disimpan.'
+          )
       );
 
-      window.location.href = '/admin/artikel';
+
+      window.location.href =
+        '/admin/artikel';
+
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
           : 'Artikel gagal disimpan.';
 
-      setFormError(message);
-      await showErrorAlert('Gagal Menyimpan', message);
+
+      setFormError(
+        message
+      );
+
+
+      await showErrorAlert(
+        'Gagal Menyimpan',
+        message
+      );
+
     } finally {
       setIsSaving(false);
     }
   };
 
+
+  /* =========================================================
+     LOADING EDIT
+  ========================================================= */
+
   if (isLoading) {
     return (
-      <main className="admin-article-simple-state">
+      <main
+        className="admin-article-simple-state"
+        style={{
+          minHeight: '100vh',
+          width: '100%',
+        }}
+      >
         Memuat data artikel...
       </main>
     );
   }
 
-  const previewUrl = removeCover
-    ? ''
-    : coverPreview || existingCoverUrl;
+
+  const previewUrl =
+    removeCover
+      ? ''
+      : coverPreview ||
+        existingCoverUrl;
+
+
+  /* =========================================================
+     PAGE
+  ========================================================= */
 
   return (
-    <main className="admin-dashboard-page admin-article-page admin-article-form-page">
-      <section className="admin-dashboard-main">
+    <main
+      className="admin-article-page"
+      style={{
+        width: '100%',
+        minHeight: '100vh',
+        background: '#f8fafc',
+        boxSizing: 'border-box',
+      }}
+    >
+      <section
+        className="admin-dashboard-main"
+        style={{
+          width: '100%',
+          maxWidth: 'none',
+          minHeight: '100vh',
+          marginLeft: 0,
+          boxSizing: 'border-box',
+        }}
+      >
+
+        {/* ===============================================
+            HEADER
+        =============================================== */}
+
         <header className="admin-article-topbar">
+
           <div>
-            <h1>{isEdit ? 'Edit Artikel' : 'Tambah Artikel'}</h1>
+            <h1>
+              {isEdit
+                ? 'Edit Artikel'
+                : 'Tambah Artikel'}
+            </h1>
+
             <p>
-              Admin <span>/</span> Artikel <span>/</span>{' '}
-              {isEdit ? 'Edit' : 'Tambah'}
+              Admin
+
+              <span>
+                /
+              </span>
+
+              Artikel
+
+              <span>
+                /
+              </span>
+
+              {' '}
+
+              {isEdit
+                ? 'Edit'
+                : 'Tambah'}
             </p>
           </div>
 
-          <a href="/admin/artikel">← Kembali</a>
+
+          <a href="/admin/artikel">
+            ← Kembali
+          </a>
+
         </header>
 
+
+        {/* ===============================================
+            FORM LAYOUT
+        =============================================== */}
+
         <div className="admin-article-form-layout">
+
+
+          {/* =============================================
+              FORM UTAMA
+          ============================================= */}
+
           <section className="admin-article-form-card">
+
             {formError && (
-              <div className="admin-article-alert">{formError}</div>
+              <div className="admin-article-alert">
+                {formError}
+              </div>
             )}
 
+
+            {/* ===========================================
+                JUDUL + SLUG
+            =========================================== */}
+
             <div className="admin-article-grid-two">
+
               <label>
-                <span>Judul Artikel *</span>
+                <span>
+                  Judul Artikel *
+                </span>
+
                 <input
                   type="text"
                   value={form.title}
                   onChange={(event) =>
-                    handleTitleChange(event.target.value)
+                    handleTitleChange(
+                      event.target.value
+                    )
                   }
                   placeholder="Contoh: Mengenal Internet of Things"
                 />
               </label>
 
-              <label>
-                <span>URL Slug *</span>
-                <div className="admin-article-slug-field">
-                  <span>/artikel/</span>
-                  <input
-                    type="text"
-                    value={form.slug}
-                    onChange={(event) =>
-                      updateField(
-                        'slug',
-                        slugifyClient(event.target.value)
-                      )
-                    }
-                    placeholder="mengenal-internet-of-things"
-                  />
-                </div>
-                <small>URL artikel akan menjadi /artikel/{form.slug || 'slug-artikel'}</small>
-              </label>
 
               <label>
-                <span>Kategori *</span>
+                <span>
+                  Slug *
+                </span>
+
+                <input
+                  type="text"
+                  value={form.slug}
+                  onChange={(event) =>
+                    updateField(
+                      'slug',
+
+                      slugifyClient(
+                        event.target.value
+                      )
+                    )
+                  }
+                  placeholder="mengenal-internet-of-things"
+                />
+
+                <small>
+                  URL:
+                  {' '}
+                  /artikel/
+                  {form.slug ||
+                    'slug-artikel'}
+                </small>
+              </label>
+
+
+              {/* =========================================
+                  KATEGORI
+              ========================================= */}
+
+              <label>
+                <span>
+                  Kategori *
+                </span>
+
                 <input
                   type="text"
                   list="article-category-list"
-                  value={form.category}
+                  value={
+                    form.category
+                  }
                   onChange={(event) =>
-                    updateField('category', event.target.value)
+                    updateField(
+                      'category',
+                      event.target.value
+                    )
                   }
                   placeholder="IoT"
                 />
 
+
                 <datalist id="article-category-list">
+
                   <option value="IoT" />
+
                   <option value="Arduino" />
+
                   <option value="ESP32" />
+
                   <option value="Tutorial" />
+
                   <option value="Project" />
+
                   <option value="Berita" />
+
                   <option value="Edukasi" />
+
                 </datalist>
               </label>
 
+
+              {/* =========================================
+                  AUTHOR
+              ========================================= */}
+
               <label>
-                <span>Author</span>
+                <span>
+                  Author
+                </span>
+
                 <input
                   type="text"
-                  value={form.author}
+                  value={
+                    form.author
+                  }
                   onChange={(event) =>
-                    updateField('author', event.target.value)
+                    updateField(
+                      'author',
+                      event.target.value
+                    )
                   }
                 />
               </label>
+
             </div>
 
+
+            {/* ===========================================
+                RINGKASAN
+            =========================================== */}
+
             <label>
-              <span>Ringkasan / Excerpt</span>
+
+              <span>
+                Ringkasan / Excerpt
+              </span>
+
               <textarea
                 rows={4}
-                value={form.excerpt}
+                value={
+                  form.excerpt
+                }
                 onChange={(event) =>
-                  updateField('excerpt', event.target.value)
+                  updateField(
+                    'excerpt',
+                    event.target.value
+                  )
                 }
                 placeholder="Ringkasan singkat artikel untuk card..."
               />
+
             </label>
 
+
+            {/* ===========================================
+                TINYMCE
+            =========================================== */}
+
             <label>
-              <span>Isi Artikel *</span>
+
+              <span>
+                Isi Artikel *
+              </span>
+
               <div className="admin-article-editor">
+
                 <TinyMCEEditor
-                  value={form.content}
-                  onChange={(html) => updateField('content', html)}
+                  value={
+                    form.content
+                  }
+                  onChange={(html) =>
+                    updateField(
+                      'content',
+                      html
+                    )
+                  }
                   height={520}
                   ariaLabel="Isi artikel"
                 />
+
               </div>
+
             </label>
 
+
+            {/* ===========================================
+                TAG
+            =========================================== */}
+
             <label>
-              <span>Tags</span>
+
+              <span>
+                Tags
+              </span>
+
               <input
                 type="text"
-                value={form.tags}
+                value={
+                  form.tags
+                }
                 onChange={(event) =>
-                  updateField('tags', event.target.value)
+                  updateField(
+                    'tags',
+                    event.target.value
+                  )
                 }
                 placeholder="iot, arduino, esp32, pemula"
               />
-              <small>Pisahkan setiap tag dengan koma.</small>
+
+              <small>
+                Pisahkan setiap tag
+                dengan koma.
+              </small>
+
             </label>
+
           </section>
 
+
+          {/* =============================================
+              SIDEBAR KANAN FORM
+              BUKAN ADMIN SIDEBAR
+          ============================================= */}
+
           <aside className="admin-article-side">
+
+
+            {/* ===========================================
+                COVER ARTIKEL
+            =========================================== */}
+
             <section className="admin-article-side-card">
-              <h2>Cover Artikel</h2>
+
+              <h2>
+                Cover Artikel
+              </h2>
+
 
               <div className="admin-article-cover-preview">
+
                 {previewUrl ? (
-                  <img src={previewUrl} alt="Preview cover artikel" />
+                  <img
+                    src={
+                      previewUrl
+                    }
+                    alt="Preview cover artikel"
+                  />
                 ) : (
-                  <span>Belum ada cover</span>
+                  <span>
+                    Belum ada cover
+                  </span>
                 )}
+
               </div>
+
 
               <input
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={(event) => {
-                  const file = event.target.files?.[0] || null;
-                  setCoverFile(file);
-                  if (file) setRemoveCover(false);
+
+                accept="
+                  image/jpeg,
+                  image/png,
+                  image/webp
+                "
+
+                onChange={async (
+                  event
+                ) => {
+
+                  const file =
+                    event.target
+                      .files?.[0] ||
+                    null;
+
+
+                  if (!file) {
+                    setCoverFile(
+                      null
+                    );
+
+                    return;
+                  }
+
+
+                  const allowedTypes = [
+                    'image/jpeg',
+                    'image/png',
+                    'image/webp',
+                  ];
+
+
+                  if (
+                    !allowedTypes.includes(
+                      file.type
+                    )
+                  ) {
+                    event.target.value =
+                      '';
+
+                    setCoverFile(
+                      null
+                    );
+
+
+                    await showErrorAlert(
+                      'Format Cover Tidak Valid',
+                      'Gunakan JPG, JPEG, PNG, atau WEBP.'
+                    );
+
+                    return;
+                  }
+
+
+                  if (
+                    file.size >
+                    5 *
+                      1024 *
+                      1024
+                  ) {
+                    event.target.value =
+                      '';
+
+                    setCoverFile(
+                      null
+                    );
+
+
+                    await showErrorAlert(
+                      'Cover Terlalu Besar',
+                      'Ukuran cover maksimal 5 MB.'
+                    );
+
+                    return;
+                  }
+
+
+                  setCoverFile(
+                    file
+                  );
+
+                  setRemoveCover(
+                    false
+                  );
                 }}
               />
 
-              {(existingCoverUrl || coverFile) && !removeCover && (
+
+              {(existingCoverUrl ||
+                coverFile) &&
+                !removeCover && (
+
                 <button
                   type="button"
+
                   className="admin-article-secondary"
+
                   onClick={() => {
-                    setCoverFile(null);
-                    setRemoveCover(true);
+
+                    setCoverFile(
+                      null
+                    );
+
+                    setRemoveCover(
+                      true
+                    );
+
                   }}
                 >
                   Hapus Cover
                 </button>
+
               )}
 
-              <small>JPG, PNG, WEBP. Maksimal 5 MB.</small>
+
+              <small>
+                JPG, PNG, WEBP.
+                Maksimal 5 MB.
+              </small>
+
             </section>
 
+
+            {/* ===========================================
+                PUBLIKASI
+            =========================================== */}
+
             <section className="admin-article-side-card">
-              {/* <h2>Publikasi</h2>
+
+              <h2>
+                Publikasi
+              </h2>
+
 
               <label className="admin-article-check">
+
                 <input
                   type="checkbox"
-                  checked={form.featured}
+
+                  checked={
+                    form.featured
+                  }
+
                   onChange={(event) =>
-                    updateField('featured', event.target.checked)
+                    updateField(
+                      'featured',
+                      event.target.checked
+                    )
                   }
                 />
-                <span>Jadikan artikel pilihan</span>
-              </label> */}
 
-              <label className="admin-article-status-select">
-                <span>Status</span>
-                <select
-                  value={form.status}
-                  onChange={(event) =>
-                    updateField('status', event.target.value)
-                  }
-                >
-                  <option value="draft">Draft</option>
-                  <option value="published">Published</option>
-                  <option value="pending_review">Pending Review</option>
-                </select>
+                <span>
+                  Jadikan artikel pilihan
+                </span>
+
               </label>
+
+
+              <div className="admin-article-status-row">
+
+                <span>
+                  Status saat ini
+                </span>
+
+                <strong>
+                  {form.status}
+                </strong>
+
+              </div>
+
+
+              {/* SIMPAN DRAFT */}
 
               <button
                 type="button"
-                className="admin-article-primary"
-                disabled={isSaving}
-                onClick={() => handleSubmit(form.status)}
+
+                className="admin-article-secondary"
+
+                disabled={
+                  isSaving
+                }
+
+                onClick={() =>
+                  handleSubmit(
+                    'draft'
+                  )
+                }
               >
-                {isSaving ? 'Memproses...' : 'Publikasi Artikel'}
+
+                {isSaving
+                  ? 'Menyimpan...'
+                  : 'Simpan Draft'}
+
               </button>
+
+
+              {/* PUBLISH */}
+
+              <button
+                type="button"
+
+                className="admin-article-primary"
+
+                disabled={
+                  isSaving
+                }
+
+                onClick={() =>
+                  handleSubmit(
+                    'published'
+                  )
+                }
+              >
+
+                {isSaving
+                  ? 'Memproses...'
+                  : 'Publikasikan Artikel'}
+
+              </button>
+
             </section>
+
           </aside>
+
         </div>
+
       </section>
+
     </main>
   );
 }
 
-export const AdminArticleCreate = AdminArticleForm;
-export const AdminArticleEdit = AdminArticleForm;
 
 export default AdminArticleForm;
