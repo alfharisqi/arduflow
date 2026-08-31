@@ -1,5 +1,9 @@
 import { useMemo, useState } from 'react';
 import { AdminPage, AdminTopbar } from './AdminChrome.jsx';
+import {
+  createAdminDatabaseBackup,
+  getAdminDatabaseStatus,
+} from '../../services/authApi.js';
 
 const STORAGE_KEY = 'arduflow_admin_settings';
 
@@ -55,6 +59,32 @@ const DEFAULT_SETTINGS = {
     resetTemplate: 'default',
     notifyTransactions: true,
     notifyProjects: true,
+    notifyPartners: true,
+  },
+  partnerLead: {
+    defaultLeadStatus: 'new',
+    notifyAdmin: true,
+    autoAssignOwner: false,
+    notificationEmail: 'partner@arduflow.com',
+    partnerCategories: 'Sekolah, Kampus, Komunitas, Industri',
+    followUpTemplate: 'Terima kasih sudah menghubungi ArduFlow. Tim kami akan meninjau peluang kolaborasi dan menghubungi Anda kembali.',
+  },
+  database: {
+    syncInterval: '5',
+    syncUnit: 'Menit',
+    autoBackup: true,
+    backupRetention: '30',
+    backupUnit: 'Hari',
+    lastTestAt: '',
+    mysqlReachable: '',
+    syncEnabled: '',
+  },
+  seo: {
+    metaTitle: 'ArduFlow - Platform Arduino dan IoT',
+    metaDescription: 'Belajar Arduino, IoT, dan berbagi proyek teknologi bersama komunitas ArduFlow.',
+    ogImage: '',
+    robots: 'index,follow',
+    sitemapEnabled: true,
   },
   security: {
     sessionTimeout: '60',
@@ -79,6 +109,11 @@ const TABS = [
   { id: 'contact', label: 'Kontak', icon: 'phone' },
   { id: 'payment', label: 'Pembayaran', icon: 'card' },
   { id: 'content', label: 'Konten', icon: 'content' },
+  { id: 'workshop', label: 'Workshop', icon: 'content' },
+  { id: 'email', label: 'Email', icon: 'mail' },
+  { id: 'partner', label: 'Partner', icon: 'handshake' },
+  { id: 'database', label: 'Database', icon: 'database' },
+  { id: 'seo', label: 'SEO', icon: 'seo' },
   { id: 'security', label: 'Keamanan', icon: 'shield' },
   { id: 'maintenance', label: 'Maintenance', icon: 'tool' },
 ];
@@ -145,6 +180,9 @@ function SettingIcon({ name }) {
     shield: <path d="M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6l-7-3Z" />,
     tool: <path d="M14 5a5 5 0 0 0 5 5l-8 8a3 3 0 1 1-4-4l8-8Z" />,
     mail: <path d="M4 6h16v12H4V6Zm0 1 8 6 8-6" />,
+    handshake: <path d="m8 12 3 3a2 2 0 0 0 3 0l5-5M2 12l4-4 4 4m4-4 4 4 4-4M6 8l3-3h6l3 3M6 16l3 3h6l3-3" />,
+    database: <path d="M5 6c0 2 14 2 14 0S5 4 5 6Zm0 0v12c0 2 14 2 14 0V6M5 12c0 2 14 2 14 0" />,
+    seo: <path d="M4 5h16v14H4V5Zm3 4h5m-5 4h10m-5-4h5" />,
     info: <path d="M12 18v-6m0-4h.01M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z" />,
   };
 
@@ -160,6 +198,8 @@ export function AdminSettings() {
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState('profile');
   const [status, setStatus] = useState('');
+  const [statusTone, setStatusTone] = useState('success');
+  const [busyAction, setBusyAction] = useState('');
   const [passwordForm, setPasswordForm] = useState({ newPassword: '', confirmPassword: '' });
   const [showHistory, setShowHistory] = useState(false);
 
@@ -183,6 +223,56 @@ export function AdminSettings() {
     setStatus('');
   };
 
+  const patchSection = (section, values) => {
+    setSettings((current) => ({
+      ...current,
+      [section]: {
+        ...current[section],
+        ...values,
+      },
+    }));
+  };
+
+  const showStatus = (message, tone = 'success') => {
+    setStatus(message);
+    setStatusTone(tone);
+  };
+
+  const validateEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+
+  const copyText = async (value) => {
+    const text = String(value || '');
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.top = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    const copied = document.execCommand('copy');
+    document.body.removeChild(textarea);
+
+    if (!copied) {
+      throw new Error('Clipboard tidak tersedia di browser ini.');
+    }
+  };
+
+  const downloadTextFile = (filename, content, type = 'text/plain;charset=utf-8') => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const scrollToSection = (id) => {
     setActiveTab(id);
     const target = document.getElementById(`settings-${id}`);
@@ -192,9 +282,14 @@ export function AdminSettings() {
   };
 
   const saveSettings = () => {
+    if (!validateEmail(settings.profile.email) || !validateEmail(settings.contact.email) || !validateEmail(settings.email.senderEmail) || !validateEmail(settings.partnerLead.notificationEmail)) {
+      showStatus('Periksa kembali format email profil, kontak, pengirim, dan partner.', 'error');
+      return;
+    }
+
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
     window.dispatchEvent(new CustomEvent('arduflow-admin-settings-change', { detail: settings }));
-    setStatus('Perubahan settings berhasil disimpan.');
+    showStatus('Perubahan settings berhasil disimpan.');
   };
 
   const resetSettings = () => {
@@ -205,7 +300,7 @@ export function AdminSettings() {
     setSettings(DEFAULT_SETTINGS);
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_SETTINGS));
     setPasswordForm({ newPassword: '', confirmPassword: '' });
-    setStatus('Settings berhasil dikembalikan ke default.');
+    showStatus('Settings berhasil dikembalikan ke default.');
   };
 
   const handleFile = (section, field, file, maxBytes) => {
@@ -213,11 +308,11 @@ export function AdminSettings() {
       return;
     }
     if (!file.type.startsWith('image/')) {
-      setStatus('File harus berupa gambar.');
+      showStatus('File harus berupa gambar.', 'error');
       return;
     }
     if (file.size > maxBytes) {
-      setStatus(`Ukuran file maksimal ${Math.round(maxBytes / 1024 / 1024) || 1}MB.`);
+      showStatus(`Ukuran file maksimal ${Math.round(maxBytes / 1024 / 1024) || 1}MB.`, 'error');
       return;
     }
 
@@ -243,20 +338,86 @@ export function AdminSettings() {
 
   const changePassword = () => {
     if (!passwordForm.newPassword || !passwordForm.confirmPassword) {
-      setStatus('Isi password baru dan konfirmasi password.');
+      showStatus('Isi password baru dan konfirmasi password.', 'error');
       return;
     }
     if (passwordForm.newPassword.length < 6) {
-      setStatus('Password baru minimal 6 karakter.');
+      showStatus('Password baru minimal 6 karakter.', 'error');
       return;
     }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setStatus('Konfirmasi password tidak sama.');
+      showStatus('Konfirmasi password tidak sama.', 'error');
       return;
     }
     updateField('security', 'passwordUpdatedAt', new Date().toLocaleString('id-ID'));
     setPasswordForm({ newPassword: '', confirmPassword: '' });
-    setStatus('Password admin berhasil diperbarui di settings lokal.');
+    showStatus('Password admin berhasil diperbarui di settings lokal.');
+  };
+
+  const exportSettings = () => {
+    downloadTextFile('arduflow-admin-settings.json', JSON.stringify(settings, null, 2), 'application/json;charset=utf-8');
+    showStatus('File konfigurasi settings berhasil diexport.');
+  };
+
+  const testEmailSettings = () => {
+    if (!validateEmail(settings.email.senderEmail)) {
+      showStatus('Email pengirim belum valid.', 'error');
+      return;
+    }
+    showStatus(`Konfigurasi email ${settings.email.senderEmail} valid untuk digunakan sebagai pengirim.`);
+  };
+
+  const copyFollowUpTemplate = async () => {
+    try {
+      await copyText(settings.partnerLead.followUpTemplate);
+      showStatus('Template follow-up partner berhasil disalin.');
+    } catch (copyError) {
+      showStatus(copyError.message || 'Template gagal disalin.', 'error');
+    }
+  };
+
+  const testDatabaseConnection = async () => {
+    setBusyAction('test-database');
+    try {
+      const result = await getAdminDatabaseStatus();
+      patchSection('database', {
+        lastTestAt: new Date().toLocaleString('id-ID'),
+        mysqlReachable: result.mysql_reachable ? 'online' : 'offline',
+        syncEnabled: result.enabled ? 'active' : 'inactive',
+      });
+      showStatus(result.mysql_reachable ? 'Koneksi MySQL berhasil dites.' : 'SQLite aktif, tetapi MySQL belum reachable.', result.mysql_reachable ? 'success' : 'error');
+    } catch (databaseError) {
+      showStatus(databaseError.message || 'Gagal mengetes koneksi database.', 'error');
+    } finally {
+      setBusyAction('');
+    }
+  };
+
+  const createBackupFromSettings = async () => {
+    setBusyAction('backup');
+    try {
+      const result = await createAdminDatabaseBackup();
+      showStatus(result.message || 'Backup database berhasil dibuat.');
+    } catch (backupError) {
+      showStatus(backupError.message || 'Gagal membuat backup database.', 'error');
+    } finally {
+      setBusyAction('');
+    }
+  };
+
+  const generateSitemap = () => {
+    const baseUrl = window.location.origin;
+    const pages = ['/', '/project', '/galeri', '/workshop', '/materi', '/about', '/contact'];
+    const body = pages
+      .map((page) => `  <url><loc>${baseUrl}${page}</loc><changefreq>weekly</changefreq><priority>${page === '/' ? '1.0' : '0.8'}</priority></url>`)
+      .join('\n');
+    downloadTextFile('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>`, 'application/xml;charset=utf-8');
+    showStatus('Sitemap XML berhasil dibuat.');
+  };
+
+  const previewMaintenance = () => {
+    window.alert(settings.maintenance.enabled ? settings.maintenance.message : 'Maintenance mode sedang nonaktif.');
+    showStatus('Preview maintenance ditampilkan.');
   };
 
   const matchesSearch = (label) => {
@@ -277,6 +438,9 @@ export function AdminSettings() {
         <button className="admin-settings-reset" type="button" onClick={resetSettings}>
           Reset
         </button>
+        <button className="admin-settings-secondary" type="button" onClick={exportSettings}>
+          Export JSON
+        </button>
         <button className="admin-settings-save" type="button" onClick={saveSettings}>
           Simpan Perubahan
         </button>
@@ -288,7 +452,7 @@ export function AdminSettings() {
             <h1>Settings Admin</h1>
             <p>Kelola konfigurasi aplikasi dan preferensi platform ArduFlow.</p>
           </div>
-          {status ? <span className="admin-settings-status">{status}</span> : null}
+          {status ? <span className={`admin-settings-status admin-settings-status--${statusTone}`}>{status}</span> : null}
         </div>
 
         <nav className="admin-settings-tabs" aria-label="Navigasi settings">
@@ -370,7 +534,7 @@ export function AdminSettings() {
                 </div>
                 <Field label="Warna utama website">
                   <div className="admin-settings-color">
-                    <input type="color" value={settings.brand.primaryColor} onChange={(event) => updateField('brand', 'primaryColor', event.target.value)} />
+                    <input type="color" value={/^#[0-9a-f]{6}$/i.test(settings.brand.primaryColor) ? settings.brand.primaryColor : '#2563eb'} onChange={(event) => updateField('brand', 'primaryColor', event.target.value)} />
                     <input value={settings.brand.primaryColor} onChange={(event) => updateField('brand', 'primaryColor', event.target.value)} />
                   </div>
                 </Field>
@@ -449,7 +613,69 @@ export function AdminSettings() {
                 <Field label="Template reset password"><select value={settings.email.resetTemplate} onChange={(event) => updateField('email', 'resetTemplate', event.target.value)}><option value="default">Default</option><option value="ringkas">Ringkas</option><option value="formal">Formal</option></select></Field>
                 <Switch label="Notifikasi transaksi baru" checked={settings.email.notifyTransactions} onChange={(value) => updateField('email', 'notifyTransactions', value)} />
                 <Switch label="Notifikasi proyek baru" checked={settings.email.notifyProjects} onChange={(value) => updateField('email', 'notifyProjects', value)} />
+                <Switch label="Notifikasi partner baru" checked={settings.email.notifyPartners} onChange={(value) => updateField('email', 'notifyPartners', value)} />
               </div>
+              <button className="admin-settings-secondary" type="button" onClick={testEmailSettings}>Test Email</button>
+            </Section>
+          ) : null}
+
+          {matchesSearch('Partner Lead Kolaborasi') ? (
+            <Section id="settings-partner" icon="handshake" title="Partner & Lead Kolaborasi">
+              <div className="admin-settings-inline">
+                <Field label="Status default lead baru"><select value={settings.partnerLead.defaultLeadStatus} onChange={(event) => updateField('partnerLead', 'defaultLeadStatus', event.target.value)}><option value="new">Baru</option><option value="review">Review</option><option value="follow-up">Follow-up</option></select></Field>
+                <Field label="Email penerima notifikasi"><input type="email" value={settings.partnerLead.notificationEmail} onChange={(event) => updateField('partnerLead', 'notificationEmail', event.target.value)} /></Field>
+                <Switch label="Notifikasi admin untuk lead baru" checked={settings.partnerLead.notifyAdmin} onChange={(value) => updateField('partnerLead', 'notifyAdmin', value)} />
+                <Switch label="Auto assign owner lead" checked={settings.partnerLead.autoAssignOwner} onChange={(value) => updateField('partnerLead', 'autoAssignOwner', value)} />
+              </div>
+              <Field label="Kategori partner">
+                <input value={settings.partnerLead.partnerCategories} onChange={(event) => updateField('partnerLead', 'partnerCategories', event.target.value)} />
+              </Field>
+              <Field label="Template pesan follow-up">
+                <textarea value={settings.partnerLead.followUpTemplate} onChange={(event) => updateField('partnerLead', 'followUpTemplate', event.target.value)} />
+              </Field>
+              <button className="admin-settings-secondary" type="button" onClick={copyFollowUpTemplate}>Salin Template Follow-up</button>
+            </Section>
+          ) : null}
+
+          {matchesSearch('Database Backup Sync') ? (
+            <Section id="settings-database" icon="database" title="Database, Sync & Backup">
+              <div className="admin-settings-inline admin-settings-inline--tight">
+                <Field label="Interval sync otomatis"><input type="number" min="1" value={settings.database.syncInterval} onChange={(event) => updateField('database', 'syncInterval', event.target.value)} /></Field>
+                <Field label="Satuan sync"><select value={settings.database.syncUnit} onChange={(event) => updateField('database', 'syncUnit', event.target.value)}><option>Menit</option><option>Jam</option></select></Field>
+                <Field label="Retention backup"><input type="number" min="1" value={settings.database.backupRetention} onChange={(event) => updateField('database', 'backupRetention', event.target.value)} /></Field>
+                <Field label="Satuan retention"><select value={settings.database.backupUnit} onChange={(event) => updateField('database', 'backupUnit', event.target.value)}><option>Hari</option><option>Minggu</option></select></Field>
+              </div>
+              <Switch label="Aktifkan backup otomatis" checked={settings.database.autoBackup} onChange={(value) => updateField('database', 'autoBackup', value)} />
+              <div className="admin-settings-actions">
+                <button className="admin-settings-secondary" type="button" onClick={testDatabaseConnection} disabled={Boolean(busyAction)}>
+                  {busyAction === 'test-database' ? 'Mengetes...' : 'Test Koneksi Database'}
+                </button>
+                <button className="admin-settings-secondary" type="button" onClick={createBackupFromSettings} disabled={Boolean(busyAction)}>
+                  {busyAction === 'backup' ? 'Membuat...' : 'Buat Backup Sekarang'}
+                </button>
+              </div>
+              <div className="admin-settings-history admin-settings-history--compact">
+                <p><strong>Test terakhir</strong><span>{settings.database.lastTestAt || '-'}</span></p>
+                <p><strong>Status MySQL</strong><span>{settings.database.mysqlReachable || '-'}</span></p>
+                <p><strong>Status Sync</strong><span>{settings.database.syncEnabled || '-'}</span></p>
+              </div>
+            </Section>
+          ) : null}
+
+          {matchesSearch('SEO Metadata') ? (
+            <Section id="settings-seo" icon="seo" title="SEO & Metadata">
+              <Field label="Meta title"><input value={settings.seo.metaTitle} onChange={(event) => updateField('seo', 'metaTitle', event.target.value)} /></Field>
+              <Field label="Meta description"><textarea value={settings.seo.metaDescription} onChange={(event) => updateField('seo', 'metaDescription', event.target.value)} /></Field>
+              <div className="admin-settings-inline">
+                <Field label="Robots"><select value={settings.seo.robots} onChange={(event) => updateField('seo', 'robots', event.target.value)}><option value="index,follow">index, follow</option><option value="noindex,nofollow">noindex, nofollow</option><option value="index,nofollow">index, nofollow</option></select></Field>
+                <Switch label="Sitemap aktif" checked={settings.seo.sitemapEnabled} onChange={(value) => updateField('seo', 'sitemapEnabled', value)} />
+              </div>
+              <div className="admin-settings-upload admin-settings-upload--wide">
+                <span>Open Graph image</span>
+                <div className="admin-settings-preview admin-settings-preview--wide">{settings.seo.ogImage ? <img src={settings.seo.ogImage} alt="Preview Open Graph" /> : <SettingIcon name="seo" />}</div>
+                <label className="admin-settings-file">Pilih OG Image<input type="file" accept="image/png,image/jpeg" onChange={(event) => handleFile('seo', 'ogImage', event.target.files?.[0], 2 * 1024 * 1024)} /></label>
+              </div>
+              <button className="admin-settings-secondary" type="button" onClick={generateSitemap}>Generate Sitemap XML</button>
             </Section>
           ) : null}
 
@@ -461,7 +687,7 @@ export function AdminSettings() {
               </div>
               <Switch label="Aktifkan verifikasi email user" checked={settings.security.verifyEmail} onChange={(value) => updateField('security', 'verifyEmail', value)} />
               <div className="admin-settings-inline admin-settings-inline--tight">
-                <Field label="Pesan percobaan login"><input type="number" min="1" value={settings.security.loginAttempts} onChange={(event) => updateField('security', 'loginAttempts', event.target.value)} /></Field>
+                <Field label="Batas percobaan login"><input type="number" min="1" value={settings.security.loginAttempts} onChange={(event) => updateField('security', 'loginAttempts', event.target.value)} /></Field>
                 <Field label="Satuan"><input value={settings.security.loginAttemptUnit} onChange={(event) => updateField('security', 'loginAttemptUnit', event.target.value)} /></Field>
               </div>
               <button className="admin-settings-secondary" type="button" onClick={() => setShowHistory((value) => !value)}>Lihat Riwayat Login</button>
@@ -481,7 +707,8 @@ export function AdminSettings() {
                 <Field label="Waktu"><input type="time" value={settings.maintenance.time} onChange={(event) => updateField('maintenance', 'time', event.target.value)} /></Field>
               </div>
               <Field label="Pesan maintenance"><textarea value={settings.maintenance.message} onChange={(event) => updateField('maintenance', 'message', event.target.value)} /></Field>
-              <Switch label="Allow admin tetap akses" checked={settings.maintenance.allowAdmin} onChange={(value) => updateField('maintenance', 'allowAdmin', value)} />
+              <Switch label="Izinkan admin tetap akses" checked={settings.maintenance.allowAdmin} onChange={(value) => updateField('maintenance', 'allowAdmin', value)} />
+              <button className="admin-settings-secondary" type="button" onClick={previewMaintenance}>Preview Maintenance</button>
             </Section>
           ) : null}
 
