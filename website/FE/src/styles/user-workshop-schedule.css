@@ -91,12 +91,14 @@
 
 .user-workshop-sort span {
   color: rgba(31, 41, 55, 0.72);
+  font-family: 'Inter', sans-serif;
   font-size: 16px;
   font-weight: 500;
   line-height: 24px;
 }
 
 .user-workshop-sort select {
+  box-sizing: border-box;
   width: 143px;
   height: 48px;
   padding: 0 44px 0 24px;
@@ -106,32 +108,99 @@
   appearance: none;
   background: #ffffff url('../assets/icons/icon-arrowdown-1.svg') right 18px center / 14px auto no-repeat;
   color: #334155;
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 24px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-workshop-sort select option,
+.user-workshop-filter select option {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .user-workshop-filter {
+  position: relative;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 12px;
-  width: 110px;
+  width: 158px;
   height: 48px;
-  padding: 0;
+  padding: 0 40px 0 16px;
   border: 1px solid #1f2937;
   border-radius: 8px;
   background: #ffffff;
   color: #1f2937;
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 24px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 20px;
   cursor: pointer;
 }
 
+.user-workshop-filter select {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  padding: 0 38px 0 46px;
+  border: 0;
+  outline: 0;
+  appearance: none;
+  background: transparent;
+  color: inherit;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 20px;
+  cursor: pointer;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-workshop-filter::after {
+  position: absolute;
+  top: 50%;
+  right: 18px;
+  z-index: 1;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  content: '';
+  pointer-events: none;
+  transform: translateY(-60%) rotate(45deg);
+}
+
+.user-workshop-filter svg {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+}
+
+.user-workshop-message {
+  box-sizing: border-box;
+  width: 1121px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  background: #f0fdf4;
+  color: #166534;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .user-workshop-table {
+  box-sizing: border-box;
   width: 1121px;
   overflow: hidden;
   border: 1px solid #e2e8f0;
@@ -142,9 +211,9 @@
 .user-workshop-table__head,
 .user-workshop-table__row {
   display: grid;
-  grid-template-columns: 198px 102px 270px 140px 150px 68px 193px;
+  grid-template-columns: minmax(210px, 1.35fr) 128px minmax(220px, 1.2fr) 176px 142px 88px 142px;
   align-items: center;
-  width: 1121px;
+  width: 100%;
 }
 
 .user-workshop-table__head {
@@ -160,7 +229,19 @@
 .user-workshop-table__head span,
 .user-workshop-table__row > span,
 .user-workshop-table__row time {
-  padding-left: 24px;
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 0 16px;
+}
+
+.user-workshop-table__head span:nth-child(6),
+.user-workshop-table__head span:nth-child(7),
+.user-workshop-table__action-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  text-align: center;
 }
 
 .user-workshop-table__row {
@@ -171,6 +252,17 @@
   font-size: 14px;
   font-weight: 500;
   line-height: 21px;
+}
+
+.user-workshop-table__row--state {
+  grid-template-columns: 1fr;
+}
+
+.user-workshop-table__row--state > span {
+  padding-right: 24px;
+  justify-content: flex-start;
+  text-align: left;
+  white-space: normal;
 }
 
 .user-workshop-pill {
@@ -317,7 +409,8 @@
 }
 
 .user-workshop-detail__state,
-.user-workshop-detail__error {
+.user-workshop-detail__error,
+.user-workshop-detail__success {
   margin: 0 0 16px;
   padding: 10px 12px;
   border-radius: 8px;
@@ -334,6 +427,11 @@
 .user-workshop-detail__error {
   background: #fef2f2;
   color: #dc2626;
+}
+
+.user-workshop-detail__success {
+  background: #f0fdf4;
+  color: #166534;
 }
 
 .user-workshop-detail__meta {
@@ -386,6 +484,24 @@
   text-decoration: none;
 }
 
+.user-workshop-testimonial-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 44px;
+  margin-bottom: 18px;
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  background: #eef2ff;
+  color: #2563eb;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 24px;
+  cursor: pointer;
+}
+
 .user-workshop-detail__section {
   margin-top: 18px;
 }
@@ -420,11 +536,113 @@
   padding-left: 18px;
 }
 
+.user-workshop-testimonial {
+  width: min(520px, 100vw);
+}
+
+.user-workshop-testimonial-form {
+  display: grid;
+  gap: 14px;
+}
+
+.user-workshop-testimonial-form label {
+  display: grid;
+  gap: 8px;
+}
+
+.user-workshop-testimonial-form label > span {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 18px;
+}
+
+.user-workshop-testimonial-form input,
+.user-workshop-testimonial-form select,
+.user-workshop-testimonial-form textarea {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  outline: none;
+}
+
+.user-workshop-testimonial-form input,
+.user-workshop-testimonial-form select {
+  height: 44px;
+  padding: 0 12px;
+}
+
+.user-workshop-testimonial-form textarea {
+  min-height: 140px;
+  padding: 12px;
+  resize: vertical;
+}
+
+.user-workshop-consent {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #eff6ff;
+}
+
+.user-workshop-consent input {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: #2563eb;
+}
+
+.user-workshop-consent span {
+  color: #334155;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.user-workshop-testimonial-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.user-workshop-testimonial-actions button {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.user-workshop-testimonial-actions button.is-secondary {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.user-workshop-testimonial-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .user-workshop-pagination {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 211px;
+  width: auto;
+  min-width: 169px;
   height: 41px;
   overflow: hidden;
   border-radius: 4px;
@@ -447,6 +665,11 @@
   font-weight: 700;
   line-height: 21px;
   cursor: pointer;
+}
+
+.user-workshop-pagination button:disabled {
+  color: #cbd5e1;
+  cursor: not-allowed;
 }
 
 .user-workshop-pagination button:first-child {
@@ -491,6 +714,11 @@
   line-height: 1.35;
 }
 
+.user-workshop-table__row--state {
+  min-height: 64px;
+  height: auto;
+}
+
 .user-workshop-table__row:hover {
   background: #f8fafc;
 }
@@ -500,10 +728,18 @@
 .user-workshop-table__row time {
   min-width: 0;
   overflow: hidden;
-  padding-left: 20px;
-  padding-right: 12px;
+  padding-left: 16px;
+  padding-right: 16px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.user-workshop-table__head span:nth-child(6),
+.user-workshop-table__head span:nth-child(7),
+.user-workshop-table__row > .user-workshop-table__action-cell {
+  justify-content: center;
+  padding-left: 12px;
+  padding-right: 12px;
 }
 
 .user-workshop-pill {
@@ -530,6 +766,46 @@
   border-color: #d2d6da;
   background: #f8fafc;
   color: #1a73e8;
+}
+
+.user-workshop-table__head,
+.user-workshop-table__row {
+  grid-template-columns: minmax(168px, 1.15fr) 98px minmax(150px, 0.95fr) 142px 96px 64px 220px;
+}
+
+.user-workshop-table__row {
+  height: 56px;
+}
+
+.user-workshop-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.user-workshop-testimonial-mini {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 118px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  background: #eef2ff;
+  color: #2563eb;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.user-workshop-testimonial-mini:hover {
+  border-color: #2563eb;
+  background: #dbeafe;
 }
 
 @media (max-width: 760px) {

@@ -31,6 +31,10 @@ import {
 } from '../../services/partnerApi.js';
 
 import {
+  fetchTestimonials,
+} from '../../services/testimonialApi.js';
+
+import {
   fetchTransactions,
 } from '../../services/transactionApi.js';
 
@@ -405,6 +409,10 @@ function statusLabel(value) {
   return labels[normalized] || value || '-';
 }
 
+function testimonialKey(sourceType, sourceId) {
+  return `${normalizeMatchValue(sourceType)}:${String(sourceId || '').trim()}`;
+}
+
 function buildCalendarDays(monthDate) {
   const year = monthDate.getFullYear();
   const month = monthDate.getMonth();
@@ -517,6 +525,7 @@ export function DashboardUser() {
     galleries: [],
     partners: [],
     transactions: [],
+    testimonials: [],
   });
 
   const [
@@ -637,6 +646,10 @@ export function DashboardUser() {
     dashboardRows.partners.filter((partner) => itemMatchesUser(partner, storedUser))
   ), [dashboardRows.partners, storedUser]);
 
+  const myTestimonials = useMemo(() => (
+    dashboardRows.testimonials.filter((testimonial) => itemMatchesUser(testimonial, storedUser))
+  ), [dashboardRows.testimonials, storedUser]);
+
   const dashboardSummary = useMemo(() => {
     const draftProjects = myProjects.filter((project) => normalizeMatchValue(project.status || project.visibility) === 'draft').length;
     const publishedProjects = myProjects.filter((project) => ['published', 'publish'].includes(normalizeMatchValue(project.status))).length;
@@ -703,6 +716,50 @@ export function DashboardUser() {
       .sort((first, second) => new Date(second.date || 0).getTime() - new Date(first.date || 0).getTime())
       .slice(0, 6);
   }, [myGalleries, myPartners, myProjects, myTransactions]);
+
+  const testimonialNotice = useMemo(() => {
+    const submittedKeys = new Set(
+      myTestimonials
+        .filter((testimonial) => testimonial.sourceType && testimonial.sourceId)
+        .map((testimonial) => testimonialKey(testimonial.sourceType, testimonial.sourceId))
+    );
+
+    const partnerTargets = myPartners.filter((partner) => {
+      const status = normalizeMatchValue(partner.status);
+      return partner.id && ['aktif', 'active', 'approved', 'published'].includes(status) && !submittedKeys.has(testimonialKey('partner', partner.id));
+    });
+
+    const workshopTargets = myTransactions.filter((transaction) => {
+      const status = normalizeMatchValue(transaction.status);
+      const itemType = normalizeMatchValue(transaction.itemType || transaction.item_type || transaction.type);
+      if (!['paid', 'lunas', 'approved'].includes(status)) return false;
+      if (!['workshop', 'program', 'course'].includes(itemType)) return false;
+
+      const sourceId = transaction.itemId || transaction.item_id || `transaction-${transaction.id}`;
+      return sourceId && !submittedKeys.has(testimonialKey('workshop', sourceId));
+    });
+
+    const totalTargets = partnerTargets.length + workshopTargets.length;
+    if (!totalTargets) return null;
+
+    if (workshopTargets.length > 0) {
+      return {
+        count: totalTargets,
+        title: 'Bagikan pengalaman workshop kamu',
+        description: `${workshopTargets.length} workshop/program bisa diberi testimoni. Testimoni akan tampil setelah disetujui admin.`,
+        href: '/workshop-program',
+        action: 'Isi Testimoni Workshop',
+      };
+    }
+
+    return {
+      count: totalTargets,
+      title: 'Bagikan pengalaman partner kamu',
+      description: `${partnerTargets.length} partner aktif bisa diberi testimoni. Testimoni akan tampil setelah disetujui admin.`,
+      href: '/partner-saya',
+      action: 'Isi Testimoni Partner',
+    };
+  }, [myPartners, myTestimonials, myTransactions]);
 
   /*
   |--------------------------------------------------------------------------
@@ -882,11 +939,14 @@ export function DashboardUser() {
         if (currentUserId) transactionParams.userId = currentUserId;
         if (storedUser.email) transactionParams.email = storedUser.email;
 
-        const [projectsResult, galleriesResult, partnersResult, transactionsResult] = await Promise.allSettled([
+        const testimonialParams = storedUser.email ? { email: storedUser.email } : {};
+
+        const [projectsResult, galleriesResult, partnersResult, transactionsResult, testimonialsResult] = await Promise.allSettled([
           fetchProjectSubmissions(),
           fetchGallerySubmissions(),
           fetchPartners(),
           fetchTransactions(transactionParams),
+          storedUser.email ? fetchTestimonials(testimonialParams) : Promise.resolve({ testimonials: [] }),
         ]);
 
         if (!active) {
@@ -898,7 +958,9 @@ export function DashboardUser() {
         const partnerPayload = partnersResult.status === 'fulfilled' ? partnersResult.value : {};
         const partners = Array.isArray(partnerPayload?.partners) ? partnerPayload.partners : [];
         const transactions = transactionsResult.status === 'fulfilled' ? transactionsResult.value : [];
-        const failed = [projectsResult, galleriesResult, partnersResult, transactionsResult]
+        const testimonialPayload = testimonialsResult.status === 'fulfilled' ? testimonialsResult.value : {};
+        const testimonials = Array.isArray(testimonialPayload?.testimonials) ? testimonialPayload.testimonials : [];
+        const failed = [projectsResult, galleriesResult, partnersResult, transactionsResult, testimonialsResult]
           .filter((result) => result.status === 'rejected')
           .map((result) => result.reason?.message)
           .filter(Boolean);
@@ -908,6 +970,7 @@ export function DashboardUser() {
           galleries,
           partners,
           transactions,
+          testimonials,
         });
 
         setDashboardRowsError(failed.length ? failed[0] : '');
@@ -920,6 +983,7 @@ export function DashboardUser() {
             galleries: [],
             partners: [],
             transactions: [],
+            testimonials: [],
           });
           setDashboardRowsError(
             error instanceof Error
@@ -1361,10 +1425,10 @@ export function DashboardUser() {
           <div className="dashboard-topbar__user">
 
             <button
-              className="dashboard-notification"
+              className={`dashboard-notification${testimonialNotice ? ' dashboard-notification--has-testimonial' : ''}`}
               type="button"
-              aria-label="Notifikasi"
-              onClick={() => document.getElementById('dashboard-activity')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              aria-label={testimonialNotice ? `${testimonialNotice.count} testimoni menunggu diisi` : 'Notifikasi'}
+              onClick={() => document.getElementById(testimonialNotice ? 'dashboard-testimonial-notice' : 'dashboard-activity')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
             >
               <img
                 src={bellIcon}
@@ -1419,6 +1483,17 @@ export function DashboardUser() {
             <p className="dashboard-user-alert">
               {dashboardRowsError}
             </p>
+          ) : null}
+
+          {testimonialNotice ? (
+            <section className="dashboard-testimonial-notice" id="dashboard-testimonial-notice" aria-label="Notifikasi testimoni">
+              <div>
+                <span>Testimoni</span>
+                <h2>{testimonialNotice.title}</h2>
+                <p>{testimonialNotice.description}</p>
+              </div>
+              <a href={testimonialNotice.href}>{testimonialNotice.action}</a>
+            </section>
           ) : null}
 
           <section className="dashboard-quick-actions" aria-label="Aksi cepat dashboard">

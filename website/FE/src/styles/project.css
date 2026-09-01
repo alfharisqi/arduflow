@@ -338,6 +338,7 @@
   font-weight: 600;
   line-height: 24px;
   -webkit-box-orient: vertical;
+  line-clamp: 1;
   -webkit-line-clamp: 1;
 }
 
@@ -364,6 +365,7 @@
   font-weight: normal;
   line-height: 15px;
   -webkit-box-orient: vertical;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
 }
 
@@ -587,6 +589,7 @@
   font-weight: 700;
   line-height: 15px;
   -webkit-box-orient: vertical;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
 }
 
@@ -850,7 +853,8 @@
 }
 
 .partner-item span {
-  display: block;
+  display: grid;
+  place-items: center;
   position: absolute;
   left: 0;
   top: 0;
@@ -859,6 +863,8 @@
   background: var(--navy-2);
   border: 1px solid var(--line);
   border-radius: 6px;
+  color: var(--white);
+  font: 800 24px/1 "Inter", sans-serif;
   overflow: hidden;
 }
 
@@ -1597,6 +1603,7 @@
   color: var(--muted);
   font: 700 12px/15px "Rajdhani", sans-serif;
   -webkit-box-orient: vertical;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
 }
 

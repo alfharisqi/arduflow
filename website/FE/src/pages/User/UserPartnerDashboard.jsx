@@ -6,6 +6,7 @@ import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import { ProfileAvatar } from '../../features/profile-image-crop/ProfileAvatar.jsx';
 import { API_BASE_URL } from '../../services/apiEndpoints.js';
 import { fetchPartners, updatePartner, uploadPartnerLogo } from '../../services/partnerApi.js';
+import { createTestimonial, fetchTestimonials, updateTestimonial } from '../../services/testimonialApi.js';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 
 const menuItems = [
@@ -129,6 +130,10 @@ function payloadFromForm(form, partner) {
   };
 }
 
+function testimonialKey(sourceType, sourceId) {
+  return `${normalizeText(sourceType)}:${String(sourceId || '').trim()}`;
+}
+
 export function UserPartnerDashboard() {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialSidebarCollapsed);
   const [partners, setPartners] = useState([]);
@@ -142,6 +147,11 @@ export function UserPartnerDashboard() {
   const [editForm, setEditForm] = useState(() => formFromPartner(null));
   const [isSaving, setSaving] = useState(false);
   const [isUploadingLogo, setUploadingLogo] = useState(false);
+  const [testimonials, setTestimonials] = useState([]);
+  const [testimonialTarget, setTestimonialTarget] = useState(null);
+  const [testimonialForm, setTestimonialForm] = useState({ quote: '', role: '', rating: 5, consentPublic: true });
+  const [testimonialError, setTestimonialError] = useState('');
+  const [isSendingTestimonial, setSendingTestimonial] = useState(false);
 
   const user = getStoredUser();
   const fullName = user.name || user.fullName || user.full_name || 'Nama Lengkap';
@@ -165,8 +175,23 @@ export function UserPartnerDashboard() {
     }
   }
 
+  async function loadTestimonials() {
+    if (!email) {
+      setTestimonials([]);
+      return;
+    }
+
+    try {
+      const data = await fetchTestimonials({ email });
+      setTestimonials(Array.isArray(data.testimonials) ? data.testimonials : []);
+    } catch (_error) {
+      setTestimonials([]);
+    }
+  }
+
   useEffect(() => {
     loadPartners();
+    loadTestimonials();
   }, [email, fullName]);
 
   const visiblePartners = useMemo(() => {
@@ -210,6 +235,39 @@ export function UserPartnerDashboard() {
     setFormError('');
   }
 
+  function canSendTestimonial(partner) {
+    return statusTone(partner?.status) === 'active';
+  }
+
+  function testimonialForPartner(partner) {
+    const key = testimonialKey('partner', partner?.id);
+    return testimonials.find((testimonial) => testimonialKey(testimonial.sourceType, testimonial.sourceId) === key) || null;
+  }
+
+  function openTestimonial(partner) {
+    const existingTestimonial = testimonialForPartner(partner);
+    setSelectedPartner(null);
+    setTestimonialTarget({ ...partner, existingTestimonial });
+    setTestimonialForm({
+      quote: existingTestimonial?.quote || '',
+      role: existingTestimonial?.role || partner?.picRole || partner?.type || '',
+      rating: existingTestimonial?.rating || 5,
+      consentPublic: existingTestimonial?.consentPublic ?? true,
+    });
+    setTestimonialError('');
+    setSaveMessage('');
+  }
+
+  function closeTestimonial() {
+    if (isSendingTestimonial) return;
+    setTestimonialTarget(null);
+    setTestimonialError('');
+  }
+
+  function updateTestimonialForm(field, value) {
+    setTestimonialForm((current) => ({ ...current, [field]: value }));
+  }
+
   function updateForm(field, value) {
     setEditForm((current) => ({ ...current, [field]: value }));
   }
@@ -233,6 +291,57 @@ export function UserPartnerDashboard() {
       setFormError(saveError.message || 'Data partner gagal disimpan.');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleTestimonialSubmit(event) {
+    event.preventDefault();
+    if (!testimonialTarget) return;
+
+    const quote = testimonialForm.quote.trim();
+    if (quote.length < 12) {
+      setTestimonialError('Testimoni minimal 12 karakter.');
+      return;
+    }
+    if (!testimonialForm.consentPublic) {
+      setTestimonialError('Centang izin tampil agar testimoni bisa direview admin.');
+      return;
+    }
+
+    setSendingTestimonial(true);
+    setTestimonialError('');
+    setSaveMessage('');
+
+    try {
+      const existingTestimonial = testimonialTarget.existingTestimonial;
+      const payload = {
+        sourceType: 'partner',
+        sourceId: testimonialTarget.id,
+        userId: user.id || user.userId || '',
+        name: fullName,
+        email,
+        role: testimonialForm.role || testimonialTarget.picRole || testimonialTarget.type || 'Partner Arduflow',
+        quote,
+        rating: testimonialForm.rating,
+        consentPublic: testimonialForm.consentPublic,
+        status: 'Menunggu',
+      };
+      const result = existingTestimonial
+        ? await updateTestimonial(existingTestimonial.id, payload)
+        : await createTestimonial(payload);
+      const savedTestimonial = result.testimonial || { ...payload, id: existingTestimonial?.id };
+      setTestimonials((current) => {
+        if (existingTestimonial) {
+          return current.map((testimonial) => (testimonial.id === existingTestimonial.id ? savedTestimonial : testimonial));
+        }
+        return [savedTestimonial, ...current];
+      });
+      setTestimonialTarget(null);
+      setSaveMessage(existingTestimonial ? 'Testimoni berhasil diperbarui dan menunggu review ulang admin.' : 'Testimoni berhasil dikirim dan menunggu review admin.');
+    } catch (sendError) {
+      setTestimonialError(sendError.message || 'Testimoni gagal dikirim.');
+    } finally {
+      setSendingTestimonial(false);
     }
   }
 
@@ -380,6 +489,11 @@ export function UserPartnerDashboard() {
                     <div className="user-partner-card__actions">
                       <button type="button" onClick={() => setSelectedPartner(partner)}>Lihat Detail</button>
                       <button type="button" className="is-secondary" onClick={() => openEdit(partner)}>Edit Data</button>
+                      {canSendTestimonial(partner) ? (
+                        <button type="button" className="is-testimonial" onClick={() => openTestimonial(partner)}>
+                          {testimonialForPartner(partner) ? 'Edit Testimoni' : 'Berikan Testimoni'}
+                        </button>
+                      ) : null}
                     </div>
                   </article>
                 ))}
@@ -428,8 +542,79 @@ export function UserPartnerDashboard() {
             </section>
 
             <div className="user-partner-detail__actions">
+              {canSendTestimonial(selectedPartner) ? (
+                <button type="button" className="is-testimonial" onClick={() => openTestimonial(selectedPartner)}>
+                  {testimonialForPartner(selectedPartner) ? 'Edit Testimoni' : 'Berikan Testimoni'}
+                </button>
+              ) : null}
               <button type="button" onClick={() => openEdit(selectedPartner)}>Edit Data Partner</button>
             </div>
+          </aside>
+        </div>
+      ) : null}
+
+      {testimonialTarget ? (
+        <div className="user-partner-modal" role="dialog" aria-modal="true" aria-labelledby="user-partner-testimonial-title" onClick={closeTestimonial}>
+          <aside className="user-partner-detail user-partner-testimonial" onClick={(event) => event.stopPropagation()}>
+            <header>
+              <div>
+                <span>{testimonialTarget.existingTestimonial ? 'Edit Testimoni Partner' : 'Testimoni Partner'}</span>
+                <h2 id="user-partner-testimonial-title">{testimonialTarget.name || 'Partner Arduflow'}</h2>
+                <p>{testimonialTarget.existingTestimonial ? 'Perubahan testimoni harus disetujui ulang oleh admin.' : 'Testimoni akan tampil di halaman publik setelah disetujui admin.'}</p>
+              </div>
+              <button type="button" aria-label="Tutup form testimoni partner" onClick={closeTestimonial}>&times;</button>
+            </header>
+
+            {testimonialError ? <p className="user-partner-alert is-error">{testimonialError}</p> : null}
+
+            <form className="user-partner-testimonial-form" onSubmit={handleTestimonialSubmit}>
+              <label>
+                <span>Peran / Instansi</span>
+                <input
+                  value={testimonialForm.role}
+                  onChange={(event) => updateTestimonialForm('role', event.target.value)}
+                  placeholder="Guru, mentor, komunitas, institusi"
+                />
+              </label>
+              <label>
+                <span>Rating</span>
+                <select
+                  value={testimonialForm.rating}
+                  onChange={(event) => updateTestimonialForm('rating', Number(event.target.value))}
+                >
+                  <option value="5">5 - Sangat puas</option>
+                  <option value="4">4 - Puas</option>
+                  <option value="3">3 - Cukup</option>
+                  <option value="2">2 - Perlu perbaikan</option>
+                  <option value="1">1 - Kurang puas</option>
+                </select>
+              </label>
+              <label className="user-partner-testimonial-form__wide">
+                <span>Isi Testimoni</span>
+                <textarea
+                  value={testimonialForm.quote}
+                  onChange={(event) => updateTestimonialForm('quote', event.target.value)}
+                  rows="5"
+                  placeholder="Ceritakan pengalaman kerja sama atau penggunaan Arduflow"
+                  required
+                />
+              </label>
+              <label className="user-partner-consent">
+                <input
+                  type="checkbox"
+                  checked={testimonialForm.consentPublic}
+                  onChange={(event) => updateTestimonialForm('consentPublic', event.target.checked)}
+                />
+                <span>Saya mengizinkan testimoni ini tampil di halaman publik Arduflow setelah disetujui admin.</span>
+              </label>
+
+              <div className="user-partner-edit-actions">
+                <button type="button" className="is-secondary" onClick={closeTestimonial} disabled={isSendingTestimonial}>Batal</button>
+                <button type="submit" disabled={isSendingTestimonial}>
+                  {isSendingTestimonial ? 'Menyimpan...' : testimonialTarget.existingTestimonial ? 'Simpan Edit Testimoni' : 'Kirim Testimoni'}
+                </button>
+              </div>
+            </form>
           </aside>
         </div>
       ) : null}
