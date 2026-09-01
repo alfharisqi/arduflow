@@ -1,20 +1,28 @@
 function resolveApiBaseUrl() {
-  const envUrl = String(import.meta.env.VITE_API_URL || '').trim();
+  const deployUrl = String(
+    import.meta.env.VITE_DEPLOY_URL || ''
+  ).trim();
 
-  if (
-    import.meta.env.DEV &&
-    /^http:\/\/(127\.0\.0\.1|localhost):8000\/?$/i.test(envUrl)
-  ) {
-    return '';
-  }
-
-  return (envUrl || 'http://127.0.0.1:8000').replace(/\/$/, '');
+  return (
+    deployUrl ||
+    'https://arduflow.indobilliard.com/apk/uploads/web-arduflow-deploy-alfha/'
+  ).replace(/\/+$/, '');
 }
 
 export const API_BASE_URL = resolveApiBaseUrl();
 
 export function apiUrl(path) {
-  return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
+  const normalizedPath = String(path || '').trim();
+
+  if (!normalizedPath) {
+    return API_BASE_URL;
+  }
+
+  return `${API_BASE_URL}${
+    normalizedPath.startsWith('/')
+      ? normalizedPath
+      : `/${normalizedPath}`
+  }`;
 }
 
 export function apiEndpoint(envValue, fallbackPath) {
@@ -25,7 +33,7 @@ export function apiEndpoint(envValue, fallbackPath) {
   }
 
   if (/^https?:\/\//i.test(value)) {
-    return value;
+    return value.replace(/\/+$/, '');
   }
 
   return apiUrl(value);

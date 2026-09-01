@@ -7,10 +7,13 @@ import {
   showPromptAlert,
   showSuccessAlert,
 } from '../../utils/alerts.js';
-import { apiEndpoint } from '../../services/apiEndpoints.js';
-const MATERI_API_URL =
-  apiEndpoint(import.meta.env.VITE_MATERI_API_URL, '/api/materi-api.php');
+const DEPLOY_URL = (
+  import.meta.env.VITE_DEPLOY_URL ||
+  'https://arduflow.indobilliard.com/apk/uploads/web-arduflow-deploy-alfha/'
+).replace(/\/+$/, '');
 
+const MATERI_API_URL = `${DEPLOY_URL}/api/materi-api.php`;
+const MATERI_IMAGE_BASE_URL = `${DEPLOY_URL}/uploads/materi`;
 const initialSlides = [];
 
 const createDefaultChapter = () => ({
@@ -79,12 +82,15 @@ const htmlToPlainText = (html = '') =>
     .trim();
 
 function AdminTutorialForm({ mode = 'create' }) {
-  const isEdit = mode === 'edit';
+  // Mode edit otomatis aktif jika URL memiliki ?id=...
+  // Jadi route /admin/tutorial/tambah?id=123 tetap memuat data lama
+  // meskipun parent component tidak mengirim prop mode="edit".
   const tutorialId = useMemo(() => {
-    if (!isEdit) return null;
     const params = new URLSearchParams(window.location.search);
     return params.get('id');
-  }, [isEdit]);
+  }, []);
+
+  const isEdit = mode === 'edit' || Boolean(tutorialId);
   const [isLoadingTutorial, setIsLoadingTutorial] = useState(isEdit);
   const [loadError, setLoadError] = useState('');
 
@@ -118,6 +124,7 @@ function AdminTutorialForm({ mode = 'create' }) {
   const fullDescriptionRef = useRef(null);
   const cardImageSectionRef = useRef(null);
   const cardImageInputRef = useRef(null);
+  const slideImageInputRef = useRef(null);
   const slideVideoInputRef = useRef(null);
   const pageOrderRef = useRef(null);
 
@@ -258,12 +265,11 @@ function AdminTutorialForm({ mode = 'create' }) {
         });
 
         const existingCardImageUrl =
-          tutorial.card_image_url ||
-          (tutorial.card_image_name
-            ? `${MATERI_API_URL}?action=image&scope=card&file=${encodeURIComponent(
+          tutorial.card_image_name
+            ? `${MATERI_IMAGE_BASE_URL}/${encodeURIComponent(
                 tutorial.card_image_name
               )}`
-            : '');
+            : tutorial.card_image_url || '';
 
         setCardImagePreview(existingCardImageUrl);
 
@@ -305,12 +311,12 @@ function AdminTutorialForm({ mode = 'create' }) {
               );
 
               const imagePreview =
-                slide.image_url ||
                 (slide.image_name
-                  ? `${MATERI_API_URL}?action=image&scope=slide&file=${encodeURIComponent(
+                  ? `${MATERI_IMAGE_BASE_URL}/${encodeURIComponent(
                       slide.image_name
                     )}`
                   : '') ||
+                slide.image_url ||
                 embeddedImageMatch?.[1] ||
                 '';
 
@@ -332,6 +338,14 @@ function AdminTutorialForm({ mode = 'create' }) {
                   slide.image_name ||
                   slide.image?.file_name ||
                   '',
+                imageType:
+                  slide.image_type ||
+                  slide.image?.file_type ||
+                  null,
+                imageSize:
+                  slide.image_size ||
+                  slide.image?.file_size ||
+                  null,
                 imageFile: null,
                 videoSourceType: slide.video_url ? 'url' : 'url',
                 videoUrl: slide.video_url || '',
@@ -670,6 +684,8 @@ function AdminTutorialForm({ mode = 'create' }) {
       bodyText: '',
       imagePreview: '',
       imageName: '',
+      imageType: null,
+      imageSize: null,
       imageFile: null,
       videoSourceType: 'url',
       videoUrl: '',
@@ -757,6 +773,60 @@ function AdminTutorialForm({ mode = 'create' }) {
       setActiveChapterId(value);
     } else {
       markChapterDirty(previousChapterId);
+    }
+  };
+
+  const handleSlideImageChange = (event) => {
+    const selectedFile = event.target.files?.[0] || null;
+
+    if (!selectedFile || !editingSlideId) return;
+
+    const allowedTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'image/svg+xml',
+    ];
+
+    if (!allowedTypes.includes(selectedFile.type)) {
+      window.alert('Format gambar harus JPG, JPEG, PNG, WEBP, atau SVG.');
+      event.target.value = '';
+      return;
+    }
+
+    const maxImageSize = 3 * 1024 * 1024;
+
+    if (selectedFile.size > maxImageSize) {
+      window.alert('Ukuran gambar maksimal 3 MB.');
+      event.target.value = '';
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(selectedFile);
+    const targetSlide = slides.find((slide) => slide.id === editingSlideId);
+
+    setSlides((previousSlides) =>
+      previousSlides.map((slide) => {
+        if (slide.id !== editingSlideId) return slide;
+
+        if (
+          slide.imagePreview &&
+          String(slide.imagePreview).startsWith('blob:')
+        ) {
+          URL.revokeObjectURL(slide.imagePreview);
+        }
+
+        return {
+          ...slide,
+          imageFile: selectedFile,
+          imageName: selectedFile.name,
+          imagePreview: previewUrl,
+        };
+      })
+    );
+
+    if (targetSlide?.chapterId) {
+      markChapterDirty(targetSlide.chapterId);
     }
   };
 
@@ -998,7 +1068,23 @@ function AdminTutorialForm({ mode = 'create' }) {
         code_language: usesCode ? slide.codeLanguage || 'cpp' : null,
         code_content: usesCode ? slide.codeContent || '' : '',
         allow_copy: usesCode ? slide.allowCopy !== false : false,
-        image: null,
+        image: slide.imageFile
+          ? {
+              file_name: slide.imageFile.name,
+              file_type: slide.imageFile.type,
+              file_size: slide.imageFile.size,
+              upload_field: `slide_image_${index}`,
+            }
+          : slide.imageName
+            ? {
+                file_name: slide.imageName,
+                file_type: slide.imageType || null,
+                file_size: slide.imageSize || null,
+              }
+            : null,
+        image_name: slide.imageName || null,
+        image_type: slide.imageType || null,
+        image_size: slide.imageSize || null,
         video_url:
           usesVideo && slide.videoSourceType === 'url'
             ? slide.videoUrl?.trim() || null
@@ -1022,7 +1108,7 @@ function AdminTutorialForm({ mode = 'create' }) {
         ? 'admin_tutorial_edit_form'
         : 'admin_tutorial_create_form',
       frontend_route: window.location.pathname,
-      request_method: isEdit ? 'POST' : 'POST',
+      request_method: isEdit ? 'POST_UPDATE' : 'POST_CREATE',
       endpoint: effectiveTutorialId
         ? `${MATERI_API_URL}?id=${encodeURIComponent(effectiveTutorialId)}`
         : MATERI_API_URL,
@@ -1076,6 +1162,14 @@ function AdminTutorialForm({ mode = 'create' }) {
       }
 
       slides.forEach((slide, index) => {
+        if (slide.imageFile) {
+          requestFormData.append(
+            `slide_image_${index}`,
+            slide.imageFile,
+            slide.imageFile.name
+          );
+        }
+
         if (
           slide.contentType === 'video' &&
           slide.videoSourceType === 'file' &&
@@ -1096,6 +1190,12 @@ function AdminTutorialForm({ mode = 'create' }) {
 
       console.info('[ArduFlow Materi] POST endpoint:', requestUrl);
       console.info('[ArduFlow Materi] method: POST');
+      console.info(
+        '[ArduFlow Materi] file fields:',
+        Array.from(requestFormData.entries())
+          .filter(([, value]) => value instanceof File)
+          .map(([key, value]) => ({ key, name: value.name, size: value.size }))
+      );
 
       const response = await fetch(requestUrl, {
         method: 'POST',
@@ -1453,7 +1553,7 @@ function AdminTutorialForm({ mode = 'create' }) {
             <span className="admin-tutorial-label">
               Gambar / Icon (untuk card)<span className="admin-tutorial-required">*</span>
             </span>
-            <input ref={cardImageInputRef} id="tutorial-card-image" className="admin-tutorial-file-input" type="file" accept=".jpg,.jpeg,.png,.svg" onChange={handleImageChange} aria-invalid={Boolean(errors.cardImage)} />
+            <input ref={cardImageInputRef} id="tutorial-card-image" className="admin-tutorial-file-input" type="file" accept=".jpg,.jpeg,.png,.webp,.svg" onChange={handleImageChange} aria-invalid={Boolean(errors.cardImage)} />
             <label className={`admin-tutorial-upload-box ${errors.cardImage ? 'is-error' : ''}`} htmlFor="tutorial-card-image">
               {cardImagePreview ? (
                 <img src={cardImagePreview} alt="Preview gambar materi" />
@@ -1866,6 +1966,42 @@ function AdminTutorialForm({ mode = 'create' }) {
                     height={320}
                   />
                 </label>
+              )}
+
+
+              {['text_image', 'image'].includes(editingSlide.contentType) && (
+                <div className="admin-materials-editor-video-upload">
+                  <strong>Gambar Slide</strong>
+                  <button
+                    type="button"
+                    onClick={() => slideImageInputRef.current?.click()}
+                  >
+                    Pilih Gambar
+                  </button>
+                  <span>
+                    {editingSlide.imageName || 'Belum ada gambar dipilih'}
+                  </span>
+                  {editingSlide.imagePreview && (
+                    <img
+                      src={editingSlide.imagePreview}
+                      alt={`Preview ${editingSlide.title}`}
+                      style={{
+                        width: '100%',
+                        maxWidth: 420,
+                        maxHeight: 240,
+                        objectFit: 'contain',
+                        borderRadius: 10,
+                      }}
+                    />
+                  )}
+                  <input
+                    ref={slideImageInputRef}
+                    className="admin-tutorial-file-input"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/svg+xml"
+                    onChange={handleSlideImageChange}
+                  />
+                </div>
               )}
 
 
@@ -2474,7 +2610,7 @@ function AdminTutorialForm({ mode = 'create' }) {
                   id="tutorial-card-image-settings"
                   className="admin-tutorial-file-input"
                   type="file"
-                  accept=".jpg,.jpeg,.png,.svg"
+                  accept=".jpg,.jpeg,.png,.webp,.svg"
                   onChange={handleImageChange}
                 />
 
