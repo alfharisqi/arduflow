@@ -267,6 +267,18 @@
   filter: invert(46%) sepia(97%) saturate(2532%) hue-rotate(2deg) brightness(103%) contrast(105%);
 }
 
+.dashboard-notification--has-testimonial::after {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid #030b1e;
+  border-radius: 999px;
+  background: #ff6a00;
+  content: '';
+}
+
 .dashboard-mini-avatar,
 .dashboard-profile-avatar {
   display: flex;
@@ -663,7 +675,8 @@
 .dashboard-user-stat,
 .dashboard-quick-actions,
 .dashboard-user-widget,
-.dashboard-user-alert {
+.dashboard-user-alert,
+.dashboard-testimonial-notice {
   border: 1px solid #eef0f4;
   border-radius: 12px;
   background: #ffffff;
@@ -709,6 +722,64 @@
   font-weight: 700;
   background: #fef3f2;
   border-color: #fecdca;
+}
+
+.dashboard-testimonial-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  width: 1121px;
+  padding: 18px 20px;
+  border-color: #fed7aa;
+  background: #fff7ed;
+  scroll-margin-top: 82px;
+}
+
+.dashboard-testimonial-notice span {
+  display: inline-flex;
+  margin-bottom: 6px;
+  color: #c2410c;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.dashboard-testimonial-notice h2 {
+  margin: 0;
+  color: #211c37;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 28px;
+}
+
+.dashboard-testimonial-notice p {
+  max-width: 680px;
+  margin: 6px 0 0;
+  color: #7c2d12;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.dashboard-testimonial-notice a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 8px;
+  background: #ff6a00;
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
 }
 
 .dashboard-quick-actions {
@@ -907,8 +978,14 @@
   .dashboard-user-summary,
   .dashboard-quick-actions,
   .dashboard-user-alert,
+  .dashboard-testimonial-notice,
   .dashboard-user-overview {
     width: min(100%, 760px);
+  }
+
+  .dashboard-testimonial-notice {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .dashboard-user-summary,

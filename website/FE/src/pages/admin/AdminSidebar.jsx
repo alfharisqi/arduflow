@@ -9,6 +9,7 @@ import mediaIcon from '../../assets/icons/icon-media.svg';
 import projectIcon from '../../assets/icons/icon-proyek.svg';
 import globeIcon from '../../assets/icons/icons-globe-1.svg';
 import mailIcon from '../../assets/icons/icon-mail-1.svg';
+import messageIcon from '../../assets/icons/icon-message-square-1.svg';
 import cpuIcon from '../../assets/icons/icon-cpu-1.svg';
 import databaseIcon from '../../assets/icons/icons-database-1.svg';
 import dollarIcon from '../../assets/icons/icon-dollar-1.svg';
@@ -38,6 +39,7 @@ const adminItems = [
       { label: 'Proyek', href: '/admin/projects', icon: projectIcon },
       { label: 'Galeri Kegiatan', href: '/admin/gallery', icon: mediaIcon },
       { label: 'Partner / Kolaborator', href: '/admin/partners', icon: globeIcon },
+      { label: 'Testimoni', href: '/admin/testimonials', icon: messageIcon },
       { label: 'Arduflow IDE', href: '/admin/ide', icon: cpuIcon },
     ],
   },

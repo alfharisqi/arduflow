@@ -4,6 +4,7 @@ import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import { DashboardUserSidebarIcon } from './userSidebarIcons.jsx';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import { ProfileAvatar } from '../../features/profile-image-crop/ProfileAvatar.jsx';
+import { createTestimonial, fetchTestimonials, updateTestimonial } from '../../services/testimonialApi.js';
 import { fetchTransactions } from '../../services/transactionApi.js';
 import { fetchWorkshopDetail, fetchWorkshops, isPublicWorkshop } from '../../services/workshopApi.js';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
@@ -109,6 +110,17 @@ function getInitials(name) {
     .toUpperCase();
 }
 
+const WORKSHOP_PAGE_SIZE = 8;
+
+const WORKSHOP_FILTER_OPTIONS = [
+  { value: 'all', label: 'Semua' },
+  { value: 'upcoming', label: 'Akan Datang' },
+  { value: 'live', label: 'Berlangsung' },
+  { value: 'done', label: 'Selesai' },
+  { value: 'online', label: 'Online' },
+  { value: 'offline', label: 'Offline' },
+];
+
 function stripHtml(value) {
   return String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 }
@@ -128,6 +140,14 @@ function splitDetailItems(value, fallback) {
     .filter(Boolean);
 
   return items.length ? items : fallback;
+}
+
+function normalizeText(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function testimonialKey(sourceType, sourceId) {
+  return `${normalizeText(sourceType)}:${String(sourceId || '').trim()}`;
 }
 
 function SearchIcon() {
@@ -169,15 +189,26 @@ export function UserWorkshopSchedule() {
   const [workshops, setWorkshops] = useState([]);
   const [isLoadingWorkshops, setIsLoadingWorkshops] = useState(true);
   const [workshopError, setWorkshopError] = useState('');
+  const [workshopMessage, setWorkshopMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortMode, setSortMode] = useState('Relevance');
+  const [filterMode, setFilterMode] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedWorkshop, setSelectedWorkshop] = useState(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [detailError, setDetailError] = useState('');
+  const [detailMessage, setDetailMessage] = useState('');
+  const [enabledNotificationIds, setEnabledNotificationIds] = useState(() => new Set());
+  const [testimonials, setTestimonials] = useState([]);
+  const [testimonialTarget, setTestimonialTarget] = useState(null);
+  const [testimonialForm, setTestimonialForm] = useState({ quote: '', role: '', rating: 5, consentPublic: true });
+  const [testimonialError, setTestimonialError] = useState('');
+  const [isSendingTestimonial, setSendingTestimonial] = useState(false);
   const user = getStoredUser();
   const fullName = user.name || user.fullName || 'Nama Lengkap';
   const greetingName = user.nickname || fullName;
   const profileImage = user.profileImage || user.avatar || '';
+  const email = user.email || '';
 
   useEffect(() => {
     let isMounted = true;
@@ -195,9 +226,10 @@ export function UserWorkshopSchedule() {
           return;
         }
 
-        const [workshopRecords, transactionRecords] = await Promise.all([
+        const [workshopRecords, transactionRecords, testimonialPayload] = await Promise.all([
           fetchWorkshops(),
           fetchTransactions({ ...params, status: 'paid' }),
+          params.email ? fetchTestimonials({ email: params.email }) : Promise.resolve({ testimonials: [] }),
         ]);
         if (isMounted) {
           const paidWorkshopTransactions = transactionRecords.filter(
@@ -214,7 +246,7 @@ export function UserWorkshopSchedule() {
               id: `transaction-${transaction.id}`,
               title: transaction.itemTitle,
               method: transaction.paymentChannel || transaction.paymentMethod || 'Workshop',
-              location: 'Akses aktif setelah pembayaran disetujui',
+              location: '',
               startsAt: transaction.paidAt || transaction.createdAt,
               timeText: '',
               status: 'Terdaftar',
@@ -224,11 +256,13 @@ export function UserWorkshopSchedule() {
             ...workshopRecords.filter((workshop) => isPublicWorkshop(workshop) && paidWorkshopIds.has(String(workshop.id))),
             ...paidWorkshopFallbacks,
           ]);
+          setTestimonials(Array.isArray(testimonialPayload?.testimonials) ? testimonialPayload.testimonials : []);
         }
       } catch (error) {
         if (isMounted) {
           setWorkshopError(error.message || 'Gagal memuat jadwal workshop.');
           setWorkshops([]);
+          setTestimonials([]);
         }
       } finally {
         if (isMounted) {
@@ -247,6 +281,13 @@ export function UserWorkshopSchedule() {
   const schedules = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
     const filteredWorkshops = workshops.filter((workshop) => {
+      const status = getWorkshopStatus(workshop);
+      const methodClass = getWorkshopMethodClass(workshop.method || 'Online');
+      if (filterMode === 'upcoming' && status !== 'Akan Datang') return false;
+      if (filterMode === 'live' && status !== 'Sedang Berlangsung') return false;
+      if (filterMode === 'done' && status !== 'Selesai') return false;
+      if (filterMode === 'online' && methodClass !== 'online') return false;
+      if (filterMode === 'offline' && methodClass !== 'offline') return false;
       if (!query) return true;
       return [workshop.title, workshop.category, workshop.method, workshop.location, workshop.meetingUrl]
         .filter(Boolean)
@@ -262,7 +303,35 @@ export function UserWorkshopSchedule() {
       }
       return (parseWorkshopDate(left.startsAt)?.getTime() || 0) - (parseWorkshopDate(right.startsAt)?.getTime() || 0);
     });
-  }, [workshops, searchTerm, sortMode]);
+  }, [filterMode, workshops, searchTerm, sortMode]);
+
+  const totalPages = Math.max(1, Math.ceil(schedules.length / WORKSHOP_PAGE_SIZE));
+  const visiblePages = useMemo(() => {
+    const pages = [];
+    const start = Math.max(1, Math.min(currentPage - 1, totalPages - 2));
+    const end = Math.min(totalPages, start + 2);
+
+    for (let page = start; page <= end; page += 1) {
+      pages.push(page);
+    }
+
+    return pages;
+  }, [currentPage, totalPages]);
+
+  const paginatedSchedules = useMemo(() => {
+    const startIndex = (currentPage - 1) * WORKSHOP_PAGE_SIZE;
+    return schedules.slice(startIndex, startIndex + WORKSHOP_PAGE_SIZE);
+  }, [currentPage, schedules]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterMode, searchTerm, sortMode]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   function handleLogout() {
     window.localStorage.removeItem('arduflow_user');
@@ -282,6 +351,8 @@ export function UserWorkshopSchedule() {
   async function handleOpenDetail(schedule) {
     setSelectedWorkshop(schedule);
     setDetailError('');
+    setDetailMessage('');
+    setWorkshopMessage('');
 
     if (!schedule?.id || String(schedule.id).startsWith('transaction-')) return;
 
@@ -299,7 +370,103 @@ export function UserWorkshopSchedule() {
   function handleCloseDetail() {
     setSelectedWorkshop(null);
     setDetailError('');
+    setDetailMessage('');
     setIsLoadingDetail(false);
+  }
+
+  function openTestimonial(workshop) {
+    const existingTestimonial = testimonialForWorkshop(workshop);
+    setTestimonialTarget({ ...workshop, existingTestimonial });
+    setTestimonialForm({
+      quote: existingTestimonial?.quote || '',
+      role: existingTestimonial?.role || '',
+      rating: existingTestimonial?.rating || 5,
+      consentPublic: existingTestimonial?.consentPublic ?? true,
+    });
+    setTestimonialError('');
+    setWorkshopMessage('');
+  }
+
+  function closeTestimonial() {
+    if (isSendingTestimonial) return;
+    setTestimonialTarget(null);
+    setTestimonialError('');
+  }
+
+  function updateTestimonialForm(field, value) {
+    setTestimonialForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function testimonialForWorkshop(workshop) {
+    const key = testimonialKey('workshop', workshop?.id);
+    return testimonials.find((testimonial) => testimonialKey(testimonial.sourceType, testimonial.sourceId) === key) || null;
+  }
+
+  async function handleTestimonialSubmit(event) {
+    event.preventDefault();
+    if (!testimonialTarget) return;
+
+    const quote = testimonialForm.quote.trim();
+    if (quote.length < 12) {
+      setTestimonialError('Testimoni minimal 12 karakter.');
+      return;
+    }
+    if (!testimonialForm.consentPublic) {
+      setTestimonialError('Centang izin tampil agar testimoni bisa direview admin.');
+      return;
+    }
+
+    setSendingTestimonial(true);
+    setTestimonialError('');
+
+    try {
+      const existingTestimonial = testimonialTarget.existingTestimonial;
+      const payload = {
+        sourceType: 'workshop',
+        sourceId: String(testimonialTarget.id || ''),
+        userId: user.id || user.userId || '',
+        name: fullName,
+        email,
+        role: testimonialForm.role || 'Peserta Workshop Arduflow',
+        quote,
+        rating: testimonialForm.rating,
+        consentPublic: testimonialForm.consentPublic,
+        status: 'Menunggu',
+      };
+      const result = existingTestimonial
+        ? await updateTestimonial(existingTestimonial.id, payload)
+        : await createTestimonial(payload);
+      const savedTestimonial = result.testimonial || { ...payload, id: existingTestimonial?.id };
+      setTestimonials((current) => {
+        if (existingTestimonial) {
+          return current.map((testimonial) => (testimonial.id === existingTestimonial.id ? savedTestimonial : testimonial));
+        }
+        return [savedTestimonial, ...current];
+      });
+      setTestimonialTarget(null);
+      const successMessage = existingTestimonial ? 'Testimoni berhasil diperbarui dan menunggu review ulang admin.' : 'Testimoni berhasil dikirim dan menunggu review admin.';
+      setDetailMessage(successMessage);
+      setWorkshopMessage(successMessage);
+    } catch (error) {
+      setTestimonialError(error.message || 'Testimoni gagal dikirim.');
+    } finally {
+      setSendingTestimonial(false);
+    }
+  }
+
+  function toggleNotification(scheduleId) {
+    setEnabledNotificationIds((current) => {
+      const next = new Set(current);
+      const key = String(scheduleId || '');
+
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+
+      return next;
+    });
   }
 
   const selectedStatus = selectedWorkshop ? getWorkshopStatus(selectedWorkshop) : '';
@@ -389,13 +556,20 @@ export function UserWorkshopSchedule() {
                       <option>Status</option>
                     </select>
                   </div>
-                  <button className="user-workshop-filter" type="button">
+                  <label className="user-workshop-filter">
+                    <span className="sr-only">Filter workshop</span>
                     <FilterIcon />
-                    <span>Filter</span>
-                  </button>
+                    <select value={filterMode} aria-label="Filter workshop" onChange={(event) => setFilterMode(event.target.value)}>
+                      {WORKSHOP_FILTER_OPTIONS.map((option) => (
+                        <option value={option.value} key={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
               </div>
             </div>
+
+            {workshopMessage ? <p className="user-workshop-message">{workshopMessage}</p> : null}
 
             <div className="user-workshop-table" role="table" aria-label="Jadwal Workshop dan Program kamu">
               <div className="user-workshop-table__head" role="row">
@@ -405,42 +579,26 @@ export function UserWorkshopSchedule() {
                 <span>Waktu</span>
                 <span>Status</span>
                 <span>Notif</span>
-                <span>Detail</span>
+                <span>Aksi</span>
               </div>
               {isLoadingWorkshops ? (
-                <div className="user-workshop-table__row" role="row">
+                <div className="user-workshop-table__row user-workshop-table__row--state" role="row">
                   <span>Memuat jadwal workshop...</span>
-                  <span>-</span>
-                  <span>-</span>
-                  <span>-</span>
-                  <span>-</span>
-                  <span>-</span>
-                  <span>-</span>
                 </div>
               ) : workshopError ? (
-                <div className="user-workshop-table__row" role="row">
+                <div className="user-workshop-table__row user-workshop-table__row--state" role="row">
                   <span>{workshopError}</span>
-                  <span>-</span>
-                  <span>-</span>
-                  <span>-</span>
-                  <span>-</span>
-                  <span>-</span>
-                  <span>-</span>
                 </div>
               ) : schedules.length === 0 ? (
-                <div className="user-workshop-table__row" role="row">
+                <div className="user-workshop-table__row user-workshop-table__row--state" role="row">
                   <span>Belum ada workshop yang sudah aktif. Workshop akan muncul setelah pembayaran disetujui admin.</span>
-                  <span>-</span>
-                  <span>-</span>
-                  <span>-</span>
-                  <span>-</span>
-                  <span>-</span>
-                  <span>-</span>
                 </div>
               ) : (
-                schedules.map((schedule) => {
+                paginatedSchedules.map((schedule) => {
                   const status = getWorkshopStatus(schedule);
                   const method = schedule.method || 'Online';
+                  const notificationKey = String(schedule.id || '');
+                  const isNotificationActive = enabledNotificationIds.has(notificationKey);
                   return (
                     <div className="user-workshop-table__row" role="row" key={schedule.id}>
                       <span>{schedule.title || 'Workshop tanpa judul'}</span>
@@ -456,22 +614,38 @@ export function UserWorkshopSchedule() {
                           {status}
                         </b>
                       </span>
-                      <button
-                        className={`user-workshop-notif${status === 'Akan Datang' ? ' user-workshop-notif--active' : ''}`}
-                        type="button"
-                        aria-label="Notifikasi workshop"
-                      >
-                        <img src={bellIcon} alt="" aria-hidden="true" />
-                      </button>
-                      <button
-                        className="user-workshop-detail-button"
-                        type="button"
-                        aria-label={`Lihat detail ${schedule.title || 'workshop'}`}
-                        onClick={() => handleOpenDetail(schedule)}
-                      >
-                        <DetailIcon />
-                        <span>Detail</span>
-                      </button>
+                      <span className="user-workshop-table__action-cell">
+                        <button
+                          className={`user-workshop-notif${isNotificationActive ? ' user-workshop-notif--active' : ''}`}
+                          type="button"
+                          aria-pressed={isNotificationActive}
+                          aria-label={`${isNotificationActive ? 'Matikan' : 'Aktifkan'} notifikasi ${schedule.title || 'workshop'}`}
+                          onClick={() => toggleNotification(schedule.id)}
+                        >
+                          <img src={bellIcon} alt="" aria-hidden="true" />
+                        </button>
+                      </span>
+                      <span className="user-workshop-table__action-cell">
+                        <span className="user-workshop-row-actions">
+                          <button
+                            className="user-workshop-detail-button"
+                            type="button"
+                            aria-label={`Lihat detail ${schedule.title || 'workshop'}`}
+                            onClick={() => handleOpenDetail(schedule)}
+                          >
+                            <DetailIcon />
+                            <span>Detail</span>
+                          </button>
+                          <button
+                            className="user-workshop-testimonial-mini"
+                            type="button"
+                            aria-label={`${testimonialForWorkshop(schedule) ? 'Edit' : 'Berikan'} testimoni ${schedule.title || 'workshop'}`}
+                            onClick={() => openTestimonial(schedule)}
+                          >
+                            {testimonialForWorkshop(schedule) ? 'Edit Testimoni' : 'Testimoni'}
+                          </button>
+                        </span>
+                      </span>
                     </div>
                   );
                 })
@@ -479,11 +653,33 @@ export function UserWorkshopSchedule() {
             </div>
 
             <nav className="user-workshop-pagination" aria-label="Pagination jadwal workshop">
-              <button type="button" aria-label="Halaman sebelumnya">&lsaquo;</button>
-              <button className="user-workshop-pagination__active" type="button">1</button>
-              <button type="button">2</button>
-              <button type="button">3</button>
-              <button type="button" aria-label="Halaman berikutnya">&rsaquo;</button>
+              <button
+                type="button"
+                aria-label="Halaman sebelumnya"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              >
+                &lsaquo;
+              </button>
+              {visiblePages.map((page) => (
+                <button
+                  className={page === currentPage ? 'user-workshop-pagination__active' : ''}
+                  type="button"
+                  aria-current={page === currentPage ? 'page' : undefined}
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                type="button"
+                aria-label="Halaman berikutnya"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              >
+                &rsaquo;
+              </button>
             </nav>
           </section>
         </main>
@@ -513,6 +709,7 @@ export function UserWorkshopSchedule() {
             )}
 
             {isLoadingDetail && <p className="user-workshop-detail__state">Memuat detail terbaru...</p>}
+            {detailMessage && <p className="user-workshop-detail__success">{detailMessage}</p>}
             {detailError && <p className="user-workshop-detail__error">{detailError}</p>}
 
             <div className="user-workshop-detail__meta">
@@ -548,6 +745,10 @@ export function UserWorkshopSchedule() {
               </a>
             )}
 
+            <button className="user-workshop-testimonial-button" type="button" onClick={() => openTestimonial(selectedWorkshop)}>
+              {testimonialForWorkshop(selectedWorkshop) ? 'Edit Testimoni' : 'Berikan Testimoni'}
+            </button>
+
             <section className="user-workshop-detail__section">
               <h3>Tentang Workshop</h3>
               {selectedAboutHtml ? (
@@ -575,6 +776,78 @@ export function UserWorkshopSchedule() {
                 </ul>
               </div>
             </section>
+          </aside>
+        </div>
+      )}
+
+      {testimonialTarget && (
+        <div className="user-workshop-detail-overlay" role="presentation" onClick={closeTestimonial}>
+          <aside
+            className="user-workshop-detail user-workshop-testimonial"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="user-workshop-testimonial-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="user-workshop-detail__head">
+              <div>
+                <span>{testimonialTarget.existingTestimonial ? 'Edit Testimoni Workshop' : 'Testimoni Workshop'}</span>
+                <h2 id="user-workshop-testimonial-title">{testimonialTarget.title || 'Workshop Arduflow'}</h2>
+              </div>
+              <button type="button" aria-label="Tutup form testimoni workshop" onClick={closeTestimonial}>
+                <CloseIcon />
+              </button>
+            </div>
+
+            {testimonialError && <p className="user-workshop-detail__error">{testimonialError}</p>}
+
+            <form className="user-workshop-testimonial-form" onSubmit={handleTestimonialSubmit}>
+              <label>
+                <span>Peran / Instansi</span>
+                <input
+                  value={testimonialForm.role}
+                  onChange={(event) => updateTestimonialForm('role', event.target.value)}
+                  placeholder="Siswa, guru, mahasiswa, komunitas"
+                />
+              </label>
+              <label>
+                <span>Rating</span>
+                <select
+                  value={testimonialForm.rating}
+                  onChange={(event) => updateTestimonialForm('rating', Number(event.target.value))}
+                >
+                  <option value="5">5 - Sangat puas</option>
+                  <option value="4">4 - Puas</option>
+                  <option value="3">3 - Cukup</option>
+                  <option value="2">2 - Perlu perbaikan</option>
+                  <option value="1">1 - Kurang puas</option>
+                </select>
+              </label>
+              <label>
+                <span>Isi Testimoni</span>
+                <textarea
+                  value={testimonialForm.quote}
+                  onChange={(event) => updateTestimonialForm('quote', event.target.value)}
+                  rows="6"
+                  placeholder="Ceritakan pengalaman mengikuti workshop atau program"
+                  required
+                />
+              </label>
+              <label className="user-workshop-consent">
+                <input
+                  type="checkbox"
+                  checked={testimonialForm.consentPublic}
+                  onChange={(event) => updateTestimonialForm('consentPublic', event.target.checked)}
+                />
+                <span>Saya mengizinkan testimoni ini tampil di halaman publik Arduflow setelah disetujui admin.</span>
+              </label>
+              <div className="user-workshop-testimonial-actions">
+                <button type="button" className="is-secondary" onClick={closeTestimonial} disabled={isSendingTestimonial}>Batal</button>
+                <button type="submit" disabled={isSendingTestimonial}>
+                  {isSendingTestimonial ? 'Menyimpan...' : testimonialTarget.existingTestimonial ? 'Simpan Edit Testimoni' : 'Kirim Testimoni'}
+                </button>
+              </div>
+            </form>
           </aside>
         </div>
       )}
