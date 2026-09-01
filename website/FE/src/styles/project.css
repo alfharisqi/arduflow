@@ -338,6 +338,7 @@
   font-weight: 600;
   line-height: 24px;
   -webkit-box-orient: vertical;
+  line-clamp: 1;
   -webkit-line-clamp: 1;
 }
 
@@ -364,6 +365,7 @@
   font-weight: normal;
   line-height: 15px;
   -webkit-box-orient: vertical;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
 }
 
@@ -587,6 +589,7 @@
   font-weight: 700;
   line-height: 15px;
   -webkit-box-orient: vertical;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
 }
 
@@ -1597,6 +1600,7 @@
   color: var(--muted);
   font: 700 12px/15px "Rajdhani", sans-serif;
   -webkit-box-orient: vertical;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
 }
 

@@ -109,6 +109,17 @@ function getInitials(name) {
     .toUpperCase();
 }
 
+const WORKSHOP_PAGE_SIZE = 8;
+
+const WORKSHOP_FILTER_OPTIONS = [
+  { value: 'all', label: 'Semua' },
+  { value: 'upcoming', label: 'Akan Datang' },
+  { value: 'live', label: 'Berlangsung' },
+  { value: 'done', label: 'Selesai' },
+  { value: 'online', label: 'Online' },
+  { value: 'offline', label: 'Offline' },
+];
+
 function stripHtml(value) {
   return String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 }
@@ -171,9 +182,12 @@ export function UserWorkshopSchedule() {
   const [workshopError, setWorkshopError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortMode, setSortMode] = useState('Relevance');
+  const [filterMode, setFilterMode] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedWorkshop, setSelectedWorkshop] = useState(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [detailError, setDetailError] = useState('');
+  const [enabledNotificationIds, setEnabledNotificationIds] = useState(() => new Set());
   const user = getStoredUser();
   const fullName = user.name || user.fullName || 'Nama Lengkap';
   const greetingName = user.nickname || fullName;
@@ -214,7 +228,7 @@ export function UserWorkshopSchedule() {
               id: `transaction-${transaction.id}`,
               title: transaction.itemTitle,
               method: transaction.paymentChannel || transaction.paymentMethod || 'Workshop',
-              location: 'Akses aktif setelah pembayaran disetujui',
+              location: '',
               startsAt: transaction.paidAt || transaction.createdAt,
               timeText: '',
               status: 'Terdaftar',
@@ -247,6 +261,13 @@ export function UserWorkshopSchedule() {
   const schedules = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
     const filteredWorkshops = workshops.filter((workshop) => {
+      const status = getWorkshopStatus(workshop);
+      const methodClass = getWorkshopMethodClass(workshop.method || 'Online');
+      if (filterMode === 'upcoming' && status !== 'Akan Datang') return false;
+      if (filterMode === 'live' && status !== 'Sedang Berlangsung') return false;
+      if (filterMode === 'done' && status !== 'Selesai') return false;
+      if (filterMode === 'online' && methodClass !== 'online') return false;
+      if (filterMode === 'offline' && methodClass !== 'offline') return false;
       if (!query) return true;
       return [workshop.title, workshop.category, workshop.method, workshop.location, workshop.meetingUrl]
         .filter(Boolean)
@@ -262,7 +283,35 @@ export function UserWorkshopSchedule() {
       }
       return (parseWorkshopDate(left.startsAt)?.getTime() || 0) - (parseWorkshopDate(right.startsAt)?.getTime() || 0);
     });
-  }, [workshops, searchTerm, sortMode]);
+  }, [filterMode, workshops, searchTerm, sortMode]);
+
+  const totalPages = Math.max(1, Math.ceil(schedules.length / WORKSHOP_PAGE_SIZE));
+  const visiblePages = useMemo(() => {
+    const pages = [];
+    const start = Math.max(1, Math.min(currentPage - 1, totalPages - 2));
+    const end = Math.min(totalPages, start + 2);
+
+    for (let page = start; page <= end; page += 1) {
+      pages.push(page);
+    }
+
+    return pages;
+  }, [currentPage, totalPages]);
+
+  const paginatedSchedules = useMemo(() => {
+    const startIndex = (currentPage - 1) * WORKSHOP_PAGE_SIZE;
+    return schedules.slice(startIndex, startIndex + WORKSHOP_PAGE_SIZE);
+  }, [currentPage, schedules]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterMode, searchTerm, sortMode]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   function handleLogout() {
     window.localStorage.removeItem('arduflow_user');
@@ -300,6 +349,21 @@ export function UserWorkshopSchedule() {
     setSelectedWorkshop(null);
     setDetailError('');
     setIsLoadingDetail(false);
+  }
+
+  function toggleNotification(scheduleId) {
+    setEnabledNotificationIds((current) => {
+      const next = new Set(current);
+      const key = String(scheduleId || '');
+
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+
+      return next;
+    });
   }
 
   const selectedStatus = selectedWorkshop ? getWorkshopStatus(selectedWorkshop) : '';
@@ -389,10 +453,15 @@ export function UserWorkshopSchedule() {
                       <option>Status</option>
                     </select>
                   </div>
-                  <button className="user-workshop-filter" type="button">
+                  <label className="user-workshop-filter">
+                    <span className="sr-only">Filter workshop</span>
                     <FilterIcon />
-                    <span>Filter</span>
-                  </button>
+                    <select value={filterMode} aria-label="Filter workshop" onChange={(event) => setFilterMode(event.target.value)}>
+                      {WORKSHOP_FILTER_OPTIONS.map((option) => (
+                        <option value={option.value} key={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
               </div>
             </div>
@@ -408,39 +477,23 @@ export function UserWorkshopSchedule() {
                 <span>Detail</span>
               </div>
               {isLoadingWorkshops ? (
-                <div className="user-workshop-table__row" role="row">
+                <div className="user-workshop-table__row user-workshop-table__row--state" role="row">
                   <span>Memuat jadwal workshop...</span>
-                  <span>-</span>
-                  <span>-</span>
-                  <span>-</span>
-                  <span>-</span>
-                  <span>-</span>
-                  <span>-</span>
                 </div>
               ) : workshopError ? (
-                <div className="user-workshop-table__row" role="row">
+                <div className="user-workshop-table__row user-workshop-table__row--state" role="row">
                   <span>{workshopError}</span>
-                  <span>-</span>
-                  <span>-</span>
-                  <span>-</span>
-                  <span>-</span>
-                  <span>-</span>
-                  <span>-</span>
                 </div>
               ) : schedules.length === 0 ? (
-                <div className="user-workshop-table__row" role="row">
+                <div className="user-workshop-table__row user-workshop-table__row--state" role="row">
                   <span>Belum ada workshop yang sudah aktif. Workshop akan muncul setelah pembayaran disetujui admin.</span>
-                  <span>-</span>
-                  <span>-</span>
-                  <span>-</span>
-                  <span>-</span>
-                  <span>-</span>
-                  <span>-</span>
                 </div>
               ) : (
-                schedules.map((schedule) => {
+                paginatedSchedules.map((schedule) => {
                   const status = getWorkshopStatus(schedule);
                   const method = schedule.method || 'Online';
+                  const notificationKey = String(schedule.id || '');
+                  const isNotificationActive = enabledNotificationIds.has(notificationKey);
                   return (
                     <div className="user-workshop-table__row" role="row" key={schedule.id}>
                       <span>{schedule.title || 'Workshop tanpa judul'}</span>
@@ -456,22 +509,28 @@ export function UserWorkshopSchedule() {
                           {status}
                         </b>
                       </span>
-                      <button
-                        className={`user-workshop-notif${status === 'Akan Datang' ? ' user-workshop-notif--active' : ''}`}
-                        type="button"
-                        aria-label="Notifikasi workshop"
-                      >
-                        <img src={bellIcon} alt="" aria-hidden="true" />
-                      </button>
-                      <button
-                        className="user-workshop-detail-button"
-                        type="button"
-                        aria-label={`Lihat detail ${schedule.title || 'workshop'}`}
-                        onClick={() => handleOpenDetail(schedule)}
-                      >
-                        <DetailIcon />
-                        <span>Detail</span>
-                      </button>
+                      <span className="user-workshop-table__action-cell">
+                        <button
+                          className={`user-workshop-notif${isNotificationActive ? ' user-workshop-notif--active' : ''}`}
+                          type="button"
+                          aria-pressed={isNotificationActive}
+                          aria-label={`${isNotificationActive ? 'Matikan' : 'Aktifkan'} notifikasi ${schedule.title || 'workshop'}`}
+                          onClick={() => toggleNotification(schedule.id)}
+                        >
+                          <img src={bellIcon} alt="" aria-hidden="true" />
+                        </button>
+                      </span>
+                      <span className="user-workshop-table__action-cell">
+                        <button
+                          className="user-workshop-detail-button"
+                          type="button"
+                          aria-label={`Lihat detail ${schedule.title || 'workshop'}`}
+                          onClick={() => handleOpenDetail(schedule)}
+                        >
+                          <DetailIcon />
+                          <span>Detail</span>
+                        </button>
+                      </span>
                     </div>
                   );
                 })
@@ -479,11 +538,33 @@ export function UserWorkshopSchedule() {
             </div>
 
             <nav className="user-workshop-pagination" aria-label="Pagination jadwal workshop">
-              <button type="button" aria-label="Halaman sebelumnya">&lsaquo;</button>
-              <button className="user-workshop-pagination__active" type="button">1</button>
-              <button type="button">2</button>
-              <button type="button">3</button>
-              <button type="button" aria-label="Halaman berikutnya">&rsaquo;</button>
+              <button
+                type="button"
+                aria-label="Halaman sebelumnya"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              >
+                &lsaquo;
+              </button>
+              {visiblePages.map((page) => (
+                <button
+                  className={page === currentPage ? 'user-workshop-pagination__active' : ''}
+                  type="button"
+                  aria-current={page === currentPage ? 'page' : undefined}
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                type="button"
+                aria-label="Halaman berikutnya"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              >
+                &rsaquo;
+              </button>
             </nav>
           </section>
         </main>

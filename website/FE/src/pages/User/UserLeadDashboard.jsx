@@ -93,6 +93,7 @@ export function UserLeadDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [filterType, setFilterType] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedLead, setSelectedLead] = useState(null);
 
   const user = getStoredUser();
@@ -140,12 +141,35 @@ export function UserLeadDashboard() {
   const latestLead = leads[0] || null;
 
   const displayedLeads = useMemo(() => {
-    if (filterType === 'all') {
-      return leads;
-    }
+    const query = searchTerm.trim().toLowerCase();
+    const filteredByType = filterType === 'all'
+      ? leads
+      : leads.filter((lead) => lead.form_type === filterType);
 
-    return leads.filter((lead) => lead.form_type === filterType);
-  }, [filterType, leads]);
+    if (!query) return filteredByType;
+
+    return filteredByType.filter((lead) => {
+      const metaText = visibleMetaEntries(lead.meta)
+        .map(([key, value]) => `${formatMetaLabel(key)} ${value}`)
+        .join(' ');
+
+      return [
+        categoryLabels[lead.form_type],
+        lead.form_type,
+        lead.topic,
+        lead.message_short,
+        lead.message,
+        lead.status,
+        lead.name,
+        lead.email,
+        lead.whatsapp,
+        formatHistoryDate(lead.created_at, lead.created_at_label),
+        metaText,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query));
+    });
+  }, [filterType, leads, searchTerm]);
 
   const statusText = Object.entries(summary.statusCounts || {})
     .map(([status, count]) => `${status}: ${count}`)
@@ -265,12 +289,24 @@ export function UserLeadDashboard() {
                 </p>
               </div>
 
-              <select value={filterType} onChange={(event) => setFilterType(event.target.value)}>
-                <option value="all">Semua kategori</option>
-                <option value="lead">Kontak</option>
-                <option value="collaboration">Kolaborasi</option>
-                <option value="workshop">Workshop</option>
-              </select>
+              <div className="user-leads-table-controls">
+                <label className="user-leads-search">
+                  <span className="sr-only">Cari history lead</span>
+                  <input
+                    type="search"
+                    placeholder="Cari lead"
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                  />
+                </label>
+
+                <select value={filterType} onChange={(event) => setFilterType(event.target.value)}>
+                  <option value="all">Semua kategori</option>
+                  <option value="lead">Kontak</option>
+                  <option value="collaboration">Kolaborasi</option>
+                  <option value="workshop">Workshop</option>
+                </select>
+              </div>
             </div>
 
             {isLoading ? (
