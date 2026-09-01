@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AdminSidebar } from './AdminSidebar.jsx';
-import { AdminActionDropdown } from './AdminActionDropdown.jsx';
 import {
   getInitialAdminSidebarCollapsed,
   persistAdminSidebarCollapsed,
@@ -13,17 +12,17 @@ import fileIcon from '../../assets/icons/icon-file-text-1.svg';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
 import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
 import zapIcon from '../../assets/icons/icon-zap-1.svg';
-import { apiEndpoint } from '../../services/apiEndpoints.js';
 
-const TUTORIAL_API_URL = (
-  apiEndpoint(import.meta.env.VITE_TUTORIAL_API_URL, '/api/')
+const DEPLOY_URL = (
+  import.meta.env.VITE_DEPLOY_URL ||
+  'https://arduflow.indobilliard.com/apk/uploads/web-arduflow-deploy-alfha/'
 ).replace(/\/+$/, '');
 
 const MATERI_API_URL =
-  apiEndpoint(import.meta.env.VITE_MATERI_API_URL, '/api/materi-api.php');
+  `${DEPLOY_URL}/api/materi-api.php`;
 
 const MATERI_IMAGE_BASE_URL =
-  apiEndpoint(import.meta.env.VITE_MATERI_IMAGE_BASE_URL, '/uploads/materi');
+  `${DEPLOY_URL}/uploads/materi`;
 
 function extractMateriImageFileName(value) {
   const candidate = String(value || '').trim();
@@ -854,6 +853,10 @@ export function AdminTutorial() {
               >
                 + Tambah Materi
               </a>
+
+              <button type="button" onClick={fetchTutorials}>
+                {isLoading ? 'Memuat...' : 'Muat Ulang Data'}
+              </button>
             </div>
 
             <section className="admin-tutorial-table-card">
@@ -1000,7 +1003,7 @@ export function AdminTutorial() {
 
                             <a
                               className="admin-article-action"
-                              href={`/admin/tutorial/edit?id=${encodeURIComponent(
+                              href={`/admin/tutorial/tambah?id=${encodeURIComponent(
                                 item.id
                               )}`}
                               aria-label={`Edit ${item.title}`}
@@ -1156,6 +1159,9 @@ export function AdminTutorial() {
               <h2>Aksi Cepat</h2>
               <div>
                 <a href="/admin/tutorial/tambah">Buat Tutorial Baru</a>
+                <button type="button" onClick={fetchTutorials}>
+                  Muat Ulang Data
+                </button>
                 <button type="button">Export Data Tutorial</button>
                 <button type="button">Cek Link Rusak</button>
                 <button type="button">Reorder Materi Belajar</button>

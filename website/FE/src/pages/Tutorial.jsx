@@ -11,24 +11,110 @@ import boardTutorialImage from '../assets/images/Mengenal Board Arduino UNO.jpg'
 import dhtTutorialImage from '../assets/images/Menggunakan Sensor DHT22.jpg';
 import ledTutorialImage from '../assets/images/Menghubungkan LED ke Arduino.jpg';
 import troubleshootingTutorialImage from '../assets/images/Troubleshooting Board Tidak Terdeteksi.jpg';
-import { apiEndpoint } from '../services/apiEndpoints.js';
 
 
-const TUTORIAL_API_URL = (
-  apiEndpoint(import.meta.env.VITE_TUTORIAL_API_URL, '/api/')
+const DEPLOY_URL = (
+  import.meta.env.VITE_DEPLOY_URL ||
+  'https://arduflow.indobilliard.com/apk/uploads/web-arduflow-deploy-alfha/'
 ).replace(/\/+$/, '');
 
-const ARTICLE_API_URL =
-  `${TUTORIAL_API_URL}/materi-api.php`;
+const ARTICLE_API_URL = (
+  import.meta.env.VITE_MATERI_API_URL ||
+  `${DEPLOY_URL}/api/materi-api.php`
+).replace(/\/+$/, '');
+
+const MATERI_IMAGE_BASE_URL = `${DEPLOY_URL}/uploads/materi`;
+
+function toBoolean(value, fallback = true) {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'number') {
+    return value !== 0;
+  }
+
+  const normalized = String(value).trim().toLowerCase();
+
+  if (['1', 'true', 'yes', 'on', 'aktif', 'active'].includes(normalized)) {
+    return true;
+  }
+
+  if (['0', 'false', 'no', 'off', 'nonaktif', 'inactive'].includes(normalized)) {
+    return false;
+  }
+
+  return fallback;
+}
+
+function extractMateriImageFileName(value) {
+  const candidate = String(value || '').trim();
+
+  if (!candidate) {
+    return '';
+  }
+
+  try {
+    const parsed = new URL(candidate, window.location.origin);
+    const queryFile = parsed.searchParams.get('file');
+
+    if (queryFile) {
+      return String(queryFile).split(/[\\/]/).pop() || '';
+    }
+
+    if (/\/uploads\/materi\//i.test(parsed.pathname)) {
+      return decodeURIComponent(parsed.pathname.split('/').pop() || '');
+    }
+  } catch {
+    // Bukan URL; lanjut sebagai nama file/path.
+  }
+
+  if (/^[^/\\]+\.(jpe?g|png|webp|gif|svg)$/i.test(candidate)) {
+    return candidate;
+  }
+
+  if (/(?:uploads|storage)\/materi\//i.test(candidate)) {
+    return candidate.split(/[\\/]/).pop() || '';
+  }
+
+  return '';
+}
+
+function resolveMateriImageUrl(value, fallbackFileName = '') {
+  const candidate = String(value || '').trim();
+
+  if (/^(data:image\/|blob:)/i.test(candidate)) {
+    return candidate;
+  }
+
+  const fileName =
+    extractMateriImageFileName(fallbackFileName) ||
+    extractMateriImageFileName(candidate);
+
+  if (fileName) {
+    return `${MATERI_IMAGE_BASE_URL}/${encodeURIComponent(fileName)}`;
+  }
+
+  if (/^https?:\/\//i.test(candidate)) {
+    return candidate;
+  }
+
+  return '';
+}
 
 function normalizeTutorialArticle(item = {}) {
-  const cardImageUrl =
+  const cardImageUrl = resolveMateriImageUrl(
     item.card_image_url ||
-    (item.card_image_name
-      ? `${ARTICLE_API_URL}?action=image&scope=card&file=${encodeURIComponent(
-          item.card_image_name
-        )}`
-      : '');
+      item.cardImageUrl ||
+      '',
+    item.card_image_name ||
+      item.cardImageName ||
+      ''
+  );
 
   return {
     id: item.id,
@@ -70,15 +156,15 @@ function normalizeTutorialArticle(item = {}) {
       item.page_settings?.status ||
       'draft',
 
-    active:
-      item.active ??
-      item.page_settings?.active ??
-      true,
+    active: toBoolean(
+      item.active ?? item.page_settings?.active,
+      true
+    ),
 
-    showOnPage:
-      item.show_on_page ??
-      item.page_settings?.show_on_page ??
-      true,
+    showOnPage: toBoolean(
+      item.show_on_page ?? item.page_settings?.show_on_page,
+      true
+    ),
 
     featured:
       item.featured ??
@@ -136,6 +222,17 @@ function normalizeTutorialArticle(item = {}) {
       item.cta?.publish_schedule ||
       null,
 
+    chapters: Array.isArray(item.chapters)
+      ? item.chapters
+      : [],
+
+    learningObjectives:
+      Array.isArray(item.learning_objectives)
+        ? item.learning_objectives
+        : Array.isArray(item.learning_information?.learning_objectives)
+          ? item.learning_information.learning_objectives
+          : [],
+
     slides: Array.isArray(item.slides)
       ? item.slides
       : [],
@@ -185,7 +282,7 @@ async function fetchTutorialArticles() {
   if (!response.ok) {
     throw new Error(
       result.message ||
-      `API tutorial mengembalikan HTTP ${response.status}.`
+      `materi-api.php mengembalikan HTTP ${response.status}.`
     );
   }
 
@@ -634,7 +731,14 @@ export function Tutorial() {
             {starterMaterials.map((material) => (
               <article className="starter-material-card" key={material.id}>
                 <div className={`starter-material-visual ${material.visual}`}>
-                  <img src={material.image} alt="" />
+                  <img
+                    src={material.image}
+                    alt={material.title}
+                    loading="lazy"
+                    onError={(event) => {
+                      event.currentTarget.style.display = 'none';
+                    }}
+                  />
                   <span />
                 </div>
                 <div className="starter-material-content">
@@ -755,7 +859,14 @@ export function Tutorial() {
             {visibleTutorials.map((tutorial, index) => (
               <article className="all-tutorial-row" id={`materi-${tutorial.id}`} key={tutorial.id}>
                 <div className={`all-tutorial-thumb ${visualClasses[index % visualClasses.length]}`}>
-                  <img src={tutorialImage(tutorial, index)} alt="" />
+                  <img
+                    src={tutorialImage(tutorial, index)}
+                    alt={tutorial.title}
+                    loading="lazy"
+                    onError={(event) => {
+                      event.currentTarget.style.display = 'none';
+                    }}
+                  />
                 </div>
                 <div className="all-tutorial-row-copy">
                   <p>{categoryLabel(tutorial.category)}</p>

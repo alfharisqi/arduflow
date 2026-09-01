@@ -7,12 +7,13 @@ import {
   showPromptAlert,
   showSuccessAlert,
 } from '../../utils/alerts.js';
-import { apiEndpoint } from '../../services/apiEndpoints.js';
+const DEPLOY_URL = (
+  import.meta.env.VITE_DEPLOY_URL ||
+  'https://arduflow.indobilliard.com/apk/uploads/web-arduflow-deploy-alfha/'
+).replace(/\/+$/, '');
 
-const MATERI_API_URL =
-  apiEndpoint(import.meta.env.VITE_MATERI_API_URL, '/api/materi-api.php');
-const MATERI_IMAGE_BASE_URL =
-  apiEndpoint(import.meta.env.VITE_MATERI_IMAGE_BASE_URL, '/uploads/materi');
+const MATERI_API_URL = `${DEPLOY_URL}/api/materi-api.php`;
+const MATERI_IMAGE_BASE_URL = `${DEPLOY_URL}/uploads/materi`;
 const initialSlides = [];
 
 const createDefaultChapter = () => ({
