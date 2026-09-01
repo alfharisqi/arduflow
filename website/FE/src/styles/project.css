@@ -853,7 +853,8 @@
 }
 
 .partner-item span {
-  display: block;
+  display: grid;
+  place-items: center;
   position: absolute;
   left: 0;
   top: 0;
@@ -862,6 +863,8 @@
   background: var(--navy-2);
   border: 1px solid var(--line);
   border-radius: 6px;
+  color: var(--white);
+  font: 800 24px/1 "Inter", sans-serif;
   overflow: hidden;
 }
 

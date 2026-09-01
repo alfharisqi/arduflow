@@ -6,9 +6,12 @@ import partnerPoliwangiImage from "../assets/images/partner-poliwangi.png";
 import partnerSmknGlagahImage from "../assets/images/partner-smkn-glagah.png";
 import partnerUmmImage from "../assets/images/partner-umm.png";
 import projectHeroImage from "../assets/images/project-hero-reference.png";
+import { API_BASE_URL } from "../services/apiEndpoints.js";
+import { fetchPartners } from "../services/partnerApi.js";
 import { fetchProjectSubmissions, isPublicProject } from "../services/projectApi.js";
+import { fetchTestimonials } from "../services/testimonialApi.js";
 
-const partners = [
+const fallbackPartners = [
   { label: "SMKN 1 GLAGAH", image: partnerSmknGlagahImage, featured: true },
   { label: "POLINEMA", image: partnerPolinemaImage },
   { label: "KOMUNITAS", image: partnerKomunitasImage },
@@ -47,6 +50,30 @@ function projectImage(project) {
 
 function toolLabel(tool) {
   return String(tool?.name || tool?.title || tool || "").trim();
+}
+
+function normalizeText(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function isApprovedPartner(partner) {
+  return ["aktif", "active", "approved", "published"].includes(normalizeText(partner?.status));
+}
+
+function resolveAssetUrl(value) {
+  const rawUrl = String(value || "").trim();
+  if (!rawUrl) return "";
+  if (/^(https?:\/\/|data:|blob:)/i.test(rawUrl)) return rawUrl;
+
+  return `${API_BASE_URL}${rawUrl.startsWith("/") ? rawUrl : `/${rawUrl}`}`;
+}
+
+function partnerLogoUrl(partner) {
+  return resolveAssetUrl(partner?.logoUrl || partner?.logo_url || partner?.image || "");
+}
+
+function partnerInitial(partner) {
+  return String(partner?.name || partner?.label || "P").trim().slice(0, 1).toUpperCase();
 }
 
 function buildMetrics(projects) {
@@ -229,7 +256,14 @@ function ContentCollections({ projects }) {
   );
 }
 
-function CommunityPartners() {
+function CommunityPartners({ partners, testimonials }) {
+  const visiblePartners = partners.length ? partners : fallbackPartners;
+  const featuredTestimonial = testimonials[0] || {
+    quote: "Arduflow membantu peserta memahami alur kerja Arduino dan IoT tanpa langsung terbebani coding. Visual programming sangat membantu.",
+    name: "Budi Santoso",
+    role: "Guru SMKN 1 Glagah",
+  };
+
   return (
     <section className="community-partners" aria-labelledby="community-title">
       <div className="community-partners__inner">
@@ -239,26 +273,27 @@ function CommunityPartners() {
             <h2 id="community-title">Cerita dari pengguna</h2>
           </div>
           <article className="testimonial-card">
-            <blockquote>
-              "Arduflow membantu peserta memahami alur kerja Arduino dan IoT
-              tanpa langsung terbebani coding. Visual programming sangat
-              membantu."
-            </blockquote>
-            <strong>BUDI SANTOSO</strong>
-            <span>Guru SMKN 1 Glagah</span>
+            <blockquote>"{featuredTestimonial.quote}"</blockquote>
+            <strong>{String(featuredTestimonial.name || "Pengguna Arduflow").toUpperCase()}</strong>
+            <span>{featuredTestimonial.role || "Pengguna Arduflow"}</span>
           </article>
         </div>
         <div className="partner-panel" aria-labelledby="partners-title">
           <h2 id="partners-title">Partner &amp; Kolaborator</h2>
           <div className="partner-list">
-            {partners.map((partner) => (
-              <div className="partner-item" key={partner.label}>
+            {visiblePartners.map((partner) => {
+              const logoUrl = partnerLogoUrl(partner);
+              const partnerName = partner.name || partner.label || "Partner";
+
+              return (
+              <div className="partner-item" key={partner.id || partnerName}>
                 <span className={partner.featured ? "partner-logo featured" : "partner-logo"} aria-hidden="true">
-                  {partner.image && <img src={partner.image} alt="" />}
+                  {logoUrl ? <img src={logoUrl} alt="" /> : partnerInitial(partner)}
                 </span>
-                <p>{partner.label}</p>
+                <p>{partnerName}</p>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
@@ -303,6 +338,8 @@ function FinalCta() {
 
 export function Project() {
   const [projects, setProjects] = useState([]);
+  const [approvedPartners, setApprovedPartners] = useState([]);
+  const [approvedTestimonials, setApprovedTestimonials] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -324,6 +361,47 @@ export function Project() {
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchPartners()
+      .then((payload) => {
+        const rows = Array.isArray(payload?.partners) ? payload.partners : [];
+        const activePartners = rows
+          .filter(isApprovedPartner)
+          .sort((left, right) => Number(right.featured || right.showHomepage || 0) - Number(left.featured || left.showHomepage || 0))
+          .slice(0, 5);
+
+        if (isMounted) setApprovedPartners(activePartners);
+      })
+      .catch((error) => {
+        console.error("Gagal memuat partner:", error);
+        if (isMounted) setApprovedPartners([]);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchTestimonials({ status: "Disetujui" })
+      .then((payload) => {
+        const rows = Array.isArray(payload?.testimonials) ? payload.testimonials : [];
+        if (isMounted) setApprovedTestimonials(rows.filter((item) => item.consentPublic).slice(0, 3));
+      })
+      .catch((error) => {
+        console.error("Gagal memuat testimoni:", error);
+        if (isMounted) setApprovedTestimonials([]);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const latestProjects = projects.slice(0, 6);
   const featuredProjects = projects.slice(0, 3);
   const metrics = buildMetrics(projects);
@@ -334,7 +412,7 @@ export function Project() {
       <FeaturedProjects projects={featuredProjects} loading={loading} />
       <ProjectLibrary projects={latestProjects} loading={loading} />
       <ContentCollections projects={projects} />
-      <CommunityPartners />
+      <CommunityPartners partners={approvedPartners} testimonials={approvedTestimonials} />
       <ProjectFaq />
       <FinalCta />
     </>
