@@ -4,6 +4,7 @@ import { WorkshopImageCropper } from '../../features/profile-image-crop/Workshop
 import { GalleryRichTextEditor } from '../../components/GalleryRichTextEditor.jsx';
 import { AdminNotificationButton } from './AdminChrome.jsx';
 import { AdminSidebar } from './AdminSidebar.jsx';
+import { AdminActionDropdown } from './AdminActionDropdown.jsx';
 import {
   getInitialAdminSidebarCollapsed,
   persistAdminSidebarCollapsed,
@@ -22,6 +23,13 @@ const GALLERY_API_URL = apiEndpoint(
   import.meta.env.VITE_GALLERY_API_URL,
   '/api/galery-api.php',
 );
+
+const GALLERY_FORM_TABS = [
+  { id: 'basic', label: 'Info Dasar' },
+  { id: 'media', label: 'Media' },
+  { id: 'publish', label: 'Publish' },
+];
+
 function fileToJson(file) {
   return file
     ? { name: file.name, size: file.size, type: file.type || 'application/octet-stream' }
@@ -124,6 +132,43 @@ function GalleryThumbnail({ item, className = 'admin-gallery-thumb' }) {
   );
 }
 
+function GalleryUploadField({ label, hint, error, children }) {
+  return (
+    <label className={`project-upload-field admin-gallery-form-field${error ? ' has-error' : ''}`}>
+      <span>{label}</span>
+      {children}
+      {error ? <em className="project-upload-error">{error}</em> : hint ? <small>{hint}</small> : null}
+    </label>
+  );
+}
+
+function GalleryImageIcon() {
+  return (
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="8.5" cy="8.5" r="1.7" stroke="currentColor" strokeWidth="1.8" />
+      <path d="m5 17 4.3-4.3a1.4 1.4 0 0 1 2 0L13 14.4l2.3-2.3a1.4 1.4 0 0 1 2 0L21 15.8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function GalleryPublishIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="m21 3-8.8 18-3-7.8L1.5 10 21 3Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function GallerySaveIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M5 3h12l2 2v16H5V3Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M8 3v6h8V3M8 21v-7h8v7" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function stripHtml(value) {
   const element = document.createElement('div');
   element.innerHTML = value || '';
@@ -213,6 +258,7 @@ function AdminGalleryUploadForm({ onCancel, onSaved, mode = 'create', initialGal
   const [formError, setFormError] = useState('');
   const [jsonResult, setJsonResult] = useState(null);
   const [coverCrop, setCoverCrop] = useState(null);
+  const [activeSection, setActiveSection] = useState('basic');
 
   useEffect(() => {
     if (!formData.coverImage) {
@@ -443,151 +489,187 @@ function AdminGalleryUploadForm({ onCancel, onSaved, mode = 'create', initialGal
     setMessage('');
   };
 
-  const previewTitle = formData.title.trim() || 'Judul Kegiatan';
-  const previewDescription = stripHtml(formData.description) || 'Deskripsi kegiatan akan tampil disini sebagai ringkasan singkat.';
+  const descriptionText = stripHtml(formData.description).trim();
+  const completionItems = [
+    { label: 'Info dasar', done: Boolean(formData.title.trim() && formData.tag && descriptionText) },
+    { label: 'Cover kegiatan', done: Boolean(formData.coverImage || coverPreviewUrl) },
+    { label: 'Uploader', done: Boolean(formData.userName.trim() && formData.eventDate) },
+    { label: 'Publish', done: Boolean(formData.title.trim() && formData.tag && descriptionText && formData.userName.trim() && formData.eventDate) },
+  ];
 
   return (
     <>
-    <section className="admin-gallery-upload-page" aria-label="Form upload kegiatan">
-      <form className="admin-gallery-upload-shell" onSubmit={handleSubmit} noValidate>
-        <div className="admin-gallery-upload-main">
-          <h1>{mode === 'edit' ? 'Edit Kegiatan' : 'Form Upload Kegiatan'}</h1>
+    <section className="project-upload-page admin-gallery-upload-page" aria-labelledby="admin-gallery-upload-title">
+      <h2 id="admin-gallery-upload-title">{mode === 'edit' ? 'Edit Galeri' : 'Upload Galeri Baru'}</h2>
 
-          <label className="admin-gallery-upload-label">Upload Cover Kegiatan</label>
-          <label className={`admin-gallery-upload-cover-drop${errors.coverImage ? ' is-invalid' : ''}`}>
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/jpg"
-              onChange={handleCoverImageChange}
-            />
-            <span className="admin-gallery-upload-cover-icon">▧</span>
-            <strong>Upload gambar sampul</strong>
-            <small>Rekomendasi: 1280×720px (16:9)</small>
-            <em>Pilih Gambar</em>
-          </label>
-          {mode === 'edit' && initialGallery?.coverPath && !formData.coverImage ? (
-            <p className="admin-gallery-upload-message">Cover lama tetap digunakan jika tidak memilih gambar baru.</p>
-          ) : null}
-          {errors.coverImage && <p className="admin-gallery-upload-error">{errors.coverImage}</p>}
+      {mode === 'edit' ? (
+        <p className="project-upload-edit-notice">
+          Mode edit galeri aktif{initialGallery?.id ? ` untuk ID galeri ${initialGallery.id}` : ''}. Sesuaikan data dokumentasi melalui form ini.
+        </p>
+      ) : null}
 
-          <label className="admin-gallery-upload-field">
-            <span>Tag Kegiatan <b>*</b></span>
-            <select
-              className={errors.tag ? 'is-invalid' : ''}
-              value={formData.tag}
-              onChange={(event) => updateField('tag', event.target.value)}
-            >
-              <option value="">Pilih atau ketik tag</option>
-              <option value="Workshop">Workshop</option>
-              <option value="Program">Program</option>
-              <option value="Komunitas">Komunitas</option>
-              <option value="Partner">Partner</option>
-              <option value="Event">Event</option>
-              <option value="Dokumentasi">Dokumentasi</option>
-            </select>
-            {errors.tag && <small>{errors.tag}</small>}
-          </label>
+      <section className="project-upload-actions project-upload-actions--top admin-gallery-upload-actions-top" aria-label="Aksi form galeri">
+        <button className="project-upload-publish" type="submit" form="admin-gallery-upload-form"><GalleryPublishIcon /> Simpan Galeri</button>
+        <button className="project-upload-draft" type="button" onClick={handleDraft}><GallerySaveIcon /> Simpan Draft</button>
+        <button className="project-upload-cancel" type="button" onClick={onCancel}>Batal</button>
+      </section>
 
-          <label className="admin-gallery-upload-field">
-            <span>Judul Kegiatan <b>*</b></span>
-            <input
-              className={errors.title ? 'is-invalid' : ''}
-              type="text"
-              placeholder="Masukkan judul kegiatan"
-              value={formData.title}
-              onChange={(event) => updateField('title', event.target.value)}
-            />
-            {errors.title && <small>{errors.title}</small>}
-          </label>
+      <nav className="project-upload-tabs admin-gallery-upload-tabs" aria-label="Navigasi form galeri">
+        {GALLERY_FORM_TABS.map((tab) => (
+          <button
+            type="button"
+            className={activeSection === tab.id ? 'is-active' : ''}
+            onClick={() => setActiveSection(tab.id)}
+            key={tab.id}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </nav>
 
-          <div className="admin-gallery-upload-field">
-            <span>Deskripsi Kegiatan <b>*</b></span>
-            <GalleryRichTextEditor
-              value={formData.description}
-              hasError={Boolean(errors.description)}
-              onChange={(value) => updateField('description', value)}
-            />
-            {errors.description && <small>{errors.description}</small>}
-          </div>
+      <div className="project-upload-layout admin-gallery-upload-layout">
+        <form className="project-upload-main admin-gallery-upload-main" id="admin-gallery-upload-form" onSubmit={handleSubmit} noValidate>
+          <section className={`project-upload-form-section${activeSection === 'basic' ? ' is-active' : ''}`}>
+            <GalleryUploadField label="Judul Kegiatan *" hint="Gunakan judul yang jelas untuk halaman galeri" error={errors.title}>
+              <input
+                type="text"
+                placeholder="Masukkan judul kegiatan"
+                value={formData.title}
+                onChange={(event) => updateField('title', event.target.value)}
+                aria-invalid={Boolean(errors.title)}
+              />
+            </GalleryUploadField>
 
-          <label className="admin-gallery-upload-field">
-            <span>Nama User <b>*</b></span>
-            <input
-              className={errors.userName ? 'is-invalid' : ''}
-              type="text"
-              placeholder="Masukkan nama user"
-              value={formData.userName}
-              onChange={(event) => updateField('userName', event.target.value)}
-            />
-            {errors.userName && <small>{errors.userName}</small>}
-          </label>
+            <GalleryUploadField label="Tag Kegiatan *" hint="Pilih kategori dokumentasi yang paling sesuai" error={errors.tag}>
+              <select
+                value={formData.tag}
+                onChange={(event) => updateField('tag', event.target.value)}
+                aria-invalid={Boolean(errors.tag)}
+              >
+                <option value="">Pilih tag galeri</option>
+                <option value="Workshop">Workshop</option>
+                <option value="Program">Program</option>
+                <option value="Komunitas">Komunitas</option>
+                <option value="Partner">Partner</option>
+                <option value="Event">Event</option>
+                <option value="Dokumentasi">Dokumentasi</option>
+              </select>
+            </GalleryUploadField>
 
-          <label className="admin-gallery-upload-field">
-            <span>Tanggal Kegiatan <b>*</b></span>
-            <input
-              className={errors.eventDate ? 'is-invalid' : ''}
-              type="date"
-              value={formData.eventDate}
-              onChange={(event) => updateField('eventDate', event.target.value)}
-            />
-            {errors.eventDate && <small>{errors.eventDate}</small>}
-          </label>
-
-          <label className="admin-gallery-upload-field">
-            <span>Link / Detail <em>(Opsional)</em></span>
-            <input
-              type="url"
-              placeholder="Contoh: https://..."
-              value={formData.detailLink}
-              onChange={(event) => updateField('detailLink', event.target.value)}
-            />
-          </label>
-
-          <label className="admin-gallery-upload-field">
-            <span>Catatan <em>(Opsional)</em></span>
-            <textarea
-              placeholder="Tulis catatan tambahan..."
-              value={formData.note}
-              onChange={(event) => updateField('note', event.target.value)}
-            />
-          </label>
-
-          {message && <p className="admin-gallery-upload-message">{message}</p>}
-
-          <div className="admin-gallery-upload-actions">
-            <button type="submit" className="is-primary">✈ Upload</button>
-            <button type="button" onClick={handleDraft}>▣ Simpan Draft</button>
-            <button type="button" className="is-plain" onClick={onCancel}>Batal</button>
-          </div>
-        </div>
-
-        <aside className="admin-gallery-upload-preview-card" aria-label="Preview kartu kegiatan">
-          <h2>Preview Kartu</h2>
-          <p>Pratnjau tampilan kartu berdasarkan data yang diisi.</p>
-          <article className="admin-gallery-upload-card-preview">
-            <div className="admin-gallery-upload-card-image">
-              {coverPreviewUrl ? (
-                <img src={coverPreviewUrl} alt="Preview cover kegiatan" />
-              ) : (
-                <strong>arduflow<br /><span>community</span></strong>
-              )}
+            <div className={`project-upload-field admin-gallery-form-field${errors.description ? ' has-error' : ''}`}>
+              <span>Deskripsi Kegiatan *</span>
+              <GalleryRichTextEditor
+                value={formData.description}
+                hasError={Boolean(errors.description)}
+                onChange={(value) => updateField('description', value)}
+              />
+              {errors.description ? <em className="project-upload-error">{errors.description}</em> : <small>Tulis dokumentasi, highlight kegiatan, dan informasi penting.</small>}
             </div>
-            <div className="admin-gallery-upload-card-body">
-              <span className="admin-gallery-upload-preview-tag">{formData.tag || 'Tag'}</span>
-              <h3>{previewTitle}</h3>
-              <p>{previewDescription}</p>
-              <hr />
-              <div className="admin-gallery-upload-author">
-                <span aria-hidden="true">▧</span>
-                <div>
-                  <strong>{formData.userName.trim() || 'Nama Lengkap'}</strong>
-                  <small>{formData.eventDate || 'mail@mail.com'}</small>
-                </div>
-              </div>
+
+            <div className="project-upload-inline-grid admin-gallery-upload-inline-grid">
+              <section className="project-upload-card admin-gallery-upload-card admin-gallery-upload-extra">
+                <h3>Informasi Uploader</h3>
+                <GalleryUploadField label="Nama User *" error={errors.userName}>
+                  <input
+                    type="text"
+                    placeholder="Masukkan nama user"
+                    value={formData.userName}
+                    onChange={(event) => updateField('userName', event.target.value)}
+                    aria-invalid={Boolean(errors.userName)}
+                  />
+                </GalleryUploadField>
+                <GalleryUploadField label="Tanggal Kegiatan *" error={errors.eventDate}>
+                  <input
+                    type="date"
+                    value={formData.eventDate}
+                    onChange={(event) => updateField('eventDate', event.target.value)}
+                    aria-invalid={Boolean(errors.eventDate)}
+                  />
+                </GalleryUploadField>
+              </section>
+
+              <section className="project-upload-card admin-gallery-upload-card admin-gallery-upload-extra">
+                <h3>Detail Tambahan</h3>
+                <GalleryUploadField label="Link / Detail" hint="Opsional, gunakan URL lengkap jika ada">
+                  <input
+                    type="url"
+                    placeholder="Contoh: https://..."
+                    value={formData.detailLink}
+                    onChange={(event) => updateField('detailLink', event.target.value)}
+                  />
+                </GalleryUploadField>
+                <GalleryUploadField label="Catatan">
+                  <textarea
+                    placeholder="Tulis catatan tambahan..."
+                    value={formData.note}
+                    onChange={(event) => updateField('note', event.target.value)}
+                  />
+                </GalleryUploadField>
+              </section>
             </div>
-          </article>
-        </aside>
-      </form>
+          </section>
+
+          <section className={`project-upload-file-section project-upload-form-section${activeSection === 'media' ? ' is-active' : ''}`}>
+            <div className="admin-gallery-upload-media-single">
+              <section className="project-upload-card project-upload-cover admin-gallery-upload-cover">
+                <h3>Gambar Cover Kegiatan *</h3>
+                <label className={`project-upload-cover-box admin-gallery-upload-cover-box${errors.coverImage ? ' has-error' : ''}`}>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg"
+                    onChange={handleCoverImageChange}
+                  />
+                  {coverPreviewUrl ? (
+                    <img className="project-upload-cover-preview admin-gallery-upload-cover-preview" src={coverPreviewUrl} alt="Preview cover kegiatan" />
+                  ) : (
+                    <GalleryImageIcon />
+                  )}
+                  <span>{formData.coverImage?.name || (mode === 'edit' && initialGallery?.coverPath ? 'Cover lama tetap digunakan' : 'Upload gambar cover')}</span>
+                  <small>{mode === 'edit' && initialGallery?.coverPath && !formData.coverImage ? 'Pilih gambar baru jika ingin mengganti cover' : 'PNG, JPG rekomendasi 1280x720px'}</small>
+                  <strong>Pilih Gambar</strong>
+                </label>
+                {errors.coverImage ? <em className="project-upload-error">{errors.coverImage}</em> : null}
+              </section>
+            </div>
+          </section>
+
+          <section className={`project-upload-form-section${activeSection === 'publish' ? ' is-active' : ''}`}>
+            <div className="project-upload-inline-grid admin-gallery-upload-inline-grid">
+              <section className="project-upload-card project-upload-visibility admin-gallery-upload-status">
+                <h3>Pengaturan Publikasi</h3>
+                <label>
+                  <input type="radio" checked readOnly />
+                  <span><strong>Published</strong><small>Galeri tampil di halaman publik setelah disimpan.</small></span>
+                </label>
+                <label>
+                  <input type="radio" readOnly />
+                  <span><strong>Draft</strong><small>Gunakan tombol Simpan Draft untuk menyimpan tanpa publish.</small></span>
+                </label>
+              </section>
+
+              <section className="project-upload-card admin-gallery-upload-card project-upload-preview-card">
+                <h3>Kelengkapan Data</h3>
+                <dl>
+                  <div><dt>Cover</dt><dd>{formData.coverImage || coverPreviewUrl ? 1 : 0}</dd></div>
+                  <div><dt>Tag</dt><dd>{formData.tag ? 1 : 0}</dd></div>
+                  <div><dt>User</dt><dd>{formData.userName.trim() ? 1 : 0}</dd></div>
+                  <div><dt>Tanggal</dt><dd>{formData.eventDate ? 1 : 0}</dd></div>
+                </dl>
+                <ul>
+                  {completionItems.map((item) => (
+                    <li className={item.done ? 'is-done' : ''} key={item.label}>
+                      <span aria-hidden="true" />
+                      {item.label}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            </div>
+          </section>
+        </form>
+      </div>
+
+      {message && <p className="admin-gallery-upload-message">{message}</p>}
 
       {formError ? <p role="alert" style={{ color: '#b42318', marginTop: 16 }}>{formError}</p> : null}
       {jsonResult ? (
@@ -1036,7 +1118,9 @@ export function AdminGallery() {
               <div>
                 <h1>Galeri Kegiatan</h1>
                 <p>Dashboard <span>/</span> Galeri Kegiatan</p>
+                {galleryError ? <small className="admin-dashboard-error">{galleryError}</small> : null}
               </div>
+              <button type="button" onClick={loadGalleryData}>Refresh Data</button>
             </div>
 
             <section className="admin-gallery-stats" aria-label="Ringkasan galeri kegiatan">
@@ -1055,99 +1139,111 @@ export function AdminGallery() {
             </section>
 
             <section className="admin-gallery-filter" aria-label="Filter galeri">
-              <label className="admin-gallery-search">
-                <input
-                  type="search"
-                  placeholder="Cari judul kegiatan / nama file..."
-                  value={filters.search}
-                  onChange={(event) => updateFilter('search', event.target.value)}
-                />
-              </label>
-              <label>
-                <span>Jenis Media</span>
-                <select value={filters.mediaType} onChange={(event) => updateFilter('mediaType', event.target.value)}>
-                  <option value="">Semua Jenis</option>
-                  {filterOptions.mediaTypes.map((type) => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                <span>Status</span>
-                <select value={filters.status} onChange={(event) => updateFilter('status', event.target.value)}>
-                  <option value="">Semua Status</option>
-                  {filterOptions.statuses.map((status) => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                <span>Kategori</span>
-                <select value={filters.tag} onChange={(event) => updateFilter('tag', event.target.value)}>
-                  <option value="">Semua Kategori</option>
-                  {filterOptions.tags.map((tag) => (
-                    <option key={tag} value={tag}>{tag}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                <span>Tanggal Kegiatan</span>
-                <input
-                  type="date"
-                  value={filters.eventDate}
-                  onChange={(event) => updateFilter('eventDate', event.target.value)}
-                />
-              </label>
-              <label>
-                <span>Upload By</span>
-                <select value={filters.userName} onChange={(event) => updateFilter('userName', event.target.value)}>
-                  <option value="">Semua Admin</option>
-                  {filterOptions.users.map((userName) => (
-                    <option key={userName} value={userName}>{userName}</option>
-                  ))}
-                </select>
-              </label>
-              <button type="button" onClick={resetFilters}>Reset Filter</button>
-              <button type="button" className="admin-gallery-primary" onClick={handleOpenUploadForm}><img src={downloadIcon} alt="" /> Upload Media</button>
+              <div className="admin-gallery-filter-row">
+                <label className="admin-gallery-search">
+                  <input
+                    type="search"
+                    placeholder="Search by judul kegiatan, tag, uploader..."
+                    value={filters.search}
+                    onChange={(event) => updateFilter('search', event.target.value)}
+                  />
+                </label>
+                <button type="button" onClick={resetFilters}>Reset Filter</button>
+                <button type="button" onClick={loadGalleryData}>Refresh</button>
+                <button type="button" className="admin-gallery-primary" onClick={handleOpenUploadForm}><img src={downloadIcon} alt="" /> Upload Media</button>
+              </div>
+              <div className="admin-gallery-select-grid">
+                <label>
+                  <span>Jenis Media</span>
+                  <select value={filters.mediaType} onChange={(event) => updateFilter('mediaType', event.target.value)}>
+                    <option value="">Semua Jenis</option>
+                    {filterOptions.mediaTypes.map((type) => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Status</span>
+                  <select value={filters.status} onChange={(event) => updateFilter('status', event.target.value)}>
+                    <option value="">Semua Status</option>
+                    {filterOptions.statuses.map((status) => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Kategori</span>
+                  <select value={filters.tag} onChange={(event) => updateFilter('tag', event.target.value)}>
+                    <option value="">Semua Kategori</option>
+                    {filterOptions.tags.map((tag) => (
+                      <option key={tag} value={tag}>{tag}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Tanggal Kegiatan</span>
+                  <input
+                    type="date"
+                    value={filters.eventDate}
+                    onChange={(event) => updateFilter('eventDate', event.target.value)}
+                  />
+                </label>
+                <label>
+                  <span>Upload By</span>
+                  <select value={filters.userName} onChange={(event) => updateFilter('userName', event.target.value)}>
+                    <option value="">Semua Admin</option>
+                    {filterOptions.users.map((userName) => (
+                      <option key={userName} value={userName}>{userName}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
             </section>
 
-            {selectedGalleries.length > 0 && (
-              <section className="admin-gallery-bulk-actions" aria-label="Aksi galeri terpilih">
-                <strong>{selectedGalleries.length} galeri dipilih</strong>
-                <button
-                  type="button"
-                  onClick={() => handleBulkStatus('published')}
-                  disabled={busyGalleryId === 'bulk'}
-                >
-                  Publish
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleBulkStatus('draft')}
-                  disabled={busyGalleryId === 'bulk'}
-                >
-                  Jadikan Draft
-                </button>
-                <button
-                  type="button"
-                  className="is-danger"
-                  onClick={handleBulkDelete}
-                  disabled={busyGalleryId === 'bulk'}
-                >
-                  Hapus
-                </button>
-                <button
-                  type="button"
-                  className="is-plain"
-                  onClick={clearGallerySelection}
-                  disabled={busyGalleryId === 'bulk'}
-                >
-                  Batal Pilih
-                </button>
-              </section>
-            )}
+            <section className="admin-gallery-bulk-actions" aria-label="Aksi galeri terpilih">
+              <span>{selectedGalleries.length} dipilih</span>
+              <button
+                type="button"
+                className="admin-gallery-primary"
+                onClick={() => handleBulkStatus('published')}
+                disabled={selectedGalleries.length === 0 || busyGalleryId === 'bulk'}
+              >
+                Publish Terpilih
+              </button>
+              <button
+                type="button"
+                onClick={() => handleBulkStatus('draft')}
+                disabled={selectedGalleries.length === 0 || busyGalleryId === 'bulk'}
+              >
+                Jadikan Draft
+              </button>
+              <button
+                type="button"
+                className="is-danger"
+                onClick={handleBulkDelete}
+                disabled={selectedGalleries.length === 0 || busyGalleryId === 'bulk'}
+              >
+                Hapus Terpilih
+              </button>
+              <button
+                type="button"
+                className="is-plain"
+                onClick={clearGallerySelection}
+                disabled={selectedGalleries.length === 0 || busyGalleryId === 'bulk'}
+              >
+                Batal Pilih
+              </button>
+              <button type="button" onClick={loadGalleryData}>Refresh</button>
+            </section>
 
             <section className="admin-gallery-table-card">
+              <div className="admin-gallery-table-header">
+                <div>
+                  <h2>Daftar Galeri</h2>
+                  <p>{galleryData.length.toLocaleString('id-ID')} galeri tersimpan</p>
+                </div>
+                <span>{selectedGalleries.length} dipilih</span>
+              </div>
               <table className="admin-gallery-table">
                 <thead>
                   <tr>
@@ -1213,32 +1309,28 @@ export function AdminGallery() {
                         <td>{formatGalleryDate(item.createdAt)}</td>
                         <td>{item.userName || 'Admin'}</td>
                         <td>
-                          <div className="admin-gallery-actions">
-                            <button
-                              className="admin-gallery-action admin-gallery-action--view"
-                              type="button"
-                              onClick={() => handleViewGallery(item)}
-                              disabled={busyGalleryId === item.id}
-                            >
-                              <img src={eyeIcon} alt="" /> Lihat
-                            </button>
-                            <button
-                              className="admin-gallery-action"
-                              type="button"
-                              onClick={() => handleEditGallery(item)}
-                              disabled={busyGalleryId === item.id}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              className="admin-gallery-action admin-gallery-action--delete"
-                              type="button"
-                              onClick={() => handleDeleteGallery(item)}
-                              disabled={busyGalleryId === item.id}
-                            >
-                              Hapus
-                            </button>
-                          </div>
+                          <AdminActionDropdown
+                            label={`Buka aksi untuk ${item.title}`}
+                            items={[
+                              {
+                                label: 'Lihat',
+                                icon: <img src={eyeIcon} alt="" />,
+                                disabled: busyGalleryId === item.id,
+                                onSelect: () => handleViewGallery(item),
+                              },
+                              {
+                                label: 'Edit',
+                                disabled: busyGalleryId === item.id,
+                                onSelect: () => handleEditGallery(item),
+                              },
+                              {
+                                label: 'Hapus',
+                                tone: 'danger',
+                                disabled: busyGalleryId === item.id,
+                                onSelect: () => handleDeleteGallery(item),
+                              },
+                            ]}
+                          />
                         </td>
                       </tr>
                     ))
@@ -1246,15 +1338,15 @@ export function AdminGallery() {
                 </tbody>
               </table>
               <div className="admin-gallery-pagination">
-                <span>Menampilkan {filteredGalleryData.length} dari {galleryData.length} data galeri</span>
+                <button type="button" disabled>Previous</button>
                 <div>
-                  <button type="button" disabled>&lt;</button>
                   <button type="button" className="is-active">1</button>
-                  <button type="button" disabled>&gt;</button>
                 </div>
-                <select defaultValue="10">
-                  <option value="10">10 / halaman</option>
-                </select>
+                <span>
+                  Page 1 of 1
+                  <small>Menampilkan {filteredGalleryData.length} dari {galleryData.length} data galeri</small>
+                </span>
+                <button type="button" disabled>Next</button>
               </div>
             </section>
 

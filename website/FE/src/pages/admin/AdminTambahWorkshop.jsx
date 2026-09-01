@@ -193,6 +193,55 @@ function resolveImageUrl(image) {
   return `${API_BASE_URL}/${cleanUrl.replace(/^\/+/, '')}`;
 }
 
+function normalizeExistingImageMetadata(image) {
+  if (!image || typeof image !== 'object') return null;
+
+  const displayName =
+    image.originalName ||
+    image.original_name ||
+    image.name ||
+    image.file_name ||
+    image.filename ||
+    image.storedName ||
+    image.stored_name ||
+    'Gambar sampul tersimpan';
+  const storedName = image.storedName || image.stored_name || image.file_name || image.name || '';
+  const mimeType = image.type || image.file_type || image.mimeType || image.mime_type || 'image/jpeg';
+  const rawSize = image.size ?? image.file_size ?? image.filesize ?? 0;
+  const numericSize = Number(rawSize);
+  const imageUrl = image.url || image.file_url || image.relativeUrl || image.relative_url || '';
+
+  return {
+    ...image,
+    name: image.name || displayName,
+    originalName: displayName,
+    storedName,
+    type: mimeType,
+    size: Number.isFinite(numericSize) ? numericSize : 0,
+    sizeKB:
+      image.sizeKB ??
+      image.size_kb ??
+      (Number.isFinite(numericSize) ? Number((numericSize / 1024).toFixed(2)) : undefined),
+    url: imageUrl,
+    file_name: image.file_name || displayName,
+    file_type: image.file_type || mimeType,
+    file_size: image.file_size ?? (Number.isFinite(numericSize) ? numericSize : 0),
+    file_url: image.file_url || imageUrl,
+  };
+}
+
+function getImageDisplayName(image) {
+  return (
+    image?.originalName ||
+    image?.original_name ||
+    image?.name ||
+    image?.file_name ||
+    image?.storedName ||
+    image?.stored_name ||
+    ''
+  );
+}
+
 function SectionTitle({ number, title }) {
   return (
     <div className="admin-section-title">
@@ -414,7 +463,14 @@ export function AdminTambahWorkshop() {
           metaDescription: payload.seo?.metaDescription || '',
         });
 
-        const existingCoverImage = payload.media?.coverImage ?? null;
+        const existingCoverImage = normalizeExistingImageMetadata(
+          payload.media?.coverImage ??
+            workshop.coverImage ??
+            workshop.cover_image ??
+            workshop.media?.coverImage ??
+            workshop.media?.cover_image ??
+            null,
+        );
         setCoverImage(existingCoverImage);
         setCoverPreview(resolveImageUrl(existingCoverImage));
         setGalleryImages(
@@ -1267,8 +1323,12 @@ export function AdminTambahWorkshop() {
               <UploadBox
                 inputRef={registerFieldRef('coverImage')}
                 title="Upload gambar sampul"
-                selectedText={isUploadingCover ? 'Mengupload gambar...' : coverImage?.originalName || coverImage?.name}
-                note="Crop 16:9, otomatis dikompresi, maksimal 5 MB"
+                selectedText={isUploadingCover ? 'Mengupload gambar...' : getImageDisplayName(coverImage)}
+                note={
+                  isEditMode && coverImage
+                    ? 'Gambar lama tetap dipakai jika tidak memilih gambar baru.'
+                    : 'Crop 16:9, otomatis dikompresi, maksimal 5 MB'
+                }
                 buttonLabel="Pilih Gambar"
                 accept="image/*"
                 onChange={handleCoverChange}

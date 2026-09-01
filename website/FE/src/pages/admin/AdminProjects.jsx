@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AdminNotificationButton } from './AdminChrome.jsx';
 import { AdminSidebar } from './AdminSidebar.jsx';
+import { AdminActionDropdown } from './AdminActionDropdown.jsx';
 import { ProjectUploadForm } from '../User/UserProjectGallery.jsx';
 import {
   getInitialAdminSidebarCollapsed,
@@ -110,6 +111,20 @@ function formatProjectNumber(value) {
   return toProjectNumber(value).toLocaleString('id-ID');
 }
 
+function stripProjectHtml(value) {
+  if (!value) return '';
+
+  if (typeof window !== 'undefined' && window.DOMParser) {
+    const documentValue = new window.DOMParser().parseFromString(String(value), 'text/html');
+    return documentValue.body.textContent.replace(/\s+/g, ' ').trim();
+  }
+
+  return String(value)
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function formatProjectPercent(part, total) {
   if (!total) return '0% dari total';
   return `${((part / total) * 100).toLocaleString('id-ID', { maximumFractionDigits: 1 })}% dari total`;
@@ -149,7 +164,7 @@ function getProjectItemLabel(item, fallback = '-') {
   if (typeof item === 'string') return item;
   if (!item || typeof item !== 'object') return fallback;
 
-  return (
+  return stripProjectHtml(
     item.name ||
     item.title ||
     item.label ||
@@ -165,7 +180,7 @@ function getProjectStepLabel(step, index) {
   if (typeof step === 'string') return step;
   if (!step || typeof step !== 'object') return `Langkah ${index + 1}`;
 
-  return step.title || step.description || step.name || `Langkah ${step.order || index + 1}`;
+  return stripProjectHtml(step.title || step.description || step.name || `Langkah ${step.order || index + 1}`);
 }
 
 function formatProjectPrice(project) {
@@ -226,23 +241,45 @@ function getProjectFileUrl(project) {
   return `${API_BASE_URL}/${normalizedPath}`;
 }
 
+function getProjectArchiveUrl(project) {
+  if (!project?.id) return '';
+
+  const separator = PROJECT_API_URL.includes('?') ? '&' : '?';
+  return `${PROJECT_API_URL}${separator}id=${encodeURIComponent(project.id)}&action=download`;
+}
+
 function resolveProjectCoverUrl(project) {
-  const cover = project?.coverImage || {};
+  const cover = project?.coverImage || project?.cover_image || project?.image || {};
+  const payloadCover = project?.payload?.coverImage || project?.payload?.cover_image || {};
   const rawUrl = (
+    project?.coverImageUrl ||
+    project?.cover_image_url ||
     project?.coverUrl ||
     project?.coverPath ||
+    project?.cover_image_path ||
     cover.file_url ||
     cover.fileUrl ||
     cover.url ||
+    cover.src ||
     cover.file_path ||
     cover.filePath ||
+    cover.path ||
+    payloadCover.file_url ||
+    payloadCover.fileUrl ||
+    payloadCover.url ||
+    payloadCover.src ||
+    payloadCover.file_path ||
+    payloadCover.filePath ||
+    payloadCover.path ||
     ''
   );
 
   if (!rawUrl) return '';
-  if (/^(https?:\/\/|data:image\/|blob:)/i.test(rawUrl)) return rawUrl;
+  if (/^(https?:\/\/|data:|blob:)/i.test(rawUrl)) return rawUrl;
 
   const normalizedPath = String(rawUrl)
+    .replace(/\\/g, '/')
+    .replace(/^.*\/storage\/uploads\//i, 'uploads/')
     .replace(/^\/+/, '')
     .replace(/^storage\/uploads\//i, 'uploads/');
 
@@ -250,7 +287,7 @@ function resolveProjectCoverUrl(project) {
 }
 
 function getProjectDescription(project) {
-  return (
+  return stripProjectHtml(
     project?.description ||
     project?.summary ||
     project?.payload?.description ||
@@ -291,7 +328,7 @@ function getProjectItemDescription(item, fallback = '') {
   if (typeof item === 'string') return fallback;
   if (!item || typeof item !== 'object') return fallback;
 
-  return item.description || item.desc || item.note || item.function || fallback;
+  return stripProjectHtml(item.description || item.desc || item.note || item.function || fallback);
 }
 
 function getProjectItemImageUrl(item) {
@@ -909,7 +946,7 @@ export function AdminProjects() {
     const projectFileUrl = getProjectFileUrl(project);
 
     if (projectFileUrl) {
-      window.open(projectFileUrl, '_blank', 'noopener,noreferrer');
+      window.open(getProjectArchiveUrl(project) || projectFileUrl, '_blank', 'noopener,noreferrer');
       return;
     }
 
@@ -1073,28 +1110,7 @@ export function AdminProjects() {
               </p>
             ) : null}
 
-            {selectedProjectCount ? (
-              <section className="admin-projects-bulk-actions" aria-label="Aksi proyek terpilih">
-                <span>{selectedProjectCount} proyek dipilih</span>
-                <div>
-                  <button type="button" onClick={handleBulkPublish} disabled={isBulkActionBusy}>
-                    Publish Terpilih
-                  </button>
-                  <button type="button" onClick={handleBulkDraft} disabled={isBulkActionBusy}>
-                    Jadikan Draft
-                  </button>
-                  <button type="button" onClick={handleBulkArchive} disabled={isBulkActionBusy}>
-                    Arsipkan
-                  </button>
-                  <button type="button" className="is-danger" onClick={handleBulkDelete} disabled={isBulkActionBusy}>
-                    Hapus
-                  </button>
-                  <button type="button" onClick={() => setCheckedProjectKeys([])} disabled={isBulkActionBusy}>
-                    Batal Pilih
-                  </button>
-                </div>
-              </section>
-            ) : null}
+            
 
             <section className="admin-projects-stats" aria-label="Ringkasan proyek">
               {projectStats.map((item) => (
@@ -1160,6 +1176,29 @@ export function AdminProjects() {
               <button type="button" onClick={resetFilters}>Reset Filter</button>
             </section>
 
+            {selectedProjectCount ? (
+              <section className="admin-projects-bulk-actions" aria-label="Aksi proyek terpilih">
+                <span>{selectedProjectCount} proyek dipilih</span>
+                <div>
+                  <button type="button" onClick={handleBulkPublish} disabled={isBulkActionBusy}>
+                    Publish Terpilih
+                  </button>
+                  <button type="button" onClick={handleBulkDraft} disabled={isBulkActionBusy}>
+                    Jadikan Draft
+                  </button>
+                  <button type="button" onClick={handleBulkArchive} disabled={isBulkActionBusy}>
+                    Arsipkan
+                  </button>
+                  <button type="button" className="is-danger" onClick={handleBulkDelete} disabled={isBulkActionBusy}>
+                    Hapus
+                  </button>
+                  <button type="button" onClick={() => setCheckedProjectKeys([])} disabled={isBulkActionBusy}>
+                    Batal Pilih
+                  </button>
+                </div>
+              </section>
+            ) : null}
+
             <section className="admin-projects-table-card">
               <table className="admin-projects-table">
                 <colgroup>
@@ -1174,6 +1213,7 @@ export function AdminProjects() {
                   <col className="admin-projects-col-price" />
                   <col className="admin-projects-col-status" />
                   <col className="admin-projects-col-viewer" />
+                  <col className="admin-projects-col-like" />
                   <col className="admin-projects-col-like" />
                   <col className="admin-projects-col-date" />
                   <col className="admin-projects-col-date" />
@@ -1200,8 +1240,9 @@ export function AdminProjects() {
                     <th>Langkah</th>
                     <th>Harga</th>
                     <th>Status</th>
-                    <th>Viewer</th>
-                    <th>Like / Save</th>
+                    <th>Viewers</th>
+                    <th>Like</th>
+                    <th>Save</th>
                     <th>Tgl Upload</th>
                     <th>Update Terakhir</th>
                     <th>Aksi</th>
@@ -1210,15 +1251,15 @@ export function AdminProjects() {
                 <tbody>
                   {isLoading ? (
                     <tr>
-                      <td colSpan="15">Memuat data proyek...</td>
+                      <td colSpan="16">Memuat data proyek...</td>
                     </tr>
                   ) : projectError ? (
                     <tr>
-                      <td colSpan="15">{projectError}</td>
+                      <td colSpan="16">{projectError}</td>
                     </tr>
                   ) : filteredProjects.length === 0 ? (
                     <tr>
-                      <td colSpan="15">Tidak ada proyek yang cocok dengan filter.</td>
+                      <td colSpan="16">Tidak ada proyek yang cocok dengan filter.</td>
                     </tr>
                   ) : (
                     paginatedProjects.map((project, index) => {
@@ -1267,7 +1308,6 @@ export function AdminProjects() {
 
                           <td>
                             <div className="admin-projects-owner-cell">
-                              <span className="admin-projects-avatar" />
                               <span>
                                 <b>{ownerName}</b>
                                 <small>{ownerUsername}</small>
@@ -1308,46 +1348,38 @@ export function AdminProjects() {
                             <ProjectBadge>{status}</ProjectBadge>
                           </td>
 
-                          <td>{project.viewer ?? 0}</td>
+                          <td>{formatProjectNumber(project.viewer ?? project.viewers)}</td>
 
-                          <td>
-                            {`${project.likes ?? 0} / ${project.saves ?? 0}`}
-                          </td>
+                          <td>{formatProjectNumber(project.likes)}</td>
+
+                          <td>{formatProjectNumber(project.saves)}</td>
 
                           <td><ProjectDateTime value={project.createdAt} /></td>
                           <td><ProjectDateTime value={project.updatedAt} /></td>
 
                           <td>
-                            <div
-                              className="admin-projects-actions"
-                              onClick={(event) => event.stopPropagation()}
-                            >
-                              <ProjectAction
-                                label={`Lihat ${project.title}`}
-                                active
-                                disabled={busyProjectId === project.id}
-                                onClick={() => handleViewProject(project)}
-                              >
-                                <img src={eyeIcon} alt="" />
-                                <span>Lihat</span>
-                              </ProjectAction>
-
-                              <ProjectAction
-                                label={`Edit ${project.title}`}
-                                disabled={busyProjectId === project.id}
-                                onClick={() => handleEditProject(project)}
-                              >
-                                Edit
-                              </ProjectAction>
-
-                              <ProjectAction
-                                label={`Hapus ${project.title}`}
-                                disabled={busyProjectId === project.id}
-                                onClick={() => handleDeleteProject(project)}
-                              >
-                                Hapus
-                              </ProjectAction>
-                            </div>
+                            <AdminActionDropdown
+                              label={`Buka aksi untuk ${project.title || 'proyek'}`}
+                              items={[
+                                {
+                                  label: 'Lihat',
+                                  icon: <img src={eyeIcon} alt="" />,
+                                  disabled: busyProjectId === project.id,
+                                  onSelect: () => handleViewProject(project),
+                                },
+                                {
+                                  label: 'Edit',
+                                  disabled: busyProjectId === project.id,
+                                  onSelect: () => handleEditProject(project),
+                                },
+                                {
+                                  label: 'Hapus',
+                                  tone: 'danger',
+                                  disabled: busyProjectId === project.id,
+                                  onSelect: () => handleDeleteProject(project),
+                                },
+                              ]}
+                            />
                           </td>
                         </tr>
                       );
@@ -1394,7 +1426,7 @@ export function AdminProjects() {
                   <span>{formatProjectNumber(popularProjects.length)} item</span>
                 </div>
                 <table>
-                  <thead><tr><th>#</th><th>Judul</th><th>Viewer</th><th>Like</th></tr></thead>
+                  <thead><tr><th>#</th><th>Judul</th><th>Viewers</th><th>Like</th><th>Save</th></tr></thead>
                   <tbody>
                     {popularProjects.length ? popularProjects.map((project, index) => (
                       <tr key={project.id ?? project.title}>
@@ -1402,9 +1434,10 @@ export function AdminProjects() {
                         <td>{project.title || '-'}</td>
                         <td>{formatProjectNumber(project.viewer ?? project.viewers)}</td>
                         <td>{formatProjectNumber(project.likes)}</td>
+                        <td>{formatProjectNumber(project.saves)}</td>
                       </tr>
                     )) : (
-                      <tr><td colSpan="4">Belum ada proyek.</td></tr>
+                      <tr><td colSpan="5">Belum ada proyek.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -1447,11 +1480,17 @@ export function AdminProjects() {
             <div className="admin-projects-detail-overlay" role="presentation" onClick={() => setSelectedProject(null)}>
             <aside className="admin-projects-detail" aria-label="Detail proyek" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
               <div className="admin-projects-detail-head">
-                <h2>Detail Proyek</h2>
+                <span className="admin-projects-detail-icon" aria-hidden="true">
+                  <img src={galleryIcon} alt="" />
+                </span>
+                <span>
+                  <h2>Detail Proyek</h2>
+                  <p>Ringkasan data, aset, dan status proyek.</p>
+                </span>
                 <button type="button" aria-label="Tutup detail" onClick={() => setSelectedProject(null)}>x</button>
               </div>
 
-              <>
+              <div className="admin-projects-detail-body">
                 <section className="admin-projects-wire-hero">
                   <div className="admin-projects-wire-media">
                     {resolveProjectCoverUrl(selectedProject) ? (
@@ -1462,11 +1501,6 @@ export function AdminProjects() {
                     ) : (
                       <AdminProjectImagePlaceholder />
                     )}
-                    <div className="admin-projects-wire-thumbs" aria-hidden="true">
-                      {[0, 1, 2, 3].map((item) => (
-                        <AdminProjectImagePlaceholder key={item} />
-                      ))}
-                    </div>
                   </div>
 
                   <div className="admin-projects-wire-summary">
@@ -1478,30 +1512,29 @@ export function AdminProjects() {
                     <h3>{selectedProject.title || '-'}</h3>
                     <p>{getProjectDescription(selectedProject)}</p>
                     <div className="admin-projects-wire-owner">
-                      <span className="admin-projects-avatar" />
                       <span>
+                        <small>Pemilik Proyek</small>
                         <b>{getProjectOwnerName(selectedProject)}</b>
                         <small>{getProjectOwnerUsername(selectedProject)}</small>
                       </span>
                       <ProjectBadge>{selectedProject.status || 'draft'}</ProjectBadge>
                     </div>
-
-                    <div className="admin-projects-wire-stats">
-                      <AdminProjectStatCard icon="01" label="Tingkat" value={selectedProject.difficulty || '-'} />
-                      <AdminProjectStatCard icon="02" label="Jumlah Node" value={`${getProjectArray(selectedProject, 'nodes').length} Node`} />
-                      <AdminProjectStatCard icon="03" label="Platform" value={getProjectPlatform(selectedProject)} />
-                      <AdminProjectStatCard icon="04" label="Kategori" value={selectedProject.category || '-'} />
-                    </div>
-
-                    <div className="admin-projects-wire-main-actions">
-                      <button type="button" className="is-dark" onClick={() => window.open(`/project/detail?id=${encodeURIComponent(selectedProject.id)}`, '_blank', 'noopener,noreferrer')}>
-                        Buka Halaman Detail
-                      </button>
-                      <button type="button" onClick={() => handlePreviewProject(selectedProject)}>
-                        {getProjectFileUrl(selectedProject) ? 'Unduh File Proyek' : 'Preview Proyek'}
-                      </button>
-                    </div>
                   </div>
+                </section>
+
+                <section className="admin-projects-wire-stats" aria-label="Ringkasan proyek">
+                  <AdminProjectStatCard icon="01" label="Tingkat" value={selectedProject.difficulty || '-'} />
+                  <AdminProjectStatCard icon="02" label="Node" value={`${getProjectArray(selectedProject, 'nodes').length} Node`} />
+                  <AdminProjectStatCard icon="03" label="Platform" value={getProjectPlatform(selectedProject)} />
+                  <AdminProjectStatCard icon="04" label="Kategori" value={selectedProject.category || '-'} />
+                </section>
+
+                <section className="admin-projects-detail-meta" aria-label="Metadata proyek">
+                  <p><small>Harga</small><b>{formatProjectPrice(selectedProject)}</b></p>
+                  <p><small>Viewer</small><b>{formatProjectNumber(selectedProject.viewer ?? 0)}</b></p>
+                  <p><small>Like / Save</small><b>{`${formatProjectNumber(selectedProject.likes ?? 0)} / ${formatProjectNumber(selectedProject.saves ?? 0)}`}</b></p>
+                  <p><small>Tanggal Upload</small><b>{formatProjectDateTime(selectedProject.createdAt).date}</b></p>
+                  <p><small>Update Terakhir</small><b>{formatProjectDateTime(selectedProject.updatedAt).date}</b></p>
                 </section>
 
                 <section className="admin-projects-wire-grid">
@@ -1563,10 +1596,14 @@ export function AdminProjects() {
                     </span>
                   </div>
                 </section>
+              </div>
 
-                <div className="admin-projects-detail-actions">
+                <div className="admin-projects-detail-actions" aria-label="Aksi detail proyek">
+                  <button type="button" className="is-outline" onClick={() => window.open(`/project/detail?id=${encodeURIComponent(selectedProject.id)}`, '_blank', 'noopener,noreferrer')}>
+                    Buka Halaman Detail
+                  </button>
                   <button type="button" className="is-blue" onClick={() => handlePreviewProject(selectedProject)}>
-                    Preview Proyek
+                    {getProjectFileUrl(selectedProject) ? 'Unduh File Proyek' : 'Preview Proyek'}
                   </button>
                   <button type="button" className="is-green" disabled={busyProjectId === selectedProject.id} onClick={() => handleTogglePublish(selectedProject)}>
                     {isProjectStatus(selectedProject, ['published', 'publish']) ? 'Unpublish' : 'Publish'}
@@ -1581,7 +1618,6 @@ export function AdminProjects() {
                     Arsipkan
                   </button>
                 </div>
-              </>
             </aside>
             </div>
           )}

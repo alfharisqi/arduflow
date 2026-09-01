@@ -118,7 +118,7 @@ export async function fetchGallerySubmission(id) {
     throw new Error('ID galeri tidak tersedia.');
   }
 
-  const url = new URL(GALLERY_API_URL);
+  const url = new URL(GALLERY_API_URL, window.location.origin);
   url.searchParams.set('id', galleryId);
 
   const response = await fetch(url.toString(), {

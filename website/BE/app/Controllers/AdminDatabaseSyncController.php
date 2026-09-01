@@ -97,6 +97,40 @@ final class AdminDatabaseSyncController
         ]);
     }
 
+    public function deleteLog(Request $request): Response
+    {
+        if (!$this->sessions->admin($request)) {
+            return Response::json(['message' => 'Akses admin diperlukan.'], 401);
+        }
+
+        $id = (int) $request->route('id');
+        if ($id <= 0) {
+            return Response::json(['message' => 'ID log tidak valid.'], 422);
+        }
+
+        if (!$this->statusRepository->deleteLog($id)) {
+            return Response::json(['message' => 'Log sinkronisasi tidak ditemukan.'], 404);
+        }
+
+        return Response::json(['message' => 'Log sinkronisasi berhasil dihapus.']);
+    }
+
+    public function clearLogs(Request $request): Response
+    {
+        if (!$this->sessions->admin($request)) {
+            return Response::json(['message' => 'Akses admin diperlukan.'], 401);
+        }
+
+        $deleted = $this->statusRepository->clearLogs();
+
+        return Response::json([
+            'message' => $deleted > 0
+                ? "{$deleted} log sinkronisasi berhasil dihapus."
+                : 'Tidak ada log sinkronisasi untuk dihapus.',
+            'deleted' => $deleted,
+        ]);
+    }
+
     private function mysqlReachable(): bool
     {
         try {

@@ -199,6 +199,23 @@ function ensureProjectTables(PDO $pdo): void
             updated_at TEXT NOT NULL
         )'
     );
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS user_entitlements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            transaction_id INTEGER NULL,
+            user_id INTEGER NULL,
+            email TEXT,
+            product_type TEXT NOT NULL,
+            product_id INTEGER NULL,
+            product_title TEXT,
+            status TEXT NOT NULL DEFAULT "active",
+            granted_at TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            deleted_at TEXT,
+            version INTEGER NOT NULL DEFAULT 1
+        )'
+    );
 
     if (function_exists('addColumnIfMissing')) {
         addColumnIfMissing($pdo, 'project_submissions', 'cover_image_name', 'TEXT');
@@ -220,6 +237,10 @@ function ensureProjectTables(PDO $pdo): void
         addColumnIfMissing($pdo, 'project_submissions', 'deleted_at', 'TEXT');
         addColumnIfMissing($pdo, 'project_submissions', 'version', 'INTEGER NOT NULL DEFAULT 1');
     }
+
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_user_entitlements_user_id ON user_entitlements(user_id)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_user_entitlements_email ON user_entitlements(email)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_user_entitlements_product ON user_entitlements(product_type, product_id)');
 }
 
 function hasStoredFile(?array $file): bool
@@ -227,10 +248,20 @@ function hasStoredFile(?array $file): bool
     return $file !== null && trim((string) ($file['file_name'] ?? $file['name'] ?? '')) !== '';
 }
 
-function rowToProject(array $row): array
+function rowToProject(array $row, array $viewerAccess = []): array
 {
     $payload = json_decode((string) ($row['payload_json'] ?? '{}'), true);
     $payload = is_array($payload) ? $payload : [];
+    $viewer = getViewerIdentityFromQuery();
+    $viewerRatingIdentity = null;
+
+    if (($viewer['userId'] ?? null) !== null) {
+        $viewerRatingIdentity = 'user:' . (int) $viewer['userId'];
+    } elseif (($viewer['email'] ?? '') !== '') {
+        $viewerRatingIdentity = 'email:' . strtolower((string) $viewer['email']);
+    }
+
+    $ratingSummary = summarizeProjectRatings($payload, $viewerRatingIdentity);
 
     $coverImage = [
         'file_name' => $row['cover_image_name'] ?? null,
@@ -259,6 +290,9 @@ function rowToProject(array $row): array
     $payloadProjectFile = isset($payload['projectFile']) && is_array($payload['projectFile'])
         ? $payload['projectFile']
         : [];
+    $projectFiles = isset($payload['projectFiles']) && is_array($payload['projectFiles'])
+        ? $payload['projectFiles']
+        : [];
     $payloadCircuitImage = isset($payload['circuitImage']) && is_array($payload['circuitImage'])
         ? $payload['circuitImage']
         : [];
@@ -274,6 +308,7 @@ function rowToProject(array $row): array
         'visibility' => $row['visibility'],
         'coverImage' => hasStoredFile($coverImage) ? array_replace($payloadCoverImage, $coverImage) : ($payload['coverImage'] ?? null),
         'projectFile' => hasStoredFile($projectFile) ? array_replace($payloadProjectFile, $projectFile) : ($payload['projectFile'] ?? null),
+        'projectFiles' => $projectFiles,
         'circuitImage' => hasStoredFile($circuitImage) ? array_replace($payloadCircuitImage, $circuitImage) : ($payload['circuitImage'] ?? null),
         'ownerName' => $payload['ownerName'] ?? 'User',
         'ownerUsername' => $payload['ownerUsername'] ?? '-',
@@ -282,6 +317,13 @@ function rowToProject(array $row): array
         'estimatedTime' => $payload['estimatedTime'] ?? '',
         'programmingLanguage' => $payload['programmingLanguage'] ?? '',
         'payment' => $payload['payment'] ?? null,
+        'viewerAccess' => [
+            'hasPurchased' => (bool) ($viewerAccess['hasPurchased'] ?? false),
+            'purchaseStatus' => $viewerAccess['purchaseStatus'] ?? 'none',
+            'entitlementId' => $viewerAccess['entitlementId'] ?? null,
+            'transactionId' => $viewerAccess['transactionId'] ?? null,
+        ],
+        'hasPurchased' => (bool) ($viewerAccess['hasPurchased'] ?? false),
         'tags' => $payload['tags'] ?? [],
         'componentImages' => $componentImages,
         'tools' => $payload['tools'] ?? [],
@@ -290,6 +332,15 @@ function rowToProject(array $row): array
         'viewer' => $payload['viewer'] ?? 0,
         'likes' => $payload['likes'] ?? 0,
         'saves' => $payload['saves'] ?? 0,
+        'shares' => $payload['shares'] ?? 0,
+        'comments' => $ratingSummary['reviewCount'],
+        'commentItems' => $ratingSummary['reviewItems'],
+        'averageRating' => $ratingSummary['averageRating'],
+        'ratingCount' => $ratingSummary['ratingCount'],
+        'viewerRating' => $ratingSummary['viewerRating'],
+        'viewerReview' => $ratingSummary['viewerReview'],
+        'categoryAverages' => $ratingSummary['categoryAverages'],
+        'ratingItems' => $ratingSummary['ratingItems'],
         'createdAt' => $row['created_at'],
         'updatedAt' => $row['updated_at'],
         'payload' => $payload,
@@ -305,6 +356,500 @@ function findProject(PDO $pdo, int $id): ?array
     $row = $statement->fetch();
 
     return $row === false ? null : $row;
+}
+
+function slugifyProjectFileName(string $value): string
+{
+    $slug = strtolower(trim($value));
+    $slug = preg_replace('/[^a-z0-9]+/i', '-', $slug) ?? '';
+    $slug = trim($slug, '-');
+
+    return $slug !== '' ? $slug : 'proyek';
+}
+
+function getProjectPayload(array $row): array
+{
+    $payload = json_decode((string) ($row['payload_json'] ?? '{}'), true);
+
+    return is_array($payload) ? $payload : [];
+}
+
+function getStoredProjectFiles(array $row): array
+{
+    $payload = getProjectPayload($row);
+    $files = isset($payload['projectFiles']) && is_array($payload['projectFiles'])
+        ? $payload['projectFiles']
+        : [];
+
+    if ($files === [] && isset($payload['projectFile']) && is_array($payload['projectFile'])) {
+        $files[] = [
+            'label' => 'File Proyek',
+            'file' => $payload['projectFile'],
+        ];
+    }
+
+    if ($files === [] && trim((string) ($row['project_file_path'] ?? '')) !== '') {
+        $files[] = [
+            'label' => 'File Proyek',
+            'file' => [
+                'file_name' => $row['project_file_name'] ?? null,
+                'file_path' => $row['project_file_path'] ?? null,
+            ],
+        ];
+    }
+
+    return $files;
+}
+
+function buildStoredZip(array $files): string
+{
+    $centralDirectory = '';
+    $zip = '';
+    $offset = 0;
+
+    foreach ($files as $index => $entry) {
+        $file = is_array($entry) && isset($entry['file']) && is_array($entry['file'])
+            ? $entry['file']
+            : $entry;
+        $path = (string) ($file['file_path'] ?? '');
+
+        if ($path === '' || !is_file($path)) {
+            continue;
+        }
+
+        $baseName = sanitizeStoredFileName((string) ($file['original_name'] ?? $file['file_name'] ?? 'file-' . ($index + 1)));
+        $label = is_array($entry) ? slugifyProjectFileName((string) ($entry['label'] ?? 'file-' . ($index + 1))) : 'file-' . ($index + 1);
+        $extension = pathinfo($baseName, PATHINFO_EXTENSION);
+        $archiveName = $label . ($extension !== '' ? '.' . strtolower($extension) : '');
+        $archiveName = sanitizeStoredFileName($archiveName);
+        $content = file_get_contents($path);
+
+        if ($content === false) {
+            continue;
+        }
+
+        $crc = crc32($content);
+        if ($crc < 0) {
+            $crc += 4294967296;
+        }
+        $size = strlen($content);
+        $nameLength = strlen($archiveName);
+
+        $localHeader = pack('VvvvvvVVVvv', 0x04034b50, 20, 0, 0, 0, 0, $crc, $size, $size, $nameLength, 0) . $archiveName;
+        $zip .= $localHeader . $content;
+
+        $centralDirectory .= pack(
+            'VvvvvvvVVVvvvvvVV',
+            0x02014b50,
+            20,
+            20,
+            0,
+            0,
+            0,
+            0,
+            $crc,
+            $size,
+            $size,
+            $nameLength,
+            0,
+            0,
+            0,
+            0,
+            0,
+            $offset
+        ) . $archiveName;
+        $offset += strlen($localHeader) + $size;
+    }
+
+    $fileCount = substr_count($centralDirectory, pack('V', 0x02014b50));
+    $centralDirectorySize = strlen($centralDirectory);
+    $centralDirectoryOffset = strlen($zip);
+
+    return $zip . $centralDirectory . pack('VvvvvVVv', 0x06054b50, 0, 0, $fileCount, $fileCount, $centralDirectorySize, $centralDirectoryOffset, 0);
+}
+
+function sendProjectZipDownload(array $row): never
+{
+    $emptyZip = buildStoredZip([]);
+    $zipContent = buildStoredZip(getStoredProjectFiles($row));
+
+    if ($zipContent === $emptyZip) {
+        sendJson(404, [
+            'success' => false,
+            'message' => 'File proyek belum tersedia.',
+        ]);
+    }
+
+    $fileName = slugifyProjectFileName((string) ($row['title'] ?? 'proyek')) . '.zip';
+
+    header('Content-Type: application/zip');
+    header('Content-Disposition: attachment; filename="' . $fileName . '"');
+    header('Content-Length: ' . strlen($zipContent));
+    header('Cache-Control: no-store');
+    echo $zipContent;
+    exit;
+}
+
+function updateProjectMetric(PDO $pdo, array $row, string $metric, int $delta): array
+{
+    $allowedMetrics = ['viewer', 'likes', 'saves', 'shares', 'comments'];
+
+    if (!in_array($metric, $allowedMetrics, true)) {
+        throw new InvalidArgumentException('Tipe interaksi proyek tidak valid.');
+    }
+
+    $payload = getProjectPayload($row);
+    $current = max(0, (int) ($payload[$metric] ?? 0));
+    $payload[$metric] = max(0, $current + $delta);
+    $now = jakartaNow();
+
+    $statement = $pdo->prepare(
+        'UPDATE project_submissions
+         SET payload_json = :payload_json, updated_at = :updated_at
+         WHERE id = :id'
+    );
+    $statement->execute([
+        ':payload_json' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+        ':updated_at' => $now,
+        ':id' => (int) $row['id'],
+    ]);
+
+    return [
+        'metric' => $metric,
+        'value' => $payload[$metric],
+    ];
+}
+
+function addProjectComment(PDO $pdo, array $row, array $commentData): array
+{
+    $message = trim((string) ($commentData['message'] ?? $commentData['comment'] ?? ''));
+
+    if ($message === '') {
+        throw new InvalidArgumentException('Komentar tidak boleh kosong.');
+    }
+
+    $messageLength = function_exists('mb_strlen') ? mb_strlen($message) : strlen($message);
+
+    if ($messageLength > 1000) {
+        throw new InvalidArgumentException('Komentar maksimal 1000 karakter.');
+    }
+
+    $payload = getProjectPayload($row);
+    $commentsList = isset($payload['commentItems']) && is_array($payload['commentItems'])
+        ? $payload['commentItems']
+        : (isset($payload['commentList']) && is_array($payload['commentList']) ? $payload['commentList'] : []);
+
+    $comment = [
+        'id' => bin2hex(random_bytes(8)),
+        'message' => $message,
+        'authorName' => trim((string) ($commentData['authorName'] ?? $commentData['userName'] ?? 'User')),
+        'authorEmail' => trim((string) ($commentData['authorEmail'] ?? $commentData['email'] ?? '')),
+        'createdAt' => jakartaNow(),
+    ];
+
+    $commentsList[] = $comment;
+    $payload['commentItems'] = array_values($commentsList);
+    $payload['comments'] = count($payload['commentItems']);
+    $now = jakartaNow();
+
+    $statement = $pdo->prepare(
+        'UPDATE project_submissions
+         SET payload_json = :payload_json, updated_at = :updated_at
+         WHERE id = :id'
+    );
+    $statement->execute([
+        ':payload_json' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+        ':updated_at' => $now,
+        ':id' => (int) $row['id'],
+    ]);
+
+    return $comment;
+}
+
+function getRatingIdentity(array $ratingData): string
+{
+    $viewer = getViewerIdentityFromQuery();
+    $userId = $viewer['userId'] ?? ($ratingData['userId'] ?? $ratingData['user_id'] ?? null);
+    $email = trim((string) (($viewer['email'] ?? '') ?: ($ratingData['email'] ?? $ratingData['authorEmail'] ?? '')));
+
+    if ($userId !== null && $userId !== '') {
+        return 'user:' . (int) $userId;
+    }
+
+    if ($email !== '') {
+        return 'email:' . strtolower($email);
+    }
+
+    throw new InvalidArgumentException('Login diperlukan untuk memberi rating.');
+}
+
+function normalizeRatingCategories($categories): array
+{
+    if (!is_array($categories)) {
+        return [];
+    }
+
+    $normalized = [];
+
+    foreach ($categories as $key => $value) {
+        $categoryKey = preg_replace('/[^a-z0-9_-]+/i', '', (string) $key) ?? '';
+        $categoryKey = trim($categoryKey);
+        $ratingValue = (int) $value;
+
+        if ($categoryKey === '' || $ratingValue < 1 || $ratingValue > 5) {
+            continue;
+        }
+
+        $normalized[$categoryKey] = $ratingValue;
+    }
+
+    return $normalized;
+}
+
+function normalizeProjectRatings(array $payload): array
+{
+    $ratings = isset($payload['ratingItems']) && is_array($payload['ratingItems'])
+        ? $payload['ratingItems']
+        : (isset($payload['ratings']) && is_array($payload['ratings']) ? $payload['ratings'] : []);
+
+    return array_values(array_filter(array_map(static function ($item) {
+        if (!is_array($item)) {
+            return null;
+        }
+
+        $value = (int) ($item['value'] ?? $item['rating'] ?? 0);
+
+        if ($value < 1 || $value > 5) {
+            return null;
+        }
+
+        $message = trim((string) ($item['message'] ?? $item['comment'] ?? ''));
+
+        return [
+            'identity' => (string) ($item['identity'] ?? ''),
+            'value' => $value,
+            'message' => $message,
+            'categories' => normalizeRatingCategories($item['categories'] ?? []),
+            'authorName' => (string) ($item['authorName'] ?? $item['userName'] ?? 'User'),
+            'authorEmail' => (string) ($item['authorEmail'] ?? $item['email'] ?? ''),
+            'createdAt' => (string) ($item['createdAt'] ?? jakartaNow()),
+            'updatedAt' => (string) ($item['updatedAt'] ?? $item['createdAt'] ?? jakartaNow()),
+        ];
+    }, $ratings)));
+}
+
+function summarizeProjectRatings(array $payload, ?string $viewerIdentity = null): array
+{
+    $ratings = normalizeProjectRatings($payload);
+    $count = count($ratings);
+    $total = array_sum(array_map(static fn ($item) => (int) $item['value'], $ratings));
+    $average = $count > 0 ? round($total / $count, 1) : 0;
+    $viewerRating = null;
+    $viewerReview = null;
+    $categoryTotals = [];
+    $categoryCounts = [];
+
+    foreach ($ratings as $rating) {
+        if ($viewerIdentity !== null && ($rating['identity'] ?? '') === $viewerIdentity) {
+            $viewerRating = (int) $rating['value'];
+            $viewerReview = $rating;
+        }
+
+        foreach (($rating['categories'] ?? []) as $categoryKey => $categoryValue) {
+            $categoryTotals[$categoryKey] = ($categoryTotals[$categoryKey] ?? 0) + (int) $categoryValue;
+            $categoryCounts[$categoryKey] = ($categoryCounts[$categoryKey] ?? 0) + 1;
+        }
+    }
+
+    $categoryAverages = [];
+    foreach ($categoryTotals as $categoryKey => $totalValue) {
+        $categoryAverages[$categoryKey] = round($totalValue / max(1, $categoryCounts[$categoryKey] ?? 1), 1);
+    }
+
+    $reviewItems = array_values(array_filter($ratings, static fn ($rating) => trim((string) ($rating['message'] ?? '')) !== ''));
+
+    return [
+        'averageRating' => $average,
+        'ratingCount' => $count,
+        'viewerRating' => $viewerRating,
+        'viewerReview' => $viewerReview,
+        'categoryAverages' => $categoryAverages,
+        'reviewCount' => count($reviewItems),
+        'reviewItems' => $reviewItems,
+        'ratingItems' => $ratings,
+    ];
+}
+
+function updateProjectRating(PDO $pdo, array $row, array $ratingData): array
+{
+    $value = (int) ($ratingData['value'] ?? $ratingData['rating'] ?? 0);
+
+    if ($value < 1 || $value > 5) {
+        throw new InvalidArgumentException('Rating harus bernilai 1 sampai 5.');
+    }
+
+    $message = trim((string) ($ratingData['message'] ?? $ratingData['comment'] ?? ''));
+    $messageLength = function_exists('mb_strlen') ? mb_strlen($message) : strlen($message);
+
+    if ($messageLength > 1000) {
+        throw new InvalidArgumentException('Komentar maksimal 1000 karakter.');
+    }
+
+    $categories = normalizeRatingCategories($ratingData['categories'] ?? []);
+    $identity = getRatingIdentity($ratingData);
+    $payload = getProjectPayload($row);
+    $ratings = normalizeProjectRatings($payload);
+    $now = jakartaNow();
+    $updated = false;
+
+    foreach ($ratings as &$rating) {
+        if (($rating['identity'] ?? '') === $identity) {
+            $rating['value'] = $value;
+            $rating['message'] = $message;
+            $rating['categories'] = $categories;
+            $rating['authorName'] = trim((string) ($ratingData['authorName'] ?? $ratingData['userName'] ?? $rating['authorName'] ?? 'User'));
+            $rating['authorEmail'] = trim((string) ($ratingData['authorEmail'] ?? $ratingData['email'] ?? $rating['authorEmail'] ?? ''));
+            $rating['updatedAt'] = $now;
+            $updated = true;
+            break;
+        }
+    }
+    unset($rating);
+
+    if (!$updated) {
+        $ratings[] = [
+            'identity' => $identity,
+            'value' => $value,
+            'message' => $message,
+            'categories' => $categories,
+            'authorName' => trim((string) ($ratingData['authorName'] ?? $ratingData['userName'] ?? 'User')),
+            'authorEmail' => trim((string) ($ratingData['authorEmail'] ?? $ratingData['email'] ?? '')),
+            'createdAt' => $now,
+            'updatedAt' => $now,
+        ];
+    }
+
+    $summary = summarizeProjectRatings(['ratingItems' => $ratings], $identity);
+    $payload['ratingItems'] = $ratings;
+    $payload['averageRating'] = $summary['averageRating'];
+    $payload['ratingCount'] = $summary['ratingCount'];
+    $payload['comments'] = $summary['reviewCount'];
+    unset($payload['commentItems'], $payload['commentList']);
+
+    $statement = $pdo->prepare(
+        'UPDATE project_submissions
+         SET payload_json = :payload_json, updated_at = :updated_at
+         WHERE id = :id'
+    );
+    $statement->execute([
+        ':payload_json' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+        ':updated_at' => $now,
+        ':id' => (int) $row['id'],
+    ]);
+
+    return $summary;
+}
+
+function deleteProjectRating(PDO $pdo, array $row, array $ratingData): array
+{
+    $identity = getRatingIdentity($ratingData);
+    $payload = getProjectPayload($row);
+    $ratings = normalizeProjectRatings($payload);
+    $ratings = array_values(array_filter($ratings, static fn ($rating) => ($rating['identity'] ?? '') !== $identity));
+    $summary = summarizeProjectRatings(['ratingItems' => $ratings], $identity);
+    $payload['ratingItems'] = $ratings;
+    $payload['averageRating'] = $summary['averageRating'];
+    $payload['ratingCount'] = $summary['ratingCount'];
+    $payload['comments'] = $summary['reviewCount'];
+    unset($payload['commentItems'], $payload['commentList']);
+    $now = jakartaNow();
+
+    $statement = $pdo->prepare(
+        'UPDATE project_submissions
+         SET payload_json = :payload_json, updated_at = :updated_at
+         WHERE id = :id'
+    );
+    $statement->execute([
+        ':payload_json' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+        ':updated_at' => $now,
+        ':id' => (int) $row['id'],
+    ]);
+
+    return $summary;
+}
+
+function getViewerIdentityFromQuery(): array
+{
+    $userId = $_GET['userId'] ?? $_GET['user_id'] ?? null;
+    $email = trim((string) ($_GET['email'] ?? $_GET['userEmail'] ?? $_GET['user_email'] ?? ''));
+
+    return [
+        'userId' => $userId === null || $userId === '' ? null : (int) $userId,
+        'email' => $email,
+    ];
+}
+
+function getProjectViewerAccess(PDO $pdo, int $projectId): array
+{
+    $viewer = getViewerIdentityFromQuery();
+    $userId = $viewer['userId'];
+    $email = $viewer['email'];
+
+    $access = [
+        'hasPurchased' => false,
+        'purchaseStatus' => 'none',
+        'entitlementId' => null,
+        'transactionId' => null,
+    ];
+
+    if ($userId === null && $email === '') {
+        return $access;
+    }
+
+    $where = [
+        'product_type = "project"',
+        'product_id = :project_id',
+        'status = "active"',
+        'deleted_at IS NULL',
+    ];
+    $params = [
+        ':project_id' => $projectId,
+    ];
+
+    if ($userId !== null && $email !== '') {
+        $where[] = '(user_id = :user_id OR LOWER(email) = LOWER(:email))';
+        $params[':user_id'] = $userId;
+        $params[':email'] = $email;
+    } elseif ($userId !== null) {
+        $where[] = 'user_id = :user_id';
+        $params[':user_id'] = $userId;
+    } else {
+        $where[] = 'LOWER(email) = LOWER(:email)';
+        $params[':email'] = $email;
+    }
+
+    $statement = $pdo->prepare(
+        'SELECT id, transaction_id, status
+         FROM user_entitlements
+         WHERE ' . implode(' AND ', $where) . '
+         ORDER BY updated_at DESC, id DESC
+         LIMIT 1'
+    );
+    $statement->execute($params);
+    $row = $statement->fetch();
+
+    if ($row === false) {
+        return $access;
+    }
+
+    return [
+        'hasPurchased' => true,
+        'purchaseStatus' => $row['status'] ?? 'active',
+        'entitlementId' => isset($row['id']) ? (int) $row['id'] : null,
+        'transactionId' => isset($row['transaction_id']) && $row['transaction_id'] !== null
+            ? (int) $row['transaction_id']
+            : null,
+    ];
 }
 
 function validateProject(array $project): array
@@ -479,7 +1024,34 @@ function storeUploadedProjectFile(array $storage): ?array
 
     return $file === null
         ? null
-        : storeUploadedFile($file, $storage, 'project-file', ['json', 'flow'], 10 * 1024 * 1024);
+        : storeUploadedFile($file, $storage, 'project-file', ['json', 'flow', 'schema', 'txt', 'md', 'ino', 'zip'], 10 * 1024 * 1024);
+}
+
+function storeUploadedProjectFiles(array $storage, array $projectFiles): array
+{
+    $files = [];
+
+    foreach ($projectFiles as $index => $projectFile) {
+        $uploadedFile = getUploadedFileAtIndex('project_files', (int) $index);
+        $existingFile = is_array($projectFile) && isset($projectFile['file']) && is_array($projectFile['file'])
+            ? $projectFile['file']
+            : null;
+        $storedFile = $uploadedFile === null
+            ? $existingFile
+            : storeUploadedFile($uploadedFile, $storage, 'project-file', ['json', 'flow', 'schema', 'txt', 'md', 'ino', 'zip'], 10 * 1024 * 1024);
+
+        if ($storedFile === null) {
+            continue;
+        }
+
+        $files[] = [
+            'id' => is_array($projectFile) ? ($projectFile['id'] ?? null) : null,
+            'label' => is_array($projectFile) ? trim((string) ($projectFile['label'] ?? '')) : '',
+            'file' => $storedFile,
+        ];
+    }
+
+    return $files;
 }
 
 function storeUploadedComponentImages(array $storage, array $tools): array
@@ -518,6 +1090,45 @@ function applyComponentImagesToTools(array $tools, array $componentImages): arra
         },
         $tools,
         array_keys($tools)
+    ));
+}
+
+function storeUploadedNodeImages(array $storage, array $nodes): array
+{
+    $images = [];
+
+    foreach ($nodes as $index => $node) {
+        $uploadedFile = getUploadedFileAtIndex('node_images', (int) $index);
+        $existingImage = is_array($node) && isset($node['image']) && is_array($node['image'])
+            ? $node['image']
+            : null;
+
+        $images[$index] = $uploadedFile === null
+            ? $existingImage
+            : storeUploadedFile($uploadedFile, $storage, 'node-image', ['jpg', 'jpeg', 'png', 'webp'], 2 * 1024 * 1024, true);
+    }
+
+    return $images;
+}
+
+function applyNodeImagesToNodes(array $nodes, array $nodeImages): array
+{
+    return array_values(array_map(
+        static function ($node, int $index) use ($nodeImages) {
+            $normalizedNode = is_array($node)
+                ? $node
+                : ['name' => (string) $node];
+
+            if (isset($nodeImages[$index]) && is_array($nodeImages[$index])) {
+                $normalizedNode['image'] = $nodeImages[$index];
+            } else {
+                unset($normalizedNode['image']);
+            }
+
+            return $normalizedNode;
+        },
+        $nodes,
+        array_keys($nodes)
     ));
 }
 
@@ -604,10 +1215,14 @@ try {
                 ]);
             }
 
+            if (($_GET['action'] ?? '') === 'download') {
+                sendProjectZipDownload($row);
+            }
+
             sendJson(200, [
                 'success' => true,
                 'message' => 'Detail proyek berhasil diambil.',
-                'data' => rowToProject($row),
+                'data' => rowToProject($row, getProjectViewerAccess($pdo, $projectId)),
             ]);
         }
 
@@ -625,6 +1240,80 @@ try {
     }
 
     if ($method === 'POST') {
+        if (($_GET['action'] ?? '') === 'interaction') {
+            if ($projectId === null) {
+                sendJson(422, [
+                    'success' => false,
+                    'message' => 'ID proyek wajib diisi.',
+                ]);
+            }
+
+            $row = findProject($pdo, $projectId);
+
+            if ($row === null) {
+                sendJson(404, [
+                    'success' => false,
+                    'message' => 'Proyek tidak ditemukan.',
+                ]);
+            }
+
+            $body = readJsonBody();
+            $metric = (string) ($body['type'] ?? $body['metric'] ?? '');
+            $active = filter_var($body['active'] ?? true, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            $delta = ($active === false) ? -1 : 1;
+            $result = updateProjectMetric($pdo, $row, $metric, $delta);
+            $updatedRow = findProject($pdo, $projectId);
+
+            sendJson(200, [
+                'success' => true,
+                'message' => 'Interaksi proyek berhasil diperbarui.',
+                'data' => [
+                    'metric' => $result['metric'],
+                    'value' => $result['value'],
+                    'project' => $updatedRow ? rowToProject($updatedRow, getProjectViewerAccess($pdo, $projectId)) : null,
+                ],
+            ]);
+        }
+
+        if (($_GET['action'] ?? '') === 'comment') {
+            sendJson(410, [
+                'success' => false,
+                'message' => 'Komentar proyek sekarang dikirim bersama rating.',
+            ]);
+        }
+
+        if (($_GET['action'] ?? '') === 'rating') {
+            if ($projectId === null) {
+                sendJson(422, [
+                    'success' => false,
+                    'message' => 'ID proyek wajib diisi.',
+                ]);
+            }
+
+            $row = findProject($pdo, $projectId);
+
+            if ($row === null) {
+                sendJson(404, [
+                    'success' => false,
+                    'message' => 'Proyek tidak ditemukan.',
+                ]);
+            }
+
+            $result = updateProjectRating($pdo, $row, readJsonBody());
+            $updatedRow = findProject($pdo, $projectId);
+
+            sendJson(200, [
+                'success' => true,
+                'message' => 'Rating proyek berhasil disimpan.',
+                'data' => [
+                    'rating' => $result['viewerRating'],
+                    'averageRating' => $result['averageRating'],
+                    'ratingCount' => $result['ratingCount'],
+                    'project' => $updatedRow ? rowToProject($updatedRow, getProjectViewerAccess($pdo, $projectId)) : null,
+                ],
+            ]);
+        }
+
         $project = readProjectBody();
         $errors = validateProject($project);
 
@@ -644,7 +1333,9 @@ try {
         $coverImage = storeUploadedCoverImage($projectImageStorage) ?? extractCoverImage($project, $projectImageStorage);
         $circuitImage = storeUploadedCircuitImage($projectImageStorage);
         $projectFile = storeUploadedProjectFile($projectImageStorage);
+        $projectFiles = storeUploadedProjectFiles($projectImageStorage, is_array($project['projectFiles'] ?? null) ? $project['projectFiles'] : []);
         $componentImages = storeUploadedComponentImages($projectImageStorage, is_array($project['tools'] ?? null) ? $project['tools'] : []);
+        $nodeImages = storeUploadedNodeImages($projectImageStorage, is_array($project['nodes'] ?? null) ? $project['nodes'] : []);
 
         $now = jakartaNow();
         $project['title'] = $title;
@@ -661,11 +1352,18 @@ try {
             $project['projectFile'] = $projectFile;
         }
 
+        if ($projectFiles !== []) {
+            $project['projectFiles'] = $projectFiles;
+            $project['projectFile'] = $projectFiles[0]['file'] ?? $project['projectFile'] ?? null;
+            $projectFile = $project['projectFile'];
+        }
+
         if ($circuitImage !== null) {
             $project['circuitImage'] = $circuitImage;
         }
 
         $project['tools'] = applyComponentImagesToTools(is_array($project['tools'] ?? null) ? $project['tools'] : [], $componentImages);
+        $project['nodes'] = applyNodeImagesToNodes(is_array($project['nodes'] ?? null) ? $project['nodes'] : [], $nodeImages);
 
         $payloadJson = json_encode(
             $project,
@@ -827,7 +1525,9 @@ try {
         $coverImage = storeUploadedCoverImage($projectImageStorage) ?? extractCoverImage($incoming, $projectImageStorage);
         $circuitImage = storeUploadedCircuitImage($projectImageStorage);
         $projectFile = storeUploadedProjectFile($projectImageStorage);
+        $projectFiles = storeUploadedProjectFiles($projectImageStorage, is_array($project['projectFiles'] ?? null) ? $project['projectFiles'] : []);
         $componentImages = storeUploadedComponentImages($projectImageStorage, is_array($project['tools'] ?? null) ? $project['tools'] : []);
+        $nodeImages = storeUploadedNodeImages($projectImageStorage, is_array($project['nodes'] ?? null) ? $project['nodes'] : []);
 
         if ($coverImage === null) {
             $coverImage = [
@@ -857,6 +1557,12 @@ try {
             $project['projectFile'] = $projectFile;
         }
 
+        if ($projectFiles !== []) {
+            $project['projectFiles'] = $projectFiles;
+            $project['projectFile'] = $projectFiles[0]['file'] ?? $project['projectFile'] ?? null;
+            $projectFile = $project['projectFile'];
+        }
+
         if ($circuitImage === null) {
             $circuitImage = [
                 'file_name' => $existingRow['circuit_image_name'] ?? null,
@@ -872,6 +1578,7 @@ try {
         }
 
         $project['tools'] = applyComponentImagesToTools(is_array($project['tools'] ?? null) ? $project['tools'] : [], $componentImages);
+        $project['nodes'] = applyNodeImagesToNodes(is_array($project['nodes'] ?? null) ? $project['nodes'] : [], $nodeImages);
 
         $now = jakartaNow();
         $payloadJson = json_encode(
@@ -965,6 +1672,38 @@ try {
     }
 
     if ($method === 'DELETE') {
+        if (($_GET['action'] ?? '') === 'rating') {
+            if ($projectId === null) {
+                sendJson(422, [
+                    'success' => false,
+                    'message' => 'ID proyek wajib diisi.',
+                ]);
+            }
+
+            $row = findProject($pdo, $projectId);
+
+            if ($row === null) {
+                sendJson(404, [
+                    'success' => false,
+                    'message' => 'Proyek tidak ditemukan.',
+                ]);
+            }
+
+            $result = deleteProjectRating($pdo, $row, readJsonBody());
+            $updatedRow = findProject($pdo, $projectId);
+
+            sendJson(200, [
+                'success' => true,
+                'message' => 'Rating proyek berhasil dihapus.',
+                'data' => [
+                    'rating' => $result['viewerRating'],
+                    'averageRating' => $result['averageRating'],
+                    'ratingCount' => $result['ratingCount'],
+                    'project' => $updatedRow ? rowToProject($updatedRow, getProjectViewerAccess($pdo, $projectId)) : null,
+                ],
+            ]);
+        }
+
         if ($projectId === null) {
             throw new InvalidArgumentException('Parameter id wajib diisi untuk menghapus proyek.');
         }

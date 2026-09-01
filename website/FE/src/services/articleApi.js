@@ -1,10 +1,9 @@
-const DEPLOY_URL = (
-  import.meta.env.VITE_DEPLOY_URL ||
-  'https://arduflow.indobilliard.com/apk/uploads/web-arduflow-deploy-alfha/'
-).replace(/\/+$/, '');
+import { apiEndpoint } from './apiEndpoints.js';
 
 const ARTICLE_API_URL =
-  `${DEPLOY_URL}/api/article-api.php`;
+  apiEndpoint(import.meta.env.VITE_ARTICLE_API_URL, '/api/article-api.php');
+const ARTICLE_STORAGE_URL =
+  apiEndpoint(import.meta.env.VITE_ARTICLE_STORAGE_URL, '/uploads/articles');
 
 // ======================================================
 // LOKASI GAMBAR ARTIKEL
@@ -17,10 +16,6 @@ const ARTICLE_API_URL =
 // https://arduflow.indobilliard.com/apk/uploads/
 // web-arduflow-deploy-alfha/uploads/articles/
 // ======================================================
-
-const ARTICLE_STORAGE_URL =
-  `${DEPLOY_URL}/uploads/articles`;
-
 
 // ======================================================
 // EXTRACT NAMA FILE GAMBAR
@@ -944,5 +939,4 @@ export async function incrementArticleView(
 export {
   ARTICLE_API_URL,
   ARTICLE_STORAGE_URL,
-  DEPLOY_URL,
 };

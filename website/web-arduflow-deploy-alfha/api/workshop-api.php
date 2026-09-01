@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+use Arduflow\Api\Support\Env;
+
 /**
  * Arduflow Workshop API
  *
@@ -16,6 +18,22 @@ declare(strict_types=1);
  */
 
 date_default_timezone_set('Asia/Jakarta');
+
+$projectRoot = dirname(__DIR__);
+$autoloadPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
+
+if (!is_file($autoloadPath)) {
+    http_response_code(500);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'success' => false,
+        'message' => 'Composer autoload tidak ditemukan.',
+    ]);
+    exit;
+}
+
+require_once $autoloadPath;
+Env::load($projectRoot . DIRECTORY_SEPARATOR . '.env');
 
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');

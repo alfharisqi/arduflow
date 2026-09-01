@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AdminNotificationButton } from './AdminChrome.jsx';
 import { AdminSidebar } from './AdminSidebar.jsx';
+import { AdminActionDropdown } from './AdminActionDropdown.jsx';
 import {
   getInitialAdminSidebarCollapsed,
   persistAdminSidebarCollapsed,
@@ -1230,42 +1231,25 @@ export function AdminArticle() {
                             </td>
 
                             <td>
-                              <div className="admin-article-actions">
-                                <ArticleAction
-                                  label={`Lihat ${item.title}`}
-                                  onClick={() =>
-                                    setSelectedArticle(
-                                      item
-                                    )
-                                  }
-                                >
-                                  <img
-                                    src={eyeIcon}
-                                    alt=""
-                                  />
-                                </ArticleAction>
-
-                                <ArticleAction
-                                  label={`Edit ${item.title}`}
-                                  href={`/admin/artikel/edit?id=${encodeURIComponent(
-                                    item.id
-                                  )}`}
-                                >
-                                  Edit
-                                </ArticleAction>
-
-                                <ArticleAction
-                                  label={`Hapus ${item.title}`}
-                                  tone="danger"
-                                  onClick={() =>
-                                    handleDelete(
-                                      item
-                                    )
-                                  }
-                                >
-                                  Delete
-                                </ArticleAction>
-                              </div>
+                              <AdminActionDropdown
+                                label={`Buka aksi untuk ${item.title}`}
+                                items={[
+                                  {
+                                    label: 'Lihat',
+                                    icon: <img src={eyeIcon} alt="" />,
+                                    onSelect: () => setSelectedArticle(item),
+                                  },
+                                  {
+                                    label: 'Edit',
+                                    href: `/admin/artikel/edit?id=${encodeURIComponent(item.id)}`,
+                                  },
+                                  {
+                                    label: 'Delete',
+                                    tone: 'danger',
+                                    onSelect: () => handleDelete(item),
+                                  },
+                                ]}
+                              />
                             </td>
                           </tr>
                         );

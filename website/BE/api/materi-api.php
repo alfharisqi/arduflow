@@ -2,12 +2,25 @@
 
 declare(strict_types=1);
 
+use Arduflow\Api\Support\Env;
+
 const MATERI_API_VERSION = 'materi-v6-table-materi';
+
+$projectRoot = dirname(__DIR__);
+$autoloadPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
+
+if (is_file($autoloadPath)) {
+    require_once $autoloadPath;
+}
+
+if (class_exists(Env::class)) {
+    Env::load($projectRoot . DIRECTORY_SEPARATOR . '.env');
+}
 
 header('Content-Type: application/json; charset=utf-8');
 header('X-ArduFlow-Materi-API: ' . MATERI_API_VERSION);
 
-$origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
+$origin = isset($_SERVER['HTTP_ORIGIN']) ? trim((string) $_SERVER['HTTP_ORIGIN']) : '';
 
 $allowedOrigins = [
     'http://localhost:5173',
@@ -16,14 +29,25 @@ $allowedOrigins = [
     'http://127.0.0.1:5174',
     'http://localhost:5175',
     'http://127.0.0.1:5175',
+    'https://arduflow.indobilliard.com',
+    'https://www.arduflow.indobilliard.com',
 ];
+
+if (class_exists(Env::class)) {
+    $configuredOrigins = array_filter(
+        array_map('trim', explode(',', Env::get('CORS_ORIGIN', ''))),
+        static fn(string $configuredOrigin): bool => $configuredOrigin !== ''
+    );
+
+    $allowedOrigins = array_values(array_unique([...$allowedOrigins, ...$configuredOrigins]));
+}
 
 $isLocalOrigin = preg_match(
     '#^http://(localhost|127\.0\.0\.1|192\.168\.[0-9]+\.[0-9]+|10\.[0-9]+\.[0-9]+\.[0-9]+|172\.(1[6-9]|2[0-9]|3[0-1])\.[0-9]+\.[0-9]+):[0-9]+$#',
     $origin
 ) === 1;
 
-if (in_array($origin, $allowedOrigins, true) || $isLocalOrigin) {
+if ($origin !== '' && (in_array($origin, $allowedOrigins, true) || $isLocalOrigin)) {
     header('Access-Control-Allow-Origin: ' . $origin);
     header('Vary: Origin');
 }
@@ -82,8 +106,6 @@ if (
 ) {
     serveStoredVideo();
 }
-
-require_once dirname(__DIR__) . '/config/database.php';
 
 if (!function_exists('getDatabaseConnection')) {
     function getDatabaseConnection(): PDO

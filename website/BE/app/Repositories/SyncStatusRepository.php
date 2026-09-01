@@ -62,4 +62,20 @@ final class SyncStatusRepository
             'mysql_status' => $row['mysql_status'] ?? null,
         ], $statement->fetchAll());
     }
+
+    public function deleteLog(int $id): bool
+    {
+        $statement = $this->sqlite->prepare('DELETE FROM sync_logs WHERE id = :id');
+        $statement->execute([':id' => $id]);
+
+        return $statement->rowCount() > 0;
+    }
+
+    public function clearLogs(): int
+    {
+        $statement = $this->sqlite->prepare('DELETE FROM sync_logs');
+        $statement->execute();
+
+        return $statement->rowCount();
+    }
 }

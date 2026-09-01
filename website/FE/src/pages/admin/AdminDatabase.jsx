@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AdminPage, AdminTopbar } from './AdminChrome.jsx';
 import { ADMIN_REALTIME_EVENT } from './AdminRealtimeBridge.jsx';
+import databaseIcon from '../../assets/icons/icons-database-1.svg';
+import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
+import clockIcon from '../../assets/icons/icon-clock-1.svg';
 import {
+  clearAdminDatabaseSyncLogs,
   createAdminDatabaseBackup,
+  deleteAdminDatabaseSyncLog,
   getAdminDatabaseBackups,
   getAdminDatabaseStatus,
   retryAdminDatabaseSync,
@@ -39,12 +44,17 @@ function StatusPill({ online, children }) {
   );
 }
 
-function StatCard({ label, value, note, tone = 'neutral' }) {
+function StatCard({ label, value, note, tone = 'neutral', icon = databaseIcon }) {
   return (
     <article className={`admin-db-stat admin-db-stat--${tone}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{note}</small>
+      <span className="admin-db-stat-icon" aria-hidden="true">
+        <img src={icon} alt="" />
+      </span>
+      <div>
+        <span>{label}</span>
+        <strong>{value}</strong>
+        <small>{note}</small>
+      </div>
     </article>
   );
 }
@@ -118,6 +128,26 @@ export function AdminDatabase() {
     }
   };
 
+  const deleteLog = async (log) => {
+    if (!log?.id || !window.confirm('Hapus log sinkronisasi ini?')) return;
+
+    await runAction(
+      `delete-log-${log.id}`,
+      () => deleteAdminDatabaseSyncLog(log.id),
+      'Log sinkronisasi berhasil dihapus.',
+    );
+  };
+
+  const clearLogs = async () => {
+    if (!syncLogs.length || !window.confirm(`Hapus ${syncLogs.length} log sinkronisasi yang tampil?`)) return;
+
+    await runAction(
+      'clear-logs',
+      clearAdminDatabaseSyncLogs,
+      'Log sinkronisasi berhasil dihapus.',
+    );
+  };
+
   return (
     <AdminPage pageClassName="admin-db-page" ariaLabel="Backup dan database">
       <AdminTopbar
@@ -150,30 +180,35 @@ export function AdminDatabase() {
             value={mysqlOnline ? 'Online' : 'Offline'}
             note="Target sinkronisasi SQLite"
             tone={mysqlOnline ? 'green' : 'red'}
+            icon={databaseIcon}
           />
           <StatCard
             label="SQLite Operasional"
             value={isLoading ? 'Memuat' : 'Aktif'}
             note="Sumber data utama aplikasi"
             tone="blue"
+            icon={databaseIcon}
           />
           <StatCard
             label="Antrean Sync"
             value={formatNumber(queueTotal)}
             note={`${formatNumber(status?.pending)} pending, ${formatNumber(status?.failed)} failed`}
             tone={Number(status?.failed || 0) > 0 ? 'red' : 'neutral'}
+            icon={clockIcon}
           />
           <StatCard
             label="Synced Hari Ini"
             value={formatNumber(status?.synced_today)}
             note={`Terakhir sukses: ${formatDate(status?.last_success_at)}`}
             tone="green"
+            icon={checkIcon}
           />
           <StatCard
             label="Scheduler 5 Menit"
             value={schedulerInstalled ? 'Terpasang' : 'Belum Aktif'}
             note={schedulerInstalled ? `Next run: ${status?.scheduler?.next_run_at || '-'}` : status?.scheduler?.message || 'Task belum ditemukan'}
             tone={schedulerInstalled ? 'green' : 'red'}
+            icon={clockIcon}
           />
         </section>
 
@@ -227,10 +262,20 @@ export function AdminDatabase() {
           </article>
         </section>
 
-        <section className="admin-db-panel admin-db-panel--wide">
+        <section className="admin-db-panel admin-db-panel--wide admin-db-panel--logs">
           <header>
-            <h2>Log Sinkronisasi Terbaru</h2>
-            <p>Riwayat worker SQLite ke MySQL, termasuk eksekusi otomatis dari scheduler.</p>
+            <div>
+              <h2>Log Sinkronisasi Terbaru</h2>
+              <p>Riwayat worker SQLite ke MySQL, termasuk eksekusi otomatis dari scheduler.</p>
+            </div>
+            <button
+              className="admin-db-danger-button"
+              type="button"
+              onClick={clearLogs}
+              disabled={Boolean(busyAction) || syncLogs.length === 0}
+            >
+              {busyAction === 'clear-logs' ? 'Menghapus...' : 'Hapus Semua Log'}
+            </button>
           </header>
 
           <table className="admin-db-table">
@@ -243,6 +288,7 @@ export function AdminDatabase() {
                 <th>Gagal</th>
                 <th>MySQL</th>
                 <th>Durasi</th>
+                <th>Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -256,21 +302,33 @@ export function AdminDatabase() {
                     <td>{formatNumber(log.failed_events)}</td>
                     <td>{log.mysql_status || '-'}</td>
                     <td>{log.duration_ms === null || log.duration_ms === undefined ? '-' : `${log.duration_ms} ms`}</td>
+                    <td>
+                      <button
+                        className="admin-db-table-action admin-db-table-action--danger"
+                        type="button"
+                        onClick={() => deleteLog(log)}
+                        disabled={Boolean(busyAction)}
+                      >
+                        {busyAction === `delete-log-${log.id}` ? '...' : 'Hapus'}
+                      </button>
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7">{isLoading ? 'Memuat log sync...' : 'Belum ada log sinkronisasi.'}</td>
+                  <td colSpan="8">{isLoading ? 'Memuat log sync...' : 'Belum ada log sinkronisasi.'}</td>
                 </tr>
               )}
             </tbody>
           </table>
         </section>
 
-        <section className="admin-db-panel admin-db-panel--wide">
+        <section className="admin-db-panel admin-db-panel--wide admin-db-panel--backups">
           <header>
-            <h2>Riwayat Backup Terbaru</h2>
-            <p>Menampilkan maksimal 8 backup SQLite terbaru dari folder storage backend.</p>
+            <div>
+              <h2>Riwayat Backup Terbaru</h2>
+              <p>Menampilkan maksimal 8 backup SQLite terbaru dari folder storage backend.</p>
+            </div>
           </header>
 
           <table className="admin-db-table">

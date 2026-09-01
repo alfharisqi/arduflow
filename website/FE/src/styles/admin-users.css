@@ -256,6 +256,25 @@
   letter-spacing: 1px;
 }
 
+.admin-users-action-trigger,
+.admin-action-dropdown-trigger {
+  font-size: 0 !important;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.admin-users-action-trigger::before,
+.admin-action-dropdown-trigger::before {
+  content: '•••';
+  display: block;
+  color: currentColor;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  line-height: 1;
+  transform: translateX(1px);
+}
+
 .admin-users-action-popover {
   position: fixed;
   z-index: 1000;
@@ -272,6 +291,7 @@
 .admin-users-action-popover button,
 .admin-users-action-popover a {
   display: flex;
+  align-items: center;
   justify-content: flex-start;
   width: 100%;
   height: 36px;
@@ -293,6 +313,118 @@
 
 .admin-users-action-popover .admin-users-action-danger {
   color: #b42318;
+}
+
+.admin-action-dropdown {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.admin-action-dropdown-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  min-width: 32px;
+  height: 28px;
+  padding: 0 !important;
+  border: 1px solid #d8dde6;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #667085 !important;
+  font-family: 'Inter', sans-serif;
+  font-size: 16px !important;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.admin-action-dropdown-trigger:hover,
+.admin-action-dropdown-trigger[aria-expanded='true'] {
+  border-color: #d2d6da;
+  background: #f8fafc;
+  color: #1a73e8 !important;
+}
+
+.admin-action-dropdown-popover {
+  position: fixed;
+  z-index: 1000;
+  width: 190px;
+  max-height: min(360px, calc(100vh - 24px));
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid #eaecf0;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 16px 32px rgba(16, 24, 40, 0.18);
+}
+
+.admin-action-dropdown-popover button,
+.admin-action-dropdown-popover a {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  height: 36px;
+  padding: 0 10px !important;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #344054;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.admin-action-dropdown-popover button:hover,
+.admin-action-dropdown-popover a:hover {
+  background: #f9fafb;
+  color: #175cd3;
+}
+
+.admin-action-dropdown-popover button:disabled,
+.admin-action-dropdown-popover a[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.admin-action-dropdown-popover .is-danger {
+  color: #b42318;
+}
+
+.admin-action-dropdown-popover .is-danger:hover {
+  background: #fef3f2;
+  color: #b42318;
+}
+
+.admin-action-dropdown-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.admin-action-dropdown-icon img {
+  display: block;
+  max-width: 16px;
+  max-height: 16px;
+  object-fit: contain;
+}
+
+.admin-action-dropdown-popover small {
+  margin-left: auto;
+  color: #667085;
+  font-size: 11px;
 }
 
 .admin-users-actions button:disabled,
@@ -553,16 +685,29 @@
   justify-content: center;
   flex: none;
   border-radius: 50%;
+  overflow: hidden;
   background:
     radial-gradient(circle at 50% 35%, #ffffff 0 20%, transparent 21%),
     radial-gradient(circle at 50% 78%, #ffffff 0 30%, transparent 31%),
     linear-gradient(195deg, #42424a, #191919);
   box-shadow: 0 3px 10px rgba(52, 71, 103, 0.16);
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-weight: 800;
 }
 
 .admin-users-avatar {
   width: 28px;
   height: 28px;
+  font-size: 10px;
+}
+
+.admin-users-avatar img,
+.admin-users-detail-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .admin-users-badge {
@@ -809,10 +954,7 @@
   height: 72px;
   margin-bottom: 12px;
   background: linear-gradient(195deg, #49a3f1, #1a73e8);
-  color: #ffffff;
-  font-family: 'Inter', sans-serif;
   font-size: 20px;
-  font-weight: 800;
 }
 
 .admin-users-detail-profile h3,

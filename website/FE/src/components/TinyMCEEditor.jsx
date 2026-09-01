@@ -76,7 +76,72 @@ function escapeHtml(value) {
     .replace(/'/g, '&#039;');
 }
 
-function registerCustomTools(editor) {
+function getReferenceHtml(item) {
+  const kindLabel = item.kind === 'node' ? 'Node' : 'Komponen';
+  const title = item.name || item.label || kindLabel;
+  const meta = [item.category, item.value ? `Value: ${item.value}` : '']
+    .filter(Boolean)
+    .join(' | ');
+  const description = item.description || item.specification || '';
+
+  return (
+    '<span class="project-step-reference" contenteditable="false" data-project-reference="' +
+    escapeHtml(item.kind || 'component') +
+    '">' +
+    '<strong>' +
+    escapeHtml(kindLabel) +
+    ': ' +
+    escapeHtml(title) +
+    '</strong>' +
+    (meta ? '<small>' + escapeHtml(meta) + '</small>' : '') +
+    (description ? '<em>' + escapeHtml(description) + '</em>' : '') +
+    '</span>&nbsp;'
+  );
+}
+
+function registerProjectReferenceTools(editor, referencesRef) {
+  editor.ui.registry.addMenuButton('projectrefs', {
+    text: 'Sematkan Item',
+    tooltip: 'Sematkan komponen atau node yang sudah ditambahkan',
+    fetch: (callback) => {
+      const references = Array.isArray(referencesRef.current) ? referencesRef.current : [];
+
+      if (!references.length) {
+        callback([
+          {
+            type: 'menuitem',
+            text: 'Tambahkan komponen atau node terlebih dahulu',
+            enabled: false,
+          },
+        ]);
+        return;
+      }
+
+      const groups = [
+        ['component', 'Komponen'],
+        ['node', 'Node'],
+      ].map(([kind, label]) => ({
+        kind,
+        label,
+        items: references.filter((item) => item.kind === kind),
+      }));
+
+      callback(groups
+        .filter((group) => group.items.length)
+        .map((group) => ({
+          type: 'nestedmenuitem',
+          text: group.label,
+          getSubmenuItems: () => group.items.map((item) => ({
+            type: 'menuitem',
+            text: item.value ? `${item.name} (${item.value})` : item.name,
+            onAction: () => editor.insertContent(getReferenceHtml(item)),
+          })),
+        })));
+    },
+  });
+}
+
+function registerCustomTools(editor, referencesRef, enableProjectReferences) {
   editor.ui.registry.addMenuButton('textwrap', {
     text: 'Text Wrap',
     tooltip: 'Atur text wrapping gambar',
@@ -218,6 +283,10 @@ void loop() {
       });
     },
   });
+
+  if (enableProjectReferences) {
+    registerProjectReferenceTools(editor, referencesRef);
+  }
 }
 
 const editorContentStyle = `
@@ -266,6 +335,28 @@ const editorContentStyle = `
     line-height: 1.6;
     white-space: pre;
   }
+  .project-step-reference {
+    display: inline-grid;
+    max-width: 100%;
+    margin: 2px 4px;
+    padding: 7px 9px;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    background: #eff6ff;
+    color: #1e3a8a;
+    vertical-align: middle;
+    line-height: 1.35;
+  }
+  .project-step-reference strong {
+    font-size: 13px;
+    font-weight: 800;
+  }
+  .project-step-reference small,
+  .project-step-reference em {
+    color: #475569;
+    font-size: 12px;
+    font-style: normal;
+  }
   .mce-content-body::after {
     content: "";
     display: block;
@@ -280,17 +371,24 @@ export function TinyMCEEditor({
   className = '',
   ariaLabel = 'Editor teks',
   disabled = false,
+  projectReferences = [],
+  enableProjectReferences = false,
 }) {
   const textareaRef = useRef(null);
   const editorRef = useRef(null);
   const valueRef = useRef(value || '');
   const onChangeRef = useRef(onChange);
+  const referencesRef = useRef(projectReferences);
   const generatedId = useId().replace(/:/g, '');
   const editorId = `tinymce-${generatedId}`;
 
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+
+  useEffect(() => {
+    referencesRef.current = projectReferences;
+  }, [projectReferences]);
 
   useEffect(() => {
     valueRef.current = value || '';
@@ -307,6 +405,12 @@ export function TinyMCEEditor({
       if (isCancelled || !textareaRef.current) {
         return;
       }
+
+      const toolbar =
+        'undo redo | blocks | bold italic underline strikethrough | ' +
+        'alignleft aligncenter alignright alignjustify | ' +
+        'bullist numlist outdent indent | link image media table | ' +
+        `textwrap arduinocode${enableProjectReferences ? ' projectrefs' : ''} | removeformat | code preview fullscreen`;
 
       tinymce.init({
         target: textareaRef.current,
@@ -331,11 +435,7 @@ export function TinyMCEEditor({
           'help',
           'wordcount',
         ],
-        toolbar:
-          'undo redo | blocks | bold italic underline strikethrough | ' +
-          'alignleft aligncenter alignright alignjustify | ' +
-          'bullist numlist outdent indent | link image media table | ' +
-          'textwrap arduinocode | removeformat | code preview fullscreen',
+        toolbar,
         automatic_uploads: false,
         image_title: true,
         file_picker_types: 'image',
@@ -367,7 +467,7 @@ export function TinyMCEEditor({
         },
         setup: (editor) => {
           editorRef.current = editor;
-          registerCustomTools(editor);
+          registerCustomTools(editor, referencesRef, enableProjectReferences);
 
           editor.on('init', () => {
             editor.getContainer()?.setAttribute('aria-label', ariaLabel);
@@ -391,7 +491,7 @@ export function TinyMCEEditor({
         editorRef.current = null;
       }
     };
-  }, [ariaLabel, disabled, height]);
+  }, [ariaLabel, disabled, enableProjectReferences, height]);
 
   return (
     <div className={['tinymce-editor', className].filter(Boolean).join(' ')}>

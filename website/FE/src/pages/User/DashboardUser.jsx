@@ -19,6 +19,22 @@ import {
 } from '../../services/workshopApi.js';
 
 import {
+  fetchProjectSubmissions,
+} from '../../services/projectApi.js';
+
+import {
+  fetchGallerySubmissions,
+} from '../../services/galleryApi.js';
+
+import {
+  fetchPartners,
+} from '../../services/partnerApi.js';
+
+import {
+  fetchTransactions,
+} from '../../services/transactionApi.js';
+
+import {
   showErrorAlert,
   showSuccessAlert,
 } from '../../utils/alerts.js';
@@ -60,6 +76,11 @@ const menuItems = [
     label: 'Lead Saya',
     icon: 'lead',
     href: '/lead-saya',
+  },
+  {
+    label: 'Partner Saya',
+    icon: 'partner',
+    href: '/partner-saya',
   },
   {
     label: 'Transaksi',
@@ -290,6 +311,100 @@ function formatCalendarMonth(value) {
   }).format(value);
 }
 
+function formatShortDate(value) {
+  if (!value) {
+    return '-';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
+function normalizeMatchValue(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function itemMatchesUser(item, user) {
+  const userId = normalizeMatchValue(user?.id || user?.user_id);
+  const userEmail = normalizeMatchValue(user?.email);
+  const userName = normalizeMatchValue(user?.name || user?.fullName || user?.username);
+  const username = normalizeMatchValue(user?.username);
+  const payload = item?.payload && typeof item.payload === 'object' ? item.payload : {};
+  const candidates = [
+    item?.userId,
+    item?.user_id,
+    item?.ownerId,
+    item?.owner_id,
+    item?.authorId,
+    item?.author_id,
+    payload?.userId,
+    payload?.user_id,
+    payload?.ownerId,
+    payload?.owner_id,
+  ].map(normalizeMatchValue);
+
+  if (userId && candidates.includes(userId)) {
+    return true;
+  }
+
+  const textCandidates = [
+    item?.email,
+    item?.userEmail,
+    item?.user_email,
+    item?.ownerEmail,
+    item?.owner_email,
+    item?.userName,
+    item?.user_name,
+    item?.ownerName,
+    item?.owner_name,
+    item?.authorName,
+    item?.author_name,
+    item?.picName,
+    item?.pic_name,
+    item?.name,
+    payload?.email,
+    payload?.userEmail,
+    payload?.ownerEmail,
+    payload?.userName,
+    payload?.ownerName,
+    payload?.authorName,
+    payload?.picName,
+  ].map(normalizeMatchValue);
+
+  return Boolean(
+    (userEmail && textCandidates.includes(userEmail)) ||
+      (userName && textCandidates.includes(userName)) ||
+      (username && textCandidates.includes(username))
+  );
+}
+
+function statusLabel(value) {
+  const normalized = normalizeMatchValue(value);
+  const labels = {
+    published: 'Publish',
+    publish: 'Publish',
+    draft: 'Draft',
+    review: 'Review',
+    pending: 'Pending',
+    rejected: 'Ditolak',
+    approved: 'Disetujui',
+    paid: 'Lunas',
+    active: 'Aktif',
+    inactive: 'Nonaktif',
+  };
+
+  return labels[normalized] || value || '-';
+}
+
 function buildCalendarDays(monthDate) {
   const year = monthDate.getFullYear();
   const month = monthDate.getMonth();
@@ -395,6 +510,26 @@ export function DashboardUser() {
   ] = useState('');
 
   const [
+    dashboardRows,
+    setDashboardRows,
+  ] = useState({
+    projects: [],
+    galleries: [],
+    partners: [],
+    transactions: [],
+  });
+
+  const [
+    isLoadingDashboardRows,
+    setIsLoadingDashboardRows,
+  ] = useState(true);
+
+  const [
+    dashboardRowsError,
+    setDashboardRowsError,
+  ] = useState('');
+
+  const [
     calendarMonth,
     setCalendarMonth,
   ] = useState(() => new Date());
@@ -485,6 +620,89 @@ export function DashboardUser() {
         .join(' • '),
     }));
   }, [visibleWorkshops]);
+
+  const myTransactions = useMemo(() => (
+    dashboardRows.transactions.filter((transaction) => itemMatchesUser(transaction, storedUser))
+  ), [dashboardRows.transactions, storedUser]);
+
+  const myProjects = useMemo(() => (
+    dashboardRows.projects.filter((project) => itemMatchesUser(project, storedUser))
+  ), [dashboardRows.projects, storedUser]);
+
+  const myGalleries = useMemo(() => (
+    dashboardRows.galleries.filter((gallery) => itemMatchesUser(gallery, storedUser))
+  ), [dashboardRows.galleries, storedUser]);
+
+  const myPartners = useMemo(() => (
+    dashboardRows.partners.filter((partner) => itemMatchesUser(partner, storedUser))
+  ), [dashboardRows.partners, storedUser]);
+
+  const dashboardSummary = useMemo(() => {
+    const draftProjects = myProjects.filter((project) => normalizeMatchValue(project.status || project.visibility) === 'draft').length;
+    const publishedProjects = myProjects.filter((project) => ['published', 'publish'].includes(normalizeMatchValue(project.status))).length;
+    const pendingTransactions = myTransactions.filter((transaction) => ['pending', 'waiting', 'unpaid'].includes(normalizeMatchValue(transaction.status))).length;
+    const partnerActive = myPartners.filter((partner) => ['active', 'approved', 'published'].includes(normalizeMatchValue(partner.status))).length;
+
+    return [
+      { label: 'Total Proyek', value: myProjects.length, note: `${draftProjects} draft, ${publishedProjects} publish` },
+      { label: 'Gallery Saya', value: myGalleries.length, note: 'Dokumentasi yang terhubung akun' },
+      { label: 'Workshop', value: myTransactions.length, note: `${pendingTransactions} transaksi menunggu` },
+      { label: 'Partner', value: myPartners.length, note: `${partnerActive} aktif/disetujui` },
+    ];
+  }, [myGalleries.length, myPartners, myProjects, myTransactions]);
+
+  const profileChecklist = useMemo(() => {
+    const items = [
+      { label: 'Lengkapi nama lengkap', done: Boolean(profileValues.name) },
+      { label: 'Tambahkan WhatsApp', done: Boolean(profileValues.phone) },
+      { label: 'Isi pekerjaan / instansi', done: Boolean(profileValues.jobType && profileValues.institutionName) },
+      { label: 'Upload foto profil', done: Boolean(profileValues.profileImage) },
+      { label: 'Buat proyek pertama', done: myProjects.length > 0 },
+      { label: 'Lengkapi data partner', done: myPartners.length > 0 },
+    ];
+
+    return {
+      items,
+      completed: items.filter((item) => item.done).length,
+    };
+  }, [myPartners.length, myProjects.length, profileValues]);
+
+  const recentActivities = useMemo(() => {
+    const rows = [
+      ...myProjects.map((project) => ({
+        type: 'Proyek',
+        title: project.title || 'Proyek tanpa judul',
+        status: statusLabel(project.status || project.visibility),
+        date: project.updatedAt || project.createdAt,
+        href: project.id ? `/project/detail?id=${project.id}` : '/proyek-saya',
+      })),
+      ...myGalleries.map((gallery) => ({
+        type: 'Gallery',
+        title: gallery.title || 'Gallery tanpa judul',
+        status: statusLabel(gallery.status),
+        date: gallery.updatedAt || gallery.createdAt || gallery.eventDate,
+        href: gallery.id ? `/galeri/detail?id=${gallery.id}` : '/proyek-saya',
+      })),
+      ...myPartners.map((partner) => ({
+        type: 'Partner',
+        title: partner.name || 'Partner tanpa nama',
+        status: statusLabel(partner.status),
+        date: partner.updatedAt || partner.createdAt,
+        href: '/partner-saya',
+      })),
+      ...myTransactions.map((transaction) => ({
+        type: 'Transaksi',
+        title: transaction.itemTitle || transaction.invoiceNumber || 'Transaksi workshop',
+        status: statusLabel(transaction.status),
+        date: transaction.updatedAt || transaction.createdAt || transaction.dueAt,
+        href: '/transaksi',
+      })),
+    ];
+
+    return rows
+      .sort((first, second) => new Date(second.date || 0).getTime() - new Date(first.date || 0).getTime())
+      .slice(0, 6);
+  }, [myGalleries, myPartners, myProjects, myTransactions]);
 
   /*
   |--------------------------------------------------------------------------
@@ -650,6 +868,78 @@ export function DashboardUser() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadDashboardRows() {
+      try {
+        setIsLoadingDashboardRows(true);
+        setDashboardRowsError('');
+
+        const transactionParams = {};
+        const currentUserId = storedUser.id || storedUser.userId || storedUser.user_id;
+        if (currentUserId) transactionParams.userId = currentUserId;
+        if (storedUser.email) transactionParams.email = storedUser.email;
+
+        const [projectsResult, galleriesResult, partnersResult, transactionsResult] = await Promise.allSettled([
+          fetchProjectSubmissions(),
+          fetchGallerySubmissions(),
+          fetchPartners(),
+          fetchTransactions(transactionParams),
+        ]);
+
+        if (!active) {
+          return;
+        }
+
+        const projects = projectsResult.status === 'fulfilled' ? projectsResult.value : [];
+        const galleries = galleriesResult.status === 'fulfilled' ? galleriesResult.value : [];
+        const partnerPayload = partnersResult.status === 'fulfilled' ? partnersResult.value : {};
+        const partners = Array.isArray(partnerPayload?.partners) ? partnerPayload.partners : [];
+        const transactions = transactionsResult.status === 'fulfilled' ? transactionsResult.value : [];
+        const failed = [projectsResult, galleriesResult, partnersResult, transactionsResult]
+          .filter((result) => result.status === 'rejected')
+          .map((result) => result.reason?.message)
+          .filter(Boolean);
+
+        setDashboardRows({
+          projects,
+          galleries,
+          partners,
+          transactions,
+        });
+
+        setDashboardRowsError(failed.length ? failed[0] : '');
+      } catch (error) {
+        console.error('Gagal memuat ringkasan dashboard user:', error);
+
+        if (active) {
+          setDashboardRows({
+            projects: [],
+            galleries: [],
+            partners: [],
+            transactions: [],
+          });
+          setDashboardRowsError(
+            error instanceof Error
+              ? error.message
+              : 'Ringkasan dashboard tidak dapat dimuat.'
+          );
+        }
+      } finally {
+        if (active) {
+          setIsLoadingDashboardRows(false);
+        }
+      }
+    }
+
+    loadDashboardRows();
+
+    return () => {
+      active = false;
+    };
+  }, [storedUser.id, storedUser.email, storedUser.username]);
 
   /*
   |--------------------------------------------------------------------------
@@ -1074,6 +1364,7 @@ export function DashboardUser() {
               className="dashboard-notification"
               type="button"
               aria-label="Notifikasi"
+              onClick={() => document.getElementById('dashboard-activity')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
             >
               <img
                 src={bellIcon}
@@ -1113,6 +1404,30 @@ export function DashboardUser() {
             </span>
 
           </div>
+
+          <section className="dashboard-user-summary" aria-label="Ringkasan aktivitas user">
+            {dashboardSummary.map((item) => (
+              <article className="dashboard-user-stat" key={item.label}>
+                <span>{item.label}</span>
+                <strong>{isLoadingDashboardRows ? '...' : item.value}</strong>
+                <small>{item.note}</small>
+              </article>
+            ))}
+          </section>
+
+          {dashboardRowsError ? (
+            <p className="dashboard-user-alert">
+              {dashboardRowsError}
+            </p>
+          ) : null}
+
+          <section className="dashboard-quick-actions" aria-label="Aksi cepat dashboard">
+            <a href="/proyek-saya">Buat / Edit Proyek</a>
+            <a href="/proyek-saya">Upload Gallery</a>
+            <a href="/workshop-program">Daftar Workshop</a>
+            <a href="/partner-saya">Dashboard Partner</a>
+            <button type="button" onClick={() => setEditingProfile(true)}>Edit Profil</button>
+          </section>
 
           <div className="dashboard-main-content">
 
@@ -1496,6 +1811,99 @@ export function DashboardUser() {
             </aside>
 
           </div>
+
+          <section className="dashboard-user-overview" aria-label="Overview dashboard user">
+            <article className="dashboard-user-widget">
+              <header>
+                <h2>Proyek & Gallery Saya</h2>
+                <a href="/proyek-saya">Kelola</a>
+              </header>
+              <div className="dashboard-user-list">
+                {[...myProjects.slice(0, 3), ...myGalleries.slice(0, 2)].length ? (
+                  [...myProjects.slice(0, 3), ...myGalleries.slice(0, 2)].map((item) => (
+                    <a className="dashboard-user-row" href={item.title && item.tag ? `/galeri/detail?id=${item.id}` : `/project/detail?id=${item.id}`} key={`${item.title}-${item.id}`}>
+                      <span>
+                        <strong>{item.title || 'Tanpa judul'}</strong>
+                        <small>{item.tag ? 'Gallery' : 'Proyek'} • {statusLabel(item.status || item.visibility)}</small>
+                      </span>
+                      <b>{formatShortDate(item.updatedAt || item.createdAt || item.eventDate)}</b>
+                    </a>
+                  ))
+                ) : (
+                  <p className="dashboard-user-empty">Belum ada proyek atau gallery yang terhubung ke akun ini.</p>
+                )}
+              </div>
+            </article>
+
+            <article className="dashboard-user-widget">
+              <header>
+                <h2>Partner Saya</h2>
+                <a href="/partner-saya">Update Data</a>
+              </header>
+              <div className="dashboard-user-list">
+                {myPartners.length ? (
+                  myPartners.slice(0, 4).map((partner) => (
+                    <a className="dashboard-user-row" href="/partner-saya" key={partner.id || partner.name}>
+                      <span>
+                        <strong>{partner.name || 'Partner tanpa nama'}</strong>
+                        <small>{partner.type || 'Partner'} • {statusLabel(partner.status)}</small>
+                      </span>
+                      <b>{formatShortDate(partner.updatedAt || partner.createdAt)}</b>
+                    </a>
+                  ))
+                ) : (
+                  <p className="dashboard-user-empty">Belum ada partner yang terhubung ke akun ini.</p>
+                )}
+              </div>
+            </article>
+
+            <article className="dashboard-user-widget">
+              <header>
+                <h2>Checklist Akun</h2>
+                <span>{profileChecklist.completed}/{profileChecklist.items.length}</span>
+              </header>
+              <div className="dashboard-user-checklist">
+                {profileChecklist.items.map((item) => (
+                  <button
+                    className={item.done ? 'is-done' : ''}
+                    type="button"
+                    key={item.label}
+                    onClick={() => {
+                      if (!item.done && item.label.includes('proyek')) window.location.href = '/proyek-saya';
+                      else if (!item.done && item.label.includes('partner')) window.location.href = '/partner-saya';
+                      else if (!item.done) setEditingProfile(true);
+                    }}
+                  >
+                    <i aria-hidden="true" />
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </article>
+
+            <article className="dashboard-user-widget" id="dashboard-activity">
+              <header>
+                <h2>Riwayat Aktivitas</h2>
+                <span>{recentActivities.length} terbaru</span>
+              </header>
+              <div className="dashboard-user-timeline">
+                {recentActivities.length ? (
+                  recentActivities.map((activity) => (
+                    <a href={activity.href} key={`${activity.type}-${activity.title}-${activity.date}`}>
+                      <i aria-hidden="true" />
+                      <span>
+                        <strong>{activity.title}</strong>
+                        <small>{activity.type} • {activity.status}</small>
+                      </span>
+                      <time>{formatShortDate(activity.date)}</time>
+                    </a>
+                  ))
+                ) : (
+                  <p className="dashboard-user-empty">Aktivitas terbaru akan tampil setelah Anda membuat proyek, gallery, transaksi, atau partner.</p>
+                )}
+              </div>
+            </article>
+          </section>
 
         </main>
 

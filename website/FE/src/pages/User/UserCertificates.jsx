@@ -13,6 +13,7 @@ const menuItems = [
   { label: 'Proyek Saya', icon: 'folder', href: '/proyek-saya' },
   { label: 'Workshop / Program', icon: 'calendar', href: '/workshop-program' },
   { label: 'Lead Saya', icon: 'lead', href: '/lead-saya' },
+  { label: 'Partner Saya', icon: 'partner', href: '/partner-saya' },
   { label: 'Transaksi', icon: 'transaction', href: '/transaksi' },
   { label: 'Sertifikat', icon: 'certificate', href: '/sertifikat', active: true },
   { label: 'IDE', icon: 'cpu', href: '/ide-saya' },

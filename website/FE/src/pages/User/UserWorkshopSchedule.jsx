@@ -14,6 +14,7 @@ const menuItems = [
   { label: 'Proyek Saya', icon: 'folder', href: '/proyek-saya' },
   { label: 'Workshop / Program', icon: 'calendar', href: '/workshop-program', active: true },
   { label: 'Lead Saya', icon: 'lead', href: '/lead-saya' },
+  { label: 'Partner Saya', icon: 'partner', href: '/partner-saya' },
   { label: 'Transaksi', icon: 'transaction', href: '/transaksi' },
   { label: 'Sertifikat', icon: 'certificate', href: '/sertifikat' },
   { label: 'IDE', icon: 'cpu', href: '/ide-saya' },
@@ -200,7 +201,7 @@ export function UserWorkshopSchedule() {
         ]);
         if (isMounted) {
           const paidWorkshopTransactions = transactionRecords.filter(
-            (transaction) => transaction.itemType !== 'project' && transaction.status === 'paid'
+            (transaction) => ['workshop', 'program', 'course'].includes(transaction.itemType) && transaction.status === 'paid'
           );
           const paidWorkshopIds = new Set(
             paidWorkshopTransactions

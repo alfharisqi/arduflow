@@ -1,14 +1,18 @@
 import {
-  downloadArduflowCertificatePdf,
+  getCertificateFontCssFamily,
   normalizeCertificateInput,
 } from './certificateGenerator.js';
-import { certificateTemplateOptions } from './certificateTemplate.js';
 
 export function CertificateGeneratorPreview({ data }) {
   const input = normalizeCertificateInput(data);
+  const previewFontFamily = getCertificateFontCssFamily(input.certificateFontId);
 
   return (
-    <article className="certificate-generator-preview" aria-label="Preview sertifikat Arduflow">
+    <article
+      className="certificate-generator-preview"
+      aria-label="Preview sertifikat Arduflow"
+      style={{ fontFamily: previewFontFamily }}
+    >
       <span className="certificate-generator-preview__accent left" />
       <span className="certificate-generator-preview__accent right" />
       <div className="certificate-generator-preview__frame">
@@ -52,34 +56,74 @@ export function CertificateGeneratorPreview({ data }) {
   );
 }
 
-export function CertificateGenerator({ value, onChange, onGenerated }) {
-  const handleDownload = async () => {
-    await downloadArduflowCertificatePdf(value);
+export function CustomCertificatePreview({ data, template }) {
+  const input = normalizeCertificateInput(data);
+  const previewFontFamily = getCertificateFontCssFamily(input.certificateFontId);
 
-    if (typeof onGenerated === 'function') {
-      onGenerated();
-    }
-  };
+  if (!template?.fields) {
+    return <CertificateGeneratorPreview data={data} />;
+  }
 
   return (
-    <section className="certificate-generator-panel">
-      <label className="certificate-generator-template">
-        <span>Template Sertifikat</span>
-        <select
-          value={value.templateId}
-          onChange={(event) => onChange({ ...value, templateId: event.target.value })}
-        >
-          {certificateTemplateOptions.map((template) => (
-            <option key={template.id} value={template.id}>
-              {template.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <CertificateGeneratorPreview data={value} />
-      <button type="button" className="admin-certificates-primary" onClick={handleDownload}>
-        Generate Preview PDF
-      </button>
-    </section>
+    <article className="admin-certificates-template-stage admin-certificates-custom-preview" aria-label="Preview template sertifikat custom">
+      {template.backgroundUrl ? (
+        <img src={template.backgroundUrl} alt="" />
+      ) : (
+        <div className="admin-certificates-template-placeholder">Template tanpa background</div>
+      )}
+      {Object.entries(template.fields).map(([fieldKey, fieldLayout]) => {
+        if (!fieldLayout?.visible) {
+          return null;
+        }
+
+        const fieldValues = {
+          brandLogo: fieldLayout.content || input.organizationName,
+          certificateTitle: input.certificateTitle,
+          participantName: input.participantName,
+          programName: input.programName,
+          description: fieldLayout.content || input.description,
+          issueDate: input.issueDate,
+          authorizedBy: input.authorizedBy,
+          authorizedRole: input.authorizedRole,
+          certificateNumber: input.certificateNumber,
+          verificationUrl: 'QR',
+          signatureImage: fieldLayout.content || input.authorizedBy,
+        };
+
+        if (fieldLayout.imageUrl) {
+          return (
+            <img
+              className="admin-certificates-custom-preview-image"
+              src={fieldLayout.imageUrl}
+              alt=""
+              key={fieldKey}
+              style={{
+                left: `${fieldLayout.x}%`,
+                top: `${fieldLayout.y}%`,
+                width: `${fieldLayout.width}%`,
+                height: `${fieldLayout.height || 6}%`,
+              }}
+            />
+          );
+        }
+
+        return (
+          <span
+            className={`admin-certificates-template-field is-${fieldKey === 'verificationUrl' ? 'qr' : 'text'}`}
+            key={fieldKey}
+            style={{
+              left: `${fieldLayout.x}%`,
+              top: `${fieldLayout.y}%`,
+              width: `${fieldLayout.width}%`,
+              fontSize: `${fieldLayout.fontSize}px`,
+              fontFamily: previewFontFamily,
+              textAlign: fieldLayout.align,
+            }}
+          >
+            {fieldValues[fieldKey] || fieldLayout.content}
+          </span>
+        );
+      })}
+    </article>
   );
 }

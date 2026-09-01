@@ -1,0 +1,76 @@
+{
+  "name": "Relay_Wave",
+  "board": "nano",
+  "nodes": [
+    {
+      "id": "bulb-1781584716548",
+      "type": "bulb",
+      "position": {
+        "x": 587.2680170969462,
+        "y": -9.656697689399735
+      },
+      "data": {
+        "value": 0,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 148
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "squareWave-1781585157257",
+      "type": "squareWave",
+      "position": {
+        "x": 216.1548650842821,
+        "y": -128.0903421622972
+      },
+      "data": {
+        "value": 1,
+        "pin": "0",
+        "frequency": 4.1,
+        "minimized": false
+      },
+      "measured": {
+        "width": 183,
+        "height": 174
+      },
+      "selected": true,
+      "dragging": false
+    },
+    {
+      "id": "digitalWrite-1781585365277",
+      "type": "digitalWrite",
+      "position": {
+        "x": 580.7480260163109,
+        "y": -219.16629892176496
+      },
+      "data": {
+        "value": false,
+        "pin": "2",
+        "lastStateKey": "2-true-undefined",
+        "inverted": true
+      },
+      "measured": {
+        "width": 167,
+        "height": 163
+      },
+      "selected": false,
+      "dragging": false
+    }
+  ],
+  "edges": [
+    {
+      "source": "squareWave-1781585157257",
+      "target": "bulb-1781584716548",
+      "id": "xy-edge__squareWave-1781585157257-bulb-1781584716548"
+    },
+    {
+      "source": "squareWave-1781585157257",
+      "target": "digitalWrite-1781585365277",
+      "id": "xy-edge__squareWave-1781585157257-digitalWrite-1781585365277"
+    }
+  ]
+}

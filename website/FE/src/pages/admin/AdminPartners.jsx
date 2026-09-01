@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
+import { AdminActionDropdown } from './AdminActionDropdown.jsx';
 import calendarIcon from '../../assets/icons/icon-clock-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
 import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
@@ -7,6 +8,7 @@ import globeIcon from '../../assets/icons/icons-globe-1.svg';
 import mailIcon from '../../assets/icons/icon-mail-1.svg';
 import mapIcon from '../../assets/icons/icon-map-pin-1.svg';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
+import { API_BASE_URL } from '../../services/apiEndpoints.js';
 import { createPartner, deletePartner, fetchPartners, updatePartner } from '../../services/partnerApi.js';
 import { ADMIN_REALTIME_EVENT } from './AdminRealtimeBridge.jsx';
 
@@ -55,8 +57,20 @@ function PartnerBadge({ children }) {
   return <span className={`admin-partners-badge admin-partners-badge--${slug}`}>{children}</span>;
 }
 
-function PartnerLogo({ index = 0 }) {
-  return <span className={`admin-partners-logo is-${index % 6}`} />;
+function resolvePartnerLogoUrl(value) {
+  const rawUrl = String(value || '').trim();
+  if (!rawUrl) return '';
+  if (/^(https?:\/\/|data:|blob:)/i.test(rawUrl)) return rawUrl;
+  return `${API_BASE_URL}${rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`}`;
+}
+
+function PartnerLogo({ index = 0, partner = null }) {
+  const logoUrl = resolvePartnerLogoUrl(partner?.logoUrl || partner?.logo_url || '');
+  return (
+    <span className={`admin-partners-logo is-${index % 6}`}>
+      {logoUrl ? <img src={logoUrl} alt="" /> : null}
+    </span>
+  );
 }
 
 function PartnerAction({ label, onClick, children, tone = '' }) {
@@ -419,6 +433,9 @@ export function AdminPartners() {
               <h1>Partner / Kolaborator</h1>
               <p>Dashboard <span>/</span> Partner / Kolaborator</p>
             </div>
+            <button type="button" onClick={() => loadPartners(filters)} disabled={loading}>
+              {loading ? 'Memuat...' : 'Refresh Data'}
+            </button>
           </div>
 
           {error ? <p className="admin-partners-alert is-error">{error}</p> : null}
@@ -434,16 +451,19 @@ export function AdminPartners() {
           </section>
 
           <section className="admin-partners-filter" aria-label="Filter partner">
-            <label className="admin-partners-search">
-              <input type="search" placeholder="Cari nama partner / PIC..." value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} />
-            </label>
-            <label><span>Tipe Partner</span><select value={filters.type} onChange={(event) => setFilters((current) => ({ ...current, type: event.target.value }))}><option value="">Semua Tipe</option>{(options.types || []).map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
-            <label><span>Status</span><select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}><option value="">Semua Status</option>{(options.statuses || []).map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
-            <label><span>Kota / Lokasi</span><select value={filters.city} onChange={(event) => setFilters((current) => ({ ...current, city: event.target.value }))}><option value="">Semua Kota</option>{(options.cities || []).map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
-            <label><span>PIC Internal</span><select defaultValue=""><option value="">Semua PIC</option><option value="admin">Admin</option></select></label>
-            <label><span>Tanggal Mulai Kerja Sama</span><input type="text" placeholder="Dikelola dari form partner" disabled /></label>
-            <button type="button" onClick={resetFilters}>Reset Filter</button>
-            <button type="button" className="admin-partners-primary" onClick={openCreate}>+ Tambah Partner</button>
+            <div className="admin-partners-filter-row">
+              <label className="admin-partners-search">
+                <input type="search" placeholder="Cari nama partner / PIC..." value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} />
+              </label>
+              <button type="button" onClick={resetFilters}>Reset Filter</button>
+              <button type="button" className="admin-partners-primary" onClick={openCreate}>+ Tambah Partner</button>
+            </div>
+            <div className="admin-partners-select-grid">
+              <label><span>Tipe Partner</span><select value={filters.type} onChange={(event) => setFilters((current) => ({ ...current, type: event.target.value }))}><option value="">Semua Tipe</option>{(options.types || []).map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+              <label><span>Status</span><select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}><option value="">Semua Status</option>{(options.statuses || []).map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+              <label><span>Kota / Lokasi</span><select value={filters.city} onChange={(event) => setFilters((current) => ({ ...current, city: event.target.value }))}><option value="">Semua Kota</option>{(options.cities || []).map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+              <label><span>Tanggal Mulai Kerja Sama</span><input type="text" placeholder="Dikelola dari form partner" disabled /></label>
+            </div>
           </section>
 
           <section className="admin-partners-review" aria-labelledby="admin-partners-review-title">
@@ -482,6 +502,13 @@ export function AdminPartners() {
           </section>
 
           <section className="admin-partners-table-card">
+            <div className="admin-partners-table-header">
+              <div>
+                <h2>Data Partner</h2>
+                <p>Kelola partner, lead kolaborasi, dan status kerja sama dari satu tabel.</p>
+              </div>
+              <span>{partners.length} data</span>
+            </div>
             {selectedIds.length > 0 ? (
               <div className="admin-partners-bulkbar">
                 <strong>{selectedIds.length} partner dipilih</strong>
@@ -513,7 +540,7 @@ export function AdminPartners() {
                 {partners.length ? partners.map((partner, index) => (
                   <tr key={partner.id} className={partner.id === selectedPartner?.id ? 'is-selected' : ''}>
                     <td><input type="checkbox" aria-label={`Pilih ${partner.name}`} checked={selectedIds.includes(partner.id)} onChange={(event) => toggleSelectPartner(partner.id, event.target.checked)} /></td>
-                    <td><PartnerLogo index={index} /></td>
+                    <td><PartnerLogo index={index} partner={partner} /></td>
                     <td>{partner.name}</td>
                     <td>{partner.type}</td>
                     <td><b>{partner.picName || '-'}</b><small>{partner.picRole || '-'}</small></td>
@@ -524,14 +551,29 @@ export function AdminPartners() {
                     <td>{formatDate(partner.startDate)}</td>
                     <td>{formatDate(partner.updatedAt)}</td>
                     <td>
-                      <div className="admin-partners-actions">
-                        <PartnerAction label={`Preview ${partner.name}`} onClick={() => openDetail(partner)}><img src={eyeIcon} alt="" /></PartnerAction>
-                        {partner.status === 'Menunggu' ? (
-                          <PartnerAction label={`Terima ${partner.name}`} tone="is-accept" onClick={() => acceptPartner(partner)}>Terima</PartnerAction>
-                        ) : null}
-                        <PartnerAction label={`Follow-up ${partner.name}`} onClick={() => markFollowUp(partner)}>Follow</PartnerAction>
-                        <PartnerAction label={`Email ${partner.name}`} onClick={() => emailPartner(partner)}><img src={mailIcon} alt="" /></PartnerAction>
-                      </div>
+                      <AdminActionDropdown
+                        label={`Buka aksi untuk ${partner.name}`}
+                        items={[
+                          {
+                            label: 'Preview',
+                            icon: <img src={eyeIcon} alt="" />,
+                            onSelect: () => openDetail(partner),
+                          },
+                          ...(partner.status === 'Menunggu' ? [{
+                            label: 'Terima',
+                            onSelect: () => acceptPartner(partner),
+                          }] : []),
+                          {
+                            label: 'Follow-up',
+                            onSelect: () => markFollowUp(partner),
+                          },
+                          {
+                            label: 'Email',
+                            icon: <img src={mailIcon} alt="" />,
+                            onSelect: () => emailPartner(partner),
+                          },
+                        ]}
+                      />
                     </td>
                   </tr>
                 )) : (

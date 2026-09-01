@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AdminNotificationButton } from './AdminChrome.jsx';
 import { AdminSidebar } from './AdminSidebar.jsx';
 import {
@@ -12,7 +12,6 @@ import clockIcon from '../../assets/icons/icon-clock-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
 import bookIcon from '../../assets/icons/icon-book-1.svg';
-import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
 import arrowIcon from '../../assets/icons/icon-arrow-right-1.svg';
 import mapIcon from '../../assets/icons/icon-map-pin-1.svg';
 
@@ -293,23 +292,9 @@ function ProgramBadge({ children }) {
     .replace(/\//g, '-');
 
   return (
-    <span className={`admin-program-badge admin-program-badge--${slug}`}>
+    <span className={`admin-users-badge admin-users-badge--${slug}`}>
       {label}
     </span>
-  );
-}
-
-function ProgramAction({ label, children, onClick, disabled = false, className = '' }) {
-  return (
-    <button
-      className={`admin-program-action ${className}`.trim()}
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      disabled={disabled}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -334,6 +319,9 @@ export function AdminProgram() {
   const [deletingId, setDeletingId] = useState(null);
   const [isDetailModalOpen, setDetailModalOpen] = useState(false);
   const [isMemberListVisible, setMemberListVisible] = useState(false);
+  const [openActionWorkshopId, setOpenActionWorkshopId] = useState(null);
+  const [actionMenuPosition, setActionMenuPosition] = useState({ top: 0, left: 0 });
+  const actionButtonRefs = useRef(new Map());
 
   const handleToggleSidebar = () => {
     setSidebarCollapsed((value) => {
@@ -462,13 +450,60 @@ export function AdminProgram() {
     };
   }, [isDetailModalOpen]);
 
+  useEffect(() => {
+    if (openActionWorkshopId === null) return undefined;
+
+    function closeActions(event) {
+      if (!event.target.closest?.('.admin-users-action-menu') && !event.target.closest?.('.admin-users-action-popover')) {
+        setOpenActionWorkshopId(null);
+      }
+    }
+
+    function closeWithEscape(event) {
+      if (event.key === 'Escape') setOpenActionWorkshopId(null);
+    }
+
+    document.addEventListener('mousedown', closeActions);
+    document.addEventListener('keydown', closeWithEscape);
+    return () => {
+      document.removeEventListener('mousedown', closeActions);
+      document.removeEventListener('keydown', closeWithEscape);
+    };
+  }, [openActionWorkshopId]);
+
+  useEffect(() => {
+    if (openActionWorkshopId === null) return undefined;
+
+    function updateActionMenuPosition() {
+      const button = actionButtonRefs.current.get(openActionWorkshopId);
+      if (!button) return;
+
+      const rect = button.getBoundingClientRect();
+      const menuWidth = 190;
+      const gap = 8;
+      const left = Math.max(12, Math.min(window.innerWidth - menuWidth - 12, rect.right - menuWidth));
+      const top = Math.max(12, Math.min(window.innerHeight - 12, rect.bottom + gap));
+      setActionMenuPosition({ top, left });
+    }
+
+    updateActionMenuPosition();
+    window.addEventListener('resize', updateActionMenuPosition);
+    window.addEventListener('scroll', updateActionMenuPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateActionMenuPosition);
+      window.removeEventListener('scroll', updateActionMenuPosition, true);
+    };
+  }, [openActionWorkshopId]);
+
   function handleEditWorkshop(workshop) {
     if (!workshop?.id) return;
 
+    setOpenActionWorkshopId(null);
     window.location.href = `/admin/tambah-workshop?id=${encodeURIComponent(workshop.id)}`;
   }
 
   function openDetailModal(workshop) {
+    setOpenActionWorkshopId(null);
     setSelectedWorkshopId(workshop.id);
     setMemberListVisible(false);
     setDetailModalOpen(true);
@@ -477,6 +512,7 @@ export function AdminProgram() {
   async function handleDeleteWorkshop(workshop) {
     if (!workshop?.id) return;
 
+    setOpenActionWorkshopId(null);
     const confirmed = await showConfirmAlert({
       title: 'Hapus Workshop?',
       text: `Hapus workshop "${workshop.title}"? Data yang dihapus tidak dapat dikembalikan.`,
@@ -610,6 +646,7 @@ export function AdminProgram() {
       workshops.find((item) => item.id === selectedWorkshopId) || null,
     [workshops, selectedWorkshopId],
   );
+  const openActionWorkshop = workshops.find((item) => item.id === openActionWorkshopId) || null;
 
   const registrationSummaryByWorkshop = useMemo(
     () => summarizeRegistrations(workshopRegistrations),
@@ -760,9 +797,9 @@ export function AdminProgram() {
           onSearchChange={setSearchTerm}
         />
 
-        <div className="admin-program-layout">
-          <section className="admin-program-content">
-            <div className="admin-program-heading">
+        <div className="admin-users-layout">
+          <section className="admin-users-content">
+            <div className="admin-users-heading">
               <div>
                 <h1>Workshop / Program</h1>
                 <p>
@@ -782,12 +819,12 @@ export function AdminProgram() {
             )}
 
             <section
-              className="admin-program-stats"
+              className="admin-users-summary"
               aria-label="Ringkasan workshop program"
             >
               {stats.map((item) => (
-                <article className="admin-program-stat" key={item.label}>
-                  <span className={`admin-program-stat-icon is-${item.tone}`}>
+                <article className="admin-users-stat" key={item.label}>
+                  <span>
                     <img src={item.icon} alt="" />
                   </span>
 
@@ -801,11 +838,11 @@ export function AdminProgram() {
             </section>
 
             <section
-              className="admin-program-filter"
+              className="admin-users-filter"
               aria-label="Filter workshop program"
             >
-              <div className="admin-program-filter-top">
-                <label className="admin-program-search">
+              <div className="admin-users-filter-row">
+                <label className="admin-users-search">
                   <input
                     type="search"
                     placeholder="Cari nama program..."
@@ -824,13 +861,13 @@ export function AdminProgram() {
 
                 <a
                   href="/admin/tambah-workshop"
-                  className="admin-program-primary"
+                  className="admin-users-primary"
                 >
                   + Tambah Program
                 </a>
               </div>
 
-              <div className="admin-program-filter-grid">
+              <div className="admin-users-select-grid">
                 <label>
                   <span>Status</span>
                   <select
@@ -887,8 +924,15 @@ export function AdminProgram() {
               </div>
             </section>
 
-            <section className="admin-program-table-card">
-              <table className="admin-program-table">
+            <section className="admin-users-table-card">
+              <div className="admin-users-table-header">
+                <div>
+                  <h2>Daftar Workshop / Program</h2>
+                  <p>{filteredWorkshops.length} program ditemukan</p>
+                </div>
+                <span>{paginatedWorkshops.length} ditampilkan</span>
+              </div>
+              <table className="admin-users-table admin-program-table">
                 <thead>
                   <tr>
                     <th>Nama Workshop / Program</th>
@@ -936,12 +980,13 @@ export function AdminProgram() {
                           }
                         >
                           <td>
-                            <WorkshopImage workshop={workshop} className="admin-program-thumb" />
-
-                            <span>
-                              <b>{workshop.title}</b>
-                              <small>{workshop.summary}</small>
-                            </span>
+                            <button type="button" className="admin-users-name-button" onClick={() => openDetailModal(workshop)}>
+                              <WorkshopImage workshop={workshop} className="admin-program-thumb" />
+                              <span>
+                                <b>{workshop.title}</b>
+                                <small>{workshop.summary}</small>
+                              </span>
+                            </button>
                           </td>
 
                           <td>
@@ -970,29 +1015,20 @@ export function AdminProgram() {
                           <td>-</td>
 
                           <td>
-                            <div className="admin-program-actions">
-                              <ProgramAction
-                                label={`Lihat ${workshop.title}`}
-                                onClick={() => openDetailModal(workshop)}
+                            <div className="admin-users-actions admin-users-action-menu">
+                              <button
+                                type="button"
+                                className="admin-users-action-trigger"
+                                ref={(node) => {
+                                  if (node) actionButtonRefs.current.set(workshop.id, node);
+                                  else actionButtonRefs.current.delete(workshop.id);
+                                }}
+                                aria-label={`Buka aksi untuk ${workshop.title}`}
+                                aria-expanded={openActionWorkshopId === workshop.id}
+                                onClick={() => setOpenActionWorkshopId((current) => (current === workshop.id ? null : workshop.id))}
                               >
-                                <img src={eyeIcon} alt="" />
-                              </ProgramAction>
-
-                              <ProgramAction
-                                label={`Edit ${workshop.title}`}
-                                onClick={() => handleEditWorkshop(workshop)}
-                              >
-                                Edit
-                              </ProgramAction>
-
-                              <ProgramAction
-                                label={`Hapus ${workshop.title}`}
-                                onClick={() => handleDeleteWorkshop(workshop)}
-                                disabled={deletingId === workshop.id}
-                                className="is-danger"
-                              >
-                                {deletingId === workshop.id ? '...' : 'Delete'}
-                              </ProgramAction>
+                                ...
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -1002,21 +1038,9 @@ export function AdminProgram() {
                 </tbody>
               </table>
 
-              <div className="admin-program-pagination">
-                <span>
-                  Menampilkan {firstShown} - {lastShown} dari{' '}
-                  {filteredWorkshops.length} program
-                </span>
-
+              <div className="admin-users-pagination">
+                <button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1}>Previous</button>
                 <div>
-                  <button
-                    type="button"
-                    onClick={() => setPage((current) => Math.max(1, current - 1))}
-                    disabled={page <= 1}
-                  >
-                    &lt;
-                  </button>
-
                   {Array.from({ length: totalPages }, (_, index) => index + 1)
                     .slice(
                       Math.max(0, page - 3),
@@ -1033,25 +1057,18 @@ export function AdminProgram() {
                       </button>
                     ))}
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setPage((current) => Math.min(totalPages, current + 1))
-                    }
-                    disabled={page >= totalPages}
-                  >
-                    &gt;
-                  </button>
                 </div>
+                <span>
+                  Page {page} of {totalPages}
+                  <small>Menampilkan {firstShown} - {lastShown} dari {filteredWorkshops.length} program</small>
+                </span>
+                <button type="button" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page >= totalPages}>Next</button>
               </div>
             </section>
 
-            <section className="admin-program-bottom">
-              <article className="admin-program-panel">
-                <div className="admin-program-panel-head">
-                  <h2>Program Mendatang</h2>
-                  <span>{upcomingPrograms.length} workshop</span>
-                </div>
+            <section className="admin-users-bottom">
+              <article className="admin-users-panel">
+                <h2>Program Mendatang</h2>
 
                 {upcomingPrograms.length === 0 ? (
                   <p>Belum ada program mendatang.</p>
@@ -1068,11 +1085,8 @@ export function AdminProgram() {
                 )}
               </article>
 
-              <article className="admin-program-panel">
-                <div className="admin-program-panel-head">
-                  <h2>Peserta Terbaru</h2>
-                  <span>{workshopRegistrations.length} pendaftaran</span>
-                </div>
+              <article className="admin-users-panel">
+                <h2>Peserta Terbaru</h2>
 
                 {registrationError ? (
                   <p>{registrationError}</p>
@@ -1091,10 +1105,8 @@ export function AdminProgram() {
                 )}
               </article>
 
-              <article className="admin-program-panel admin-program-problems">
-                <div className="admin-program-panel-head">
-                  <h2>Ringkasan Status</h2>
-                </div>
+              <article className="admin-users-panel">
+                <h2>Ringkasan Status</h2>
 
                 <p>
                   <span>Draft</span>
@@ -1129,31 +1141,17 @@ export function AdminProgram() {
                     }
                   </strong>
                 </p>
+
+                <a href="/admin/tambah-workshop" className="admin-users-primary">Buat Program Baru</a>
+                <button type="button" onClick={loadWorkshops}>Refresh Data SQLite</button>
               </article>
-            </section>
-
-            <section className="admin-program-quick">
-              <h2>Aksi Cepat</h2>
-
-              <div>
-                <a
-                  href="/admin/tambah-workshop"
-                  className="admin-program-primary"
-                >
-                  Buat Program Baru
-                </a>
-
-                <button type="button" onClick={loadWorkshops}>
-                  Refresh Data SQLite
-                </button>
-              </div>
             </section>
           </section>
         </div>
 
         {isDetailModalOpen && selectedWorkshop && (
           <div
-            className="admin-program-detail-modal"
+            className="admin-users-modal admin-program-detail-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="admin-program-detail-title"
@@ -1168,8 +1166,8 @@ export function AdminProgram() {
               }}
             />
 
-            <article className="admin-program-detail" aria-label="Detail program">
-              <div className="admin-program-detail-head">
+            <article className="admin-users-detail admin-program-detail" aria-label="Detail program">
+              <div className="admin-users-detail-head admin-program-detail-head">
                 <h2 id="admin-program-detail-title">Detail Program</h2>
 
                 <button
@@ -1184,7 +1182,7 @@ export function AdminProgram() {
                 </button>
               </div>
 
-              <div className="admin-program-detail-profile">
+              <div className="admin-users-detail-profile admin-program-detail-profile">
                 <WorkshopImage workshop={selectedWorkshop} className="admin-program-detail-image" />
 
                 <h3>{selectedWorkshop.title}</h3>
@@ -1326,7 +1324,7 @@ export function AdminProgram() {
                 </section>
               )}
 
-              <div className="admin-program-detail-actions">
+              <div className="admin-users-detail-actions admin-program-detail-actions">
                 <button
                   type="button"
                   onClick={() => setMemberListVisible((value) => !value)}
@@ -1354,6 +1352,29 @@ export function AdminProgram() {
             </article>
           </div>
         )}
+
+        {openActionWorkshop ? (
+          <div
+            className="admin-users-action-popover"
+            role="menu"
+            style={{
+              top: `${actionMenuPosition.top}px`,
+              left: `${actionMenuPosition.left}px`,
+            }}
+          >
+            <button type="button" role="menuitem" onClick={() => openDetailModal(openActionWorkshop)}>Detail</button>
+            <button type="button" role="menuitem" onClick={() => handleEditWorkshop(openActionWorkshop)}>Edit Program</button>
+            <button
+              type="button"
+              role="menuitem"
+              className="admin-users-action-danger"
+              disabled={deletingId === openActionWorkshop.id}
+              onClick={() => handleDeleteWorkshop(openActionWorkshop)}
+            >
+              {deletingId === openActionWorkshop.id ? 'Menghapus...' : 'Hapus Program'}
+            </button>
+          </div>
+        ) : null}
       </section>
     </main>
   );

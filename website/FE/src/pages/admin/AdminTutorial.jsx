@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AdminSidebar } from './AdminSidebar.jsx';
+import { AdminActionDropdown } from './AdminActionDropdown.jsx';
 import {
   getInitialAdminSidebarCollapsed,
   persistAdminSidebarCollapsed,
@@ -12,17 +13,17 @@ import fileIcon from '../../assets/icons/icon-file-text-1.svg';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
 import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
 import zapIcon from '../../assets/icons/icon-zap-1.svg';
+import { apiEndpoint } from '../../services/apiEndpoints.js';
 
-const DEPLOY_URL = (
-  import.meta.env.VITE_DEPLOY_URL ||
-  'https://arduflow.indobilliard.com/apk/uploads/web-arduflow-deploy-alfha/'
+const TUTORIAL_API_URL = (
+  apiEndpoint(import.meta.env.VITE_TUTORIAL_API_URL, '/api/')
 ).replace(/\/+$/, '');
 
 const MATERI_API_URL =
-  `${DEPLOY_URL}/api/materi-api.php`;
+  apiEndpoint(import.meta.env.VITE_MATERI_API_URL, '/api/materi-api.php');
 
 const MATERI_IMAGE_BASE_URL =
-  `${DEPLOY_URL}/uploads/materi`;
+  apiEndpoint(import.meta.env.VITE_MATERI_IMAGE_BASE_URL, '/uploads/materi');
 
 function extractMateriImageFileName(value) {
   const candidate = String(value || '').trim();
@@ -999,7 +1000,7 @@ export function AdminTutorial() {
 
                             <a
                               className="admin-article-action"
-                              href={`/admin/tutorial/tambah?id=${encodeURIComponent(
+                              href={`/admin/tutorial/edit?id=${encodeURIComponent(
                                 item.id
                               )}`}
                               aria-label={`Edit ${item.title}`}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
 import {
   clearAdminVerificationTokens,
@@ -17,7 +17,6 @@ import mailIcon from '../../assets/icons/icon-mail-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
-import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
 import arrowIcon from '../../assets/icons/icon-arrow-right-1.svg';
 
 const initialFilters = {
@@ -30,15 +29,7 @@ const initialFilters = {
 };
 
 function VerificationBadge({ children }) {
-  return <span className={`admin-verification-badge admin-verification-badge--${createSlug(children)}`}>{children}</span>;
-}
-
-function ActionButton({ label, children, onClick, disabled = false }) {
-  return (
-    <button className="admin-verification-action" type="button" aria-label={label} onClick={onClick} disabled={disabled}>
-      {children}
-    </button>
-  );
+  return <span className={`admin-users-badge admin-users-badge--${createSlug(children)}`}>{children}</span>;
 }
 
 function formatNumber(value) {
@@ -110,6 +101,9 @@ export function AdminVerification() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [processingId, setProcessingId] = useState(null);
+  const [openActionUserId, setOpenActionUserId] = useState(null);
+  const [actionMenuPosition, setActionMenuPosition] = useState({ top: 0, left: 0 });
+  const actionButtonRefs = useRef(new Map());
 
   const users = data?.users || [];
   const summary = data?.summary || [];
@@ -117,6 +111,8 @@ export function AdminVerification() {
   const activities = data?.activities || [];
   const pagination = data?.pagination || { page: 1, perPage: 10, total: 0, from: 0, to: 0, lastPage: 1 };
   const selectedAll = users.length > 0 && selectedIds.length === users.length;
+  const selectedUsers = users.filter((user) => selectedIds.includes(user.id));
+  const openActionUser = users.find((user) => user.id === openActionUserId) || null;
 
   const stats = useMemo(() => {
     const totalSummary = summary.find((item) => item.id === 'total');
@@ -177,6 +173,51 @@ export function AdminVerification() {
       mounted = false;
     };
   }, [filters]);
+
+  useEffect(() => {
+    if (openActionUserId === null) return undefined;
+
+    function closeActions(event) {
+      if (!event.target.closest?.('.admin-users-action-menu') && !event.target.closest?.('.admin-users-action-popover')) {
+        setOpenActionUserId(null);
+      }
+    }
+
+    function closeWithEscape(event) {
+      if (event.key === 'Escape') setOpenActionUserId(null);
+    }
+
+    document.addEventListener('mousedown', closeActions);
+    document.addEventListener('keydown', closeWithEscape);
+    return () => {
+      document.removeEventListener('mousedown', closeActions);
+      document.removeEventListener('keydown', closeWithEscape);
+    };
+  }, [openActionUserId]);
+
+  useEffect(() => {
+    if (openActionUserId === null) return undefined;
+
+    function updateActionMenuPosition() {
+      const button = actionButtonRefs.current.get(openActionUserId);
+      if (!button) return;
+
+      const rect = button.getBoundingClientRect();
+      const menuWidth = 190;
+      const gap = 8;
+      const left = Math.max(12, Math.min(window.innerWidth - menuWidth - 12, rect.right - menuWidth));
+      const top = Math.max(12, Math.min(window.innerHeight - 12, rect.bottom + gap));
+      setActionMenuPosition({ top, left });
+    }
+
+    updateActionMenuPosition();
+    window.addEventListener('resize', updateActionMenuPosition);
+    window.addEventListener('scroll', updateActionMenuPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateActionMenuPosition);
+      window.removeEventListener('scroll', updateActionMenuPosition, true);
+    };
+  }, [openActionUserId]);
 
   function updateFilter(key, value) {
     setFilters((current) => ({ ...current, [key]: value, page: key === 'page' ? value : 1 }));
@@ -291,7 +332,7 @@ export function AdminVerification() {
   }
 
   async function handleResendSelected() {
-    const targets = users.filter((user) => selectedIds.includes(user.id) && user.emailStatus !== 'Terverifikasi');
+    const targets = selectedUsers.filter((user) => user.emailStatus !== 'Terverifikasi');
     if (targets.length === 0) {
       await showArduflowAlert({ icon: 'info', title: 'Tidak Ada User', text: 'Pilih minimal satu user belum verifikasi.' });
       return;
@@ -304,20 +345,32 @@ export function AdminVerification() {
     });
     if (!confirmed) return;
 
-    for (const user of targets) {
-      await resendAdminUserVerification(user.id);
+    setProcessingId('bulk-resend');
+    try {
+      for (const user of targets) {
+        await resendAdminUserVerification(user.id);
+      }
+      await showSuccessAlert('Selesai', `${formatNumber(targets.length)} token verifikasi berhasil dibuat.`);
+      refreshData();
+    } catch (requestError) {
+      await showErrorAlert('Gagal', requestError.message || 'Gagal mengirim ulang verifikasi user terpilih.');
+    } finally {
+      setProcessingId(null);
     }
-    await showSuccessAlert('Selesai', `${formatNumber(targets.length)} token verifikasi berhasil dibuat.`);
-    refreshData();
+  }
+
+  function handleExportSelected() {
+    if (!selectedUsers.length) return;
+    exportUsersCsv(selectedUsers);
   }
 
   return (
     <AdminPage pageClassName="admin-verification-page" ariaLabel="Verifikasi akun admin">
       <AdminTopbar searchPlaceholder="Cari verifikasi akun" searchLabel="Cari verifikasi akun" />
 
-      <div className="admin-verification-layout">
-        <section className="admin-verification-content">
-          <div className="admin-verification-heading">
+      <div className="admin-users-layout admin-verification-layout">
+        <section className="admin-users-content admin-verification-content">
+          <div className="admin-users-heading admin-verification-heading">
             <div>
               <h1>Verifikasi Akun</h1>
               <p>Dashboard <span>/</span> Verifikasi Akun</p>
@@ -326,9 +379,9 @@ export function AdminVerification() {
             <button type="button" onClick={refreshData}>Refresh Data</button>
           </div>
 
-          <section className="admin-verification-stats" aria-label="Ringkasan verifikasi">
+          <section className="admin-users-summary admin-verification-stats" aria-label="Ringkasan verifikasi">
             {stats.map((item) => (
-              <article className="admin-verification-stat" key={item.label}>
+              <article className="admin-users-stat admin-verification-stat" key={item.label}>
                 <span className={`admin-verification-stat-icon is-${item.tone}`}>
                   <img src={item.icon} alt="" />
                 </span>
@@ -341,37 +394,64 @@ export function AdminVerification() {
             ))}
           </section>
 
-          <section className="admin-verification-filter" aria-label="Filter verifikasi akun">
-            <label className="admin-verification-search">
-              <input type="search" placeholder="Cari nama atau email..." value={filters.search} onChange={(event) => updateFilter('search', event.target.value)} />
-            </label>
-            <label>
-              <span>Status Email</span>
-              <select value={filters.emailStatus} onChange={(event) => updateFilter('emailStatus', event.target.value)}>
-                <option value="">Semua Status</option>
-                <option value="unverified">Belum Verifikasi</option>
-                <option value="verified">Terverifikasi</option>
-              </select>
-            </label>
-            <label>
-              <span>Tanggal Daftar</span>
-              <input type="date" value={filters.dateFrom} onChange={(event) => updateFilter('dateFrom', event.target.value)} />
-            </label>
-            <label>
-              <span>Role User</span>
-              <select value={filters.role} onChange={(event) => updateFilter('role', event.target.value)}>
-                <option value="">Semua Role</option>
-                <option value="User">User</option>
-              </select>
-            </label>
-            <button type="button" onClick={() => setFilters(initialFilters)}>Reset Filter</button>
+          <section className="admin-users-filter admin-verification-filter" aria-label="Filter verifikasi akun">
+            <div className="admin-users-filter-row">
+              <label className="admin-users-search admin-verification-search">
+                <input type="search" placeholder="Search by nama atau email..." value={filters.search} onChange={(event) => updateFilter('search', event.target.value)} />
+              </label>
+              <button type="button" onClick={() => setFilters((current) => ({ ...current }))}>Cari</button>
+              <button type="button" onClick={() => setFilters(initialFilters)}>Reset Filter</button>
+              <button type="button" onClick={refreshData}>Refresh</button>
+            </div>
+            <div className="admin-users-select-grid">
+              <label>
+                <span>Status Email</span>
+                <select value={filters.emailStatus} onChange={(event) => updateFilter('emailStatus', event.target.value)}>
+                  <option value="">Semua Status</option>
+                  <option value="unverified">Belum Verifikasi</option>
+                  <option value="verified">Terverifikasi</option>
+                </select>
+              </label>
+              <label>
+                <span>Dari Tanggal</span>
+                <input type="date" value={filters.dateFrom} onChange={(event) => updateFilter('dateFrom', event.target.value)} />
+              </label>
+              <label>
+                <span>Role User</span>
+                <select value={filters.role} onChange={(event) => updateFilter('role', event.target.value)}>
+                  <option value="">Semua Role</option>
+                  <option value="User">User</option>
+                </select>
+              </label>
+              <label>
+                <span>Per Halaman</span>
+                <select value={filters.perPage} onChange={(event) => updateFilter('perPage', Number(event.target.value))}>
+                  <option value="10">10 akun</option>
+                  <option value="25">25 akun</option>
+                  <option value="50">50 akun</option>
+                </select>
+              </label>
+            </div>
           </section>
 
-          <section className="admin-verification-table-card">
-            <div className="admin-verification-card-head">
-              <h2>Daftar Akun dan Status Verifikasi</h2>
+          <section className="admin-users-toolbar admin-verification-selection-toolbar" aria-label="Aksi cepat user terpilih">
+            <span>{formatNumber(selectedUsers.length)} dipilih</span>
+            <button type="button" className="admin-users-primary" disabled={!selectedUsers.length || processingId === 'bulk-resend'} onClick={handleResendSelected}>Kirim Ulang Terpilih</button>
+            <button type="button" disabled={!selectedUsers.length} onClick={handleExportSelected}>Export Terpilih</button>
+            <button type="button" disabled={!selectedUsers.length} onClick={() => setSelectedIds([])}>Batal Pilih</button>
+            <button type="button" disabled={!users.length} onClick={() => exportUsersCsv(users)}>Export CSV</button>
+            <button type="button" onClick={refreshData}>Refresh</button>
+          </section>
+
+          <section className="admin-users-table-card admin-verification-table-card">
+            <div className="admin-users-table-header admin-verification-card-head">
+              <div>
+                <h2>Daftar Akun dan Status Verifikasi</h2>
+                <p>{formatNumber(pagination.total)} akun terdaftar</p>
+              </div>
+              <span>{formatNumber(selectedUsers.length)} dipilih</span>
             </div>
-            <table className="admin-verification-table">
+            <table className="admin-users-table admin-verification-table">
               <thead>
                 <tr>
                   <th><input type="checkbox" aria-label="Pilih semua akun" checked={selectedAll} onChange={toggleAll} /></th>
@@ -393,7 +473,12 @@ export function AdminVerification() {
                 ) : users.map((user) => (
                   <tr key={user.id}>
                     <td><input type="checkbox" aria-label={`Pilih ${user.name}`} checked={selectedIds.includes(user.id)} onChange={() => toggleUser(user.id)} /></td>
-                    <td><span className="admin-verification-avatar">{userInitials(user.name)}</span><span><b>{user.name || '-'}</b><small>{user.username || '-'}</small></span></td>
+                    <td>
+                      <button type="button" className="admin-users-name-button" onClick={() => setSelectedUser(user)}>
+                        <span className="admin-users-avatar">{userInitials(user.name)}</span>
+                        <span><b>{user.name || '-'}</b><small>{user.email || user.username || '-'}</small></span>
+                      </button>
+                    </td>
                     <td>{user.email || '-'}</td>
                     <td>{user.whatsapp || '-'}</td>
                     <td>{formatDateTime(user.registeredAt)}</td>
@@ -401,59 +486,56 @@ export function AdminVerification() {
                     <td><VerificationBadge>{getTokenStatus(user)}</VerificationBadge></td>
                     <td>{formatDateTime(user.verificationSentAt)}</td>
                     <td>
-                      <div className="admin-verification-actions">
-                        <ActionButton label={`Kirim ulang verifikasi ${user.name}`} disabled={processingId === user.id} onClick={() => handleResend(user)}>Kirim</ActionButton>
-                        <ActionButton label={`Salin token ${user.name}`} disabled={processingId === user.id} onClick={() => handleCopyToken(user)}>Copy</ActionButton>
-                        <ActionButton label={`Verifikasi manual ${user.name}`} disabled={processingId === user.id || user.emailStatus === 'Terverifikasi'} onClick={() => handleManualVerify(user)}>OK</ActionButton>
-                        <ActionButton label={`Generate token baru ${user.name}`} disabled={processingId === user.id} onClick={() => handleResend(user)}>Token</ActionButton>
-                        <ActionButton label={`Lihat detail ${user.name}`} onClick={() => setSelectedUser(user)}>
-                          <img src={eyeIcon} alt="" />
-                        </ActionButton>
+                      <div className="admin-users-actions admin-users-action-menu">
+                        <button
+                          type="button"
+                          className="admin-users-action-trigger"
+                          ref={(node) => {
+                            if (node) {
+                              actionButtonRefs.current.set(user.id, node);
+                            } else {
+                              actionButtonRefs.current.delete(user.id);
+                            }
+                          }}
+                          aria-label={`Buka aksi untuk ${user.name}`}
+                          aria-expanded={openActionUserId === user.id}
+                          onClick={() => setOpenActionUserId((current) => (current === user.id ? null : user.id))}
+                        >
+                          ...
+                        </button>
                       </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <div className="admin-verification-pagination">
-              <span>Menampilkan {pagination.from} - {pagination.to} dari {formatNumber(pagination.total)} akun</span>
+            <div className="admin-users-pagination admin-verification-pagination">
+              <button type="button" disabled={pagination.page <= 1} onClick={() => updateFilter('page', pagination.page - 1)}>Previous</button>
               <div>
-                <button type="button" disabled={pagination.page <= 1} onClick={() => updateFilter('page', pagination.page - 1)}>&lt;</button>
                 {pages.map((page) => (
                   <button type="button" className={page === pagination.page ? 'is-active' : ''} key={page} onClick={() => updateFilter('page', page)}>{page}</button>
                 ))}
-                <button type="button" disabled={pagination.page >= pagination.lastPage} onClick={() => updateFilter('page', pagination.page + 1)}>&gt;</button>
               </div>
+              <span>
+                Page {pagination.page} of {pagination.lastPage}
+                <small>Menampilkan {pagination.from} - {pagination.to} dari {formatNumber(pagination.total)} akun</small>
+              </span>
+              <button type="button" disabled={pagination.page >= pagination.lastPage} onClick={() => updateFilter('page', pagination.page + 1)}>Next</button>
             </div>
           </section>
 
-          <section className="admin-verification-bottom">
-            <article className="admin-verification-panel">
-              <div className="admin-verification-panel-head">
-                <h2>Masalah Verifikasi</h2>
-                <button type="button" onClick={() => updateFilter('emailStatus', 'unverified')}>Lihat belum verifikasi</button>
-              </div>
-              <table>
-                <thead><tr><th>Masalah</th><th>Jumlah</th><th>Aksi</th></tr></thead>
-                <tbody>
-                  {problems.length ? problems.map((item) => (
-                    <tr key={item.label}>
-                      <td>{item.label}</td>
-                      <td>{formatNumber(item.count)}</td>
-                      <td><button type="button" onClick={() => updateFilter('emailStatus', 'unverified')}>Cek</button></td>
-                    </tr>
-                  )) : (
-                    <tr><td colSpan="3">Tidak ada masalah terdeteksi.</td></tr>
-                  )}
-                </tbody>
-              </table>
+          <section className="admin-users-bottom admin-verification-bottom">
+            <article className="admin-users-panel admin-verification-panel">
+              <h2>Masalah Verifikasi</h2>
+              {problems.length ? problems.map((item) => (
+                <p key={item.label}><span>{item.label}</span><strong>{formatNumber(item.count)}</strong></p>
+              )) : (
+                <p><span>Belum ada masalah terdeteksi.</span><strong>0</strong></p>
+              )}
             </article>
 
-            <article className="admin-verification-panel">
-              <div className="admin-verification-panel-head">
-                <h2>Aktivitas Terbaru</h2>
-                <button type="button" onClick={refreshData}>Refresh</button>
-              </div>
+            <article className="admin-users-panel admin-verification-panel">
+              <h2>Aktivitas Terbaru</h2>
               <div className="admin-verification-activity">
                 {activities.length ? activities.map((item, index) => (
                   <p key={`${item.action}-${item.time}-${index}`}>
@@ -467,7 +549,7 @@ export function AdminVerification() {
               </div>
             </article>
 
-            <article className="admin-verification-panel admin-verification-quick">
+            <article className="admin-users-panel admin-verification-panel admin-verification-quick">
               <h2>Aksi Cepat</h2>
               <button type="button" className="is-blue" onClick={handleResendSelected}>
                 <b>Kirim Ulang ke User Terpilih</b>
@@ -486,14 +568,14 @@ export function AdminVerification() {
         </section>
 
         {selectedUser ? (
-          <div className="admin-verification-detail-overlay" role="presentation" onClick={() => setSelectedUser(null)}>
-            <aside className="admin-verification-detail" aria-label="Detail user verifikasi" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
-              <div className="admin-verification-detail-head">
+          <div className="admin-users-modal admin-verification-detail-overlay" role="presentation" onClick={() => setSelectedUser(null)}>
+            <aside className="admin-users-detail admin-verification-detail" aria-label="Detail user verifikasi" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+              <div className="admin-users-detail-head admin-verification-detail-head">
                 <h2>Detail User</h2>
                 <button type="button" aria-label="Tutup detail" onClick={() => setSelectedUser(null)}>x</button>
               </div>
-              <div className="admin-verification-detail-profile">
-                <span className="admin-verification-detail-avatar">{userInitials(selectedUser.name)}</span>
+              <div className="admin-users-detail-profile admin-verification-detail-profile">
+                <span className="admin-users-detail-avatar admin-verification-detail-avatar">{userInitials(selectedUser.name)}</span>
                 <h3>{selectedUser.name || '-'}</h3>
                 <p>@{selectedUser.username || '-'}</p>
                 <VerificationBadge>{selectedUser.emailStatus || '-'}</VerificationBadge>
@@ -529,7 +611,7 @@ export function AdminVerification() {
                   <span><b>Token terakhir</b><small>{formatDateTime(selectedUser.verificationSentAt)}</small></span>
                 </p>
               </section>
-              <div className="admin-verification-detail-actions">
+              <div className="admin-users-detail-actions admin-verification-detail-actions">
                 <button type="button" className="is-blue" disabled={processingId === selectedUser.id} onClick={() => handleResend(selectedUser)}>Kirim Ulang Verifikasi</button>
                 <button type="button" disabled={processingId === selectedUser.id || selectedUser.emailStatus === 'Terverifikasi'} onClick={() => handleManualVerify(selectedUser)}>Verifikasi Manual</button>
                 <button type="button" className="is-danger" disabled={processingId === selectedUser.id} onClick={() => handleToggleActive(selectedUser)}>
@@ -540,6 +622,48 @@ export function AdminVerification() {
           </div>
         ) : null}
       </div>
+
+      {openActionUser ? (
+        <div
+          className="admin-users-action-popover"
+          role="menu"
+          style={{
+            top: `${actionMenuPosition.top}px`,
+            left: `${actionMenuPosition.left}px`,
+          }}
+        >
+          <button type="button" role="menuitem" onClick={() => { setOpenActionUserId(null); setSelectedUser(openActionUser); }}>Detail</button>
+          <button type="button" role="menuitem" onClick={() => { setOpenActionUserId(null); handleCopyToken(openActionUser); }}>Copy Token</button>
+          {openActionUser.emailStatus !== 'Terverifikasi' ? (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                disabled={processingId === openActionUser.id}
+                onClick={() => { setOpenActionUserId(null); handleManualVerify(openActionUser); }}
+              >
+                Verifikasi Manual
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                disabled={processingId === openActionUser.id}
+                onClick={() => { setOpenActionUserId(null); handleResend(openActionUser); }}
+              >
+                Kirim Ulang
+              </button>
+            </>
+          ) : null}
+          <button
+            type="button"
+            role="menuitem"
+            disabled={processingId === openActionUser.id}
+            onClick={() => { setOpenActionUserId(null); handleToggleActive(openActionUser); }}
+          >
+            {openActionUser.isActive ? 'Nonaktifkan' : 'Aktifkan'}
+          </button>
+        </div>
+      ) : null}
     </AdminPage>
   );
 }
