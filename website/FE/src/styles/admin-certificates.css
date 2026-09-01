@@ -290,20 +290,40 @@
 
 .admin-certificates-page .admin-certificates-main-table th:first-child,
 .admin-certificates-page .admin-certificates-main-table td:first-child {
-  width: 360px;
-  min-width: 300px;
-  padding-right: 16px;
+  width: 42%;
+  min-width: 360px;
+  max-width: 520px;
+  padding-right: 24px;
+}
+
+.admin-certificates-page .admin-certificates-main-table th:nth-child(2),
+.admin-certificates-page .admin-certificates-main-table td:nth-child(2) {
+  width: 140px;
+  min-width: 140px;
+}
+
+.admin-certificates-page .admin-certificates-main-table th:nth-child(3),
+.admin-certificates-page .admin-certificates-main-table td:nth-child(3) {
+  width: 160px;
+  min-width: 160px;
+}
+
+.admin-certificates-page .admin-certificates-main-table th:nth-child(4),
+.admin-certificates-page .admin-certificates-main-table td:nth-child(4) {
+  width: 150px;
+  min-width: 150px;
 }
 
 .admin-certificates-page .admin-certificates-main-table th:last-child,
 .admin-certificates-page .admin-certificates-main-table td:last-child {
-  width: 270px;
-  min-width: 270px;
+  width: 72px;
+  min-width: 72px;
 }
 
 .admin-certificates-page .admin-certificates-main-table .admin-certificates-workshop-title {
-  min-width: 260px;
-  max-width: 360px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .admin-certificates-page .admin-certificates-main-table .admin-users-actions {
@@ -521,22 +541,36 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  min-width: 240px;
+  min-width: 0;
 }
 
 .admin-certificates-workshop-title span:last-child {
   display: grid;
   gap: 3px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .admin-certificates-workshop-title b {
+  display: block;
+  max-width: 100%;
   color: #111827;
   font-weight: 800;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .admin-certificates-workshop-title small {
+  display: block;
+  max-width: 100%;
   color: #64748b;
   font-size: 12px;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .admin-certificates-pagination {

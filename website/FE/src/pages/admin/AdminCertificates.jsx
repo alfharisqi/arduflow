@@ -125,6 +125,20 @@ function getCertificateFileUrl(file) {
   return resolveBackendAssetUrl(file.url || file.file_url || file.relativeUrl || file.relative_url || '');
 }
 
+function normalizeCertificateType(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+
+  if (normalized === 'program') {
+    return 'Program';
+  }
+
+  if (normalized === 'course' || normalized === 'kursus') {
+    return 'Course';
+  }
+
+  return 'Workshop';
+}
+
 function safeText(value, fallback = '-') {
   const text = value === null || value === undefined ? '' : String(value).trim();
 
@@ -1375,6 +1389,7 @@ export function AdminCertificates() {
       email: participant.participantEmail,
       workshopId: selectedWorkshop.id,
       workshopTitle: selectedWorkshop.title,
+      type: normalizeCertificateType(form.type || selectedWorkshop.category),
       certificateTitle:
         form.certificateTitle || `Sertifikat ${selectedWorkshop.title}`,
       completedAt: form.completedAt || issuedAt,
@@ -1751,7 +1766,7 @@ export function AdminCertificates() {
       templateId: getDefaultCertificateTemplateId(customTemplates),
       workshopId: row?.id || '',
       workshopTitle: row?.title || initialCertificateForm.workshopTitle,
-      type: row?.category || initialCertificateForm.type,
+      type: normalizeCertificateType(row?.category || initialCertificateForm.type),
       certificateTitle: row?.title ? `Sertifikat ${row.title}` : initialCertificateForm.certificateTitle,
     });
     setFormOpen(true);
@@ -1766,7 +1781,7 @@ export function AdminCertificates() {
       templateId: getDefaultCertificateTemplateId(customTemplates),
       workshopId: row?.id || '',
       workshopTitle: row?.title || initialCertificateForm.workshopTitle,
-      type: row?.category || initialCertificateForm.type,
+      type: normalizeCertificateType(row?.category || initialCertificateForm.type),
       certificateTitle: row?.title ? `Sertifikat ${row.title}` : initialCertificateForm.certificateTitle,
       registrationId: member?.registrationId || '',
       certificateTargetId: member?.certificateTargetId || '',
