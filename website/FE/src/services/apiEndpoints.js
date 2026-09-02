@@ -1,9 +1,9 @@
 function resolveApiBaseUrl() {
-  const deployUrl = String(
-    import.meta.env.VITE_DEPLOY_URL || ''
-  ).trim();
+  const apiUrl = String(import.meta.env.VITE_API_URL || '').trim();
+  const deployUrl = String(import.meta.env.VITE_DEPLOY_URL || '').trim();
 
   return (
+    apiUrl ||
     deployUrl ||
     'https://arduflow.indobilliard.com/apk/uploads/web-arduflow-deploy-alfha/'
   ).replace(/\/+$/, '');

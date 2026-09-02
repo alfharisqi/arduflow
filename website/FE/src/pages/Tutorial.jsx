@@ -11,19 +11,15 @@ import boardTutorialImage from '../assets/images/Mengenal Board Arduino UNO.jpg'
 import dhtTutorialImage from '../assets/images/Menggunakan Sensor DHT22.jpg';
 import ledTutorialImage from '../assets/images/Menghubungkan LED ke Arduino.jpg';
 import troubleshootingTutorialImage from '../assets/images/Troubleshooting Board Tidak Terdeteksi.jpg';
+import { API_BASE_URL, apiEndpoint } from '../services/apiEndpoints.js';
 
 
-const DEPLOY_URL = (
-  import.meta.env.VITE_DEPLOY_URL ||
-  'https://arduflow.indobilliard.com/apk/uploads/web-arduflow-deploy-alfha/'
-).replace(/\/+$/, '');
+const ARTICLE_API_URL = apiEndpoint(
+  import.meta.env.VITE_MATERI_API_URL,
+  '/api/materi-api.php',
+);
 
-const ARTICLE_API_URL = (
-  import.meta.env.VITE_MATERI_API_URL ||
-  `${DEPLOY_URL}/api/materi-api.php`
-).replace(/\/+$/, '');
-
-const MATERI_IMAGE_BASE_URL = `${DEPLOY_URL}/uploads/materi`;
+const MATERI_IMAGE_BASE_URL = `${API_BASE_URL}/uploads/materi`;
 
 function toBoolean(value, fallback = true) {
   if (value === undefined || value === null || value === '') {

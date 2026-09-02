@@ -1,16 +1,15 @@
-const DEFAULT_API_URL = "http://127.0.0.1:8000";
+import { apiEndpoint } from '../../services/apiEndpoints.js';
 
-function getApiUrl() {
-  return (
-    import.meta.env.VITE_API_URL || DEFAULT_API_URL
-  ).replace(/\/$/, "");
-}
+const FORMHANDLE_API_URL = apiEndpoint(
+  import.meta.env.VITE_FORMHANDLE_API_URL,
+  '/api/formhandle.php',
+);
 
 async function postJson(
   payload,
   defaultErrorMessage
 ) {
-  const endpoint = `${getApiUrl()}/api/formhandle.php`;
+  const endpoint = FORMHANDLE_API_URL;
 
   console.log("Mengirim request ke:", endpoint);
   console.log("Payload request:", payload);
@@ -137,7 +136,7 @@ export function submitWorkshop(payload) {
 
 export async function fetchUserLeadHistory(email) {
   const endpoint = new URL(
-    `${getApiUrl()}/api/formhandle.php`
+    FORMHANDLE_API_URL
   );
 
   endpoint.searchParams.set("scope", "user");

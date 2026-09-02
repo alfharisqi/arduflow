@@ -2,7 +2,7 @@ import { apiEndpoint } from './apiEndpoints.js';
 
 const TESTIMONIAL_API_URL = apiEndpoint(
   import.meta.env.VITE_TESTIMONIAL_API_URL,
-  '/api/testimonials',
+  '/api/testimonials-api.php',
 );
 
 async function requestTestimonials(filters = {}, options = {}) {
