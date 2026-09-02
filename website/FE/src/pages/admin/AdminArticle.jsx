@@ -35,8 +35,8 @@ function AdminArticleTopbar({ search, onSearchChange }) {
 
         <input
           type="search"
-          placeholder="Cari artikel"
-          aria-label="Cari artikel"
+          placeholder="Cari materi"
+          aria-label="Cari materi"
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
         />
@@ -260,7 +260,7 @@ export function AdminArticle() {
       const message =
         error instanceof Error
           ? error.message
-          : 'Data artikel gagal dimuat.';
+          : 'Data materi gagal dimuat.';
 
       setArticles([]);
       setLoadError(message);
@@ -317,14 +317,14 @@ export function AdminArticle() {
 
     return [
       {
-        label: 'Total Artikel',
+        label: 'Total Materi',
         value: String(total),
         note: 'Data dari SQLite',
         icon: bookIcon,
         tone: 'blue',
       },
       {
-        label: 'Artikel Published',
+        label: 'Materi Published',
         value: String(published),
         note: `${publishedPercent}% dari total`,
         icon: checkIcon,
@@ -340,12 +340,12 @@ export function AdminArticle() {
       {
         label: 'Total Viewer / Pembaca',
         value: String(viewer),
-        note: 'Akumulasi seluruh artikel',
+        note: 'Akumulasi seluruh materi',
         icon: usersIcon,
         tone: 'blue',
       },
       {
-        label: 'Artikel Paling Populer',
+        label: 'Materi Paling Populer',
         value: popular?.title || 'Belum tersedia',
         note: popular
           ? `${popular.viewer} viewer`
@@ -354,7 +354,7 @@ export function AdminArticle() {
         tone: 'purple',
       },
       {
-        label: 'Artikel Diarsipkan',
+        label: 'Materi Diarsipkan',
         value: String(archived),
         note: 'Status Archived',
         icon: clockIcon,
@@ -510,9 +510,9 @@ export function AdminArticle() {
   const handleDelete = async (article) => {
     const confirmed =
       await showConfirmAlert({
-        title: 'Hapus Artikel?',
+        title: 'Hapus Materi?',
         text:
-          `Artikel "${article.title}" akan dihapus permanen.`,
+          `Materi "${article.title}" akan dihapus permanen.`,
         confirmButtonText: 'Hapus',
       });
 
@@ -529,13 +529,13 @@ export function AdminArticle() {
 
       setActionMessage(
         result.message ||
-          'Artikel berhasil dihapus.'
+          'Materi berhasil dihapus.'
       );
 
       await showSuccessAlert(
         'Berhasil',
         result.message ||
-          'Artikel berhasil dihapus.'
+          'Materi berhasil dihapus.'
       );
 
       if (
@@ -550,7 +550,7 @@ export function AdminArticle() {
       const message =
         error instanceof Error
           ? error.message
-          : 'Artikel gagal dihapus.';
+          : 'Materi gagal dihapus.';
 
       setActionError(message);
 
@@ -573,9 +573,9 @@ export function AdminArticle() {
     const confirmed =
       await showConfirmAlert({
         title:
-          `Hapus ${selectedArticles.length} Artikel?`,
+          `Hapus ${selectedArticles.length} Materi?`,
         text:
-          'Semua artikel yang dipilih akan dihapus permanen.',
+          'Semua materi yang dipilih akan dihapus permanen.',
         confirmButtonText: 'Hapus',
       });
 
@@ -597,12 +597,12 @@ export function AdminArticle() {
       setCheckedArticleKeys([]);
 
       setActionMessage(
-        `${selectedArticles.length} artikel berhasil dihapus.`
+        `${selectedArticles.length} materi berhasil dihapus.`
       );
 
       await showSuccessAlert(
         'Berhasil',
-        `${selectedArticles.length} artikel berhasil dihapus.`
+        `${selectedArticles.length} materi berhasil dihapus.`
       );
 
       await fetchArticleData();
@@ -610,7 +610,7 @@ export function AdminArticle() {
       const message =
         error instanceof Error
           ? error.message
-          : 'Artikel terpilih gagal dihapus.';
+          : 'Materi terpilih gagal dihapus.';
 
       setActionError(message);
 
@@ -764,7 +764,7 @@ export function AdminArticle() {
 
       <section
         className="admin-dashboard-main"
-        aria-label="Artikel admin"
+        aria-label="Materi admin"
       >
         <AdminArticleTopbar
           search={searchTerm}
@@ -775,12 +775,12 @@ export function AdminArticle() {
           <section className="admin-article-content">
             <div className="admin-article-heading">
               <div>
-                <h1>Artikel</h1>
+                <h1>Materi</h1>
 
                 <p>
                   Dashboard
                   <span>/</span>
-                  Artikel
+                  Materi
                 </p>
               </div>
             </div>
@@ -806,10 +806,10 @@ export function AdminArticle() {
             {selectedArticleCount ? (
               <section
                 className="admin-article-bulk-actions"
-                aria-label="Aksi artikel terpilih"
+                aria-label="Aksi materi terpilih"
               >
                 <span>
-                  {selectedArticleCount} artikel dipilih
+                  {selectedArticleCount} materi dipilih
                 </span>
 
                 <div>
@@ -839,7 +839,7 @@ export function AdminArticle() {
 
             <section
               className="admin-article-stats"
-              aria-label="Ringkasan artikel"
+                aria-label="Ringkasan materi"
             >
               {articleStats.map((item) => (
                 <article
@@ -870,12 +870,12 @@ export function AdminArticle() {
 
             <section
               className="admin-article-filter"
-              aria-label="Filter artikel"
+                aria-label="Filter materi"
             >
               <label className="admin-article-search">
                 <input
                   type="search"
-                  placeholder="Cari judul artikel..."
+                  placeholder="Cari judul materi..."
                   value={searchTerm}
                   onChange={(event) =>
                     setSearchTerm(
@@ -1003,7 +1003,7 @@ export function AdminArticle() {
                 className="admin-article-primary"
                 href="/admin/artikel/tambah"
               >
-                + Tambah Artikel
+                  + Tambah Materi
               </a>
             </div>
 
@@ -1014,7 +1014,7 @@ export function AdminArticle() {
                     <th>
                       <input
                         type="checkbox"
-                        aria-label="Pilih semua artikel"
+                        aria-label="Pilih semua materi"
                         checked={
                           isFilteredArticlesChecked
                         }
@@ -1027,7 +1027,7 @@ export function AdminArticle() {
                       />
                     </th>
 
-                    <th>Judul Artikel</th>
+                    <th>Judul Materi</th>
                     <th>Kategori</th>
                     <th>Status</th>
                     <th>Author</th>
@@ -1043,7 +1043,7 @@ export function AdminArticle() {
                   {isLoading && (
                     <tr>
                       <td colSpan="10">
-                        Memuat data artikel...
+                        Memuat data materi...
                       </td>
                     </tr>
                   )}
@@ -1053,7 +1053,7 @@ export function AdminArticle() {
                       <tr>
                         <td colSpan="10">
                           <strong>
-                            Gagal mengambil data artikel.
+                            Gagal mengambil data materi.
                           </strong>
 
                           <br />
@@ -1071,7 +1071,7 @@ export function AdminArticle() {
                       0 && (
                       <tr>
                         <td colSpan="10">
-                          Belum ada artikel yang sesuai.
+                          Belum ada materi yang sesuai.
                         </td>
                       </tr>
                     )}
@@ -1243,7 +1243,7 @@ export function AdminArticle() {
               <article className="admin-article-panel">
                 <div className="admin-article-panel-head">
                   <h2>
-                    Artikel Terbaru dari SQLite
+                    Materi Terbaru dari SQLite
                   </h2>
                 </div>
 
@@ -1261,7 +1261,7 @@ export function AdminArticle() {
                     {latestArticles.length === 0 ? (
                       <tr>
                         <td colSpan="4">
-                          Belum ada artikel.
+                          Belum ada materi.
                         </td>
                       </tr>
                     ) : (
@@ -1354,7 +1354,7 @@ export function AdminArticle() {
               <article className="admin-article-panel admin-article-issues">
                 <div className="admin-article-panel-head">
                   <h2>
-                    Artikel Perlu Dilengkapi
+                    Materi Perlu Dilengkapi
                   </h2>
                 </div>
 
@@ -1383,7 +1383,7 @@ export function AdminArticle() {
                 {activityItems.length === 0 ? (
                   <p>
                     <b>
-                      Belum ada aktivitas artikel.
+                      Belum ada aktivitas materi.
                     </b>
                   </p>
                 ) : (
@@ -1415,18 +1415,18 @@ export function AdminArticle() {
 
               <div>
                 <a href="/admin/artikel/tambah">
-                  Buat Artikel Baru
+                  Buat Materi Baru
                 </a>
 
                 <button
                   type="button"
                   onClick={fetchArticleData}
                 >
-                  Muat Ulang Data Artikel
+                  Muat Ulang Data Materi
                 </button>
 
                 <a href="/artikel">
-                  Lihat Halaman Artikel
+                  Lihat Halaman Materi
                 </a>
               </div>
             </section>
@@ -1437,7 +1437,7 @@ export function AdminArticle() {
               className="admin-article-detail-modal"
               role="dialog"
               aria-modal="true"
-              aria-label="Detail artikel"
+              aria-label="Detail materi"
             >
               <button
                 type="button"
@@ -1450,7 +1450,7 @@ export function AdminArticle() {
 
               <aside className="admin-article-detail admin-article-detail--complete">
                 <div className="admin-article-detail-head">
-                  <h2>Detail Artikel</h2>
+                  <h2>Detail Materi</h2>
 
                   <button
                     type="button"
@@ -1529,11 +1529,11 @@ export function AdminArticle() {
                   <div className="admin-article-detail-section-head">
                     <div>
                       <span className="admin-article-detail-kicker">
-                        Konten Artikel
+                        Konten Materi
                       </span>
 
                       <h3>
-                        Isi Artikel
+                        Isi Materi
                       </h3>
                     </div>
                   </div>
@@ -1543,7 +1543,7 @@ export function AdminArticle() {
                     dangerouslySetInnerHTML={{
                       __html:
                         selectedArticle.content ||
-                        '<p>Isi artikel belum tersedia.</p>',
+                        '<p>Isi materi belum tersedia.</p>',
                     }}
                   />
                 </section>
@@ -1590,7 +1590,7 @@ export function AdminArticle() {
                   </h3>
 
                   <p>
-                    Artikel terakhir diperbarui{' '}
+                    Materi terakhir diperbarui{' '}
                     <strong>
                       {formatDate(
                         selectedArticle.updatedAt ||
@@ -1607,7 +1607,7 @@ export function AdminArticle() {
                       selectedArticle.id
                     )}`}
                   >
-                    Edit Artikel
+                    Edit Materi
                   </a>
 
                   <button
@@ -1626,7 +1626,7 @@ export function AdminArticle() {
                       );
                     }}
                   >
-                    Hapus Artikel
+                    Hapus Materi
                   </button>
                 </div>
               </aside>

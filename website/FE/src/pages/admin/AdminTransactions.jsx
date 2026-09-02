@@ -138,6 +138,12 @@ function getPaymentMethodLabel(transaction) {
   return [transaction.paymentChannel, transaction.paymentMethod].filter(Boolean).join(' ') || '-';
 }
 
+function transactionDateValue(transaction) {
+  const value = transaction.paidAt || transaction.createdAt;
+  const timestamp = new Date(value || 0).getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
 function PaymentMethodMark({ method }) {
   if (method.image?.url) {
     return <img className="admin-payment-methods-image" src={method.image.url} alt="" />;
@@ -296,6 +302,8 @@ export function AdminTransactions() {
   const [statusFilter, setStatusFilter] = useState('');
   const [itemTypeFilter, setItemTypeFilter] = useState('');
   const [methodFilter, setMethodFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [formData, setFormData] = useState(initialForm);
@@ -330,6 +338,8 @@ export function AdminTransactions() {
     setStatusFilter('');
     setItemTypeFilter('');
     setMethodFilter('');
+    setDateFrom('');
+    setDateTo('');
     setPage(1);
   }
 
@@ -371,6 +381,10 @@ export function AdminTransactions() {
   const displayedTransactions = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
     return transactions.filter((transaction) => {
+      const transactionDate = transactionDateValue(transaction);
+      const fromDate = dateFrom ? new Date(`${dateFrom}T00:00:00`).getTime() : 0;
+      const toDate = dateTo ? new Date(`${dateTo}T23:59:59.999`).getTime() : Number.POSITIVE_INFINITY;
+      if (transactionDate < fromDate || transactionDate > toDate) return false;
       if (itemTypeFilter === 'workshop' && !['workshop', 'program', 'course'].includes(transaction.itemType)) return false;
       if (itemTypeFilter === 'project' && transaction.itemType !== 'project') return false;
       if (itemTypeFilter === 'ide' && transaction.itemType !== 'ide') return false;
@@ -380,8 +394,8 @@ export function AdminTransactions() {
       return [transaction.invoiceNumber, transaction.userName, transaction.email, transaction.itemTitle, transaction.referenceNumber]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(query));
-    });
-  }, [itemTypeFilter, methodFilter, transactions, searchTerm]);
+    }).sort((left, right) => transactionDateValue(right) - transactionDateValue(left));
+  }, [dateFrom, dateTo, itemTypeFilter, methodFilter, transactions, searchTerm]);
 
   const pagination = useMemo(() => {
     const total = displayedTransactions.length;
@@ -427,7 +441,7 @@ export function AdminTransactions() {
   useEffect(() => {
     setPage(1);
     setOpenActionTransactionId(null);
-  }, [searchTerm, itemTypeFilter, statusFilter, methodFilter]);
+  }, [searchTerm, itemTypeFilter, statusFilter, methodFilter, dateFrom, dateTo]);
 
   useEffect(() => {
     if (page > pagination.lastPage) {
@@ -821,6 +835,8 @@ export function AdminTransactions() {
               <option value="">Semua Metode</option>
                 {uniquePaymentMethods.map((method) => <option key={method} value={method}>{method}</option>)}
               </select>
+            <input type="date" value={dateFrom} max={dateTo || undefined} aria-label="Tanggal mulai transaksi" onChange={(event) => setDateFrom(event.target.value)} />
+            <input type="date" value={dateTo} min={dateFrom || undefined} aria-label="Tanggal akhir transaksi" onChange={(event) => setDateTo(event.target.value)} />
             <button type="button" onClick={resetFilters}>Reset</button>
             <button type="button" className="admin-transactions-export" disabled={!displayedTransactions.length} onClick={exportCurrentTransactions}>Export CSV</button>
           </div>

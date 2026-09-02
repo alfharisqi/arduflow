@@ -35,7 +35,7 @@ const adminItems = [
     title: 'Konten',
     items: [
       { label: 'Tutorial', href: '/admin/tutorial', icon: graduationIcon },
-      { label: 'Artikel', href: '/admin/artikel', icon: fileIcon },
+      { label: 'Materi', href: '/admin/artikel', icon: fileIcon },
       { label: 'Proyek', href: '/admin/projects', icon: projectIcon },
       { label: 'Galeri Kegiatan', href: '/admin/gallery', icon: mediaIcon },
       { label: 'Partner / Kolaborator', href: '/admin/partners', icon: globeIcon },

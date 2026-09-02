@@ -1,0 +1,178 @@
+/* Dashboard tables use the available width instead of forcing horizontal scrolling. */
+.admin-dashboard-main table,
+.dashboard-user-page table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.admin-dashboard-main table th,
+.admin-dashboard-main table td,
+.dashboard-user-page table th,
+.dashboard-user-page table td {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.admin-dashboard-main [class*='table-card'],
+.admin-dashboard-main [class*='table-scroll'],
+.admin-dashboard-main [class*='table-wrap'],
+.dashboard-user-page [class*='table-card'],
+.dashboard-user-page [class*='table-scroll'],
+.dashboard-user-page [class*='table-wrap'] {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* These list tables are CSS grids rather than semantic tables. */
+.user-leads-table__head,
+.user-leads-table__row {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.user-workshop-table__head,
+.user-workshop-table__row {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.user-project-sales-table__head,
+.user-project-sales-table__row {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.user-certificates-table__head,
+.user-certificates-table__row {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.user-transactions-table__head,
+.user-transactions-table__row {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.admin-testimonials-table__head,
+.admin-testimonials-table__row {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.project-upload-table__head,
+.project-upload-table__row,
+.project-upload-table__head--components,
+.project-upload-table__head--nodes,
+.admin-materials-table-head,
+.admin-materials-table-body article {
+  width: 100%;
+  min-width: 0;
+}
+
+.project-upload-table__head--components,
+.project-upload-table__head--nodes {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.admin-materials-table-head,
+.admin-materials-table-body article {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.user-leads-table__head > *,
+.user-leads-table__row > *,
+.user-workshop-table__head > *,
+.user-workshop-table__row > *,
+.user-project-sales-table__head > *,
+.user-project-sales-table__row > *,
+.user-certificates-table__head > *,
+.user-certificates-table__row > *,
+.user-transactions-table__head > *,
+.user-transactions-table__row > *,
+.admin-testimonials-table__head > *,
+.admin-testimonials-table__row > *,
+.project-upload-table__head > *,
+.project-upload-table__row > *,
+.admin-materials-table-head > *,
+.admin-materials-table-body article > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .admin-dashboard-main table,
+  .dashboard-user-page table {
+    font-size: 12px;
+  }
+
+  .admin-dashboard-main table th,
+  .admin-dashboard-main table td,
+  .dashboard-user-page table th,
+  .dashboard-user-page table td {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .user-leads-table__head,
+  .user-leads-table__row,
+  .user-workshop-table__head,
+  .user-workshop-table__row,
+  .user-project-sales-table__head,
+  .user-project-sales-table__row,
+  .user-certificates-table__head,
+  .user-certificates-table__row,
+  .user-transactions-table__head,
+  .user-transactions-table__row,
+  .admin-testimonials-table__head,
+  .admin-testimonials-table__row {
+    min-width: 0;
+  }
+
+  .user-leads-table__row,
+  .user-workshop-table__row,
+  .user-project-sales-table__row,
+  .user-certificates-table__row,
+  .user-transactions-table__row,
+  .admin-testimonials-table__row {
+    min-height: 58px;
+    height: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .admin-dashboard-main table,
+  .dashboard-user-page table {
+    font-size: 11px;
+  }
+
+  .admin-dashboard-main table th,
+  .admin-dashboard-main table td,
+  .dashboard-user-page table th,
+  .dashboard-user-page table td {
+    padding: 8px 5px;
+  }
+
+  .user-leads-table__head,
+  .user-leads-table__row,
+  .user-workshop-table__head,
+  .user-workshop-table__row,
+  .user-project-sales-table__head,
+  .user-project-sales-table__row,
+  .user-certificates-table__head,
+  .user-certificates-table__row,
+  .user-transactions-table__head,
+  .user-transactions-table__row,
+  .admin-testimonials-table__head,
+  .admin-testimonials-table__row {
+    font-size: 10px;
+  }
+}

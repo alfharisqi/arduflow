@@ -62,6 +62,18 @@ function statusLabel(status) {
   return labels[status] || status || '-';
 }
 
+function itemTypeLabel(itemType) {
+  const labels = {
+    workshop: 'Workshop',
+    program: 'Program',
+    project: 'Proyek',
+    materi: 'Materi',
+    material: 'Materi',
+    ide: 'IDE',
+  };
+  return labels[String(itemType || '').toLowerCase()] || itemType || 'Lainnya';
+}
+
 function canUploadProof(status) {
   return ['pending', 'rejected'].includes(status);
 }
@@ -81,8 +93,14 @@ export function UserTransactions() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('Semua');
+  const [typeFilter, setTypeFilter] = useState('Semua');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [paymentForms, setPaymentForms] = useState({});
   const [openPaymentFormId, setOpenPaymentFormId] = useState(null);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [message, setMessage] = useState('');
   const user = getStoredUser();
   const fullName = user.name || user.fullName || 'Nama Lengkap';
@@ -180,15 +198,33 @@ export function UserTransactions() {
     }
   }
 
-  const displayedTransactions = useMemo(() => {
+  const filteredTransactions = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
-    if (!query) return transactions;
-    return transactions.filter((transaction) =>
-      [transaction.invoiceNumber, transaction.itemTitle, transaction.paymentMethod, transaction.paymentChannel, statusLabel(transaction.status)]
+    return transactions.filter((transaction) => {
+      const transactionDate = transactionTime(transaction);
+      const fromDate = dateFrom ? new Date(`${dateFrom}T00:00:00`).getTime() : 0;
+      const toDate = dateTo ? new Date(`${dateTo}T23:59:59.999`).getTime() : Number.POSITIVE_INFINITY;
+      if (transactionDate < fromDate || transactionDate > toDate) return false;
+      if (statusFilter !== 'Semua' && transaction.status !== statusFilter) return false;
+      if (typeFilter !== 'Semua' && String(transaction.itemType || '').toLowerCase() !== typeFilter) return false;
+      if (!query) return true;
+      return [transaction.invoiceNumber, transaction.itemTitle, transaction.paymentMethod, transaction.paymentChannel, statusLabel(transaction.status), itemTypeLabel(transaction.itemType)]
         .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(query))
-    );
-  }, [transactions, searchTerm]);
+        .some((value) => String(value).toLowerCase().includes(query));
+    }).sort((left, right) => transactionTime(right) - transactionTime(left));
+  }, [transactions, searchTerm, statusFilter, typeFilter, dateFrom, dateTo]);
+
+  const pageSize = 8;
+  const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / pageSize));
+  const displayedTransactions = filteredTransactions.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, typeFilter, dateFrom, dateTo]);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
 
   const actionTransactions = useMemo(
     () => [...transactions]
@@ -202,6 +238,14 @@ export function UserTransactions() {
     window.localStorage.removeItem('arduflow_user_token');
     window.dispatchEvent(new Event('arduflow-auth-change'));
     window.location.assign('/signin');
+  }
+
+  function resetTransactionFilters() {
+    setSearchTerm('');
+    setStatusFilter('Semua');
+    setTypeFilter('Semua');
+    setDateFrom('');
+    setDateTo('');
   }
 
   function handleSidebarToggle() {
@@ -390,6 +434,41 @@ export function UserTransactions() {
                   onChange={(event) => setSearchTerm(event.target.value)}
                 />
               </label>
+              <div className="user-transactions-filters">
+                <label>
+                  <span className="sr-only">Filter jenis transaksi</span>
+                  <select value={typeFilter} aria-label="Filter jenis transaksi" onChange={(event) => setTypeFilter(event.target.value)}>
+                    <option value="Semua">Semua Jenis</option>
+                    <option value="workshop">Workshop</option>
+                    <option value="program">Program</option>
+                    <option value="project">Proyek</option>
+                    <option value="materi">Materi</option>
+                    <option value="ide">IDE</option>
+                  </select>
+                </label>
+                <label>
+                  <span className="sr-only">Filter status transaksi</span>
+                  <select value={statusFilter} aria-label="Filter status transaksi" onChange={(event) => setStatusFilter(event.target.value)}>
+                    <option value="Semua">Semua Status</option>
+                    <option value="pending">Menunggu Pembayaran</option>
+                    <option value="proof_uploaded">Menunggu Review</option>
+                    <option value="paid">Lunas</option>
+                    <option value="rejected">Ditolak</option>
+                    <option value="failed">Gagal</option>
+                    <option value="cancelled">Dibatalkan</option>
+                    <option value="refunded">Refund</option>
+                  </select>
+                </label>
+                <label>
+                  <span className="sr-only">Tanggal mulai</span>
+                  <input type="date" value={dateFrom} max={dateTo || undefined} aria-label="Tanggal mulai transaksi" onChange={(event) => setDateFrom(event.target.value)} />
+                </label>
+                <label>
+                  <span className="sr-only">Tanggal akhir</span>
+                  <input type="date" value={dateTo} min={dateFrom || undefined} aria-label="Tanggal akhir transaksi" onChange={(event) => setDateTo(event.target.value)} />
+                </label>
+                <button type="button" className="user-transactions-filter-reset" onClick={resetTransactionFilters}>Reset</button>
+              </div>
             </div>
 
             <div className="user-transactions-table" role="table" aria-label="Riwayat transaksi">
@@ -412,7 +491,7 @@ export function UserTransactions() {
                 displayedTransactions.map((transaction) => (
                   <div className="user-transactions-table__row" role="row" key={transaction.id}>
                     <span>{transaction.invoiceNumber || '-'}</span>
-                    <span>{transaction.itemTitle || '-'}</span>
+                    <span><b>{transaction.itemTitle || '-'}</b><small>{itemTypeLabel(transaction.itemType)}</small></span>
                     <span>{formatCurrency(transaction.amount, transaction.currency)}</span>
                     <span>
                       {paymentMethodLabel(transaction)}
@@ -461,14 +540,64 @@ export function UserTransactions() {
                       ) : (
                         <strong>Tidak dapat upload</strong>
                       )}
+                      <button className="user-transactions-detail-button" type="button" onClick={() => setSelectedTransaction(transaction)}>
+                        Lihat Detail
+                      </button>
                     </span>
                   </div>
                 ))
               )}
             </div>
+            <nav className="user-transactions-pagination" aria-label="Pagination transaksi">
+              <span>Menampilkan {filteredTransactions.length ? ((currentPage - 1) * pageSize) + 1 : 0}-{Math.min(currentPage * pageSize, filteredTransactions.length)} dari {filteredTransactions.length}</span>
+              <div>
+                <button type="button" aria-label="Halaman sebelumnya" disabled={currentPage === 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}>&lsaquo;</button>
+                {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+                  <button className={page === currentPage ? 'is-active' : ''} type="button" key={page} onClick={() => setCurrentPage(page)}>{page}</button>
+                ))}
+                <button type="button" aria-label="Halaman berikutnya" disabled={currentPage === totalPages} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}>&rsaquo;</button>
+              </div>
+            </nav>
           </section>
         </main>
       </section>
+
+      {selectedTransaction ? (
+        <div className="user-transactions-modal-backdrop" role="presentation" onClick={() => setSelectedTransaction(null)}>
+          <section className="user-transactions-modal" role="dialog" aria-modal="true" aria-labelledby="transaction-detail-title" onClick={(event) => event.stopPropagation()}>
+            <header className="user-transactions-modal__header">
+              <div>
+                <span>Detail transaksi</span>
+                <h2 id="transaction-detail-title">{selectedTransaction.itemTitle || 'Transaksi Arduflow'}</h2>
+                <p>{selectedTransaction.invoiceNumber || 'Invoice belum tersedia'}</p>
+              </div>
+              <button type="button" aria-label="Tutup detail transaksi" onClick={() => setSelectedTransaction(null)}>&times;</button>
+            </header>
+            <div className="user-transactions-modal__status">
+              <span>Status pembayaran</span>
+              <b className={`user-transactions-pill user-transactions-pill--${selectedTransaction.status}`}>
+                {statusLabel(selectedTransaction.status)}
+              </b>
+            </div>
+            <dl className="user-transactions-modal__details">
+              <div><dt>Jenis item</dt><dd>{itemTypeLabel(selectedTransaction.itemType)}</dd></div>
+              <div><dt>Total pembayaran</dt><dd>{formatCurrency(selectedTransaction.amount, selectedTransaction.currency)}</dd></div>
+              <div><dt>Tanggal transaksi</dt><dd>{formatDate(selectedTransaction.createdAt)}</dd></div>
+              <div><dt>Tanggal lunas</dt><dd>{formatDate(selectedTransaction.paidAt)}</dd></div>
+              <div><dt>Metode pembayaran</dt><dd>{paymentMethodLabel(selectedTransaction)}</dd></div>
+              <div><dt>Penerima</dt><dd>{selectedTransaction.recipientName || '-'}</dd></div>
+              <div><dt>Nomor referensi</dt><dd>{selectedTransaction.referenceNumber || '-'}</dd></div>
+              <div><dt>Kode pembayaran</dt><dd>{selectedTransaction.paymentCode || '-'}</dd></div>
+            </dl>
+            {selectedTransaction.rejectionReason ? (
+              <p className="user-transactions-modal__rejection"><strong>Catatan admin:</strong> {selectedTransaction.rejectionReason}</p>
+            ) : null}
+            <footer className="user-transactions-modal__footer">
+              <button type="button" onClick={() => setSelectedTransaction(null)}>Tutup</button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }

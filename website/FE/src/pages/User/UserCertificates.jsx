@@ -88,6 +88,15 @@ function getCertificateStatusClass(status) {
   return 'waiting';
 }
 
+function getParticipantName(certificate) {
+  return certificate.participantName
+    || certificate.participant_name
+    || certificate.userName
+    || certificate.user_name
+    || certificate.name
+    || 'Nama peserta belum tersedia';
+}
+
 function getCertificateFileUrl(certificate) {
   const url = certificate.file?.url || certificate.file?.relativeUrl || certificate.file?.relative_url || '';
   if (!url) return '';
@@ -172,6 +181,10 @@ export function UserCertificates() {
   const [certificatesError, setCertificatesError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortMode, setSortMode] = useState('Relevance');
+  const [statusFilter, setStatusFilter] = useState('Semua');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [expandedWorkshops, setExpandedWorkshops] = useState({});
+  const pageSize = 5;
   const user = getStoredUser();
   const fullName = user.name || user.fullName || 'Nama Lengkap';
   const greetingName = user.nickname || fullName;
@@ -207,31 +220,64 @@ export function UserCertificates() {
     };
   }, [user.email, user.id, user.userId]);
 
-  const displayedCertificates = useMemo(() => {
+  const workshopRows = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
     const filteredCertificates = certificates.filter((certificate) => {
+      const status = getCertificateStatus(certificate);
+      if (statusFilter !== 'Semua' && status !== statusFilter) return false;
       if (!query) return true;
       return [
-        certificate.certificateTitle,
-        certificate.type,
         certificate.workshopTitle,
+        certificate.certificateTitle,
         certificate.certificateNumber,
-        certificate.status,
+        getParticipantName(certificate),
+        certificate.email,
       ]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(query));
     });
 
-    return [...filteredCertificates].sort((left, right) => {
+    const grouped = filteredCertificates.reduce((groups, certificate) => {
+      const workshopTitle = certificate.workshopTitle || certificate.payload?.materialTitle || 'Workshop tanpa judul';
+      const workshopKey = String(certificate.workshopId || certificate.workshop_id || workshopTitle).toLowerCase();
+      const existing = groups.get(workshopKey) || {
+        key: workshopKey,
+        title: workshopTitle,
+        participants: [],
+      };
+      existing.participants.push(certificate);
+      groups.set(workshopKey, existing);
+      return groups;
+    }, new Map());
+
+    return [...grouped.values()].sort((left, right) => {
       if (sortMode === 'Terbaru') {
-        return new Date(right.issuedAt || right.completedAt || 0) - new Date(left.issuedAt || left.completedAt || 0);
+        const leftDate = left.participants.reduce((latest, item) => Math.max(latest, new Date(item.issuedAt || item.completedAt || 0).getTime()), 0);
+        const rightDate = right.participants.reduce((latest, item) => Math.max(latest, new Date(item.issuedAt || item.completedAt || 0).getTime()), 0);
+        return rightDate - leftDate;
       }
       if (sortMode === 'Status') {
-        return getCertificateStatus(left).localeCompare(getCertificateStatus(right));
+        return getCertificateStatus(left.participants[0]).localeCompare(getCertificateStatus(right.participants[0]));
       }
-      return (Number(right.id) || 0) - (Number(left.id) || 0);
+      return (Number(right.participants[0]?.id) || 0) - (Number(left.participants[0]?.id) || 0);
     });
-  }, [certificates, searchTerm, sortMode]);
+  }, [certificates, searchTerm, sortMode, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(workshopRows.length / pageSize));
+  const paginatedWorkshops = workshopRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  useEffect(() => {
+    setCurrentPage(1);
+    setExpandedWorkshops({});
+  }, [searchTerm, sortMode, statusFilter]);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
+
+  function toggleWorkshop(workshopKey) {
+    setExpandedWorkshops((current) => ({ ...current, [workshopKey]: !current[workshopKey] }));
+  }
 
   function handleLogout() {
     window.localStorage.removeItem('arduflow_user');
@@ -305,8 +351,8 @@ export function UserCertificates() {
               <h2 id="certificates-title">Sertifikat yang didapat</h2>
               <div className="user-certificates-toolbar">
                 <label className="user-certificates-search">
-                  <span className="sr-only">Cari sertifikat</span>
-                  <input type="search" placeholder="Cari" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} />
+                  <span className="sr-only">Cari workshop atau peserta</span>
+                  <input type="search" placeholder="Cari workshop atau peserta" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} />
                   <SearchIcon />
                 </label>
 
@@ -319,30 +365,32 @@ export function UserCertificates() {
                       <option>Status</option>
                     </select>
                   </div>
-                  <button className="user-certificates-filter" type="button">
+                  <label className="user-certificates-filter">
                     <FilterIcon />
-                    <span>Filter</span>
-                  </button>
+                    <span className="sr-only">Filter status</span>
+                    <select value={statusFilter} aria-label="Filter status sertifikat" onChange={(event) => setStatusFilter(event.target.value)}>
+                      <option>Semua</option>
+                      <option>Tersedia</option>
+                      <option>Menunggu</option>
+                      <option>Tidak Lulus</option>
+                    </select>
+                  </label>
                 </div>
               </div>
             </div>
 
             <div className="user-certificates-table" role="table" aria-label="Sertifikat yang didapat">
               <div className="user-certificates-table__head" role="row">
-                <span>Nama Sertifikat</span>
-                <span>Jenis</span>
-                <span>Materi / Program</span>
+                <span>Workshop</span>
+                <span>Peserta</span>
                 <span>Tanggal Terbit</span>
-                <span>Nomor Sertifikat</span>
                 <span>Status</span>
-                <span>Action</span>
+                <span>Detail</span>
               </div>
               {isLoadingCertificates ? (
                 <div className="user-certificates-table__row" role="row">
                   <span>Memuat sertifikat...</span>
                   <span>-</span>
-                  <span>-</span>
-                  <time>-</time>
                   <span>-</span>
                   <span>-</span>
                   <span>-</span>
@@ -352,57 +400,65 @@ export function UserCertificates() {
                   <span>{certificatesError}</span>
                   <span>-</span>
                   <span>-</span>
-                  <time>-</time>
-                  <span>-</span>
                   <span>-</span>
                   <span>-</span>
                 </div>
-              ) : displayedCertificates.length === 0 ? (
+              ) : workshopRows.length === 0 ? (
                 <div className="user-certificates-table__row" role="row">
                   <span>Belum ada sertifikat yang tersedia.</span>
                   <span>-</span>
-                  <span>-</span>
-                  <time>-</time>
                   <span>-</span>
                   <span>-</span>
                   <span>-</span>
                 </div>
               ) : (
-                displayedCertificates.map((certificate) => {
-                  const status = getCertificateStatus(certificate);
-                  const hasFile = Boolean(getCertificateFileUrl(certificate));
+                paginatedWorkshops.map((workshop) => {
+                  const availableCount = workshop.participants.filter((item) => getCertificateStatus(item) === 'Tersedia').length;
+                  const status = availableCount === workshop.participants.length
+                    ? 'Tersedia'
+                    : workshop.participants.some((item) => getCertificateStatus(item) === 'Menunggu')
+                      ? 'Menunggu'
+                      : 'Tidak Lulus';
+                  const latestCertificate = workshop.participants.reduce((latest, item) => {
+                    const itemDate = new Date(item.issuedAt || item.completedAt || 0).getTime();
+                    const latestDate = new Date(latest?.issuedAt || latest?.completedAt || 0).getTime();
+                    return itemDate > latestDate ? item : latest;
+                  }, workshop.participants[0]);
+                  const isExpanded = Boolean(expandedWorkshops[workshop.key]);
                   return (
-                    <div className="user-certificates-table__row" role="row" key={certificate.id || certificate.certificateNumber}>
-                      <span>{certificate.certificateTitle || 'Sertifikat tanpa judul'}</span>
-                      <span>{certificate.type || '-'}</span>
-                      <span>{certificate.workshopTitle || certificate.payload?.materialTitle || '-'}</span>
-                      <time>{formatCertificateDate(certificate.issuedAt || certificate.completedAt)}</time>
-                      <span>{certificate.certificateNumber || '-'}</span>
-                      <span>
-                        <b className={`user-certificates-pill user-certificates-pill--${getCertificateStatusClass(status)}`}>
-                          {status}
-                        </b>
-                      </span>
-                      <div className="user-certificates-actions">
-                        <button
-                          className="user-certificates-action user-certificates-action--download"
-                          type="button"
-                          aria-label="Download sertifikat"
-                          disabled={!hasFile}
-                          onClick={() => downloadCertificateFile(certificate)}
-                        >
-                          <DownloadActionIcon />
-                        </button>
-                        <button
-                          className="user-certificates-action user-certificates-action--view"
-                          type="button"
-                          aria-label="Lihat sertifikat"
-                          disabled={!hasFile}
-                          onClick={() => openCertificateFile(certificate)}
-                        >
-                          <ViewActionIcon />
+                    <div className={`user-certificates-workshop-group${isExpanded ? ' is-expanded' : ''}`} key={workshop.key}>
+                      <div className="user-certificates-table__row" role="row">
+                        <span className="user-certificates-workshop-name">{workshop.title}</span>
+                        <span>{workshop.participants.length} peserta</span>
+                        <time>{formatCertificateDate(latestCertificate?.issuedAt || latestCertificate?.completedAt)}</time>
+                        <span>
+                          <b className={`user-certificates-pill user-certificates-pill--${getCertificateStatusClass(status)}`}>
+                            {status}
+                          </b>
+                        </span>
+                        <button className="user-certificates-expand" type="button" aria-expanded={isExpanded} onClick={() => toggleWorkshop(workshop.key)}>
+                          {isExpanded ? 'Tutup' : 'Lihat peserta'}
                         </button>
                       </div>
+                      {isExpanded ? (
+                        <div className="user-certificates-participants" role="region" aria-label={`Peserta ${workshop.title}`}>
+                          {workshop.participants.map((certificate) => {
+                            const participantStatus = getCertificateStatus(certificate);
+                            const hasFile = Boolean(getCertificateFileUrl(certificate));
+                            return (
+                              <div className="user-certificates-participant" key={certificate.id || certificate.certificateNumber || getParticipantName(certificate)}>
+                                <span><b>{getParticipantName(certificate)}</b><small>{certificate.email || certificate.participantEmail || '-'}</small></span>
+                                <span>{certificate.certificateNumber || '-'}</span>
+                                <span className={`user-certificates-pill user-certificates-pill--${getCertificateStatusClass(participantStatus)}`}>{participantStatus}</span>
+                                <div className="user-certificates-actions">
+                                  <button className="user-certificates-action user-certificates-action--download" type="button" aria-label={`Download sertifikat ${getParticipantName(certificate)}`} disabled={!hasFile} onClick={() => downloadCertificateFile(certificate)}><DownloadActionIcon /></button>
+                                  <button className="user-certificates-action user-certificates-action--view" type="button" aria-label={`Lihat sertifikat ${getParticipantName(certificate)}`} disabled={!hasFile} onClick={() => openCertificateFile(certificate)}><ViewActionIcon /></button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : null}
                     </div>
                   );
                 })
@@ -410,11 +466,11 @@ export function UserCertificates() {
             </div>
 
             <nav className="user-certificates-pagination" aria-label="Pagination sertifikat">
-              <button type="button" aria-label="Halaman sebelumnya">&lsaquo;</button>
-              <button className="user-certificates-pagination__active" type="button">1</button>
-              <button type="button">2</button>
-              <button type="button">3</button>
-              <button type="button" aria-label="Halaman berikutnya">&rsaquo;</button>
+              <button type="button" aria-label="Halaman sebelumnya" disabled={currentPage === 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}>&lsaquo;</button>
+              {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+                <button className={page === currentPage ? 'user-certificates-pagination__active' : ''} type="button" key={page} onClick={() => setCurrentPage(page)}>{page}</button>
+              ))}
+              <button type="button" aria-label="Halaman berikutnya" disabled={currentPage === totalPages} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}>&rsaquo;</button>
             </nav>
           </section>
         </main>

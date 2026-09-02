@@ -95,10 +95,10 @@ export function AdminArticleForm() {
         const message =
           error instanceof Error
             ? error.message
-            : 'Artikel gagal dimuat.';
+            : 'Materi gagal dimuat.';
 
         setFormError(message);
-        await showErrorAlert('Gagal Memuat Artikel', message);
+        await showErrorAlert('Gagal Memuat Materi', message);
       } finally {
         if (active) setIsLoading(false);
       }
@@ -136,19 +136,19 @@ export function AdminArticleForm() {
 
   const validate = () => {
     if (form.title.trim().length < 3) {
-      return 'Judul artikel minimal 3 karakter.';
+      return 'Judul materi minimal 3 karakter.';
     }
 
     if (!form.slug.trim()) {
-      return 'Slug artikel wajib diisi.';
+      return 'Slug materi wajib diisi.';
     }
 
     if (!form.category.trim()) {
-      return 'Kategori artikel wajib diisi.';
+      return 'Kategori materi wajib diisi.';
     }
 
     if (!form.content.trim()) {
-      return 'Isi artikel wajib diisi.';
+      return 'Isi materi wajib diisi.';
     }
 
     return '';
@@ -185,8 +185,8 @@ export function AdminArticleForm() {
         'Berhasil',
         result.message ||
           (status === 'published'
-            ? 'Artikel berhasil dipublikasikan.'
-            : 'Draft artikel berhasil disimpan.')
+            ? 'Materi berhasil dipublikasikan.'
+            : 'Draft materi berhasil disimpan.')
       );
 
       window.location.href = '/admin/artikel';
@@ -194,7 +194,7 @@ export function AdminArticleForm() {
       const message =
         error instanceof Error
           ? error.message
-          : 'Artikel gagal disimpan.';
+          : 'Materi gagal disimpan.';
 
       setFormError(message);
       await showErrorAlert('Gagal Menyimpan', message);
@@ -206,7 +206,7 @@ export function AdminArticleForm() {
   if (isLoading) {
     return (
       <main className="admin-article-simple-state">
-        Memuat data artikel...
+        Memuat data materi...
       </main>
     );
   }
@@ -220,9 +220,9 @@ export function AdminArticleForm() {
       <section className="admin-dashboard-main">
         <header className="admin-article-topbar">
           <div>
-            <h1>{isEdit ? 'Edit Artikel' : 'Tambah Artikel'}</h1>
+            <h1>{isEdit ? 'Edit Materi' : 'Tambah Materi'}</h1>
             <p>
-              Admin <span>/</span> Artikel <span>/</span>{' '}
+              Admin <span>/</span> Materi <span>/</span>{' '}
               {isEdit ? 'Edit' : 'Tambah'}
             </p>
           </div>
@@ -238,7 +238,7 @@ export function AdminArticleForm() {
 
             <div className="admin-article-grid-two">
               <label>
-                <span>Judul Artikel *</span>
+                <span>Judul Materi *</span>
                 <input
                   type="text"
                   value={form.title}
@@ -265,7 +265,7 @@ export function AdminArticleForm() {
                     placeholder="mengenal-internet-of-things"
                   />
                 </div>
-                <small>URL artikel akan menjadi /artikel/{form.slug || 'slug-artikel'}</small>
+                  <small>URL materi akan menjadi /artikel/{form.slug || 'slug-materi'}</small>
               </label>
 
               <label>
@@ -311,18 +311,18 @@ export function AdminArticleForm() {
                 onChange={(event) =>
                   updateField('excerpt', event.target.value)
                 }
-                placeholder="Ringkasan singkat artikel untuk card..."
+                placeholder="Ringkasan singkat materi untuk card..."
               />
             </label>
 
             <label>
-              <span>Isi Artikel *</span>
+                <span>Isi Materi *</span>
               <div className="admin-article-editor">
                 <TinyMCEEditor
                   value={form.content}
                   onChange={(html) => updateField('content', html)}
                   height={520}
-                  ariaLabel="Isi artikel"
+                  ariaLabel="Isi materi"
                 />
               </div>
             </label>
@@ -343,11 +343,11 @@ export function AdminArticleForm() {
 
           <aside className="admin-article-side">
             <section className="admin-article-side-card">
-              <h2>Cover Artikel</h2>
+              <h2>Cover Materi</h2>
 
               <div className="admin-article-cover-preview">
                 {previewUrl ? (
-                  <img src={previewUrl} alt="Preview cover artikel" />
+                  <img src={previewUrl} alt="Preview cover materi" />
                 ) : (
                   <span>Belum ada cover</span>
                 )}
@@ -390,7 +390,7 @@ export function AdminArticleForm() {
                     updateField('featured', event.target.checked)
                   }
                 />
-                <span>Jadikan artikel pilihan</span>
+                  <span>Jadikan materi pilihan</span>
               </label> */}
 
               <label className="admin-article-status-select">
@@ -413,7 +413,7 @@ export function AdminArticleForm() {
                 disabled={isSaving}
                 onClick={() => handleSubmit(form.status)}
               >
-                {isSaving ? 'Memproses...' : 'Publikasi Artikel'}
+                {isSaving ? 'Memproses...' : 'Publikasi Materi'}
               </button>
             </section>
           </aside>

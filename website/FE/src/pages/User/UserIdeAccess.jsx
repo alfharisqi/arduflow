@@ -67,6 +67,8 @@ export function UserIdeAccess() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [tokenToCheck, setTokenToCheck] = useState('');
+  const [tokenCheckResult, setTokenCheckResult] = useState(null);
 
   const user = getStoredUser();
   const fullName = user.name || user.fullName || user.full_name || 'Nama Lengkap';
@@ -141,6 +143,31 @@ export function UserIdeAccess() {
     } catch {
       setMessage('Token tidak bisa disalin otomatis. Silakan salin manual.');
     }
+  }
+
+  function validateIdeToken(event) {
+    event.preventDefault();
+    const submittedToken = tokenToCheck.trim().toUpperCase();
+
+    if (!submittedToken) {
+      setTokenCheckResult({ valid: false, message: 'Masukkan token IDE terlebih dahulu.' });
+      return;
+    }
+
+    if (!paidIdeTransaction) {
+      setTokenCheckResult({ valid: false, message: 'Belum ada akses IDE aktif pada akun ini.' });
+      return;
+    }
+
+    if (submittedToken === ideToken) {
+      setTokenCheckResult({
+        valid: true,
+        message: `Token valid. Akses aktif sejak ${formatDate(paidIdeTransaction.paidAt || paidIdeTransaction.createdAt)}.`,
+      });
+      return;
+    }
+
+    setTokenCheckResult({ valid: false, message: 'Token tidak valid atau tidak sesuai dengan akses akun ini.' });
   }
 
   return (
@@ -241,6 +268,38 @@ export function UserIdeAccess() {
             )}
 
             {message ? <p className="user-ide-message">{message}</p> : null}
+          </section>
+
+          <section className="user-ide-token-check" aria-labelledby="user-ide-token-check-title">
+            <div>
+              <span className="user-ide-token-check__eyebrow">Validasi akses</span>
+              <h2 id="user-ide-token-check-title">Cek Token IDE</h2>
+              <p>Masukkan token untuk memastikan token tersebut masih valid dan terhubung ke akses IDE kamu.</p>
+            </div>
+            <form onSubmit={validateIdeToken}>
+              <label htmlFor="ide-token-check-input">Token IDE</label>
+              <div className="user-ide-token-check__controls">
+                <input
+                  id="ide-token-check-input"
+                  type="text"
+                  value={tokenToCheck}
+                  onChange={(event) => {
+                    setTokenToCheck(event.target.value);
+                    setTokenCheckResult(null);
+                  }}
+                  placeholder="Contoh: ARDUFLOW-IDE-..."
+                  autoComplete="off"
+                  spellCheck="false"
+                />
+                <button type="submit">Cek Token</button>
+              </div>
+            </form>
+            {tokenCheckResult ? (
+              <p className={`user-ide-token-check__result${tokenCheckResult.valid ? ' is-valid' : ' is-invalid'}`} role="status">
+                <strong>{tokenCheckResult.valid ? 'Token Valid' : 'Token Tidak Valid'}</strong>
+                <span>{tokenCheckResult.message}</span>
+              </p>
+            ) : null}
           </section>
         </main>
       </section>
