@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
-import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import { DashboardUserSidebarIcon } from './userSidebarIcons.jsx';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
-import { ProfileAvatar } from '../../features/profile-image-crop/ProfileAvatar.jsx';
 import { fetchTransactions, uploadPaymentProof } from '../../services/transactionApi.js';
+import { UserDashboardTopbar } from './UserDashboardTopbar.jsx';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 
 const menuItems = [
@@ -292,15 +291,7 @@ export function UserTransactions() {
       </aside>
 
       <section className="dashboard-shell">
-        <header className="dashboard-topbar">
-          <div className="dashboard-topbar__user">
-            <button className="dashboard-notification" type="button" aria-label="Notifikasi">
-              <img src={bellIcon} alt="" aria-hidden="true" />
-            </button>
-            <ProfileAvatar className="dashboard-mini-avatar" image={profileImage} name={fullName} />
-            <strong>{fullName}</strong>
-          </div>
-        </header>
+        <UserDashboardTopbar fullName={fullName} profileImage={profileImage} />
 
         <main className="dashboard-content user-transactions-content">
           <div className="dashboard-user-greeting">

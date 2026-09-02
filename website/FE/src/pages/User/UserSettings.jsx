@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
-import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import { ProfileAvatar } from '../../features/profile-image-crop/ProfileAvatar.jsx';
 import { DashboardUserSidebarIcon } from './userSidebarIcons.jsx';
@@ -10,6 +9,7 @@ import {
   requestPasswordReset,
   updateUserProfile,
 } from '../../services/authApi.js';
+import { UserDashboardTopbar } from './UserDashboardTopbar.jsx';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 
 const SETTINGS_KEY = 'arduflow_user_settings';
@@ -300,15 +300,7 @@ export function UserSettings() {
       </aside>
 
       <section className="dashboard-shell">
-        <header className="dashboard-topbar">
-          <div className="dashboard-topbar__user">
-            <button className="dashboard-notification" type="button" aria-label="Notifikasi">
-              <img src={bellIcon} alt="" aria-hidden="true" />
-            </button>
-            <ProfileAvatar className="dashboard-mini-avatar" image={profileImage} name={fullName} />
-            <strong>{fullName}</strong>
-          </div>
-        </header>
+        <UserDashboardTopbar fullName={fullName} profileImage={profileImage} />
 
         <main className="dashboard-content user-settings-content">
           <section className="user-settings-hero">

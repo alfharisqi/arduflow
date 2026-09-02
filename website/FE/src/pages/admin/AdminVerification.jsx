@@ -476,7 +476,7 @@ export function AdminVerification() {
                     <td>
                       <button type="button" className="admin-users-name-button" onClick={() => setSelectedUser(user)}>
                         <span className="admin-users-avatar">{userInitials(user.name)}</span>
-                        <span><b>{user.name || '-'}</b><small>{user.email || user.username || '-'}</small></span>
+                        <span>{user.name}</span>
                       </button>
                     </td>
                     <td>{user.email || '-'}</td>

@@ -1,10 +1,8 @@
 import { createElement, useEffect, useMemo, useRef, useState } from 'react';
 import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
-import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import { DashboardUserSidebarIcon } from './userSidebarIcons.jsx';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import projectImage from '../../assets/images/workshop-experience-student.png';
-import { ProfileAvatar } from '../../features/profile-image-crop/ProfileAvatar.jsx';
 import { WorkshopImageCropper } from '../../features/profile-image-crop/WorkshopImageCropper.jsx';
 import { TinyMCEEditor } from '../../components/TinyMCEEditor.jsx';
 import { NodeSprite } from '../../components/NodeSprite.jsx';
@@ -17,6 +15,7 @@ import {
 import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
 import { fetchTransactions } from '../../services/transactionApi.js';
 import { showConfirmAlert, showSuccessAlert } from '../../utils/alerts.js';
+import { UserDashboardTopbar } from './UserDashboardTopbar.jsx';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 
 const menuItems = [
@@ -2345,15 +2344,7 @@ export function UserProjectGallery() {
       </aside>
 
       <section className="dashboard-shell">
-        <header className="dashboard-topbar">
-          <div className="dashboard-topbar__user">
-            <button className="dashboard-notification" type="button" aria-label="Notifikasi">
-              <img src={bellIcon} alt="" aria-hidden="true" />
-            </button>
-            <ProfileAvatar className="dashboard-mini-avatar" image={profileImage} name={fullName} />
-            <strong>{fullName}</strong>
-          </div>
-        </header>
+        <UserDashboardTopbar fullName={fullName} profileImage={profileImage} />
 
         <main className="dashboard-content user-project-content">
           {!isUploadFormOpen ? (

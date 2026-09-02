@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
-import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import { DashboardUserSidebarIcon } from './userSidebarIcons.jsx';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 
@@ -37,6 +36,8 @@ import {
 import {
   fetchTransactions,
 } from '../../services/transactionApi.js';
+
+import { UserDashboardTopbar } from './UserDashboardTopbar.jsx';
 
 import {
   showErrorAlert,
@@ -1420,40 +1421,7 @@ export function DashboardUser() {
 
       <section className="dashboard-shell">
 
-        <header className="dashboard-topbar">
-
-          <div className="dashboard-topbar__user">
-
-            <button
-              className={`dashboard-notification${testimonialNotice ? ' dashboard-notification--has-testimonial' : ''}`}
-              type="button"
-              aria-label={testimonialNotice ? `${testimonialNotice.count} testimoni menunggu diisi` : 'Notifikasi'}
-              onClick={() => document.getElementById(testimonialNotice ? 'dashboard-testimonial-notice' : 'dashboard-activity')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-            >
-              <img
-                src={bellIcon}
-                alt=""
-                aria-hidden="true"
-              />
-            </button>
-
-            <ProfileAvatar
-              className="dashboard-mini-avatar"
-              image={
-                profileValues.profileImage
-              }
-              name={
-                fullName
-              }
-            />
-
-            <strong>
-              {fullName}
-            </strong>
-
-          </div>
-
-        </header>
+        <UserDashboardTopbar fullName={fullName} profileImage={profileValues.profileImage} />
 
         <main className="dashboard-content">
 
