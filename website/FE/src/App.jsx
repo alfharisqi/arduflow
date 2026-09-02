@@ -47,6 +47,7 @@ import { UserCertificates } from './pages/User/UserCertificates.jsx';
 import { UserLeadDashboard } from './pages/User/UserLeadDashboard.jsx';
 import { UserPartnerDashboard } from './pages/User/UserPartnerDashboard.jsx';
 import { UserIdeAccess } from './pages/User/UserIdeAccess.jsx';
+import { UserSettings } from './pages/User/UserSettings.jsx';
 
 /* =========================
    ADMIN
@@ -183,6 +184,7 @@ const routes = {
   '/ide-saya': UserIdeAccess,
   '/transaksi': UserTransactions,
   '/sertifikat': UserCertificates,
+  '/settings': UserSettings,
 
   /* =========================
      ADMIN
@@ -252,6 +254,7 @@ const standaloneRoutes = new Set([
   '/ide-saya',
   '/transaksi',
   '/sertifikat',
+  '/settings',
 
   /* ADMIN */
   '/admin',
@@ -299,6 +302,7 @@ const userProtectedRoutes = new Set([
   '/ide-saya',
   '/transaksi',
   '/sertifikat',
+  '/settings',
 ]);
 
 

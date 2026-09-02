@@ -1,11 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Hero } from '../components/Hero.jsx';
+import { API_BASE_URL } from '../services/apiEndpoints.js';
 import { fetchGallerySubmissions, isPublishedGallery } from '../services/galleryApi.js';
+import { fetchPartners } from '../services/partnerApi.js';
 import { fetchProjectSubmissions, isPublicProject } from '../services/projectApi.js';
+import { fetchTestimonials } from '../services/testimonialApi.js';
 import connectComponentGif from '../assets/gif/gif-connect2component-idearduflow.gif';
 import inputValueComponentGif from '../assets/gif/gif-inputvaluecomponent-idearduflow.gif';
 import putComponentGif from '../assets/gif/gif-putcomponent-idearduflow.gif';
 import trafficLightsGif from '../assets/gif/gif-trafficlights-idearduflow.gif';
+import partnerKomunitasImage from '../assets/images/partner-komunitas.png';
+import partnerPolinemaImage from '../assets/images/partner-polinema.png';
+import partnerPoliwangiImage from '../assets/images/partner-poliwangi.png';
+import partnerSmknGlagahImage from '../assets/images/partner-smkn-glagah.png';
+import partnerUmmImage from '../assets/images/partner-umm.png';
 import arrowRightIcon from '../assets/icons/icon-arrow-right-1.svg';
 import bookIcon from '../assets/icons/icon-book-1.svg';
 import chevronRightIcon from '../assets/icons/icon-chevron-right-1.svg';
@@ -54,6 +62,23 @@ const iconAssets = {
   workflow: workflowIcon,
   zap: zapIcon,
 };
+
+const fallbackPartners = [
+  { label: 'SMKN 1 GLAGAH', image: partnerSmknGlagahImage, featured: true },
+  { label: 'POLINEMA', image: partnerPolinemaImage },
+  { label: 'KOMUNITAS', image: partnerKomunitasImage },
+  { label: 'POLIWANGI', image: partnerPoliwangiImage },
+  { label: 'UMM', image: partnerUmmImage },
+];
+
+const fallbackTestimonials = [
+  {
+    quote: 'Arduflow membantu peserta memahami alur kerja Arduino dan IoT tanpa langsung terbebani coding. Visual programming sangat membantu.',
+    name: 'Budi Santoso',
+    role: 'Guru SMKN 1 Glagah',
+    sourceType: 'workshop',
+  },
+];
 
 function AssetIcon({ type, className = '' }) {
   const src = iconAssets[type] || iconAssets.book;
@@ -280,28 +305,77 @@ function getGalleryLink(item) {
   return item?.id ? `/galeri/detail?id=${encodeURIComponent(item.id)}` : '/galeri';
 }
 
-const partnerItems = [
-  {
-    icon: 'house',
-    label: 'Sekolah',
-  },
-  {
-    icon: 'graduation',
-    label: 'Universitas',
-  },
-  {
-    icon: 'users',
-    label: 'Komunitas',
-  },
-  {
-    icon: 'cpu',
-    label: 'Partner IT',
-  },
-  {
-    icon: 'layers',
-    label: 'Institusi',
-  },
-];
+function normalizeText(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function isApprovedPartner(partner) {
+  return ['aktif', 'active', 'approved', 'published'].includes(normalizeText(partner?.status));
+}
+
+function resolveAssetUrl(value) {
+  const rawUrl = String(value || '').trim();
+  if (!rawUrl) return '';
+  if (/^(https?:\/\/|data:|blob:)/i.test(rawUrl)) return rawUrl;
+
+  return `${API_BASE_URL}${rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`}`;
+}
+
+function partnerLogoUrl(partner) {
+  return resolveAssetUrl(partner?.logoUrl || partner?.logo_url || partner?.image || '');
+}
+
+function partnerInitial(partner) {
+  return String(partner?.name || partner?.label || 'P').trim().slice(0, 1).toUpperCase();
+}
+
+function sourceLabel(sourceType) {
+  if (sourceType === 'workshop') return 'Testimoni Workshop';
+  if (sourceType === 'partner') return 'Testimoni Partner';
+  return 'Testimoni Pengguna';
+}
+
+function HomeTestimonials({ partners, testimonials, activeIndex }) {
+  const visiblePartners = partners.length ? partners : fallbackPartners;
+  const visibleTestimonials = testimonials.length ? testimonials : fallbackTestimonials;
+  const featuredTestimonial = visibleTestimonials[activeIndex % visibleTestimonials.length];
+
+  return (
+    <section className="community-partners" aria-labelledby="community-title">
+      <div className="community-partners__inner">
+        <div className="community-story">
+          <div className="community-story__heading">
+            <p className="section-eyebrow">COMMUNITY</p>
+            <h2 id="community-title">Testimoni Pengguna</h2>
+          </div>
+          <article className="testimonial-card" key={featuredTestimonial.id || `${featuredTestimonial.name}-${activeIndex}`}>
+            <blockquote>"{featuredTestimonial.quote}"</blockquote>
+            <strong>{String(featuredTestimonial.name || 'Pengguna Arduflow').toUpperCase()}</strong>
+            <span>{featuredTestimonial.role || sourceLabel(featuredTestimonial.sourceType)}</span>
+          </article>
+        </div>
+        <div className="partner-panel" aria-labelledby="partners-title">
+          <h2 id="partners-title">Partner &amp; Kolaborator</h2>
+          <div className="partner-list">
+            {visiblePartners.map((partner) => {
+              const logoUrl = partnerLogoUrl(partner);
+              const partnerName = partner.name || partner.label || 'Partner';
+
+              return (
+                <div className="community-partner-item" key={partner.id || partnerName}>
+                  <span className={partner.featured ? 'partner-logo featured' : 'partner-logo'} aria-hidden="true">
+                    {logoUrl ? <img src={logoUrl} alt="" /> : partnerInitial(partner)}
+                  </span>
+                  <p>{partnerName}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 function WhatIsIcon({ type }) {
   const common = {
@@ -823,18 +897,26 @@ function VisualStepPreview({ type }) {
 export function Home() {
   const [homeProjects, setHomeProjects] = useState([]);
   const [homeGallery, setHomeGallery] = useState([]);
+  const [homePartners, setHomePartners] = useState([]);
+  const [homeTestimonials, setHomeTestimonials] = useState([]);
+  const [activeTestimonialIndex, setActiveTestimonialIndex] = useState(0);
   const [isHomeContentLoading, setIsHomeContentLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
 
-    Promise.allSettled([fetchProjectSubmissions(), fetchGallerySubmissions()])
+    Promise.allSettled([
+      fetchProjectSubmissions(),
+      fetchGallerySubmissions(),
+      fetchPartners(),
+      fetchTestimonials({ status: 'Disetujui' }),
+    ])
       .then((results) => {
         if (!isMounted) {
           return;
         }
 
-        const [projectResult, galleryResult] = results;
+        const [projectResult, galleryResult, partnerResult, testimonialResult] = results;
 
         if (projectResult.status === 'fulfilled') {
           setHomeProjects(sortByNewest(projectResult.value.filter(isPublicProject)).slice(0, 5));
@@ -847,6 +929,30 @@ export function Home() {
         } else {
           setHomeGallery([]);
         }
+
+        if (partnerResult.status === 'fulfilled') {
+          const rows = Array.isArray(partnerResult.value?.partners) ? partnerResult.value.partners : [];
+          setHomePartners(
+            rows
+              .filter(isApprovedPartner)
+              .sort((left, right) => Number(right.featured || right.showHomepage || 0) - Number(left.featured || left.showHomepage || 0))
+              .slice(0, 5),
+          );
+        } else {
+          setHomePartners([]);
+        }
+
+        if (testimonialResult.status === 'fulfilled') {
+          const rows = Array.isArray(testimonialResult.value?.testimonials) ? testimonialResult.value.testimonials : [];
+          setHomeTestimonials(
+            rows
+              .filter((item) => item.consentPublic !== false)
+              .filter((item) => ['partner', 'workshop'].includes(normalizeText(item.sourceType)))
+              .slice(0, 8),
+          );
+        } else {
+          setHomeTestimonials([]);
+        }
       })
       .finally(() => {
         if (isMounted) {
@@ -858,6 +964,17 @@ export function Home() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    const testimonialCount = homeTestimonials.length || fallbackTestimonials.length;
+    if (testimonialCount <= 1) return undefined;
+
+    const intervalId = window.setInterval(() => {
+      setActiveTestimonialIndex((current) => (current + 1) % testimonialCount);
+    }, 5000);
+
+    return () => window.clearInterval(intervalId);
+  }, [homeTestimonials.length]);
 
   const featuredProjects = useMemo(
     () =>
@@ -1120,20 +1237,11 @@ export function Home() {
           <a className="gallery-all-button" href="/galeri">Lihat Galeri Lengkap</a>
         </div>
       </section>
-      <section className="partners-section">
-        <div className="partners-inner">
-          <h2>Komunitas / Partner</h2>
-          <div className="partners-list">
-            {partnerItems.map((partner) => (
-              <article className="partner-item" key={partner.label}>
-                <AssetIcon type={partner.icon} />
-                <span>{partner.label}</span>
-              </article>
-            ))}
-          </div>
-          <a className="partners-button" href="/about">Tentang Arduflow</a>
-        </div>
-      </section>
+      <HomeTestimonials
+        partners={homePartners}
+        testimonials={homeTestimonials}
+        activeIndex={activeTestimonialIndex}
+      />
     </>
   );
 }

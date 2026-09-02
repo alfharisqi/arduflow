@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { AdminPage, AdminTopbar, createSlug } from './AdminChrome.jsx';
 import { deleteTestimonial, fetchTestimonials, updateTestimonial } from '../../services/testimonialApi.js';
 
+const PAGE_SIZE = 6;
+
 function formatDate(value) {
   const date = new Date(value || '');
   if (Number.isNaN(date.getTime())) return '-';
@@ -37,6 +39,7 @@ export function AdminTestimonials() {
   const [busyId, setBusyId] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [page, setPage] = useState(1);
 
   async function loadTestimonials(nextFilters = filters) {
     setLoading(true);
@@ -71,6 +74,23 @@ export function AdminTestimonials() {
       item.sourceId,
     ].filter(Boolean).some((value) => String(value).toLowerCase().includes(query)));
   }, [filters.search, testimonials]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filters.search, filters.status]);
+
+  const totalPages = Math.max(1, Math.ceil(visibleTestimonials.length / PAGE_SIZE));
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const paginatedTestimonials = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return visibleTestimonials.slice(start, start + PAGE_SIZE);
+  }, [page, visibleTestimonials]);
 
   async function changeStatus(testimonial, status) {
     setBusyId(String(testimonial.id));
@@ -118,6 +138,8 @@ export function AdminTestimonials() {
     { label: 'Disetujui', value: stats.approved || 0, note: 'Bisa tampil publik', tone: 'green' },
     { label: 'Ditolak', value: stats.rejected || 0, note: 'Tidak ditampilkan', tone: 'red' },
   ];
+  const firstShown = visibleTestimonials.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const lastShown = Math.min(page * PAGE_SIZE, visibleTestimonials.length);
 
   return (
     <AdminPage pageClassName="admin-testimonials-page" ariaLabel="Review testimoni admin">
@@ -176,44 +198,96 @@ export function AdminTestimonials() {
           </label>
         </section>
 
-        <section className="admin-testimonials-table-card">
-          <div className="admin-testimonials-table-header">
+        <section className="admin-users-table-card admin-testimonials-table-card">
+          <div className="admin-users-table-header admin-testimonials-table-header">
             <div>
               <h2>Data Testimoni</h2>
               <p>Setujui testimoni agar dapat tampil di halaman publik.</p>
             </div>
-            <span>{visibleTestimonials.length} data</span>
+            <span>{paginatedTestimonials.length} ditampilkan</span>
           </div>
 
-          <div className="admin-testimonials-table" role="table" aria-label="Data testimoni">
-            <div className="admin-testimonials-table__head" role="row">
-              <span>Pengirim</span>
-              <span>Sumber</span>
-              <span>Testimoni</span>
-              <span>Rating</span>
-              <span>Status</span>
-              <span>Tanggal</span>
-              <span>Aksi</span>
+          <table className="admin-users-table admin-testimonials-table" aria-label="Data testimoni">
+            <thead>
+              <tr>
+                <th>Pengirim</th>
+                <th>Sumber</th>
+                <th>Testimoni</th>
+                <th>Rating</th>
+                <th>Status</th>
+                <th>Tanggal</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan="7" className="admin-testimonials-empty">
+                    Memuat testimoni...
+                  </td>
+                </tr>
+              ) : paginatedTestimonials.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="admin-testimonials-empty">
+                    Belum ada testimoni sesuai filter.
+                  </td>
+                </tr>
+              ) : (
+                paginatedTestimonials.map((testimonial) => (
+                  <tr key={testimonial.id}>
+                    <td>
+                      <span className="admin-testimonials-sender">
+                        <b>{testimonial.name || '-'}</b>
+                        <small>{testimonial.email || testimonial.role || '-'}</small>
+                      </span>
+                    </td>
+                    <td><SourceBadge sourceType={testimonial.sourceType} sourceId={testimonial.sourceId} /></td>
+                    <td>
+                      <p className="admin-testimonials-quote" title={testimonial.quote || ''}>
+                        {testimonial.quote || '-'}
+                      </p>
+                    </td>
+                    <td>{testimonial.rating || 5}/5</td>
+                    <td><TestimonialBadge>{testimonial.status}</TestimonialBadge></td>
+                    <td>{formatDate(testimonial.createdAt)}</td>
+                    <td>
+                      <span className="admin-testimonials-actions">
+                        <button type="button" disabled={busyId === String(testimonial.id)} onClick={() => changeStatus(testimonial, 'Disetujui')}>Setujui</button>
+                        <button type="button" disabled={busyId === String(testimonial.id)} onClick={() => changeStatus(testimonial, 'Ditolak')}>Tolak</button>
+                        <button type="button" className="is-danger" disabled={busyId === String(testimonial.id)} onClick={() => removeTestimonial(testimonial)}>Hapus</button>
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+
+          <div className="admin-users-pagination admin-testimonials-pagination">
+            <button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1}>Previous</button>
+            <div>
+              {Array.from({ length: totalPages }, (_, index) => index + 1)
+                .slice(
+                  Math.max(0, page - 3),
+                  Math.max(0, page - 3) + 5,
+                )
+                .map((pageNumber) => (
+                  <button
+                    type="button"
+                    key={pageNumber}
+                    className={pageNumber === page ? 'is-active' : ''}
+                    onClick={() => setPage(pageNumber)}
+                  >
+                    {pageNumber}
+                  </button>
+                ))}
             </div>
-            {visibleTestimonials.length ? visibleTestimonials.map((testimonial) => (
-              <div className="admin-testimonials-table__row" role="row" key={testimonial.id}>
-                <span><b>{testimonial.name || '-'}</b><small>{testimonial.email || testimonial.role || '-'}</small></span>
-                <span><SourceBadge sourceType={testimonial.sourceType} sourceId={testimonial.sourceId} /></span>
-                <p title={testimonial.quote || ''}>{testimonial.quote || '-'}</p>
-                <span>{testimonial.rating || 5}/5</span>
-                <span><TestimonialBadge>{testimonial.status}</TestimonialBadge></span>
-                <time>{formatDate(testimonial.createdAt)}</time>
-                <span className="admin-testimonials-actions">
-                  <button type="button" disabled={busyId === String(testimonial.id)} onClick={() => changeStatus(testimonial, 'Disetujui')}>Setujui</button>
-                  <button type="button" disabled={busyId === String(testimonial.id)} onClick={() => changeStatus(testimonial, 'Ditolak')}>Tolak</button>
-                  <button type="button" className="is-danger" disabled={busyId === String(testimonial.id)} onClick={() => removeTestimonial(testimonial)}>Hapus</button>
-                </span>
-              </div>
-            )) : (
-              <div className="admin-testimonials-table__row admin-testimonials-table__row--empty" role="row">
-                <span>{loading ? 'Memuat testimoni...' : 'Belum ada testimoni sesuai filter.'}</span>
-              </div>
-            )}
+            <span>
+              Page {page} of {totalPages}
+              <small>Menampilkan {firstShown} - {lastShown} dari {visibleTestimonials.length} testimoni</small>
+            </span>
+            <button type="button" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page >= totalPages}>Next</button>
           </div>
         </section>
       </div>
