@@ -1,7 +1,7 @@
 import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useRef, useState } from 'react';
 
 import { Layout } from './components/Layout.jsx';
-import LoadingAnimation from './components/LoadingAnimation.jsx';
+import { LoadingIndicatorOverlay } from '@/components/application/loading-indicator/loading-indicator';
 
 import { Home } from './pages/Home.jsx';
 import { Access } from './pages/Access.jsx';
@@ -647,14 +647,6 @@ function AdminProtectedRoute({ children }) {
    APP
 ========================================================= */
 
-function routePrompt(path) {
-  if (path.startsWith('/admin')) {
-    return 'arduflow-admin';
-  }
-
-  return 'arduflow-user';
-}
-
 function AppPageLoader({ path, pageComponent, requiresAuthGate, children }) {
   const [isLoading, setLoading] = useState(true);
   const [showLoading, setShowLoading] = useState(true);
@@ -742,12 +734,12 @@ function AppPageLoader({ path, pageComponent, requiresAuthGate, children }) {
     <RouteLoadingContext.Provider value={{ markRouteReady }}>
       {children}
       {showLoading ? (
-      <LoadingAnimation
-        isLoading={isLoading}
-        onDone={() => setShowLoading(false)}
-        prompt={routePrompt(path)}
-        pagePath={`/arduflow.com${path}`}
-      />
+        <LoadingIndicatorOverlay
+          isLoading={isLoading}
+          onDone={() => setShowLoading(false)}
+          type="line-spinner"
+          size="md"
+        />
       ) : null}
     </RouteLoadingContext.Provider>
   );

@@ -344,8 +344,6 @@ export function About() {
                 </div>
               </div>
             </div>
-
-            <KdsVisual />
           </div>
         </section>
 
@@ -375,34 +373,6 @@ export function About() {
         {/* STORY */}
         <section className="about-story" id="our-story">
           <div className="about-container story-grid">
-            <div className="story-visual">
-              <div className="story-card-main">
-                <span className="story-code">&lt;/&gt;</span>
-
-                <div>
-                  <small>TENTANG KDS</small>
-                  <strong>
-                    IT Development
-                    <br />
-                    PT KAE
-                  </strong>
-                </div>
-              </div>
-
-              <div className="story-floating-card">
-                <span>KDS</span>
-                <p>
-                  Digital.
-                  <br />
-                  IoT.
-                  <br />
-                  Industry 4.0.
-                </p>
-              </div>
-
-              <div className="story-dots" />
-            </div>
-
             <div className="story-content">
               <div className="section-eyebrow">SIAPA KAMI?</div>
 
@@ -835,8 +805,8 @@ export function About() {
           position: relative;
           z-index: 2;
           display: grid;
-          grid-template-columns: 1fr 0.95fr;
-          gap: 56px;
+          grid-template-columns: minmax(0, 760px);
+          gap: 0;
           align-items: center;
           padding: 96px 0 82px;
         }
@@ -1284,9 +1254,18 @@ export function About() {
 
         .story-grid {
           display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 72px;
+          grid-template-columns: minmax(0, 760px);
+          justify-content: center;
+          gap: 0;
           align-items: center;
+        }
+
+        .story-content {
+          text-align: center;
+        }
+
+        .story-content .section-eyebrow {
+          justify-content: center;
         }
 
         .story-visual {
@@ -1375,6 +1354,9 @@ export function About() {
         }
 
         .story-content > p {
+          max-width: 680px;
+          margin-right: auto;
+          margin-left: auto;
           color: var(--muted);
           font-size: 14px;
           font-weight: 600;
@@ -1387,7 +1369,10 @@ export function About() {
         }
 
         .story-highlight {
+          max-width: 560px;
           margin-top: 28px;
+          margin-right: auto;
+          margin-left: auto;
           padding: 19px 22px;
           display: flex;
           gap: 15px;
