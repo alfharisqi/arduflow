@@ -245,172 +245,25 @@
   line-height: 19px;
 }
 
-.dashboard-notification {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 33px;
-  height: 33px;
-  padding: 0;
-  border: 0;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #ff6a00;
-  cursor: pointer;
-}
-
-.dashboard-notification img {
-  width: 18px;
-  height: 18px;
-  object-fit: contain;
-  filter: invert(46%) sepia(97%) saturate(2532%) hue-rotate(2deg) brightness(103%) contrast(105%);
-}
-
-.dashboard-notification--has-testimonial::after {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 9px;
-  height: 9px;
-  border: 2px solid #030b1e;
-  border-radius: 999px;
-  background: #ff6a00;
-  content: '';
-}
-
-.dashboard-notification-wrap {
-  position: relative;
-}
-
-.dashboard-notification-panel {
-  position: absolute;
-  top: 43px;
-  right: 0;
-  width: min(360px, calc(100vw - 32px));
-  overflow: hidden;
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
-  background: #ffffff;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
-  color: #111827;
-}
-
-.dashboard-notification-panel__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 16px;
-  border-bottom: 1px solid #eef2f7;
-}
-
-.dashboard-notification-panel__head strong {
-  display: block;
-  color: #111827;
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 20px;
-  line-height: 1;
-}
-
-.dashboard-notification-panel__head span {
-  display: block;
-  margin-top: 4px;
-  color: #667085;
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.dashboard-notification-panel__head button {
-  border: 0;
-  background: transparent;
-  color: #00a2ff;
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.dashboard-notification-panel__head button:disabled {
-  color: #98a2b3;
-  cursor: not-allowed;
-}
-
-.dashboard-notification-panel__body {
-  max-height: 390px;
-  overflow: auto;
-  padding: 8px;
-}
-
-.dashboard-notification-state {
-  margin: 0;
-  padding: 18px 12px;
-  color: #667085;
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.dashboard-notification-item {
-  display: grid;
-  grid-template-columns: 10px minmax(0, 1fr);
-  gap: 10px;
-  padding: 12px;
+.dashboard-topbar .user-dashboard-notif {
+  width: 38px;
+  height: 38px;
   border-radius: 10px;
-  color: inherit;
-  text-decoration: none;
+  background: rgba(255, 255, 255, 0.08);
 }
 
-.dashboard-notification-item:hover,
-.dashboard-notification-item.is-unread {
-  background: #f8fafc;
+.dashboard-topbar .user-dashboard-notif:hover {
+  background: rgba(255, 255, 255, 0.16);
 }
 
-.dashboard-notification-item__dot {
-  width: 9px;
-  height: 9px;
-  margin-top: 4px;
-  border-radius: 999px;
-  background: #98a2b3;
+.dashboard-topbar .user-dashboard-notif img {
+  width: 16px;
+  height: 16px;
+  filter: brightness(0) invert(1);
 }
 
-.dashboard-notification-item__dot.is-high,
-.dashboard-notification-item__dot.is-urgent {
-  background: #ff6a00;
-}
-
-.dashboard-notification-item__dot.is-normal {
-  background: #00a2ff;
-}
-
-.dashboard-notification-item strong {
-  display: block;
-  color: #111827;
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  font-weight: 800;
-  line-height: 1.35;
-}
-
-.dashboard-notification-item small {
-  display: block;
-  margin-top: 4px;
-  color: #475467;
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.5;
-}
-
-.dashboard-notification-item em {
-  display: block;
-  margin-top: 6px;
-  color: #98a2b3;
-  font-family: 'Inter', sans-serif;
-  font-size: 11px;
-  font-style: normal;
-  font-weight: 700;
+.dashboard-topbar .user-notification-panel {
+  color: #344054;
 }
 
 .dashboard-mini-avatar,

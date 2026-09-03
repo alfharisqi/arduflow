@@ -17,16 +17,29 @@ function getStoredUser() {
 }
 
 function formatNotificationTime(value) {
-  if (!value) return '';
+  if (!value) return 'Baru saja';
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
+  if (Number.isNaN(date.getTime())) return String(value);
+
+  const diffMinutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000));
+  if (diffMinutes < 1) return 'Baru saja';
+  if (diffMinutes < 60) return `${diffMinutes} menit lalu`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours} jam lalu`;
 
   return new Intl.DateTimeFormat('id-ID', {
     day: '2-digit',
     month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
   }).format(date);
+}
+
+function adminPriority(notification) {
+  const priority = String(notification?.priority || 'normal').toLowerCase();
+  if (priority === 'urgent') return 'danger';
+  if (priority === 'high') return 'warning';
+  if (priority === 'low') return 'info';
+  return priority;
 }
 
 export function UserDashboardTopbar({ fullName, profileImage }) {
@@ -41,8 +54,8 @@ export function UserDashboardTopbar({ fullName, profileImage }) {
   const displayName = fullName || user.name || user.fullName || 'Nama Lengkap';
   const avatarImage = profileImage || user.profileImage || user.avatar || '';
 
-  const unreadCount = useMemo(
-    () => notifications.filter((notification) => !readKeys.has(notification.key)).length,
+  const importantCount = useMemo(
+    () => notifications.filter((notification) => adminPriority(notification) !== 'normal').length,
     [notifications, readKeys]
   );
 
@@ -79,15 +92,28 @@ export function UserDashboardTopbar({ fullName, profileImage }) {
   }, []);
 
   useEffect(() => {
-    function handleClickOutside(event) {
+    if (!isOpen) return undefined;
+
+    function handlePointerDown(event) {
       if (!dropdownRef.current?.contains(event.target)) {
         setIsOpen(false);
       }
     }
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
 
   function handleToggle() {
     setIsOpen((current) => !current);
@@ -96,68 +122,75 @@ export function UserDashboardTopbar({ fullName, profileImage }) {
     }
   }
 
-  function markAllAsRead() {
+  function clearNotifications() {
     const nextKeys = new Set([
       ...readKeys,
       ...notifications.map((notification) => notification.key),
     ]);
     setReadKeys(nextKeys);
     persistNotificationReads(nextKeys);
+    setNotifications([]);
   }
 
   return (
     <header className="dashboard-topbar">
       <div className="dashboard-topbar__user">
-        <div className="dashboard-notification-wrap" ref={dropdownRef}>
+        <div className="admin-notification-menu user-notification-menu" ref={dropdownRef}>
           <button
-            className={`dashboard-notification${unreadCount > 0 ? ' dashboard-notification--has-testimonial' : ''}`}
+            className="admin-dashboard-notif user-dashboard-notif"
             type="button"
-            aria-label={unreadCount > 0 ? `${unreadCount} notifikasi baru` : 'Notifikasi'}
+            aria-label="Notifikasi"
             aria-expanded={isOpen}
+            aria-haspopup="menu"
             onClick={handleToggle}
           >
-            <img src={bellIcon} alt="" aria-hidden="true" />
+            <img src={bellIcon} alt="" />
+            {importantCount > 0 ? <span>{importantCount > 9 ? '9+' : importantCount}</span> : null}
           </button>
 
           {isOpen ? (
-            <div className="dashboard-notification-panel" role="dialog" aria-label="Daftar notifikasi">
-              <div className="dashboard-notification-panel__head">
-                <div>
+            <div className="admin-notification-panel user-notification-panel" role="menu">
+              <header>
+                <span>
                   <strong>Notifikasi</strong>
-                  <span>{unreadCount > 0 ? `${unreadCount} belum dibaca` : 'Semua sudah dibaca'}</span>
-                </div>
-                <button type="button" onClick={markAllAsRead} disabled={notifications.length === 0}>
-                  Tandai dibaca
+                  <small>{isLoading ? 'Memuat data...' : `${notifications.length} update terbaru`}</small>
+                </span>
+                <button type="button" onClick={clearNotifications} disabled={notifications.length === 0}>
+                  Bersihkan
                 </button>
-              </div>
+              </header>
 
-              <div className="dashboard-notification-panel__body">
-                {isLoading ? (
-                  <p className="dashboard-notification-state">Memuat notifikasi...</p>
-                ) : error ? (
-                  <p className="dashboard-notification-state">{error}</p>
-                ) : notifications.length === 0 ? (
-                  <p className="dashboard-notification-state">Belum ada notifikasi aktif.</p>
-                ) : (
-                  notifications.map((notification) => (
-                    <a
-                      className={`dashboard-notification-item${readKeys.has(notification.key) ? '' : ' is-unread'}`}
-                      href={notification.href || '#'}
+              <div className="admin-notification-list">
+                {error ? (
+                  <p className="admin-notification-empty">{error}</p>
+                ) : notifications.length ? (
+                  notifications.map((notification, index) => (
+                    <button
+                      className={`admin-notification-item is-${adminPriority(notification)}`}
                       key={notification.key}
+                      type="button"
+                      role="menuitem"
                       onClick={() => {
                         const nextKeys = new Set([...readKeys, notification.key]);
                         setReadKeys(nextKeys);
                         persistNotificationReads(nextKeys);
+                        if (notification.href) {
+                          window.location.href = notification.href;
+                        }
                       }}
                     >
-                      <span className={`dashboard-notification-item__dot is-${notification.priority}`} />
+                      <i aria-hidden="true" />
                       <span>
-                        <strong>{notification.title}</strong>
+                        <b>{notification.title}</b>
                         <small>{notification.message}</small>
-                        <em>{formatNotificationTime(notification.createdAt)}</em>
+                        <time>{formatNotificationTime(notification.createdAt)}</time>
                       </span>
-                    </a>
+                    </button>
                   ))
+                ) : (
+                  <p className="admin-notification-empty">
+                    {isLoading ? 'Memuat notifikasi...' : 'Belum ada notifikasi baru.'}
+                  </p>
                 )}
               </div>
             </div>

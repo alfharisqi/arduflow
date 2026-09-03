@@ -461,8 +461,16 @@
 }
 
 .user-leads-table__head > span:last-child,
-.user-leads-table__row > button {
+.user-leads-table__row > .user-leads-table__action-cell {
   justify-self: center;
+}
+
+.user-leads-table__row > .user-leads-table__action-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  padding: 8px 12px;
 }
 
 .user-leads-table__row strong,
@@ -476,7 +484,8 @@
   color: #7b809a;
 }
 
-.user-leads-table__row button {
+.user-leads-table__row > .user-leads-table__action-cell > button {
+  width: 82px;
   min-height: 30px;
   padding: 0 14px;
   border-radius: 8px;
@@ -486,7 +495,7 @@
   font-size: 11px;
 }
 
-.user-leads-table__row button:hover {
+.user-leads-table__row > .user-leads-table__action-cell > button:hover {
   border-color: #d2d6da;
   background: #f8fafc;
   color: #1a73e8;

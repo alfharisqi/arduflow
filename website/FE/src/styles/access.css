@@ -1,447 +1,155 @@
 .access-page {
-  overflow: hidden;
-  background: #030b1e;
-  color: #ffffff;
+  min-height: 100%;
+  padding: 32px clamp(16px, 4vw, 56px) 48px;
+  background: #f4f7fb;
+  color: #18243b;
   font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
 }
 
-.access-hero {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(420px, 1.05fr);
-  gap: clamp(28px, 5vw, 64px);
-  align-items: center;
-  min-height: 650px;
-  padding: 92px clamp(24px, 10vw, 152px) 74px;
-  background:
-    radial-gradient(94.74% 149.33% at 80% 20%, rgba(0, 162, 255, 0.3) 0%, rgba(0, 162, 255, 0) 40%),
-    radial-gradient(111.51% 175.77% at 3.23% 44.85%, rgba(255, 106, 0, 0.4) 0%, rgba(255, 106, 0, 0) 34.95%),
-    linear-gradient(0deg, #030b1e, #030b1e);
+.access-purchase {
+  width: min(100%, 980px);
+  margin: 0 auto;
+  padding: clamp(24px, 4vw, 42px);
+  border: 1px solid #dfe7f2;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(32, 55, 88, 0.08);
 }
 
-.access-hero__copy {
-  max-width: 560px;
+.access-purchase__header {
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e8edf4;
 }
 
 .access-tag {
-  box-sizing: border-box;
   display: inline-flex;
-  min-height: 28px;
-  align-items: center;
-  justify-content: center;
-  margin: 0 0 18px;
-  padding: 0 18px;
-  border: 1px solid var(--nav-blue);
-  border-radius: 999px;
-  color: var(--nav-blue);
-  font-family: 'Orbitron', Arial, Helvetica, sans-serif;
+  margin: 0 0 12px;
+  color: #168a58;
   font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
   line-height: 1;
-  letter-spacing: 1px;
 }
 
-.access-hero__copy h1 {
-  display: grid;
-  gap: 0;
+.access-purchase h1 {
   margin: 0;
-  color: #ffffff;
-  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
-  font-size: clamp(46px, 6vw, 72px);
+  color: #18243b;
+  font-size: clamp(28px, 4vw, 42px);
   font-weight: 700;
-  line-height: 0.9;
-  letter-spacing: 0;
+  line-height: 1.05;
 }
 
-.access-hero__copy h1 span:last-child {
-  color: #ff5a00;
-}
-
-.access-hero__copy > p:not(.access-tag):not(.access-message) {
-  max-width: 520px;
-  margin: 22px 0 0;
-  color: #ffffff;
-  font-size: 19px;
+.access-purchase__description {
+  max-width: 680px;
+  margin: 12px 0 0;
+  color: #66758d;
+  font-size: 17px;
   font-weight: 500;
-  line-height: 30px;
+  line-height: 1.5;
 }
 
-.access-hero__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 15px;
-  margin-top: 34px;
+.access-purchase__content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: clamp(28px, 6vw, 72px);
+  align-items: start;
+  padding-top: 28px;
 }
 
-.access-hero__actions button,
-.access-hero__actions a {
-  box-sizing: border-box;
-  display: inline-flex;
-  height: 48px;
-  align-items: center;
-  justify-content: center;
-  padding: 6px 18px;
-  border-radius: 6px;
-  box-shadow: 0 4px 8px -2px rgba(255, 98, 65, 0.48);
-  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
-  font-size: 15px;
-  line-height: 22px;
-  text-align: center;
-}
-
-.access-hero__actions button {
-  min-width: 210px;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  background: radial-gradient(100% 100% at 50% 0%, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0) 100%), var(--nav-orange);
-  color: #ffffff;
+.access-purchase__label,
+.access-purchase__form label {
+  display: block;
+  color: #66758d;
+  font-size: 14px;
   font-weight: 700;
+}
+
+.access-purchase__summary strong {
+  display: block;
+  margin-top: 6px;
+  color: #168a58;
+  font-size: clamp(30px, 4vw, 40px);
+  line-height: 1;
+}
+
+.access-purchase__duration {
+  display: block;
+  margin-top: 10px;
+  color: #66758d;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.access-ide-link {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  margin-top: 22px;
+  color: #2364d9;
+  font-size: 16px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.access-ide-link:hover {
+  text-decoration: underline;
+}
+
+.access-purchase__form select {
+  box-sizing: border-box;
+  width: 100%;
+  height: 46px;
+  margin-top: 8px;
+  padding: 0 12px;
+  border: 1px solid #cdd8e7;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #18243b;
+  font: 600 15px 'Rajdhani', Arial, Helvetica, sans-serif;
+}
+
+.access-purchase__form button {
+  width: 100%;
+  min-height: 46px;
+  margin-top: 14px;
+  padding: 10px 16px;
+  border: 1px solid #168a58;
+  border-radius: 6px;
+  background: #168a58;
+  color: #ffffff;
+  font: 700 16px 'Rajdhani', Arial, Helvetica, sans-serif;
   cursor: pointer;
 }
 
-.access-hero__actions button:disabled {
+.access-purchase__form button:hover {
+  background: #117449;
+}
+
+.access-purchase__form button:disabled,
+.access-purchase__form select:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
 
-.access-hero__actions a {
-  min-width: 160px;
-  border: 1px solid rgba(0, 162, 255, 0.24);
-  background: radial-gradient(100% 100% at 50% 0%, rgba(0, 162, 255, 0.3) 0%, rgba(0, 162, 255, 0) 100%);
-  color: var(--nav-blue);
-  font-weight: 600;
-}
-
 .access-message {
-  max-width: 520px;
-  margin: 22px 0 0;
+  margin: 24px 0 0;
   padding: 12px 14px;
-  border: 1px solid rgba(0, 162, 255, 0.38);
+  border: 1px solid #f0b9b9;
   border-radius: 6px;
-  background: rgba(0, 162, 255, 0.1);
-  color: #dceeff;
+  background: #fff4f4;
+  color: #b42318;
   font-size: 15px;
   font-weight: 700;
   line-height: 1.45;
 }
 
-.access-hero__visual {
-  position: relative;
-  min-height: 420px;
-}
+@media (max-width: 680px) {
+  .access-page {
+    padding: 16px 12px 32px;
+  }
 
-.access-hero__visual img {
-  display: block;
-  width: min(100%, 680px);
-  height: 430px;
-  object-fit: contain;
-  filter: drop-shadow(0 24px 42px rgba(0, 0, 0, 0.34));
-}
-
-.access-price-card {
-  position: absolute;
-  right: clamp(0px, 3vw, 34px);
-  bottom: 4px;
-  width: min(320px, 72%);
-  padding: 20px 22px;
-  border: 1px solid rgba(88, 140, 183, 0.38);
-  border-top: 5px solid #ff5a00;
-  border-radius: 4px;
-  background: linear-gradient(180deg, rgba(22, 45, 72, 0.97), rgba(13, 29, 52, 0.97));
-  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
-}
-
-.access-price-card > span {
-  display: block;
-  color: #00a2ff;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.access-price-card > strong {
-  display: block;
-  margin-top: 8px;
-  color: #ff5a00;
-  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
-  font-size: 38px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.access-price-card > small {
-  display: block;
-  margin-top: 9px;
-  color: #dbe8f8;
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.access-checkout,
-.access-steps,
-.access-features,
-.access-workflow {
-  width: 100%;
-  margin: 0;
-  padding: 86px clamp(24px, 10vw, 152px);
-  background:
-    radial-gradient(70.44% 111.02% at 104.31% 55.18%, rgba(0, 162, 255, 0.24) 0%, rgba(0, 162, 255, 0) 40%),
-    linear-gradient(0deg, #030b1e, #030b1e);
-}
-
-.access-features {
-  border-top: 1px solid rgba(0, 162, 255, 0.14);
-}
-
-.access-workflow {
-  background:
-    radial-gradient(84.44% 133.1% at -6.74% 53.32%, rgba(255, 106, 0, 0.34) 0%, rgba(255, 106, 0, 0) 32.6%),
-    linear-gradient(0deg, #030b1e, #030b1e);
-}
-
-.access-section-heading {
-  max-width: 680px;
-}
-
-.access-section-heading .access-tag {
-  margin-bottom: 16px;
-}
-
-.access-section-heading h2 {
-  margin: 0;
-  color: #00a2ff;
-  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 40px;
-}
-
-.access-feature-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 24px;
-  margin-top: 34px;
-}
-
-.access-feature-card {
-  min-height: 220px;
-  padding: 24px;
-  border-top: 5px solid #ff5a00;
-  background: #1d293d;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.access-feature-card span {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  margin-bottom: 18px;
-}
-
-.access-feature-card img {
-  width: 24px;
-  height: 24px;
-  filter: invert(47%) sepia(99%) saturate(2010%) hue-rotate(168deg) brightness(105%) contrast(104%);
-}
-
-.access-feature-card h3,
-.access-workflow-card h3 {
-  margin: 0 0 10px;
-  color: #ff5a00;
-  font-size: 19px;
-  font-weight: 600;
-  line-height: 28px;
-}
-
-.access-feature-card p,
-.access-workflow-card p {
-  margin: 0;
-  color: #ffffff;
-  font-size: 15px;
-  font-weight: 500;
-  line-height: 21px;
-}
-
-.access-workflow-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
-  margin-top: 34px;
-}
-
-.access-workflow-card {
-  overflow: hidden;
-  background: #1d293d;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.access-workflow-card > img {
-  display: block;
-  width: 100%;
-  height: 260px;
-  object-fit: cover;
-  background: #071326;
-}
-
-.access-workflow-card > div {
-  padding: 22px 24px 24px;
-  border-top: 5px solid #00a2ff;
-}
-
-.access-workflow-card span {
-  display: block;
-  margin-bottom: 12px;
-  color: #00a2ff;
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.access-checkout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
-  gap: 32px;
-  align-items: center;
-  border-top: 1px solid rgba(0, 162, 255, 0.14);
-}
-
-.access-checkout h2,
-.access-steps h2 {
-  margin: 0;
-  color: #00a2ff;
-  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 40px;
-  letter-spacing: 0;
-}
-
-.access-checkout p {
-  max-width: 640px;
-  margin: 8px 0 0;
-  color: #ffffff;
-  font-size: 20px;
-  font-weight: 500;
-  line-height: 28px;
-}
-
-.access-checkout select {
-  width: 100%;
-  height: 48px;
-  padding: 0 14px;
-  border: 1px solid rgba(0, 162, 255, 0.42);
-  border-radius: 6px;
-  background: #071326;
-  color: #ffffff;
-  font: 600 15px 'Rajdhani', Arial, Helvetica, sans-serif;
-}
-
-.access-steps {
-  background:
-    radial-gradient(131.86% 207.84% at -17.12% 54.56%, rgba(255, 106, 0, 0.34) 0%, rgba(255, 106, 0, 0) 22.34%),
-    linear-gradient(0deg, #030b1e, #030b1e);
-}
-
-.access-steps-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 24px;
-  margin-top: 34px;
-}
-
-.access-steps-grid article {
-  min-height: 210px;
-  padding: 24px;
-  border-top: 5px solid #ff5a00;
-  background: #1d293d;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.access-steps-grid span {
-  display: block;
-  color: #ff5a00;
-  font-size: 28px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.access-steps-grid h3 {
-  margin: 22px 0 10px;
-  color: #ff5a00;
-  font-size: 19px;
-  font-weight: 600;
-  line-height: 28px;
-}
-
-.access-steps-grid p {
-  margin: 0;
-  color: #ffffff;
-  font-size: 15px;
-  font-weight: 500;
-  line-height: 21px;
-}
-
-@media (max-width: 1100px) {
-  .access-hero,
-  .access-checkout,
-  .access-feature-grid,
-  .access-workflow-grid,
-  .access-steps-grid {
+  .access-purchase__content {
     grid-template-columns: 1fr;
-  }
-
-  .access-hero__visual {
-    min-height: auto;
-  }
-
-  .access-hero__visual img {
-    width: 100%;
-    height: auto;
-    max-height: 420px;
-  }
-}
-
-@media (max-width: 720px) {
-  .access-hero {
-    min-height: auto;
-    padding: 74px 24px 58px;
-  }
-
-  .access-hero__copy h1 {
-    font-size: 44px;
-    line-height: 0.95;
-  }
-
-  .access-hero__copy > p:not(.access-tag):not(.access-message),
-  .access-checkout p {
-    font-size: 17px;
-    line-height: 25px;
-  }
-
-  .access-hero__actions {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .access-hero__actions button,
-  .access-hero__actions a {
-    width: 100%;
-  }
-
-  .access-price-card {
-    position: relative;
-    right: auto;
-    bottom: auto;
-    width: 100%;
-    margin-top: 18px;
-  }
-
-  .access-checkout,
-  .access-steps,
-  .access-features,
-  .access-workflow {
-    padding: 64px 24px;
-  }
-
-  .access-workflow-card > img {
-    height: 210px;
+    gap: 24px;
   }
 }

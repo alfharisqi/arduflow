@@ -328,9 +328,11 @@ export function UserLeadDashboard() {
                     <p>{lead.message_short || lead.message || '-'}</p>
                     <span>{lead.status || '-'}</span>
                     <time>{formatHistoryDate(lead.created_at, lead.created_at_label)}</time>
-                    <button type="button" onClick={() => setSelectedLead(lead)}>
-                      Detail
-                    </button>
+                    <span className="user-leads-table__action-cell">
+                      <button type="button" onClick={() => setSelectedLead(lead)}>
+                        Detail
+                      </button>
+                    </span>
                   </div>
                 ))}
               </div>

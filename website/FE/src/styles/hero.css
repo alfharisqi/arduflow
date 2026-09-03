@@ -12,10 +12,11 @@
 
 .landing-inner {
   position: absolute;
-  left: clamp(24px, 10.55vw, 152px);
-  top: 51px;
-  width: min(1276px, calc(100% - 48px));
+  left: 50%;
+  top: var(--home-section-padding-y, 72px);
+  width: min(1120px, calc(100% - (var(--home-section-padding-x, 24px) * 2)));
   height: 504px;
+  transform: translateX(-50%);
 }
 
 .landing-copy {
@@ -179,9 +180,10 @@
 
 .landing-visual {
   position: absolute;
-  left: min(609px, calc(100% - 667px));
+  right: 0;
+  left: auto;
   top: 0;
-  width: 667px;
+  width: min(560px, 50%);
   height: 484px;
 }
 
@@ -190,6 +192,85 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+@media (max-width: 980px) {
+  .landing-inner {
+    width: min(1120px, calc(100% - (var(--home-section-padding-x, 20px) * 2)));
+  }
+
+  .landing-copy {
+    width: min(546px, 52%);
+  }
+
+  .landing-visual {
+    width: 46%;
+  }
+}
+
+@media (max-width: 760px) {
+  .landing-hero {
+    height: auto;
+    min-height: 720px;
+  }
+
+  .landing-inner {
+    position: relative;
+    left: auto;
+    top: auto;
+    width: calc(100% - (var(--home-section-padding-x, 20px) * 2));
+    height: auto;
+    margin: 0 auto;
+    padding: 48px 0 56px;
+    transform: none;
+  }
+
+  .landing-copy,
+  .landing-text,
+  .landing-text p,
+  .landing-actions,
+  .landing-token {
+    position: static;
+    width: 100%;
+    height: auto;
+  }
+
+  .landing-visual {
+    position: relative;
+    right: auto;
+    left: auto;
+    top: auto;
+    width: 100%;
+    height: 360px;
+  }
+
+  .landing-copy {
+    display: grid;
+    gap: 22px;
+  }
+
+  .landing-text {
+    display: grid;
+    gap: 18px;
+  }
+
+  .landing-text h1 {
+    width: 100%;
+    font-size: 48px;
+    line-height: 44px;
+  }
+
+  .landing-actions {
+    flex-wrap: wrap;
+  }
+
+  .landing-token {
+    gap: 18px;
+  }
+
+  .landing-visual {
+    margin-top: 34px;
+  }
 }
 
 .node-card {

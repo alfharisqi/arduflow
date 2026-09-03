@@ -132,8 +132,10 @@
 }
 
 .user-certificates-table {
-  width: 1121px;
-  overflow: hidden;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
   background: #ffffff;
@@ -142,9 +144,10 @@
 .user-certificates-table__head,
 .user-certificates-table__row {
   display: grid;
-  grid-template-columns: 184px 119px 227px 118px 232px 115px 126px;
+  grid-template-columns: minmax(300px, 1.5fr) 150px 170px 130px 170px;
   align-items: center;
-  width: 1121px;
+  width: max-content;
+  min-width: 920px;
 }
 
 .user-certificates-table__head {
@@ -159,6 +162,7 @@
 
 .user-certificates-table__head span,
 .user-certificates-table__row > span,
+.user-certificates-table__row > .user-certificates-table__action-cell,
 .user-certificates-table__row time {
   padding-left: 24px;
 }
@@ -311,6 +315,7 @@
 
 .user-certificates-table__head span,
 .user-certificates-table__row > span,
+.user-certificates-table__row > .user-certificates-table__action-cell,
 .user-certificates-table__row time {
   min-width: 0;
   overflow: hidden;
@@ -351,7 +356,7 @@
 /* Workshop rows are expandable so the table stays compact while participant details remain accessible. */
 .user-certificates-table__head,
 .user-certificates-table__row {
-  grid-template-columns: minmax(300px, 1fr) 150px 170px 130px 160px;
+  grid-template-columns: minmax(300px, 1.5fr) 150px 170px 130px 170px;
 }
 
 .user-certificates-table__row {
@@ -361,6 +366,7 @@
 }
 
 .user-certificates-workshop-group {
+  min-width: 920px;
   border-bottom: 1px solid #edf0f5;
 }
 
@@ -373,10 +379,19 @@
   font-weight: 800;
 }
 
+.user-certificates-table__action-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  padding: 8px 12px;
+}
+
 .user-certificates-expand {
-  justify-self: start;
+  width: 120px;
   min-height: 30px;
-  padding: 0 10px;
+  margin: 0;
+  padding: 0 12px;
   border: 1px solid #dbe4ee;
   border-radius: 6px;
   background: #ffffff;
@@ -384,6 +399,7 @@
   font: inherit;
   font-size: 11px;
   font-weight: 800;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -394,17 +410,19 @@
 }
 
 .user-certificates-participants {
-  margin: 0 18px 12px 20px;
+  margin: 0 16px 12px;
   border: 1px solid #e5eaf1;
   border-radius: 8px;
   background: #f8fafc;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .user-certificates-participant {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) 180px 120px 86px;
+  grid-template-columns: minmax(260px, 1.5fr) 180px 130px 100px;
   align-items: center;
+  min-width: 760px;
   min-height: 52px;
   border-bottom: 1px solid #e5eaf1;
   color: #475569;

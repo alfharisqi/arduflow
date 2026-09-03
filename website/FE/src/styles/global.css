@@ -17,6 +17,23 @@
   --nav-bg: var(--navy);
   --nav-blue: #00a2ff;
   --nav-orange: var(--orange);
+  --site-container-max: 1120px;
+  --site-page-padding-x: 24px;
+  --site-section-spacing-y: 72px;
+}
+
+@media (max-width: 980px) {
+  :root {
+    --site-page-padding-x: 20px;
+    --site-section-spacing-y: 56px;
+  }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --site-page-padding-x: 16px;
+    --site-section-spacing-y: 44px;
+  }
 }
 
 * {

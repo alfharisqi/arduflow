@@ -427,9 +427,11 @@ export function UserCertificates() {
                             {status}
                           </b>
                         </span>
-                        <button className="user-certificates-expand" type="button" aria-expanded={isExpanded} onClick={() => toggleWorkshop(workshop.key)}>
-                          {isExpanded ? 'Tutup' : 'Lihat peserta'}
-                        </button>
+                        <span className="user-certificates-table__action-cell">
+                          <button className="user-certificates-expand" type="button" aria-expanded={isExpanded} onClick={() => toggleWorkshop(workshop.key)}>
+                            {isExpanded ? 'Tutup' : 'Lihat peserta'}
+                          </button>
+                        </span>
                       </div>
                       {isExpanded ? (
                         <div className="user-certificates-participants" role="region" aria-label={`Peserta ${workshop.title}`}>

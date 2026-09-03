@@ -1,62 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import connectComponentGif from '../assets/gif/gif-connect2component-idearduflow.gif';
-import ideAccessFlowGif from '../assets/gif/ide-access-flow.gif';
-import inputValueComponentGif from '../assets/gif/gif-inputvaluecomponent-idearduflow.gif';
-import putComponentGif from '../assets/gif/gif-putcomponent-idearduflow.gif';
-import trafficLightsGif from '../assets/gif/gif-trafficlights-idearduflow.gif';
-import cpuIcon from '../assets/icons/icon-cpu-1.svg';
-import monitorIcon from '../assets/icons/icon-monitor-1.svg';
-import settingsIcon from '../assets/icons/icon-settings-1.svg';
-import workflowIcon from '../assets/icons/icon-workflow-1.svg';
 import { fetchIdeConfig } from '../services/ideApi.js';
 import { createTransaction, fetchPaymentMethods } from '../services/transactionApi.js';
-import { accessSteps } from '../features/content/arduflowContent.js';
-
-const featureCards = [
-  {
-    icon: workflowIcon,
-    title: 'Visual Flow Builder',
-    text: 'Susun logika program dengan node yang saling terhubung, lebih mudah dibaca, dan cepat diuji.',
-  },
-  {
-    icon: cpuIcon,
-    title: 'Komponen IoT Siap Pakai',
-    text: 'Mulai dari LED, sensor, servo, relay, hingga input analog tersedia sebagai blok visual.',
-  },
-  {
-    icon: monitorIcon,
-    title: 'Preview Alur Program',
-    text: 'Periksa koneksi node, konfigurasi pin, dan urutan kerja sebelum program dikirim ke board.',
-  },
-  {
-    icon: settingsIcon,
-    title: 'Konfigurasi Terarah',
-    text: 'Atur board, port, pin, dan parameter komponen melalui panel yang dibuat untuk pemula.',
-  },
-];
-
-const workflowSteps = [
-  {
-    title: 'Pilih Komponen',
-    text: 'Ambil node input, output, sensor, atau aktuator dari panel komponen.',
-    image: putComponentGif,
-  },
-  {
-    title: 'Hubungkan Logika',
-    text: 'Sambungkan node agar alur kerja perangkat terlihat jelas dari awal sampai akhir.',
-    image: connectComponentGif,
-  },
-  {
-    title: 'Isi Parameter',
-    text: 'Masukkan pin, nilai, delay, dan konfigurasi lain sesuai kebutuhan proyek.',
-    image: inputValueComponentGif,
-  },
-  {
-    title: 'Uji ke Board',
-    text: 'Generate program dan upload ke board untuk melihat hasilnya pada hardware.',
-    image: trafficLightsGif,
-  },
-];
 
 function getStoredUser() {
   try {
@@ -189,107 +133,48 @@ export function Access() {
 
   return (
     <main className="access-page">
-      <section className="access-hero">
-        <div className="access-hero__copy">
+      <section className="access-purchase">
+        <div className="access-purchase__header">
           <p className="access-tag">AKSES ARDUFLOW IDE</p>
-          <h1>
-            <span>Beli akses</span>
-            <span>ArduFlow IDE</span>
-          </h1>
-          <p>{config.description}</p>
-          <div className="access-hero__actions">
-            <button type="button" onClick={handleBuyAccess} disabled={isLoading || isCreating || !config.isActive}>
-              {isCreating ? 'Membuat Transaksi...' : 'Beli Akses IDE'}
-            </button>
-            <a href="#fitur-ide">Lihat IDE</a>
-          </div>
-          {message ? <p className="access-message">{message}</p> : null}
+          <h1>{config.title || 'Beli akses ArduFlow IDE'}</h1>
+          <p className="access-purchase__description">{config.description}</p>
         </div>
 
-        <div className="access-hero__visual">
-          <img src={ideAccessFlowGif} alt="Preview alur akses ArduFlow IDE" />
-
-          <aside className="access-price-card" aria-label="Harga akses ArduFlow IDE">
-            <span>{config.title}</span>
+        <div className="access-purchase__content">
+          <div className="access-purchase__summary">
+            <span className="access-purchase__label">Harga akses</span>
             <strong>{formatCurrency(config.price, config.currency)}</strong>
-            <small>Akses {config.durationDays || 365} hari</small>
-          </aside>
-        </div>
-      </section>
+            <span className="access-purchase__duration">Berlaku {config.durationDays || 365} hari setelah akses disetujui.</span>
+            <a href="https://ide.arduflow.com" target="_blank" rel="noreferrer" className="access-ide-link">
+              Buka ide.arduflow.com <span aria-hidden="true">↗</span>
+            </a>
+          </div>
 
-      <section className="access-features" id="fitur-ide" aria-labelledby="access-features-title">
-        <div className="access-section-heading">
-          <p className="access-tag">FITUR IDE</p>
-          <h2 id="access-features-title">Bangun logika Arduino dan IoT secara visual.</h2>
+          <div className="access-purchase__form">
+            <label htmlFor="access-payment-method">Metode pembayaran</label>
+            <select
+              id="access-payment-method"
+              value={selectedPaymentMethod}
+              onChange={(event) => setSelectedPaymentMethod(event.target.value)}
+              disabled={activePaymentMethods.length === 0}
+            >
+              {activePaymentMethods.length === 0 ? (
+                <option value="">Belum ada metode aktif</option>
+              ) : (
+                activePaymentMethods.map((method) => (
+                  <option value={method.id} key={method.id}>
+                    {[method.name, method.channel].filter(Boolean).join(' - ')}
+                  </option>
+                ))
+              )}
+            </select>
+            <button type="button" onClick={handleBuyAccess} disabled={isLoading || isCreating || !config.isActive}>
+              {isCreating ? 'Membuat transaksi...' : 'Beli akses IDE'}
+            </button>
+          </div>
         </div>
 
-        <div className="access-feature-grid">
-          {featureCards.map((feature) => (
-            <article className="access-feature-card" key={feature.title}>
-              <span>
-                <img src={feature.icon} alt="" />
-              </span>
-              <h3>{feature.title}</h3>
-              <p>{feature.text}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="access-workflow" aria-labelledby="access-workflow-title">
-        <div className="access-section-heading">
-          <p className="access-tag">CARA KERJA</p>
-          <h2 id="access-workflow-title">Dari komponen ke program siap upload.</h2>
-        </div>
-
-        <div className="access-workflow-grid">
-          {workflowSteps.map((step, index) => (
-            <article className="access-workflow-card" key={step.title}>
-              <img src={step.image} alt={`Demo ${step.title.toLowerCase()} di ArduFlow IDE`} />
-              <div>
-                <span>{String(index + 1).padStart(2, '0')}</span>
-                <h3>{step.title}</h3>
-                <p>{step.text}</p>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="access-checkout section">
-        <div>
-          <h2>Metode pembayaran</h2>
-          <p>Transaksi akan dibuat sebagai tagihan menunggu pembayaran. Upload bukti pembayaran dilakukan di dashboard user.</p>
-        </div>
-        <select
-          value={selectedPaymentMethod}
-          onChange={(event) => setSelectedPaymentMethod(event.target.value)}
-          disabled={activePaymentMethods.length === 0}
-          aria-label="Pilih metode pembayaran"
-        >
-          {activePaymentMethods.length === 0 ? (
-            <option value="">Belum ada metode aktif</option>
-          ) : (
-            activePaymentMethods.map((method) => (
-              <option value={method.id} key={method.id}>
-                {[method.name, method.channel].filter(Boolean).join(' - ')}
-              </option>
-            ))
-          )}
-        </select>
-      </section>
-
-      <section className="access-steps section">
-        <h2>Alur setelah membeli akses</h2>
-        <div className="access-steps-grid">
-          {accessSteps.map((step, index) => (
-            <article key={step.title || index}>
-              <span>{String(index + 1).padStart(2, '0')}</span>
-              <h3>{step.title}</h3>
-              <p>{step.description || step.text}</p>
-            </article>
-          ))}
-        </div>
+        {message ? <p className="access-message">{message}</p> : null}
       </section>
     </main>
   );
