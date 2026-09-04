@@ -304,3 +304,216 @@
     max-width: 100%;
   }
 }
+
+@media (max-width: 760px) {
+  :where(
+    .landing-hero,
+    .what-section,
+    .visual-work-section,
+    .problems-section,
+    .benefits-section,
+    .ide-access-section,
+    .program-section,
+    .tutorial-section,
+    .projects-section,
+    .gallery-section,
+    .community-partners,
+    .partners-section
+  ) {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  :where(
+    .landing-inner,
+    .what-inner,
+    .visual-work-inner,
+    .problems-inner,
+    .benefits-inner,
+    .ide-access-inner,
+    .program-inner,
+    .tutorial-inner,
+    .projects-inner,
+    .gallery-inner,
+    .community-partners__inner,
+    .partners-inner
+  ) {
+    position: relative;
+    inset: auto;
+    width: min(100%, calc(100vw - (var(--site-page-padding-x) * 2)));
+    max-width: 100%;
+    height: auto;
+    min-width: 0;
+    margin-inline: auto;
+    transform: none;
+  }
+
+  :where(
+    .landing-inner,
+    .what-inner,
+    .visual-work-inner,
+    .problems-inner,
+    .benefits-inner,
+    .ide-access-inner,
+    .program-inner,
+    .tutorial-inner,
+    .projects-inner,
+    .partners-inner
+  ) > * {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  :where(
+    .landing-primary,
+    .landing-secondary,
+    .project-link-button,
+    .ide-token-button,
+    .program-primary,
+    .program-secondary,
+    .tutorial-all-button,
+    .projects-all-button,
+    .gallery-all-button,
+    .partners-section .partners-button
+  ) {
+    max-width: 100%;
+    min-height: 44px;
+    height: auto;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .project-link-button,
+  .tutorial-all-button,
+  .projects-all-button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: fit-content;
+    margin-right: auto;
+    margin-left: auto;
+    text-align: center;
+  }
+
+  :where(
+    .visual-preview-gif,
+    .gallery-image-card img,
+    .projects-section .project-image img,
+    .landing-visual-gif
+  ) {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 900px) {
+  .project-link-button,
+  .tutorial-all-button,
+  .projects-all-button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: fit-content;
+    max-width: 100%;
+    margin-right: auto;
+    margin-left: auto;
+    text-align: center;
+  }
+}
+
+@media (max-width: 640px) {
+  :where(
+    .landing-inner,
+    .what-inner,
+    .visual-work-inner,
+    .problems-inner,
+    .benefits-inner,
+    .ide-access-inner,
+    .program-inner,
+    .tutorial-inner,
+    .projects-inner,
+    .gallery-inner,
+    .community-partners__inner,
+    .partners-inner
+  ) {
+    width: calc(100vw - 32px);
+  }
+
+  .landing-inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 20px;
+    text-align: center;
+  }
+
+  .landing-copy,
+  .landing-text,
+  .landing-text p,
+  .landing-actions,
+  .landing-token,
+  .landing-visual {
+    position: static;
+    width: 100%;
+    height: auto;
+  }
+
+  .landing-copy,
+  .landing-text {
+    display: grid;
+    justify-items: center;
+  }
+
+  .landing-text h1 {
+    width: 100%;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .landing-visual {
+    width: min(100%, 340px);
+    aspect-ratio: 1.2;
+    margin-inline: auto;
+  }
+
+  .landing-actions,
+  .program-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: stretch;
+    width: 100%;
+  }
+
+  .landing-primary,
+  .landing-secondary,
+  .program-primary,
+  .program-secondary {
+    width: 100%;
+  }
+
+  .visual-work-cards {
+    width: 100%;
+    max-width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    justify-content: stretch;
+    justify-items: stretch;
+  }
+
+  .visual-work-card,
+  .visual-work-card.components,
+  .visual-work-card.flow,
+  .visual-work-card.upload,
+  .visual-work-card.config,
+  .visual-preview,
+  .visual-preview.components,
+  .visual-preview.flow,
+  .visual-preview.upload,
+  .visual-preview.config,
+  .visual-work-label {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+}

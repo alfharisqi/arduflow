@@ -17,8 +17,9 @@
 
   .footer-inner {
     display: grid;
-    grid-template-columns: minmax(280px, 1.4fr) repeat(4, minmax(120px, 1fr));
+    grid-template-columns: minmax(240px, 1.4fr) repeat(2, minmax(120px, 1fr));
     gap: 36px;
+    max-width: 100%;
   }
 
   .footer-logo,
@@ -39,6 +40,30 @@
   .footer-bottom {
     grid-column: 1 / -1;
     margin-top: 24px;
+  }
+}
+
+@media (max-width: 900px) {
+  .footer-column-1,
+  .footer-column-2,
+  .footer-column-3 {
+    display: none;
+  }
+
+  .footer-inner {
+    grid-template-columns: minmax(0, 1fr) minmax(120px, auto);
+    gap: 32px;
+  }
+
+  .footer-brand-block,
+  .footer-bottom {
+    grid-column: 1 / -1;
+  }
+
+  .footer-column,
+  .footer-contact,
+  .footer-bottom {
+    min-width: 0;
   }
 }
 

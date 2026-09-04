@@ -527,7 +527,7 @@
   align-items: flex-start;
   gap: 8px;
   width: 178px;
-  height: 218px;
+  height: fit-content;
   padding: 3px 13px;
 }
 

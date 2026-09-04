@@ -143,6 +143,7 @@ export function Navbar() {
     { label: 'Materi', href: '/materi' },
     { label: 'Proyek', href: '/project' },
     { label: 'Workshop', href: '/workshop' },
+    { label: 'Kontak', href: '/kontak' },
   ];
 
   return (
