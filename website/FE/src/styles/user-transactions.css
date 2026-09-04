@@ -456,6 +456,18 @@
   font-size: 12px;
 }
 
+.user-transactions-pill--payout_requested,
+.user-transactions-pill--processing,
+.user-transactions-pill--proof_sent {
+  background: #fff3e8;
+  color: #c2410c;
+}
+
+.user-transactions-pill--done {
+  background: #e8f7ef;
+  color: #15803d;
+}
+
 .user-transactions-detail-button {
   display: block;
   min-height: 30px;
@@ -511,12 +523,39 @@
 }
 
 .user-transactions-payment-cell .user-transactions-payment-toggle,
-.user-transactions-payment-cell .user-transactions-detail-button {
+.user-transactions-payment-cell .user-transactions-detail-button,
+.user-transactions-payment-cell .user-transactions-confirm-payout,
+.user-transactions-payment-cell .user-transactions-proof-link {
   width: 132px;
   min-height: 30px;
   margin: 0;
   padding: 0 12px;
   white-space: nowrap;
+}
+
+.user-transactions-confirm-payout,
+.user-transactions-proof-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: #15803d;
+  color: #ffffff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.user-transactions-proof-link {
+  border: 1px solid #1a73e8;
+  background: #ffffff;
+  color: #1a73e8;
 }
 
 .user-transactions-payment-cell .user-transactions-payment {
@@ -655,6 +694,7 @@
 
 .user-transactions-modal__footer {
   display: flex;
+  gap: 10px;
   justify-content: flex-end;
   margin-top: 22px;
 }
@@ -669,6 +709,11 @@
   font: inherit;
   font-weight: 800;
   cursor: pointer;
+}
+
+.user-transactions-modal__footer .user-transactions-confirm-payout {
+  background: #15803d;
+  color: #ffffff;
 }
 
 @media (max-width: 760px) {

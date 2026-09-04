@@ -562,3 +562,157 @@
   color: #e60000;
 }
 
+.navbar-guest-actions {
+  position: absolute;
+  right: max(47px, calc((100vw - 1346px) / 2));
+  top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  height: 36px;
+}
+
+.navbar-guest-actions > .nav-ide {
+  position: static;
+  width: auto;
+  height: auto;
+}
+
+.navbar-guest-actions > .navbar-button {
+  position: static;
+}
+
+.navbar-menu-toggle--guest {
+  display: none;
+  position: relative;
+}
+
+.navbar-guest-dropdown {
+  right: 0;
+}
+
+.navbar-guest-dropdown__main {
+  margin-top: 58px;
+}
+
+@media (max-width: 1180px) {
+  .site-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    padding: 0 28px;
+    box-sizing: border-box;
+  }
+
+  .brand,
+  .site-header--user .brand,
+  .nav,
+  .site-header--user .nav,
+  .navbar-user-actions,
+  .navbar-guest-actions {
+    position: static;
+  }
+
+  .brand,
+  .site-header--user .brand {
+    flex: 0 0 auto;
+    width: auto;
+  }
+
+  .nav,
+  .site-header--user .nav {
+    flex: 1 1 auto;
+    justify-content: center;
+    width: auto;
+    gap: clamp(16px, 2.4vw, 30px);
+  }
+
+  .nav-ide,
+  .site-header--user .navbar-user-actions .nav-ide,
+  .navbar-button {
+    position: static;
+  }
+
+  .navbar-user-actions {
+    justify-content: flex-end;
+    width: auto;
+    gap: 14px;
+  }
+
+  .site-header--user .navbar-user-actions .nav-ide,
+  .navbar-user-avatar,
+  .navbar-menu-toggle {
+    position: static;
+  }
+
+  .navbar-user-avatar {
+    flex: 0 0 36px;
+  }
+
+  .profile-dropdown,
+  .menu-dropdown {
+    top: 58px;
+    right: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .site-header {
+    padding: 0 20px;
+  }
+
+  .nav {
+    display: none;
+  }
+
+  .navbar-guest-actions > .nav-ide,
+  .navbar-guest-actions > .navbar-button {
+    display: none;
+  }
+
+  .navbar-menu-toggle--guest {
+    display: inline-flex;
+  }
+
+  .navbar-user-actions {
+    position: relative;
+  }
+
+  .navbar-guest-actions {
+    position: relative;
+  }
+
+  .menu-dropdown,
+  .navbar-guest-dropdown {
+    right: 0;
+    width: min(256px, calc(100vw - 40px));
+  }
+}
+
+@media (max-width: 520px) {
+  .site-header {
+    height: 60px;
+    padding: 0 16px;
+  }
+
+  .brand,
+  .site-header--user .brand {
+    font-size: 18px;
+  }
+
+  .site-header--user .navbar-user-actions .nav-ide {
+    display: none;
+  }
+
+  .navbar-user-actions {
+    gap: 10px;
+  }
+
+  .menu-dropdown,
+  .navbar-guest-dropdown {
+    top: 54px;
+    right: -4px;
+  }
+}
+

@@ -15,6 +15,7 @@ import {
   fetchPaymentMethods,
   fetchTransactions,
   rejectTransaction,
+  uploadPayoutProof,
   updatePaymentMethod,
   updateTransaction,
 } from '../../services/transactionApi.js';
@@ -78,6 +79,10 @@ function statusLabel(status) {
     cancelled: 'Dibatalkan',
     refunded: 'Refund',
     expired: 'Kedaluwarsa',
+    payout_requested: 'Pengajuan Pencairan',
+    processing: 'Diproses Admin',
+    proof_sent: 'Bukti Pencairan Dikirim',
+    done: 'Pencairan Selesai',
   };
   return labels[status] || status || '-';
 }
@@ -316,13 +321,16 @@ export function AdminTransactions() {
   const [isPaymentMethodSaving, setPaymentMethodSaving] = useState(false);
   const [page, setPage] = useState(1);
   const [openActionTransactionId, setOpenActionTransactionId] = useState(null);
+  const [payoutProofId, setPayoutProofId] = useState(null);
+  const [payoutProofFiles, setPayoutProofFiles] = useState({});
   const [actionMenuPosition, setActionMenuPosition] = useState({ top: 0, left: 0 });
   const actionButtonRefs = useRef(new Map());
+  const isPayoutTab = itemTypeFilter === 'project_payout';
 
   async function loadTransactions() {
     setIsLoading(true);
     try {
-      const records = await fetchTransactions(statusFilter ? { status: statusFilter } : {});
+      const records = await fetchTransactions();
       setTransactions(records);
       setMessage('');
     } catch (error) {
@@ -357,6 +365,48 @@ export function AdminTransactions() {
     }
   }
 
+  const payoutRequests = useMemo(() => transactions
+    .filter((transaction) => transaction.itemType === 'project_payout')
+    .sort((left, right) => new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime()), [transactions]);
+
+  const handlePayoutProofFileChange = (transactionId, file) => {
+    if (!file) return;
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    if (!allowedTypes.includes(file.type)) {
+      setMessage('Bukti pencairan harus berupa JPG, PNG, WEBP, atau PDF.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage('Ukuran bukti pencairan maksimal 5 MB.');
+      return;
+    }
+    setPayoutProofFiles((current) => ({ ...current, [transactionId]: file }));
+    setMessage('');
+  };
+
+  const sendPayoutProof = async (transaction) => {
+    const file = payoutProofFiles[transaction.id];
+    if (!file) {
+      setMessage('Pilih file bukti pencairan terlebih dahulu.');
+      return;
+    }
+    try {
+      setPayoutProofId(transaction.id);
+      const updated = await uploadPayoutProof(transaction.id, file);
+      setTransactions((current) => current.map((item) => item.id === transaction.id ? updated : item));
+      setPayoutProofFiles((current) => {
+        const next = { ...current };
+        delete next[transaction.id];
+        return next;
+      });
+      setMessage('Bukti pencairan berhasil dikirim ke user.');
+    } catch (error) {
+      setMessage(error.message || 'Bukti pencairan gagal dikirim.');
+    } finally {
+      setPayoutProofId(null);
+    }
+  };
+
   useEffect(() => {
     loadTransactions();
   }, [statusFilter]);
@@ -369,12 +419,16 @@ export function AdminTransactions() {
     const paidTotal = transactions
       .filter((transaction) => transaction.status === 'paid')
       .reduce((total, transaction) => total + Number(transaction.amount || 0), 0);
+    const payoutTotal = transactions
+      .filter((transaction) => transaction.itemType === 'project_payout' && transaction.status === 'done')
+      .reduce((total, transaction) => total + Number(transaction.amount || 0), 0);
     return {
       total: transactions.length,
       workshop: transactions.filter((transaction) => ['workshop', 'program', 'course'].includes(transaction.itemType)).length,
       project: transactions.filter((transaction) => transaction.itemType === 'project').length,
       ide: transactions.filter((transaction) => transaction.itemType === 'ide').length,
-      revenue: paidTotal,
+      revenue: paidTotal - payoutTotal,
+      payout: payoutTotal,
     };
   }, [transactions]);
 
@@ -385,9 +439,11 @@ export function AdminTransactions() {
       const fromDate = dateFrom ? new Date(`${dateFrom}T00:00:00`).getTime() : 0;
       const toDate = dateTo ? new Date(`${dateTo}T23:59:59.999`).getTime() : Number.POSITIVE_INFINITY;
       if (transactionDate < fromDate || transactionDate > toDate) return false;
+      if (statusFilter && transaction.status !== statusFilter) return false;
       if (itemTypeFilter === 'workshop' && !['workshop', 'program', 'course'].includes(transaction.itemType)) return false;
       if (itemTypeFilter === 'project' && transaction.itemType !== 'project') return false;
       if (itemTypeFilter === 'ide' && transaction.itemType !== 'ide') return false;
+      if (itemTypeFilter === 'project_payout' && transaction.itemType !== 'project_payout') return false;
       if (methodFilter && !getPaymentMethodLabel(transaction).toLowerCase().includes(methodFilter.toLowerCase())) return false;
       if (!query) return true;
 
@@ -395,7 +451,7 @@ export function AdminTransactions() {
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(query));
     }).sort((left, right) => transactionDateValue(right) - transactionDateValue(left));
-  }, [dateFrom, dateTo, itemTypeFilter, methodFilter, transactions, searchTerm]);
+  }, [dateFrom, dateTo, itemTypeFilter, methodFilter, statusFilter, transactions, searchTerm]);
 
   const pagination = useMemo(() => {
     const total = displayedTransactions.length;
@@ -720,6 +776,7 @@ export function AdminTransactions() {
         <button className={itemTypeFilter === 'workshop' ? 'is-active' : ''} type="button" onClick={() => setItemTypeFilter('workshop')}>Workshop / Program</button>
         <button className={itemTypeFilter === 'project' ? 'is-active' : ''} type="button" onClick={() => setItemTypeFilter('project')}>Proyek</button>
         <button className={itemTypeFilter === 'ide' ? 'is-active' : ''} type="button" onClick={() => setItemTypeFilter('ide')}>ArduFlow IDE</button>
+        <button className={itemTypeFilter === 'project_payout' ? 'is-active' : ''} type="button" onClick={() => setItemTypeFilter('project_payout')}>Pencairan Dana</button>
       </nav>
 
       <section className="admin-transactions-summary" aria-label="Ringkasan transaksi">
@@ -749,6 +806,45 @@ export function AdminTransactions() {
         {message ? <p>{message}</p> : null}
       </section>
 
+      {isPayoutTab ? (
+        <section className="admin-transactions-payout-section" aria-labelledby="admin-payout-title">
+          <div className="admin-transactions-payout-section__header">
+            <div>
+              <h2 id="admin-payout-title">Pencairan Dana</h2>
+              <p>Kelola pengajuan pencairan dari penjualan proyek dan kirim bukti ke pemilik proyek.</p>
+            </div>
+            <strong>{payoutRequests.length} pengajuan</strong>
+          </div>
+          <div className="admin-transactions-payout-list">
+            {payoutRequests.length ? payoutRequests.map((transaction) => (
+              <article className="admin-transactions-payout-row" key={transaction.id}>
+                <div className="admin-transactions-payout-info">
+                  <strong>{transaction.itemTitle || 'Pencairan proyek'}</strong>
+                  <span>{transaction.userName || transaction.email || '-'} • {formatCurrency(transaction.amount)}</span>
+                  <p>{transaction.notes || transaction.payload?.purpose || 'Tujuan pencairan belum diisi.'}</p>
+                </div>
+                <div className="admin-transactions-payout-actions">
+                  {transaction.proofFile?.url ? <a href={transaction.proofFile.url} target="_blank" rel="noreferrer">Lihat bukti</a> : null}
+                  {transaction.status !== 'done' ? (
+                    <>
+                      <label className="admin-transactions-payout-upload">
+                        {payoutProofFiles[transaction.id]?.name || 'Upload bukti'}
+                        <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" disabled={payoutProofId === transaction.id} onChange={(event) => handlePayoutProofFileChange(transaction.id, event.target.files?.[0])} />
+                      </label>
+                      <button type="button" className="admin-transactions-payout-send" disabled={payoutProofId === transaction.id} onClick={() => sendPayoutProof(transaction)}>
+                        {payoutProofId === transaction.id ? 'Mengirim...' : 'Kirim bukti'}
+                      </button>
+                    </>
+                  ) : null}
+                  <b className={`admin-transactions-payout-status is-${transaction.status}`}>
+                    {transaction.status === 'done' ? 'Selesai' : transaction.status === 'proof_sent' ? 'Bukti terkirim' : transaction.status === 'processing' ? 'Diproses' : 'Menunggu'}
+                  </b>
+                </div>
+              </article>
+            )) : <p className="admin-transactions-payout-empty">Belum ada pengajuan pencairan dana.</p>}
+          </div>
+        </section>
+      ) : (
       <section className={`admin-transactions-layout${isCreateOpen ? ' admin-transactions-layout--with-form' : ''}`}>
         {isCreateOpen ? (
           <form className="admin-transactions-form" onSubmit={handleSubmit}>
@@ -788,6 +884,10 @@ export function AdminTransactions() {
                 <option value="paid">Lunas</option>
                 <option value="rejected">Ditolak</option>
                 <option value="failed">Gagal</option>
+                <option value="payout_requested">Pengajuan Pencairan</option>
+                <option value="processing">Diproses Admin</option>
+                <option value="proof_sent">Bukti Pencairan Dikirim</option>
+                <option value="done">Pencairan Selesai</option>
                 <option value="cancelled">Dibatalkan</option>
               </select>
             </label>
@@ -830,6 +930,10 @@ export function AdminTransactions() {
               <option value="cancelled">Dibatalkan</option>
               <option value="refunded">Refund</option>
               <option value="expired">Kedaluwarsa</option>
+              <option value="payout_requested">Pengajuan Pencairan</option>
+              <option value="processing">Diproses Admin</option>
+              <option value="proof_sent">Bukti Pencairan Dikirim</option>
+              <option value="done">Pencairan Selesai</option>
             </select>
             <select value={methodFilter} onChange={(event) => setMethodFilter(event.target.value)} aria-label="Filter metode pembayaran">
               <option value="">Semua Metode</option>
@@ -887,6 +991,10 @@ export function AdminTransactions() {
                           <option value="cancelled">Dibatalkan</option>
                           <option value="refunded">Refund</option>
                           <option value="expired">Kedaluwarsa</option>
+                          <option value="payout_requested">Pengajuan Pencairan</option>
+                          <option value="processing">Diproses Admin</option>
+                          <option value="proof_sent">Bukti Pencairan Dikirim</option>
+                          <option value="done">Pencairan Selesai</option>
                         </select>
                       </td>
                       <td>
@@ -945,6 +1053,7 @@ export function AdminTransactions() {
           </div>
         </section>
       </section>
+      )}
       {openActionTransaction ? (
         <div
           className="admin-transactions-action-popover"

@@ -157,6 +157,19 @@ export async function fetchTransactions(params = {}) {
   return Array.isArray(records) ? records.map(normalizeTransaction).filter(Boolean) : [];
 }
 
+export async function fetchFinanceConfig() {
+  const payload = await requestTransactions(`${TRANSACTION_API_URL}?action=finance-config`);
+  return payload?.data || payload || { commissionRate: 10 };
+}
+
+export async function updateFinanceConfig(data = {}) {
+  const payload = await requestTransactions(`${TRANSACTION_API_URL}?action=finance-config`, {
+    method: 'PUT',
+    body: JSON.stringify({ data }),
+  });
+  return payload?.data || payload;
+}
+
 export async function fetchPaymentMethods(params = {}) {
   const payload = await requestTransactions(`${TRANSACTION_API_URL}${buildQuery({ action: 'payment-methods', ...params })}`);
   const records = payload?.data?.paymentMethods || payload?.paymentMethods || payload?.data || [];
@@ -234,6 +247,24 @@ export async function uploadPaymentProof(id, { proofFile, paymentMethod, payment
       method: 'POST',
       body: formData,
     }
+  );
+  return normalizeTransaction(payload?.data?.transaction || payload?.transaction || payload?.data);
+}
+
+export async function uploadPayoutProof(id, proofFile) {
+  const formData = new FormData();
+  formData.append('proof', proofFile);
+  const payload = await requestTransactions(
+    `${TRANSACTION_API_URL}?id=${encodeURIComponent(id)}&action=upload-payout-proof`,
+    { method: 'POST', body: formData }
+  );
+  return normalizeTransaction(payload?.data?.transaction || payload?.transaction || payload?.data);
+}
+
+export async function completeProjectPayout(id) {
+  const payload = await requestTransactions(
+    `${TRANSACTION_API_URL}?id=${encodeURIComponent(id)}&action=complete-payout`,
+    { method: 'POST', body: JSON.stringify({}) }
   );
   return normalizeTransaction(payload?.data?.transaction || payload?.transaction || payload?.data);
 }

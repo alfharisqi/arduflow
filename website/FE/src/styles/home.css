@@ -2051,3 +2051,518 @@
   outline-offset: 3px;
 }
 
+@media (max-width: 1180px) {
+  .what-section,
+  .visual-work-section,
+  .problems-section,
+  .benefits-section,
+  .ide-access-section,
+  .program-section,
+  .tutorial-section,
+  .projects-section,
+  .partners-section {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .what-inner,
+  .visual-work-inner,
+  .problems-inner,
+  .benefits-inner,
+  .ide-access-inner,
+  .program-inner,
+  .tutorial-inner,
+  .projects-inner,
+  .partners-inner {
+    position: relative;
+    left: auto;
+    top: auto;
+    width: min(1120px, calc(100% - (var(--home-section-padding-x) * 2)));
+    height: auto;
+    margin: 0 auto;
+    padding: 76px 0;
+    transform: none;
+  }
+
+  .what-copy,
+  .visual-work-inner > h2,
+  .problems-inner > h2,
+  .benefits-inner > h2,
+  .ide-access-inner > h2,
+  .program-inner > h2,
+  .tutorial-inner > h2,
+  .projects-inner > h2,
+  .partners-inner > h2 {
+    position: static;
+    width: min(100%, 680px);
+    height: auto;
+    margin: 0 auto;
+    transform: none;
+  }
+
+  .what-cards,
+  .visual-work-cards,
+  .problem-row,
+  .benefit-row,
+  .ide-access-steps,
+  .program-grid,
+  .tutorial-grid,
+  .projects-grid,
+  .partners-section .partners-list,
+  .project-link-button,
+  .ide-access-actions,
+  .program-actions,
+  .tutorial-all-button,
+  .projects-all-button,
+  .partners-section .partners-button {
+    position: static;
+    transform: none;
+  }
+
+  .what-cards {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 18px;
+    width: 100%;
+    height: auto;
+    margin-top: 42px;
+  }
+
+  .what-card {
+    width: 100%;
+    min-height: 210px;
+    height: auto;
+    flex-basis: auto;
+    padding: 24px;
+  }
+
+  .what-icon,
+  .what-card h3,
+  .what-card p {
+    position: static;
+  }
+
+  .what-card h3 {
+    margin-top: 16px;
+  }
+
+  .what-card p {
+    width: 100%;
+    margin-top: 8px;
+  }
+
+  .visual-work-cards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 425px));
+    justify-content: space-between;
+    gap: 42px 56px;
+    width: 100%;
+    height: auto;
+    margin-top: 52px;
+  }
+
+  .visual-work-card,
+  .visual-preview,
+  .visual-work-label {
+    position: static;
+    width: 100%;
+  }
+
+  .visual-work-card {
+    height: auto;
+  }
+
+  .visual-preview {
+    aspect-ratio: 425 / 253;
+    height: auto;
+  }
+
+  .visual-work-label {
+    margin: 16px auto 0;
+  }
+
+  .flow-line {
+    display: none;
+  }
+
+  .project-link-button,
+  .tutorial-all-button,
+  .projects-all-button,
+  .gallery-all-button,
+  .partners-section .partners-button {
+    width: fit-content;
+    min-width: 180px;
+    margin: 44px auto 0;
+    padding: 0 18px;
+  }
+
+  .problem-row,
+  .benefit-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+    width: 100%;
+    height: auto;
+    margin-top: 38px;
+  }
+
+  .problem-row-bottom {
+    margin-top: 20px;
+  }
+
+  .problem-item,
+  .problem-row-top .problem-item:nth-child(1),
+  .problem-row-top .problem-item:nth-child(2),
+  .problem-row-top .problem-item:nth-child(3),
+  .problem-row-bottom .problem-item:nth-child(1),
+  .problem-row-bottom .problem-item:nth-child(2),
+  .problem-row-bottom .problem-item:nth-child(3) {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 14px;
+    align-items: start;
+    width: 100%;
+    height: auto;
+  }
+
+  .problem-icon,
+  .problem-item p {
+    position: static;
+  }
+
+  .problem-item p {
+    width: auto;
+  }
+
+  .benefit-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .benefit-card {
+    width: 100%;
+    min-height: 96px;
+    height: auto;
+    padding: 24px 24px 24px 58px;
+    flex-basis: auto;
+  }
+
+  .benefit-icon {
+    left: 24px;
+    top: 30px;
+  }
+
+  .benefit-card p,
+  .benefit-row-2 .benefit-card:first-child p,
+  .benefit-row-3 .benefit-card p {
+    position: static;
+    width: 100%;
+  }
+
+  .ide-access-steps {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 18px;
+    width: 100%;
+    height: auto;
+    margin-top: 44px;
+  }
+
+  .ide-access-step,
+  .ide-access-step:first-child,
+  .ide-access-step:nth-child(2),
+  .ide-access-step:nth-child(3),
+  .ide-access-step:nth-child(4),
+  .ide-access-step:nth-child(5) {
+    position: static;
+    width: 100%;
+    height: auto;
+  }
+
+  .ide-access-actions {
+    width: min(100%, 360px);
+    height: auto;
+    margin: 42px auto 0;
+  }
+
+  .ide-token-button {
+    width: 100%;
+  }
+
+  .program-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 18px;
+    width: 100%;
+    margin-top: 44px;
+  }
+
+  .program-card {
+    width: 100%;
+    height: auto;
+    min-height: 128px;
+    padding: 24px 18px 20px;
+  }
+
+  .program-icon,
+  .program-card h3 {
+    position: static;
+  }
+
+  .program-icon {
+    margin: 0 auto 16px;
+  }
+
+  .program-actions {
+    justify-content: center;
+    width: 100%;
+    height: auto;
+    margin-top: 42px;
+  }
+
+  .tutorial-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+    width: 100%;
+    margin-top: 44px;
+  }
+
+  .tutorial-card {
+    width: 100%;
+  }
+
+  .projects-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 20px;
+    width: 100%;
+    margin-top: 44px;
+  }
+
+  .projects-section .project-card {
+    width: 100%;
+  }
+
+  .projects-section .project-image {
+    width: 100%;
+  }
+
+  .partners-section .partners-list {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 22px;
+    height: auto;
+    margin: 44px auto 0;
+    padding: 0;
+  }
+
+  .partners-section .partner-item,
+  .partners-section .partner-item:nth-child(1),
+  .partners-section .partner-item:nth-child(2),
+  .partners-section .partner-item:nth-child(3),
+  .partners-section .partner-item:nth-child(4),
+  .partners-section .partner-item:nth-child(5) {
+    justify-content: center;
+    width: 100%;
+  }
+}
+
+@media (max-width: 900px) {
+  .what-inner,
+  .visual-work-inner,
+  .problems-inner,
+  .benefits-inner,
+  .ide-access-inner,
+  .program-inner,
+  .tutorial-inner,
+  .projects-inner,
+  .partners-inner {
+    padding: 60px 0;
+  }
+
+  .what-cards,
+  .program-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .visual-work-cards,
+  .problem-row,
+  .benefit-row,
+  .tutorial-grid,
+  .projects-grid,
+  .partners-section .partners-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ide-access-steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .community-partners__inner {
+    gap: 34px;
+  }
+}
+
+@media (max-width: 640px) {
+  .what-inner,
+  .visual-work-inner,
+  .problems-inner,
+  .benefits-inner,
+  .ide-access-inner,
+  .program-inner,
+  .tutorial-inner,
+  .projects-inner,
+  .partners-inner {
+    width: calc(100% - 32px);
+    padding: 48px 0;
+  }
+
+  .what-copy h2,
+  .visual-work-inner > h2,
+  .problems-inner > h2,
+  .benefits-inner > h2,
+  .ide-access-inner > h2,
+  .program-inner > h2,
+  .tutorial-inner > h2,
+  .projects-inner > h2,
+  .gallery-inner > h2,
+  .community-story h2,
+  .partner-panel h2,
+  .partners-inner > h2 {
+    width: 100%;
+    font-size: 28px;
+    line-height: 34px;
+  }
+
+  .what-copy p {
+    font-size: 17px;
+    line-height: 24px;
+  }
+
+  .what-cards,
+  .visual-work-cards,
+  .problem-row,
+  .benefit-row,
+  .ide-access-steps,
+  .program-grid,
+  .tutorial-grid,
+  .projects-grid,
+  .partners-section .partners-list {
+    grid-template-columns: 1fr;
+  }
+
+  .visual-work-card {
+    max-width: 425px;
+    margin: 0 auto;
+  }
+
+  .problem-row {
+    margin-top: 28px;
+  }
+
+  .problem-row-bottom {
+    margin-top: 16px;
+  }
+
+  .program-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .program-primary,
+  .program-secondary {
+    width: 100%;
+  }
+
+  .tutorial-card {
+    min-height: 90px;
+  }
+
+  .projects-grid {
+    max-width: 420px;
+    margin-inline: auto;
+  }
+
+  .projects-section .project-card {
+    height: auto;
+    min-height: 0;
+  }
+
+  .projects-section .project-image {
+    position: relative;
+    height: auto;
+    aspect-ratio: 16 / 10;
+  }
+
+  .projects-section .project-card h3 {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: 16px;
+  }
+
+  .gallery-section,
+  .community-partners {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .gallery-image-card,
+  .gallery-testimonial-card {
+    height: auto;
+    min-height: 220px;
+    aspect-ratio: 16 / 10;
+  }
+
+  .gallery-testimonial-card {
+    aspect-ratio: auto;
+  }
+
+  .gallery-testimonial-card div {
+    width: 100%;
+    margin-top: 0;
+    padding: 0 16px;
+  }
+
+  .partner-list {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 420px) {
+  .what-inner,
+  .visual-work-inner,
+  .problems-inner,
+  .benefits-inner,
+  .ide-access-inner,
+  .program-inner,
+  .tutorial-inner,
+  .projects-inner,
+  .partners-inner {
+    width: calc(100% - 28px);
+  }
+
+  .what-card,
+  .benefit-card,
+  .program-card {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .benefit-card {
+    padding-left: 50px;
+  }
+
+  .benefit-icon {
+    left: 18px;
+  }
+
+  .tutorial-content {
+    right: 48px;
+    width: auto;
+  }
+
+  .ide-access-steps {
+    gap: 24px;
+  }
+}
+

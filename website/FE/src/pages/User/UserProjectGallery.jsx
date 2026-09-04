@@ -13,7 +13,7 @@ import {
   normalizeNodeType,
 } from '../../config/projectNodes.js';
 import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
-import { fetchTransactions } from '../../services/transactionApi.js';
+import { completeProjectPayout, createTransaction, fetchFinanceConfig, fetchTransactions } from '../../services/transactionApi.js';
 import { showConfirmAlert, showSuccessAlert } from '../../utils/alerts.js';
 import { UserDashboardTopbar } from './UserDashboardTopbar.jsx';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
@@ -2158,6 +2158,12 @@ export function UserProjectGallery() {
   const [filterBy, setFilterBy] = useState('all');
   const [selectedSalesProject, setSelectedSalesProject] = useState(null);
   const [selectedDetailProject, setSelectedDetailProject] = useState(null);
+  const [financeTransactions, setFinanceTransactions] = useState([]);
+  const [commissionRate, setCommissionRate] = useState(10);
+  const [selectedPayoutProjectIds, setSelectedPayoutProjectIds] = useState([]);
+  const [payoutPurpose, setPayoutPurpose] = useState('');
+  const [isPayoutSubmitting, setIsPayoutSubmitting] = useState(false);
+  const [payoutMessage, setPayoutMessage] = useState('');
 
   async function loadProjects() {
     setProjectsLoading(true);
@@ -2206,6 +2212,7 @@ export function UserProjectGallery() {
 
       try {
         const transactions = await fetchTransactions();
+        setFinanceTransactions(transactions);
         transactions
           .filter((transaction) => transaction.itemType === 'project' && transaction.status === 'paid' && transaction.itemId !== null && transaction.itemId !== undefined)
           .forEach((transaction) => {
@@ -2216,6 +2223,14 @@ export function UserProjectGallery() {
           });
       } catch (salesError) {
         console.error('Gagal mengambil histori penjualan proyek:', salesError);
+        setFinanceTransactions([]);
+      }
+
+      try {
+        const financeConfig = await fetchFinanceConfig();
+        setCommissionRate(Number(financeConfig?.commissionRate ?? 10));
+      } catch (financeError) {
+        console.error('Gagal mengambil pengaturan komisi:', financeError);
       }
 
       const ownedProjects = currentUserId
@@ -2284,6 +2299,96 @@ export function UserProjectGallery() {
       return secondTime - firstTime;
     });
   }, [filterBy, projects, searchQuery, sortBy]);
+
+  const salesRows = useMemo(() => projects
+    .filter((project) => project.isOwnerProject && isPaidProject(project))
+    .map((project) => {
+      const gross = (project.salesHistory || []).reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
+      const commission = gross * (commissionRate / 100);
+      const paidOut = financeTransactions
+        .filter((transaction) => transaction.itemType === 'project_payout' && String(transaction.itemId) === String(project.id) && ['proof_sent', 'done'].includes(transaction.status))
+        .reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
+      return {
+        project,
+        gross,
+        commission,
+        paidOut,
+        net: gross - commission,
+        available: Math.max(0, gross - commission - paidOut),
+        sold: project.salesHistory?.length || 0,
+      };
+    }), [commissionRate, financeTransactions, projects]);
+
+  const payoutTransactions = useMemo(() => financeTransactions.filter((transaction) => (
+    transaction.itemType === 'project_payout' && String(transaction.userId || '') === String(currentUserId || '')
+  )), [currentUserId, financeTransactions]);
+
+  const selectableSalesRows = useMemo(() => salesRows.filter((row) => row.available > 0), [salesRows]);
+  const selectedPayoutRows = useMemo(() => salesRows.filter((row) => (
+    selectedPayoutProjectIds.includes(String(row.project.id)) && row.available > 0
+  )), [salesRows, selectedPayoutProjectIds]);
+  const selectedPayoutAmount = selectedPayoutRows.reduce((sum, row) => sum + row.available, 0);
+
+  const payoutTotal = useMemo(() => payoutTransactions
+    .filter((transaction) => ['proof_sent', 'done'].includes(transaction.status))
+    .reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0), [payoutTransactions]);
+
+  const grossSales = salesRows.reduce((sum, row) => sum + row.gross, 0);
+  const totalCommission = salesRows.reduce((sum, row) => sum + row.commission, 0);
+  const availableBalance = Math.max(0, grossSales - totalCommission - payoutTotal);
+
+  async function handlePayoutSubmit(event) {
+    event.preventDefault();
+    if (!selectedPayoutRows.length) {
+      setPayoutMessage('Pilih minimal satu proyek yang akan dicairkan melalui checkbox tabel.');
+      return;
+    }
+    if (!payoutPurpose.trim()) {
+      setPayoutMessage('Tujuan pencairan dana wajib diisi.');
+      return;
+    }
+    setIsPayoutSubmitting(true);
+    setPayoutMessage('Mengajukan pencairan dana...');
+    try {
+      await Promise.all(selectedPayoutRows.map((selected) => createTransaction({
+          userId: currentUserId,
+          userName: fullName,
+          email: user.email || '',
+          itemType: 'project_payout',
+          itemId: selected.project.id,
+          itemTitle: `Pencairan: ${selected.project.title || 'Proyek'}`,
+          amount: selected.available,
+          currency: 'IDR',
+          status: 'payout_requested',
+          notes: payoutPurpose.trim(),
+          payload: {
+            purpose: payoutPurpose.trim(),
+            projectTitle: selected.project.title || '',
+            grossAmount: selected.gross,
+            commissionRate,
+            commissionAmount: selected.commission,
+          },
+        })));
+      setPayoutPurpose('');
+      setSelectedPayoutProjectIds([]);
+      setPayoutMessage(`Pengajuan pencairan ${selectedPayoutRows.length} proyek berhasil dikirim ke admin.`);
+      await loadProjects();
+    } catch (error) {
+      setPayoutMessage(error.message || 'Pengajuan pencairan gagal dikirim.');
+    } finally {
+      setIsPayoutSubmitting(false);
+    }
+  }
+
+  async function handleCompletePayout(transaction) {
+    try {
+      const updated = await completeProjectPayout(transaction.id);
+      setFinanceTransactions((current) => current.map((item) => item.id === transaction.id ? updated : item));
+      setPayoutMessage('Pencairan ditandai selesai.');
+    } catch (error) {
+      setPayoutMessage(error.message || 'Status pencairan gagal diperbarui.');
+    }
+  }
 
   const editingInitialProject = useMemo(() => {
     if (projectFormMode !== 'edit' || !editProjectId) {
@@ -2434,15 +2539,6 @@ export function UserProjectGallery() {
                         <time>{formatProjectDate(project)}</time>
                         <strong>{formatProjectPrice(project)}</strong>
                         <small className="user-project-card__sold">{Number(project.salesCount || 0).toLocaleString('id-ID')} terjual</small>
-                        {project.isOwnerProject ? (
-                          <button
-                            className="user-project-card__history"
-                            type="button"
-                            onClick={() => setSelectedSalesProject(project)}
-                          >
-                            Histori Penjualan
-                          </button>
-                        ) : null}
                         <button
                           className="user-project-card__action"
                           type="button"
@@ -2464,6 +2560,67 @@ export function UserProjectGallery() {
             </nav>
             </section>
           )}
+
+          {!isUploadFormOpen ? (
+            <section className="user-project-sales-section" aria-labelledby="sales-history-title">
+              <div className="user-project-sales-section__header">
+                <div>
+                  <span className="user-project-sales-section__eyebrow">KEUANGAN PROYEK</span>
+                  <h2 id="sales-history-title">Histori Penjualan</h2>
+                  <p>Kelola penjualan proyek, pendapatan bersih, dan pengajuan pencairan dana.</p>
+                </div>
+                <div className="user-project-sales-metrics">
+                  <article><small>Pendapatan kotor</small><strong>{formatTransactionAmount({ amount: grossSales })}</strong></article>
+                  <article><small>Komisi ArduFlow ({commissionRate}%)</small><strong>{formatTransactionAmount({ amount: totalCommission })}</strong></article>
+                  <article><small>Sudah dicairkan</small><strong>{formatTransactionAmount({ amount: payoutTotal })}</strong></article>
+                  <article><small>Saldo tersedia</small><strong>{formatTransactionAmount({ amount: availableBalance })}</strong></article>
+                </div>
+              </div>
+
+              <div className="user-project-sales-table user-project-sales-table--finance" role="table" aria-label="Histori penjualan proyek">
+                <div className="user-project-sales-table__head" role="row">
+                  <span className="user-project-sales-table__select"><input type="checkbox" aria-label="Pilih semua proyek yang bisa dicairkan" checked={selectableSalesRows.length > 0 && selectedPayoutRows.length === selectableSalesRows.length} onChange={(event) => setSelectedPayoutProjectIds(event.target.checked ? selectableSalesRows.map((row) => String(row.project.id)) : [])} /></span>
+                  <span>Proyek</span><span>Harga</span><span>Terjual</span><span>Belum cair</span><span>Sudah cair</span><span>Pendapatan bersih</span><span>Detail</span>
+                </div>
+                {salesRows.length ? salesRows.map((row) => (
+                  <div className="user-project-sales-table__row" role="row" key={row.project.id}>
+                    <span className="user-project-sales-table__select"><input type="checkbox" aria-label={`Pilih pencairan ${row.project.title || 'proyek'}`} checked={selectedPayoutProjectIds.includes(String(row.project.id))} disabled={row.available <= 0} onChange={(event) => setSelectedPayoutProjectIds((current) => event.target.checked ? [...new Set([...current, String(row.project.id)])] : current.filter((id) => id !== String(row.project.id)))} /></span>
+                    <span>{row.project.title || 'Tanpa judul'}</span>
+                    <span>{formatProjectPrice(row.project)}</span>
+                    <span>{row.sold.toLocaleString('id-ID')}</span>
+                    <span>{formatTransactionAmount({ amount: row.available })}</span>
+                    <span>{formatTransactionAmount({ amount: row.paidOut })}</span>
+                    <span>{formatTransactionAmount({ amount: row.net })}</span>
+                    <span><button type="button" onClick={() => setSelectedSalesProject(row.project)}>Detail pembeli</button></span>
+                  </div>
+                )) : (
+                  <p className="user-project-sales-empty">Belum ada penjualan proyek yang berhasil.</p>
+                )}
+              </div>
+
+              <div className="user-project-payout-area">
+                <div>
+                  <h3>Ajukan pencairan dana</h3>
+                  <p>Pilih proyek melalui checkbox tabel. Dana akan diproses admin setelah pengajuan diterima, dan komisi ArduFlow sudah dikurangi dari saldo bersih.</p>
+                </div>
+                <form className="user-project-payout-form" onSubmit={handlePayoutSubmit}>
+                  <div className="user-project-payout-selection"><span>{selectedPayoutRows.length} proyek dipilih</span><strong>{formatTransactionAmount({ amount: selectedPayoutAmount })}</strong></div>
+                  <label>Tujuan pencairan dana<textarea value={payoutPurpose} onChange={(event) => setPayoutPurpose(event.target.value)} placeholder="Contoh: pencairan ke rekening BCA atas nama..." rows="3" /></label>
+                  <button type="submit" disabled={isPayoutSubmitting || selectedPayoutRows.length === 0}>{isPayoutSubmitting ? 'Mengirim...' : 'Ajukan pencairan'}</button>
+                </form>
+              </div>
+
+              {payoutTransactions.length ? (
+                <div className="user-project-payout-history">
+                  <h3>Riwayat pencairan</h3>
+                  {payoutTransactions.map((transaction) => (
+                    <div key={transaction.id}><span>{transaction.itemTitle}</span><strong>{formatTransactionAmount(transaction)}</strong><b className={`is-${transaction.status}`}>{transaction.status === 'proof_sent' ? 'Bukti dikirim' : transaction.status === 'done' ? 'Selesai' : 'Menunggu admin'}</b>{transaction.proofFile?.url ? <a href={transaction.proofFile.url} target="_blank" rel="noreferrer">Lihat bukti</a> : null}{transaction.status === 'proof_sent' ? <button type="button" onClick={() => handleCompletePayout(transaction)}>Konfirmasi pencairan</button> : null}</div>
+                  ))}
+                </div>
+              ) : null}
+              {payoutMessage ? <p className="user-project-payout-message" role="status">{payoutMessage}</p> : null}
+            </section>
+          ) : null}
 
           {selectedSalesProject ? (
             <section className="user-project-sales-modal" role="dialog" aria-modal="true" aria-labelledby="user-project-sales-title">

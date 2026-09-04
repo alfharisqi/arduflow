@@ -8,6 +8,7 @@ import {
   persistAdminSidebarCollapsed,
 } from './adminSidebarState.js';
 import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
+import { fetchTransactions } from '../../services/transactionApi.js';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
 import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
@@ -433,6 +434,7 @@ export function AdminProjects() {
   const [dateFilter, setDateFilter] = useState('');
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
+  const [projectTransactions, setProjectTransactions] = useState([]);
   const projectStats = useMemo(() => {
     const totalProjects = projects.length;
     const publishedProjects = projects.filter((project) => isProjectStatus(project, ['published', 'publish'])).length;
@@ -460,6 +462,16 @@ export function AdminProjects() {
       },
     ];
   }, [projects]);
+  const salesByProject = useMemo(() => {
+    const grouped = new Map();
+    projectTransactions
+      .filter((transaction) => transaction.itemType === 'project' && transaction.status === 'paid' && transaction.itemId !== null)
+      .forEach((transaction) => {
+        const key = String(transaction.itemId);
+        grouped.set(key, [...(grouped.get(key) || []), transaction]);
+      });
+    return grouped;
+  }, [projectTransactions]);
   const reviewProjects = useMemo(() => (
     projects
       .filter((project) => isProjectStatus(project, ['review', 'pending', 'menunggu']))
@@ -613,6 +625,12 @@ export function AdminProjects() {
 
       const projectData = Array.isArray(result.data) ? result.data : [];
       setProjects(projectData);
+      try {
+        setProjectTransactions(await fetchTransactions());
+      } catch (transactionError) {
+        console.error('Gagal memuat jumlah penjualan proyek:', transactionError);
+        setProjectTransactions([]);
+      }
       if (!keepSelection) setSelectedProject(null);
     } catch (error) {
       console.error('Gagal mengambil proyek:', error);
@@ -1066,6 +1084,7 @@ export function AdminProjects() {
     }
   };
 
+
   return (
     <main className={`admin-dashboard-page admin-projects-page${isSidebarCollapsed ? ' admin-dashboard-page--collapsed' : ''}`}>
       <AdminSidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleSidebar} />
@@ -1211,6 +1230,7 @@ export function AdminProjects() {
                   <col className="admin-projects-col-summary" />
                   <col className="admin-projects-col-summary" />
                   <col className="admin-projects-col-price" />
+                  <col className="admin-projects-col-summary" />
                   <col className="admin-projects-col-status" />
                   <col className="admin-projects-col-viewer" />
                   <col className="admin-projects-col-like" />
@@ -1239,6 +1259,7 @@ export function AdminProjects() {
                     <th>Node</th>
                     <th>Langkah</th>
                     <th>Harga</th>
+                    <th>Terjual</th>
                     <th>Status</th>
                     <th>Viewers</th>
                     <th>Like</th>
@@ -1251,15 +1272,15 @@ export function AdminProjects() {
                 <tbody>
                   {isLoading ? (
                     <tr>
-                      <td colSpan="16">Memuat data proyek...</td>
+                      <td colSpan="17">Memuat data proyek...</td>
                     </tr>
                   ) : projectError ? (
                     <tr>
-                      <td colSpan="16">{projectError}</td>
+                      <td colSpan="17">{projectError}</td>
                     </tr>
                   ) : filteredProjects.length === 0 ? (
                     <tr>
-                      <td colSpan="16">Tidak ada proyek yang cocok dengan filter.</td>
+                      <td colSpan="17">Tidak ada proyek yang cocok dengan filter.</td>
                     </tr>
                   ) : (
                     paginatedProjects.map((project, index) => {
@@ -1343,6 +1364,8 @@ export function AdminProjects() {
                               {formatProjectPrice(project)}
                             </span>
                           </td>
+
+                          <td>{formatProjectNumber(salesByProject.get(String(project.id))?.length || 0)}</td>
 
                           <td>
                             <ProjectBadge>{status}</ProjectBadge>

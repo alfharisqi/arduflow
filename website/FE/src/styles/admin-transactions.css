@@ -6,6 +6,55 @@
   font-family: 'Inter', sans-serif;
 }
 
+.admin-transactions-payout-section {
+  width: min(100%, 1480px);
+  margin: 0 auto 24px;
+  padding: 18px 28px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, .06);
+}
+
+.admin-transactions-payout-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #eef0f4;
+}
+
+.admin-transactions-payout-section__header h2 { margin: 0 0 4px; color: #344767; font-size: 18px; }
+.admin-transactions-payout-section__header p { margin: 0; color: #7b809a; font-size: 12px; }
+.admin-transactions-payout-section__header > strong { color: #1a73e8; font-size: 13px; }
+.admin-transactions-payout-list { display: grid; gap: 10px; padding-top: 14px; }
+.admin-transactions-payout-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px; border: 1px solid #eef0f4; border-radius: 8px; background: #fafbfc; }
+.admin-transactions-payout-info { min-width: 0; }
+.admin-transactions-payout-info strong,
+.admin-transactions-payout-info span,
+.admin-transactions-payout-info p { display: block; margin: 0 0 4px; }
+.admin-transactions-payout-info strong { overflow: hidden; color: #344767; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.admin-transactions-payout-info span,
+.admin-transactions-payout-info p { color: #7b809a; font-size: 12px; }
+.admin-transactions-payout-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.admin-transactions-payout-actions a { color: #1a73e8; font-size: 12px; font-weight: 700; }
+.admin-transactions-payout-upload { position: relative; display: inline-flex; max-width: 190px; overflow: hidden; padding: 7px 10px; border-radius: 6px; background: #1a73e8; color: #fff; font-size: 12px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.admin-transactions-payout-upload input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
+.admin-transactions-payout-send { padding: 7px 10px; border: 0; border-radius: 6px; background: #15803d; color: #fff; font: 700 12px 'Inter', sans-serif; cursor: pointer; }
+.admin-transactions-payout-send:disabled { cursor: not-allowed; opacity: .55; }
+.admin-transactions-payout-status { padding: 6px 9px; border-radius: 999px; background: #fff3e8; color: #c2410c; font-size: 11px; white-space: nowrap; }
+.admin-transactions-payout-status.is-proof_sent,
+.admin-transactions-payout-status.is-done { background: #e8f7ef; color: #15803d; }
+.admin-transactions-payout-empty { margin: 4px 0; color: #7b809a; font-size: 13px; }
+
+@media (max-width: 720px) {
+  .admin-transactions-payout-section { padding: 16px; }
+  .admin-transactions-payout-section__header,
+  .admin-transactions-payout-row { align-items: flex-start; flex-direction: column; }
+  .admin-transactions-payout-actions { justify-content: flex-start; }
+}
+
 .admin-transactions-heading {
   display: flex;
   align-items: center;

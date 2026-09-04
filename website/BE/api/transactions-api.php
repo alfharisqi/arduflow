@@ -1001,6 +1001,96 @@ try {
         }
     }
 
+    if ($method === 'POST' && $action === 'upload-payout-proof') {
+        if ($transactionId === null) {
+            throw new InvalidArgumentException('Parameter id wajib diisi untuk bukti pencairan.');
+        }
+
+        $existingRow = findTransaction($pdo, $transactionId);
+        if ($existingRow === null || ($existingRow['item_type'] ?? '') !== 'project_payout') {
+            respond(404, [
+                'success' => false,
+                'message' => 'Pengajuan pencairan tidak ditemukan.',
+            ]);
+        }
+
+        $proof = storePaymentProof($transactionId, $projectRoot);
+        $now = jakartaNow();
+        $statement = $pdo->prepare(
+            'UPDATE transactions SET
+                proof_file_name = :proof_file_name,
+                proof_file_type = :proof_file_type,
+                proof_file_size = :proof_file_size,
+                proof_file_path = :proof_file_path,
+                proof_file_url = :proof_file_url,
+                proof_uploaded_at = :proof_uploaded_at,
+                status = "proof_sent",
+                reviewed_at = :reviewed_at,
+                reviewed_by = :reviewed_by,
+                updated_at = :updated_at
+             WHERE id = :id'
+        );
+        $statement->execute([
+            ':proof_file_name' => $proof['name'],
+            ':proof_file_type' => $proof['type'],
+            ':proof_file_size' => $proof['size'],
+            ':proof_file_path' => $proof['path'],
+            ':proof_file_url' => $proof['url'],
+            ':proof_uploaded_at' => $now,
+            ':reviewed_at' => $now,
+            ':reviewed_by' => 'Admin',
+            ':updated_at' => $now,
+            ':id' => $transactionId,
+        ]);
+        if (function_exists('afwSyncEnqueue')) {
+            afwSyncEnqueue($pdo, 'transactions', $transactionId, 'update');
+        }
+        $updatedTransaction = findTransaction($pdo, $transactionId) ?? [];
+        publishTransactionEvent($projectRoot, 'payout_proof_sent', $updatedTransaction);
+
+        respond(200, [
+            'success' => true,
+            'message' => 'Bukti pencairan berhasil dikirim ke user.',
+            'data' => [
+                'transaction' => rowToTransaction($updatedTransaction),
+            ],
+        ]);
+    }
+
+    if ($method === 'POST' && $action === 'complete-payout') {
+        if ($transactionId === null) {
+            throw new InvalidArgumentException('Parameter id wajib diisi untuk menyelesaikan pencairan.');
+        }
+
+        $existingRow = findTransaction($pdo, $transactionId);
+        if ($existingRow === null || ($existingRow['item_type'] ?? '') !== 'project_payout') {
+            respond(404, [
+                'success' => false,
+                'message' => 'Pengajuan pencairan tidak ditemukan.',
+            ]);
+        }
+        if (($existingRow['status'] ?? '') !== 'proof_sent') {
+            throw new InvalidArgumentException('Pencairan hanya dapat diselesaikan setelah bukti dikirim admin.');
+        }
+
+        $now = jakartaNow();
+        $statement = $pdo->prepare('UPDATE transactions SET status = "done", updated_at = :updated_at WHERE id = :id');
+        $statement->execute([':updated_at' => $now, ':id' => $transactionId]);
+        if (function_exists('afwSyncEnqueue')) {
+            afwSyncEnqueue($pdo, 'transactions', $transactionId, 'update');
+        }
+        $updatedTransaction = findTransaction($pdo, $transactionId) ?? [];
+        publishTransactionEvent($projectRoot, 'payout_completed', $updatedTransaction);
+
+        respond(200, [
+            'success' => true,
+            'message' => 'Pencairan ditandai selesai.',
+            'data' => [
+                'transaction' => rowToTransaction($updatedTransaction),
+            ],
+        ]);
+    }
+
     if ($method === 'POST' && $action === 'upload-proof') {
         if ($transactionId === null) {
             throw new InvalidArgumentException('Parameter id wajib diisi untuk upload bukti pembayaran.');

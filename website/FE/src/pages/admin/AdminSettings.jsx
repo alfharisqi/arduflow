@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AdminPage, AdminTopbar } from './AdminChrome.jsx';
 import {
   createAdminDatabaseBackup,
   getAdminDatabaseStatus,
 } from '../../services/authApi.js';
+import { fetchFinanceConfig, updateFinanceConfig } from '../../services/transactionApi.js';
 
 const STORAGE_KEY = 'arduflow_admin_settings';
 
@@ -36,6 +37,9 @@ const DEFAULT_SETTINGS = {
     deadlineValue: '24',
     deadlineUnit: 'Jam',
     createdMessage: 'Terima kasih! Silakan selesaikan pembayaran Anda sebelum batas waktu yang ditentukan.',
+  },
+  finance: {
+    commissionRate: '10',
   },
   projectContent: {
     maxFileSize: '50',
@@ -108,6 +112,7 @@ const TABS = [
   { id: 'brand', label: 'Brand', icon: 'brand' },
   { id: 'contact', label: 'Kontak', icon: 'phone' },
   { id: 'payment', label: 'Pembayaran', icon: 'card' },
+  { id: 'finance', label: 'Komisi Proyek', icon: 'card' },
   { id: 'content', label: 'Konten', icon: 'content' },
   { id: 'workshop', label: 'Workshop', icon: 'content' },
   { id: 'email', label: 'Email', icon: 'mail' },
@@ -203,6 +208,12 @@ export function AdminSettings() {
   const [passwordForm, setPasswordForm] = useState({ newPassword: '', confirmPassword: '' });
   const [showHistory, setShowHistory] = useState(false);
 
+  useEffect(() => {
+    fetchFinanceConfig()
+      .then((config) => setSettings((current) => ({ ...current, finance: { ...current.finance, commissionRate: String(config?.commissionRate ?? 10) } })))
+      .catch(() => undefined);
+  }, []);
+
   const loginHistory = useMemo(() => {
     const now = new Date().toLocaleString('id-ID');
     const updated = settings.security.passwordUpdatedAt;
@@ -281,7 +292,7 @@ export function AdminSettings() {
     }
   };
 
-  const saveSettings = () => {
+  const saveSettings = async () => {
     if (!validateEmail(settings.profile.email) || !validateEmail(settings.contact.email) || !validateEmail(settings.email.senderEmail) || !validateEmail(settings.partnerLead.notificationEmail)) {
       showStatus('Periksa kembali format email profil, kontak, pengirim, dan partner.', 'error');
       return;
@@ -289,7 +300,12 @@ export function AdminSettings() {
 
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
     window.dispatchEvent(new CustomEvent('arduflow-admin-settings-change', { detail: settings }));
-    showStatus('Perubahan settings berhasil disimpan.');
+    try {
+      await updateFinanceConfig({ commissionRate: Number(settings.finance.commissionRate) });
+      showStatus('Perubahan settings dan komisi berhasil disimpan.');
+    } catch (error) {
+      showStatus(error.message || 'Settings tersimpan lokal, tetapi komisi gagal disimpan ke server.', 'error');
+    }
   };
 
   const resetSettings = () => {
@@ -589,6 +605,13 @@ export function AdminSettings() {
                 <Field label="Default status proyek baru"><select value={settings.projectContent.defaultStatus} onChange={(event) => updateField('projectContent', 'defaultStatus', event.target.value)}><option value="draft">Draft</option><option value="published">Published</option><option value="review">Review</option></select></Field>
                 <Field label="Default kategori proyek"><select value={settings.projectContent.defaultCategory} onChange={(event) => updateField('projectContent', 'defaultCategory', event.target.value)}><option value="">Pilih kategori default</option><option value="iot">IoT</option><option value="robotik">Robotik</option><option value="otomasi">Otomasi</option></select></Field>
               </div>
+            </Section>
+          ) : null}
+
+          {matchesSearch('Komisi Proyek') ? (
+            <Section id="settings-finance" icon="card" title="Komisi Penjualan Proyek">
+              <Field label="Komisi ArduFlow (%)"><input type="number" min="0" max="100" step="0.1" value={settings.finance.commissionRate} onChange={(event) => updateField('finance', 'commissionRate', event.target.value)} /></Field>
+              <p className="admin-settings-note">Komisi otomatis dipotong dari setiap penjualan proyek sebelum saldo pemilik dapat dicairkan.</p>
             </Section>
           ) : null}
 

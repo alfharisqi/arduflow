@@ -470,7 +470,7 @@
 
 .dashboard-program-panel {
   width: 393px;
-  min-height: 843px;
+  min-height: 0;
   padding: 17px 19px;
 }
 
@@ -567,7 +567,7 @@
 
 .dashboard-upcoming {
   width: 351px;
-  margin-top: 42px;
+  margin-top: 0;
 }
 
 .dashboard-upcoming h2 {

@@ -309,13 +309,6 @@ function formatWorkshopDate(value) {
   }).format(date);
 }
 
-function formatCalendarMonth(value) {
-  return new Intl.DateTimeFormat('id-ID', {
-    month: 'long',
-    year: 'numeric',
-  }).format(value);
-}
-
 function formatShortDate(value) {
   if (!value) {
     return '-';
@@ -414,45 +407,6 @@ function testimonialKey(sourceType, sourceId) {
   return `${normalizeMatchValue(sourceType)}:${String(sourceId || '').trim()}`;
 }
 
-function buildCalendarDays(monthDate) {
-  const year = monthDate.getFullYear();
-  const month = monthDate.getMonth();
-  const firstDay = new Date(year, month, 1);
-  const startOffset = firstDay.getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const cells = [];
-
-  for (let index = 0; index < startOffset; index += 1) {
-    cells.push({
-      key: `empty-start-${index}`,
-      day: '',
-      dateKey: '',
-    });
-  }
-
-  for (let day = 1; day <= daysInMonth; day += 1) {
-    const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(
-      day
-    ).padStart(2, '0')}`;
-
-    cells.push({
-      key: dateKey,
-      day: String(day),
-      dateKey,
-    });
-  }
-
-  while (cells.length % 7 !== 0) {
-    cells.push({
-      key: `empty-end-${cells.length}`,
-      day: '',
-      dateKey: '',
-    });
-  }
-
-  return cells;
-}
-
 /*
 |--------------------------------------------------------------------------
 | Dashboard User
@@ -539,11 +493,6 @@ export function DashboardUser() {
     setDashboardRowsError,
   ] = useState('');
 
-  const [
-    calendarMonth,
-    setCalendarMonth,
-  ] = useState(() => new Date());
-
   const fileInputRef = useRef(null);
 
   /*
@@ -584,40 +533,18 @@ export function DashboardUser() {
       });
   }, [workshops]);
 
-  const calendarCells = useMemo(
-    () => buildCalendarDays(calendarMonth),
-    [calendarMonth]
-  );
-
-  const eventDateKeys = useMemo(() => {
-    return new Set(
-      visibleWorkshops
-        .map((workshop) => workshop.parsedDate)
-        .filter(Boolean)
-        .map((date) => {
-          return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
-            2,
-            '0'
-          )}-${String(date.getDate()).padStart(2, '0')}`;
-        })
-    );
-  }, [visibleWorkshops]);
-
   const upcomingPrograms = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const futureRows = visibleWorkshops.filter((workshop) => {
-      if (!workshop.parsedDate) {
-        return true;
-      }
-
-      return workshop.parsedDate.getTime() >= today.getTime();
+      return Boolean(
+        workshop.parsedDate &&
+        workshop.parsedDate.getTime() >= today.getTime()
+      );
     });
 
-    const rows = futureRows.length > 0 ? futureRows : visibleWorkshops;
-
-    return rows.slice(0, 4).map((workshop) => ({
+    return futureRows.slice(0, 4).map((workshop) => ({
       id: workshop.id,
       title: workshop.title,
       href: workshop.id ? `/detail-workshop/${workshop.id}` : '/daftar-workshop',
@@ -1691,106 +1618,8 @@ export function DashboardUser() {
 
             <aside
               className="dashboard-program-panel"
-              aria-label="Kalender Workshop dan Program"
+              aria-label="Workshop dan program mendatang"
             >
-
-              <section className="dashboard-calendar">
-
-                <h2>
-                  Kalender Workshop / Program
-                </h2>
-
-                <div className="dashboard-calendar__month">
-
-                  <button
-                    type="button"
-                    aria-label="Bulan sebelumnya"
-                    onClick={() =>
-                      setCalendarMonth(
-                        (current) =>
-                          new Date(
-                            current.getFullYear(),
-                            current.getMonth() - 1,
-                            1
-                          )
-                      )
-                    }
-                  >
-                    &lsaquo;
-                  </button>
-
-                  <span>
-                    {formatCalendarMonth(calendarMonth)}
-                  </span>
-
-                  <button
-                    className="dashboard-calendar__next"
-                    type="button"
-                    aria-label="Bulan berikutnya"
-                    onClick={() =>
-                      setCalendarMonth(
-                        (current) =>
-                          new Date(
-                            current.getFullYear(),
-                            current.getMonth() + 1,
-                            1
-                          )
-                      )
-                    }
-                  >
-                    &rsaquo;
-                  </button>
-
-                </div>
-
-                <div className="dashboard-calendar__grid">
-
-                  {[
-                    'SUN',
-                    'MON',
-                    'TUE',
-                    'WED',
-                    'THU',
-                    'FRI',
-                    'SAT',
-                  ].map(
-                    (day) => (
-                      <strong
-                        key={
-                          day
-                        }
-                      >
-                        {day}
-                      </strong>
-                    )
-                  )}
-
-                  {calendarCells.map(
-                    (cell) => (
-
-                      <span
-                        className={
-                          cell.dateKey &&
-                          eventDateKeys.has(
-                            cell.dateKey
-                          )
-                            ? 'dashboard-calendar__day dashboard-calendar__day--event'
-                            : 'dashboard-calendar__day'
-                        }
-                        key={
-                          cell.key
-                        }
-                      >
-                        {cell.day}
-                      </span>
-
-                    )
-                  )}
-
-                </div>
-
-              </section>
-
               <section className="dashboard-upcoming">
 
                 <h2>
@@ -1809,7 +1638,7 @@ export function DashboardUser() {
                     </p>
                   ) : upcomingPrograms.length === 0 ? (
                     <p className="dashboard-upcoming__empty">
-                      Belum ada workshop / program dari database.
+                      Tidak ada workshop / program yang akan datang.
                     </p>
                   ) : (
                     upcomingPrograms.map(

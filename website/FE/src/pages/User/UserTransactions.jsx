@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
 import { DashboardUserSidebarIcon } from './userSidebarIcons.jsx';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
-import { fetchTransactions, uploadPaymentProof } from '../../services/transactionApi.js';
+import { completeProjectPayout, fetchTransactions, uploadPaymentProof } from '../../services/transactionApi.js';
 import { UserDashboardTopbar } from './UserDashboardTopbar.jsx';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 
@@ -52,6 +52,10 @@ function statusLabel(status) {
     pending: 'Menunggu Pembayaran',
     proof_uploaded: 'Bukti Terkirim, Menunggu Review Admin',
     paid: 'Lunas, Akses Aktif',
+    payout_requested: 'Pencairan Diajukan',
+    processing: 'Pencairan Diproses',
+    proof_sent: 'Bukti Pencairan Dikirim',
+    done: 'Pencairan Selesai',
     rejected: 'Ditolak, Upload Bukti Baru',
     failed: 'Gagal',
     cancelled: 'Dibatalkan',
@@ -69,12 +73,17 @@ function itemTypeLabel(itemType) {
     materi: 'Materi',
     material: 'Materi',
     ide: 'IDE',
+    project_payout: 'Pencairan Proyek',
   };
   return labels[String(itemType || '').toLowerCase()] || itemType || 'Lainnya';
 }
 
 function canUploadProof(status) {
   return ['pending', 'rejected'].includes(status);
+}
+
+function canConfirmPayout(transaction) {
+  return String(transaction?.itemType || '').toLowerCase() === 'project_payout' && transaction?.status === 'proof_sent';
 }
 
 function paymentMethodLabel(transaction) {
@@ -182,6 +191,18 @@ export function UserTransactions() {
     }
   }
 
+  async function handleConfirmPayout(transaction) {
+    setMessage('Mengonfirmasi pencairan dana...');
+    try {
+      const updated = await completeProjectPayout(transaction.id);
+      setTransactions((current) => current.map((item) => item.id === transaction.id ? updated : item));
+      setSelectedTransaction((current) => current?.id === transaction.id ? updated : current);
+      setMessage('Pencairan dana berhasil dikonfirmasi selesai.');
+    } catch (confirmError) {
+      setMessage(confirmError.message || 'Konfirmasi pencairan dana gagal.');
+    }
+  }
+
   async function copyPaymentCode(transaction) {
     const code = transaction.paymentCode || '';
     if (!code) {
@@ -227,7 +248,7 @@ export function UserTransactions() {
 
   const actionTransactions = useMemo(
     () => [...transactions]
-      .filter((transaction) => canUploadProof(transaction.status))
+      .filter((transaction) => canUploadProof(transaction.status) || canConfirmPayout(transaction))
       .sort((left, right) => transactionTime(right) - transactionTime(left)),
     [transactions]
   );
@@ -303,7 +324,7 @@ export function UserTransactions() {
             <div className="user-payment-instructions__head">
               <div>
                 <h2 id="payment-instructions-title">Butuh Aksi Kamu</h2>
-                <p>Selesaikan pembayaran dan upload bukti agar akses item bisa diaktifkan.</p>
+                <p>Selesaikan pembayaran atau konfirmasi pencairan dana yang sudah dikirim admin.</p>
               </div>
             </div>
 
@@ -358,19 +379,28 @@ export function UserTransactions() {
                       </div>
                     </dl>
 
-                    <div className="user-payment-actions">
-                      <button type="button" onClick={() => copyPaymentCode(transaction)} disabled={!transaction.paymentCode}>
-                        Salin Nomor Rekening
-                      </button>
-                      <button
-                        type="button"
-                        className="user-transactions-payment-toggle"
-                        onClick={() => setOpenPaymentFormId((value) => (value === transaction.id ? null : transaction.id))}
-                        aria-expanded={openPaymentFormId === transaction.id}
-                      >
-                        {openPaymentFormId === transaction.id ? 'Tutup Upload' : 'Upload Bukti Pembayaran'}
-                      </button>
-                    </div>
+                    {canConfirmPayout(transaction) ? (
+                      <div className="user-payment-actions">
+                        {transaction.proofFile?.url ? <a className="user-transactions-proof-link" href={transaction.proofFile.url} target="_blank" rel="noreferrer">Lihat bukti pencairan</a> : null}
+                        <button type="button" className="user-transactions-confirm-payout" onClick={() => handleConfirmPayout(transaction)}>
+                          Konfirmasi pencairan
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="user-payment-actions">
+                        <button type="button" onClick={() => copyPaymentCode(transaction)} disabled={!transaction.paymentCode}>
+                          Salin Nomor Rekening
+                        </button>
+                        <button
+                          type="button"
+                          className="user-transactions-payment-toggle"
+                          onClick={() => setOpenPaymentFormId((value) => (value === transaction.id ? null : transaction.id))}
+                          aria-expanded={openPaymentFormId === transaction.id}
+                        >
+                          {openPaymentFormId === transaction.id ? 'Tutup Upload' : 'Upload Bukti Pembayaran'}
+                        </button>
+                      </div>
+                    )}
 
                     <div className="user-payment-body">
                       {transaction.qrisFile?.url ? (
@@ -433,6 +463,7 @@ export function UserTransactions() {
                     <option value="workshop">Workshop</option>
                     <option value="program">Program</option>
                     <option value="project">Proyek</option>
+                    <option value="project_payout">Pencairan Proyek</option>
                     <option value="materi">Materi</option>
                     <option value="ide">IDE</option>
                   </select>
@@ -448,6 +479,10 @@ export function UserTransactions() {
                     <option value="failed">Gagal</option>
                     <option value="cancelled">Dibatalkan</option>
                     <option value="refunded">Refund</option>
+                    <option value="payout_requested">Pencairan Diajukan</option>
+                    <option value="processing">Pencairan Diproses</option>
+                    <option value="proof_sent">Bukti Pencairan Dikirim</option>
+                    <option value="done">Pencairan Selesai</option>
                   </select>
                 </label>
                 <label>
@@ -498,7 +533,14 @@ export function UserTransactions() {
                       {transaction.rejectionReason ? <small>{transaction.rejectionReason}</small> : null}
                     </span>
                     <span className="user-transactions-payment-cell">
-                      {transaction.status === 'paid' ? (
+                      {canConfirmPayout(transaction) ? (
+                        <>
+                          {transaction.proofFile?.url ? <a className="user-transactions-proof-link" href={transaction.proofFile.url} target="_blank" rel="noreferrer">Lihat bukti</a> : null}
+                          <button className="user-transactions-confirm-payout" type="button" onClick={() => handleConfirmPayout(transaction)}>
+                            Konfirmasi pencairan
+                          </button>
+                        </>
+                      ) : transaction.status === 'paid' ? (
                         <strong>Akses aktif</strong>
                       ) : transaction.status === 'proof_uploaded' ? (
                         <strong>Menunggu review</strong>
@@ -584,6 +626,11 @@ export function UserTransactions() {
               <p className="user-transactions-modal__rejection"><strong>Catatan admin:</strong> {selectedTransaction.rejectionReason}</p>
             ) : null}
             <footer className="user-transactions-modal__footer">
+              {canConfirmPayout(selectedTransaction) ? (
+                <button type="button" className="user-transactions-confirm-payout" onClick={() => handleConfirmPayout(selectedTransaction)}>
+                  Konfirmasi pencairan
+                </button>
+              ) : null}
               <button type="button" onClick={() => setSelectedTransaction(null)}>Tutup</button>
             </footer>
           </section>

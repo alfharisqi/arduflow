@@ -246,10 +246,39 @@ export function Navbar() {
           )}
         </div>
       ) : (
-        <>
+        <div className="navbar-guest-actions" aria-label="Aksi pengunjung" ref={menuRef}>
           <a className="nav-ide" href="/ide">Masuk IDE</a>
           <a className="navbar-button" href="/signup">Daftar Akses</a>
-        </>
+          <button
+            className={`navbar-icon-button navbar-menu-toggle navbar-menu-toggle--guest${isMenuOpen ? ' is-open' : ''}`}
+            type="button"
+            aria-expanded={isMenuOpen}
+            aria-label="Buka menu"
+            onClick={() => setIsMenuOpen((open) => !open)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+          {isMenuOpen && (
+            <aside className="profile-dropdown menu-dropdown navbar-guest-dropdown" aria-label="Menu utama">
+              <div className="profile-dropdown__traffic" aria-hidden="true">
+                <span className="profile-dropdown__traffic-red" />
+                <span className="profile-dropdown__traffic-yellow" />
+                <span className="profile-dropdown__traffic-green" />
+              </div>
+              <nav className="menu-dropdown__main navbar-guest-dropdown__main" aria-label="Navigasi menu">
+                {navigation.map((item) => (
+                  <a className="menu-dropdown__item" href={item.path} key={item.path}>
+                    {item.label}
+                  </a>
+                ))}
+                <a className="menu-dropdown__item" href="/ide">Masuk IDE</a>
+                <a className="menu-dropdown__item" href="/signup">Daftar Akses</a>
+              </nav>
+            </aside>
+          )}
+        </div>
       )}
     </header>
   );
