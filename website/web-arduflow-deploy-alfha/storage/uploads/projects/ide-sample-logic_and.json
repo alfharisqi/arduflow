@@ -1,0 +1,97 @@
+{
+  "name": "Logic_AND",
+  "board": "nano",
+  "nodes": [
+    {
+      "id": "logicAnd-1781585618778",
+      "type": "logicAnd",
+      "position": {
+        "x": 436.88831653970436,
+        "y": -10.875178180352066
+      },
+      "data": {
+        "value": true,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 165
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "number-1781585625392",
+      "type": "number",
+      "position": {
+        "x": 145.71814311110114,
+        "y": -80.9011219002918
+      },
+      "data": {
+        "value": 1,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 210,
+        "height": 121
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "constant-1781585648368",
+      "type": "constant",
+      "position": {
+        "x": 149.64134884541835,
+        "y": 75.96999201434414
+      },
+      "data": {
+        "value": true,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 106
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "bulb-1781585653000",
+      "type": "bulb",
+      "position": {
+        "x": 668.4409384784087,
+        "y": -3.8114881776676555
+      },
+      "data": {
+        "value": true,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 148
+      },
+      "selected": false,
+      "dragging": false
+    }
+  ],
+  "edges": [
+    {
+      "source": "number-1781585625392",
+      "target": "logicAnd-1781585618778",
+      "targetHandle": "in1",
+      "id": "xy-edge__number-1781585625392-logicAnd-1781585618778in1"
+    },
+    {
+      "source": "constant-1781585648368",
+      "target": "logicAnd-1781585618778",
+      "targetHandle": "in2",
+      "id": "xy-edge__constant-1781585648368-logicAnd-1781585618778in2"
+    },
+    {
+      "source": "logicAnd-1781585618778",
+      "target": "bulb-1781585653000",
+      "id": "xy-edge__logicAnd-1781585618778-bulb-1781585653000"
+    }
+  ]
+}

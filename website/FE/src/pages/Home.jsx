@@ -1,8 +1,19 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Hero } from '../components/Hero.jsx';
+import { API_BASE_URL } from '../services/apiEndpoints.js';
+import { fetchGallerySubmissions, isPublishedGallery } from '../services/galleryApi.js';
+import { fetchPartners } from '../services/partnerApi.js';
+import { fetchProjectSubmissions, isPublicProject } from '../services/projectApi.js';
+import { fetchTestimonials } from '../services/testimonialApi.js';
 import connectComponentGif from '../assets/gif/gif-connect2component-idearduflow.gif';
 import inputValueComponentGif from '../assets/gif/gif-inputvaluecomponent-idearduflow.gif';
 import putComponentGif from '../assets/gif/gif-putcomponent-idearduflow.gif';
 import trafficLightsGif from '../assets/gif/gif-trafficlights-idearduflow.gif';
+import partnerKomunitasImage from '../assets/images/partner-komunitas.png';
+import partnerPolinemaImage from '../assets/images/partner-polinema.png';
+import partnerPoliwangiImage from '../assets/images/partner-poliwangi.png';
+import partnerSmknGlagahImage from '../assets/images/partner-smkn-glagah.png';
+import partnerUmmImage from '../assets/images/partner-umm.png';
 import arrowRightIcon from '../assets/icons/icon-arrow-right-1.svg';
 import bookIcon from '../assets/icons/icon-book-1.svg';
 import chevronRightIcon from '../assets/icons/icon-chevron-right-1.svg';
@@ -51,6 +62,23 @@ const iconAssets = {
   workflow: workflowIcon,
   zap: zapIcon,
 };
+
+const fallbackPartners = [
+  { label: 'SMKN 1 GLAGAH', image: partnerSmknGlagahImage, featured: true },
+  { label: 'POLINEMA', image: partnerPolinemaImage },
+  { label: 'KOMUNITAS', image: partnerKomunitasImage },
+  { label: 'POLIWANGI', image: partnerPoliwangiImage },
+  { label: 'UMM', image: partnerUmmImage },
+];
+
+const fallbackTestimonials = [
+  {
+    quote: 'Arduflow membantu peserta memahami alur kerja Arduino dan IoT tanpa langsung terbebani coding. Visual programming sangat membantu.',
+    name: 'Budi Santoso',
+    role: 'Guru SMKN 1 Glagah',
+    sourceType: 'workshop',
+  },
+];
 
 function AssetIcon({ type, className = '' }) {
   const src = iconAssets[type] || iconAssets.book;
@@ -247,55 +275,107 @@ const tutorialItems = [
   },
 ];
 
-const projectItems = [
-  {
-    title: 'Nama Produk',
-    tag: 'TAG',
-  },
-  {
-    title: 'Nama Produk',
-    tag: 'TAG',
-  },
-  {
-    title: 'Nama Produk',
-    tag: 'TAG',
-  },
-  {
-    title: 'Nama Produk',
-    tag: 'TAG',
-  },
-  {
-    title: 'Nama Produk',
-    tag: 'TAG',
-  },
-];
+function sortByNewest(items) {
+  return [...items].sort((a, b) => {
+    const dateA = Date.parse(a.updatedAt || a.createdAt || a.eventDate || '') || 0;
+    const dateB = Date.parse(b.updatedAt || b.createdAt || b.eventDate || '') || 0;
+    return dateB - dateA;
+  });
+}
 
-const galleryItems = Array.from({ length: 5 }, (_, index) => ({
-  title: `Galeri ${index + 1}`,
-}));
+function formatCredibilityNumber(value) {
+  const number = Number(value) || 0;
 
-const partnerItems = [
-  {
-    icon: 'house',
-    label: 'Sekolah',
-  },
-  {
-    icon: 'graduation',
-    label: 'Universitas',
-  },
-  {
-    icon: 'users',
-    label: 'Komunitas',
-  },
-  {
-    icon: 'cpu',
-    label: 'Partner IT',
-  },
-  {
-    icon: 'layers',
-    label: 'Institusi',
-  },
-];
+  if (number >= 1000) {
+    return `${(number / 1000).toFixed(number >= 10000 ? 0 : 1)}K`;
+  }
+
+  return String(number);
+}
+
+function getProjectTag(project) {
+  return project.category || project.tags?.[0] || project.difficulty || 'Proyek';
+}
+
+function getProjectLink(project) {
+  return project?.id ? `/project/detail?id=${encodeURIComponent(project.id)}` : '/project';
+}
+
+function getGalleryLink(item) {
+  return item?.id ? `/galeri/detail?id=${encodeURIComponent(item.id)}` : '/galeri';
+}
+
+function normalizeText(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function isApprovedPartner(partner) {
+  return ['aktif', 'active', 'approved', 'published'].includes(normalizeText(partner?.status));
+}
+
+function resolveAssetUrl(value) {
+  const rawUrl = String(value || '').trim();
+  if (!rawUrl) return '';
+  if (/^(https?:\/\/|data:|blob:)/i.test(rawUrl)) return rawUrl;
+
+  return `${API_BASE_URL}${rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`}`;
+}
+
+function partnerLogoUrl(partner) {
+  return resolveAssetUrl(partner?.logoUrl || partner?.logo_url || partner?.image || '');
+}
+
+function partnerInitial(partner) {
+  return String(partner?.name || partner?.label || 'P').trim().slice(0, 1).toUpperCase();
+}
+
+function sourceLabel(sourceType) {
+  if (sourceType === 'workshop') return 'Testimoni Workshop';
+  if (sourceType === 'partner') return 'Testimoni Partner';
+  return 'Testimoni Pengguna';
+}
+
+function HomeTestimonials({ partners, testimonials, activeIndex }) {
+  const visiblePartners = partners.length ? partners : fallbackPartners;
+  const visibleTestimonials = testimonials.length ? testimonials : fallbackTestimonials;
+  const featuredTestimonial = visibleTestimonials[activeIndex % visibleTestimonials.length];
+
+  return (
+    <section className="community-partners" aria-labelledby="community-title">
+      <div className="community-partners__inner">
+        <div className="community-story">
+          <div className="community-story__heading">
+            <p className="section-eyebrow">COMMUNITY</p>
+            <h2 id="community-title">Testimoni Pengguna</h2>
+          </div>
+          <article className="testimonial-card" key={featuredTestimonial.id || `${featuredTestimonial.name}-${activeIndex}`}>
+            <blockquote>"{featuredTestimonial.quote}"</blockquote>
+            <strong>{String(featuredTestimonial.name || 'Pengguna Arduflow').toUpperCase()}</strong>
+            <span>{featuredTestimonial.role || sourceLabel(featuredTestimonial.sourceType)}</span>
+          </article>
+        </div>
+        <div className="partner-panel" aria-labelledby="partners-title">
+          <h2 id="partners-title">Partner &amp; Kolaborator</h2>
+          <div className="partner-list">
+            {visiblePartners.map((partner) => {
+              const logoUrl = partnerLogoUrl(partner);
+              const partnerName = partner.name || partner.label || 'Partner';
+
+              return (
+                <div className="community-partner-item" key={partner.id || partnerName}>
+                  <span className={partner.featured ? 'partner-logo featured' : 'partner-logo'} aria-hidden="true">
+                    {logoUrl ? <img src={logoUrl} alt="" /> : partnerInitial(partner)}
+                  </span>
+                  <p>{partnerName}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 function WhatIsIcon({ type }) {
   const common = {
@@ -815,6 +895,123 @@ function VisualStepPreview({ type }) {
 }
 
 export function Home() {
+  const [homeProjects, setHomeProjects] = useState([]);
+  const [homeGallery, setHomeGallery] = useState([]);
+  const [homePartners, setHomePartners] = useState([]);
+  const [homeTestimonials, setHomeTestimonials] = useState([]);
+  const [activeTestimonialIndex, setActiveTestimonialIndex] = useState(0);
+  const [isHomeContentLoading, setIsHomeContentLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    Promise.allSettled([
+      fetchProjectSubmissions(),
+      fetchGallerySubmissions(),
+      fetchPartners(),
+      fetchTestimonials({ status: 'Disetujui' }),
+    ])
+      .then((results) => {
+        if (!isMounted) {
+          return;
+        }
+
+        const [projectResult, galleryResult, partnerResult, testimonialResult] = results;
+
+        if (projectResult.status === 'fulfilled') {
+          setHomeProjects(sortByNewest(projectResult.value.filter(isPublicProject)).slice(0, 5));
+        } else {
+          setHomeProjects([]);
+        }
+
+        if (galleryResult.status === 'fulfilled') {
+          setHomeGallery(sortByNewest(galleryResult.value.filter(isPublishedGallery)).slice(0, 5));
+        } else {
+          setHomeGallery([]);
+        }
+
+        if (partnerResult.status === 'fulfilled') {
+          const rows = Array.isArray(partnerResult.value?.partners) ? partnerResult.value.partners : [];
+          setHomePartners(
+            rows
+              .filter(isApprovedPartner)
+              .sort((left, right) => Number(right.featured || right.showHomepage || 0) - Number(left.featured || left.showHomepage || 0))
+              .slice(0, 5),
+          );
+        } else {
+          setHomePartners([]);
+        }
+
+        if (testimonialResult.status === 'fulfilled') {
+          const rows = Array.isArray(testimonialResult.value?.testimonials) ? testimonialResult.value.testimonials : [];
+          setHomeTestimonials(
+            rows
+              .filter((item) => item.consentPublic !== false)
+              .filter((item) => ['partner', 'workshop'].includes(normalizeText(item.sourceType)))
+              .slice(0, 8),
+          );
+        } else {
+          setHomeTestimonials([]);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsHomeContentLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const testimonialCount = homeTestimonials.length || fallbackTestimonials.length;
+    if (testimonialCount <= 1) return undefined;
+
+    const intervalId = window.setInterval(() => {
+      setActiveTestimonialIndex((current) => (current + 1) % testimonialCount);
+    }, 5000);
+
+    return () => window.clearInterval(intervalId);
+  }, [homeTestimonials.length]);
+
+  const featuredProjects = useMemo(
+    () =>
+      homeProjects.map((project) => ({
+        id: project.id,
+        title: project.title,
+        tag: getProjectTag(project),
+        imageUrl: project.coverImageUrl,
+        href: getProjectLink(project),
+      })),
+    [homeProjects],
+  );
+
+  const featuredGallery = useMemo(
+    () =>
+      homeGallery.map((item) => ({
+        id: item.id,
+        title: item.title,
+        tag: item.tag,
+        description: item.description,
+        imageUrl: item.imageUrl,
+        href: getGalleryLink(item),
+      })),
+    [homeGallery],
+  );
+
+  const credibilitySummary = useMemo(() => {
+    const totalViews = homeProjects.reduce((sum, project) => sum + (Number(project.viewer) || 0), 0);
+    const totalLikes = homeProjects.reduce((sum, project) => sum + (Number(project.likes) || 0), 0);
+
+    return [
+      { label: 'Proyek Publik', value: homeProjects.length },
+      { label: 'Dokumentasi', value: homeGallery.length },
+      { label: 'Interaksi', value: formatCredibilityNumber(totalViews + totalLikes) },
+    ];
+  }, [homeGallery.length, homeProjects]);
+
   return (
     <>
       <Hero />
@@ -976,14 +1173,28 @@ export function Home() {
         <div className="projects-inner">
           <h2>Contoh Proyek</h2>
           <div className="projects-grid">
-            {projectItems.map((project, index) => (
-              <article className="project-card" key={`${project.title}-${index}`}>
+            {isHomeContentLoading && (
+              <article className="project-card project-card--state">
+                <h3>Memuat proyek...</h3>
+              </article>
+            )}
+            {!isHomeContentLoading && featuredProjects.length === 0 && (
+              <article className="project-card project-card--state">
+                <h3>Belum ada proyek publish.</h3>
+              </article>
+            )}
+            {featuredProjects.map((project, index) => (
+              <a className="project-card" href={project.href} key={`${project.title}-${project.id || index}`}>
                 <div className="project-image">
-                  <AssetIcon type="image" className="project-placeholder-icon" />
+                  {project.imageUrl ? (
+                    <img src={project.imageUrl} alt={project.title} />
+                  ) : (
+                    <AssetIcon type="image" className="project-placeholder-icon" />
+                  )}
                   <span>{project.tag}</span>
                 </div>
                 <h3>{project.title}</h3>
-              </article>
+              </a>
             ))}
           </div>
           <a className="projects-all-button" href="/project">Lihat Semua Proyek</a>
@@ -993,36 +1204,44 @@ export function Home() {
         <div className="gallery-inner">
           <h2>Kredibilitas / Galeri</h2>
           <div className="gallery-grid">
-            {galleryItems.map((item) => (
-              <article className="gallery-image-card" key={item.title}>
-                <AssetIcon type="image" className="gallery-placeholder-icon" />
+            {isHomeContentLoading && (
+              <article className="gallery-image-card gallery-image-card--state">
+                Memuat galeri...
               </article>
+            )}
+            {!isHomeContentLoading && featuredGallery.length === 0 && (
+              <article className="gallery-image-card gallery-image-card--state">
+                Belum ada galeri publish.
+              </article>
+            )}
+            {featuredGallery.map((item, index) => (
+              <a className="gallery-image-card" href={item.href} key={`${item.title}-${item.id || index}`}>
+                {item.imageUrl ? (
+                  <img src={item.imageUrl} alt={item.title} />
+                ) : (
+                  <AssetIcon type="image" className="gallery-placeholder-icon" />
+                )}
+                <span>{item.tag}</span>
+              </a>
             ))}
             <article className="gallery-testimonial-card">
               <AssetIcon type="message" className="gallery-message-icon" />
               <div>
-                <h3>Testimoni Guru & Siswa</h3>
-                <p>"Belajar IoT jadi jauh lebih cepat sejak menggunakan Arduflow..."</p>
+                <h3>Kredibilitas Arduflow</h3>
+                <p>
+                  {credibilitySummary.map((item) => `${item.value} ${item.label}`).join(' - ')}
+                </p>
               </div>
             </article>
           </div>
           <a className="gallery-all-button" href="/galeri">Lihat Galeri Lengkap</a>
         </div>
       </section>
-      <section className="partners-section">
-        <div className="partners-inner">
-          <h2>Komunitas / Partner</h2>
-          <div className="partners-list">
-            {partnerItems.map((partner) => (
-              <article className="partner-item" key={partner.label}>
-                <AssetIcon type={partner.icon} />
-                <span>{partner.label}</span>
-              </article>
-            ))}
-          </div>
-          <a className="partners-button" href="/partner">Jadi Partner Arduflow</a>
-        </div>
-      </section>
+      <HomeTestimonials
+        partners={homePartners}
+        testimonials={homeTestimonials}
+        activeIndex={activeTestimonialIndex}
+      />
     </>
   );
 }

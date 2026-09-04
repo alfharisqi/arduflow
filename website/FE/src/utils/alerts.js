@@ -34,12 +34,18 @@ export function showArduflowAlert({
     confirmButtonText,
     showCancelButton,
     cancelButtonText,
+<<<<<<< HEAD
 
+=======
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
     input,
     inputValue,
     inputPlaceholder,
     inputValidator,
+<<<<<<< HEAD
 
+=======
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
     timer,
     timerProgressBar: Boolean(timer),
 
@@ -57,7 +63,10 @@ export function showArduflowAlert({
 
       confirmButton: 'arduflow-swal-confirm',
       cancelButton: 'arduflow-swal-cancel',
+<<<<<<< HEAD
 
+=======
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
       timerProgressBar: 'arduflow-swal-timer',
     },
 
@@ -192,6 +201,65 @@ export function showArduflowAlert({
 */
 
 export function showSuccessAlert(title, text) {
+<<<<<<< HEAD
+=======
+  return showArduflowAlert({ icon: 'success', title, text, confirmButtonText: 'Lanjut' });
+}
+
+export function showErrorAlert(title, text) {
+  return showArduflowAlert({ icon: 'error', title, text, confirmButtonText: 'Coba Lagi' });
+}
+
+export async function showConfirmAlert({
+  title = 'Konfirmasi',
+  text,
+  html,
+  confirmButtonText = 'Ya',
+  cancelButtonText = 'Batal',
+  icon = 'warning',
+} = {}) {
+  const result = await showArduflowAlert({
+    icon,
+    title,
+    text,
+    html,
+    confirmButtonText,
+    showCancelButton: true,
+    cancelButtonText,
+  });
+
+  return result.isConfirmed;
+}
+
+export async function showPromptAlert({
+  title = 'Masukkan Data',
+  text,
+  inputValue = '',
+  inputPlaceholder = '',
+  confirmButtonText = 'Simpan',
+  cancelButtonText = 'Batal',
+  requiredMessage = '',
+} = {}) {
+  const result = await showArduflowAlert({
+    icon: 'question',
+    title,
+    text,
+    input: 'text',
+    inputValue,
+    inputPlaceholder,
+    confirmButtonText,
+    showCancelButton: true,
+    cancelButtonText,
+    inputValidator: requiredMessage
+      ? (value) => (!String(value || '').trim() ? requiredMessage : undefined)
+      : undefined,
+  });
+
+  return result.isConfirmed ? result.value : null;
+}
+
+export function showAuthRequiredAlert(message = 'Silakan login terlebih dahulu untuk membuka halaman ini.') {
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
   return showArduflowAlert({
     icon: 'success',
     title,

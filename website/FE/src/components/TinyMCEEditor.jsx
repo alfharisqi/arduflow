@@ -76,7 +76,76 @@ function escapeHtml(value) {
     .replace(/'/g, '&#039;');
 }
 
+<<<<<<< HEAD
 function registerCustomTools(editor) {
+=======
+function getReferenceHtml(item) {
+  const kindLabel = item.kind === 'node' ? 'Node' : 'Komponen';
+  const title = item.name || item.label || kindLabel;
+  const meta = [item.category, item.value ? `Value: ${item.value}` : '']
+    .filter(Boolean)
+    .join(' | ');
+  const description = item.description || item.specification || '';
+
+  return (
+    '<span class="project-step-reference" contenteditable="false" data-project-reference="' +
+    escapeHtml(item.kind || 'component') +
+    '">' +
+    '<strong>' +
+    escapeHtml(kindLabel) +
+    ': ' +
+    escapeHtml(title) +
+    '</strong>' +
+    (meta ? '<small>' + escapeHtml(meta) + '</small>' : '') +
+    (description ? '<em>' + escapeHtml(description) + '</em>' : '') +
+    '</span>&nbsp;'
+  );
+}
+
+function registerProjectReferenceTools(editor, referencesRef) {
+  editor.ui.registry.addMenuButton('projectrefs', {
+    text: 'Sematkan Item',
+    tooltip: 'Sematkan komponen atau node yang sudah ditambahkan',
+    fetch: (callback) => {
+      const references = Array.isArray(referencesRef.current) ? referencesRef.current : [];
+
+      if (!references.length) {
+        callback([
+          {
+            type: 'menuitem',
+            text: 'Tambahkan komponen atau node terlebih dahulu',
+            enabled: false,
+          },
+        ]);
+        return;
+      }
+
+      const groups = [
+        ['component', 'Komponen'],
+        ['node', 'Node'],
+      ].map(([kind, label]) => ({
+        kind,
+        label,
+        items: references.filter((item) => item.kind === kind),
+      }));
+
+      callback(groups
+        .filter((group) => group.items.length)
+        .map((group) => ({
+          type: 'nestedmenuitem',
+          text: group.label,
+          getSubmenuItems: () => group.items.map((item) => ({
+            type: 'menuitem',
+            text: item.value ? `${item.name} (${item.value})` : item.name,
+            onAction: () => editor.insertContent(getReferenceHtml(item)),
+          })),
+        })));
+    },
+  });
+}
+
+function registerCustomTools(editor, referencesRef, enableProjectReferences) {
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
   editor.ui.registry.addMenuButton('textwrap', {
     text: 'Text Wrap',
     tooltip: 'Atur text wrapping gambar',
@@ -218,6 +287,13 @@ void loop() {
       });
     },
   });
+<<<<<<< HEAD
+=======
+
+  if (enableProjectReferences) {
+    registerProjectReferenceTools(editor, referencesRef);
+  }
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
 }
 
 const editorContentStyle = `
@@ -266,6 +342,31 @@ const editorContentStyle = `
     line-height: 1.6;
     white-space: pre;
   }
+<<<<<<< HEAD
+=======
+  .project-step-reference {
+    display: inline-grid;
+    max-width: 100%;
+    margin: 2px 4px;
+    padding: 7px 9px;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    background: #eff6ff;
+    color: #1e3a8a;
+    vertical-align: middle;
+    line-height: 1.35;
+  }
+  .project-step-reference strong {
+    font-size: 13px;
+    font-weight: 800;
+  }
+  .project-step-reference small,
+  .project-step-reference em {
+    color: #475569;
+    font-size: 12px;
+    font-style: normal;
+  }
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
   .mce-content-body::after {
     content: "";
     display: block;
@@ -280,11 +381,20 @@ export function TinyMCEEditor({
   className = '',
   ariaLabel = 'Editor teks',
   disabled = false,
+<<<<<<< HEAD
+=======
+  projectReferences = [],
+  enableProjectReferences = false,
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
 }) {
   const textareaRef = useRef(null);
   const editorRef = useRef(null);
   const valueRef = useRef(value || '');
   const onChangeRef = useRef(onChange);
+<<<<<<< HEAD
+=======
+  const referencesRef = useRef(projectReferences);
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
   const generatedId = useId().replace(/:/g, '');
   const editorId = `tinymce-${generatedId}`;
 
@@ -293,6 +403,13 @@ export function TinyMCEEditor({
   }, [onChange]);
 
   useEffect(() => {
+<<<<<<< HEAD
+=======
+    referencesRef.current = projectReferences;
+  }, [projectReferences]);
+
+  useEffect(() => {
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
     valueRef.current = value || '';
 
     if (editorRef.current && editorRef.current.getContent() !== valueRef.current) {
@@ -308,6 +425,15 @@ export function TinyMCEEditor({
         return;
       }
 
+<<<<<<< HEAD
+=======
+      const toolbar =
+        'undo redo | blocks | bold italic underline strikethrough | ' +
+        'alignleft aligncenter alignright alignjustify | ' +
+        'bullist numlist outdent indent | link image media table | ' +
+        `textwrap arduinocode${enableProjectReferences ? ' projectrefs' : ''} | removeformat | code preview fullscreen`;
+
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
       tinymce.init({
         target: textareaRef.current,
         height,
@@ -331,11 +457,15 @@ export function TinyMCEEditor({
           'help',
           'wordcount',
         ],
+<<<<<<< HEAD
         toolbar:
           'undo redo | blocks | bold italic underline strikethrough | ' +
           'alignleft aligncenter alignright alignjustify | ' +
           'bullist numlist outdent indent | link image media table | ' +
           'textwrap arduinocode | removeformat | code preview fullscreen',
+=======
+        toolbar,
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
         automatic_uploads: false,
         image_title: true,
         file_picker_types: 'image',
@@ -367,7 +497,11 @@ export function TinyMCEEditor({
         },
         setup: (editor) => {
           editorRef.current = editor;
+<<<<<<< HEAD
           registerCustomTools(editor);
+=======
+          registerCustomTools(editor, referencesRef, enableProjectReferences);
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
 
           editor.on('init', () => {
             editor.getContainer()?.setAttribute('aria-label', ariaLabel);
@@ -391,11 +525,19 @@ export function TinyMCEEditor({
         editorRef.current = null;
       }
     };
+<<<<<<< HEAD
   }, [ariaLabel, disabled, height]);
+=======
+  }, [ariaLabel, disabled, enableProjectReferences, height]);
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
 
   return (
     <div className={['tinymce-editor', className].filter(Boolean).join(' ')}>
       <textarea id={editorId} ref={textareaRef} defaultValue={value || ''} aria-label={ariaLabel} />
     </div>
   );
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6

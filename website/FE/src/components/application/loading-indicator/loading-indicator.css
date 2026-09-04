@@ -1,0 +1,64 @@
+.loading-indicator {
+  --loading-indicator-size: 32px;
+  --loading-indicator-thickness: 3px;
+  --loading-indicator-color: #00a8ff;
+  --loading-indicator-track: rgba(0, 168, 255, 0.18);
+
+  display: inline-grid;
+  place-items: center;
+  width: var(--loading-indicator-size);
+  height: var(--loading-indicator-size);
+  color: var(--loading-indicator-color);
+}
+
+.loading-indicator--sm {
+  --loading-indicator-size: 24px;
+  --loading-indicator-thickness: 2px;
+}
+
+.loading-indicator--md {
+  --loading-indicator-size: 36px;
+  --loading-indicator-thickness: 3px;
+}
+
+.loading-indicator--lg {
+  --loading-indicator-size: 48px;
+  --loading-indicator-thickness: 4px;
+}
+
+.loading-indicator--line-spinner .loading-indicator__line {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: var(--loading-indicator-thickness) solid var(--loading-indicator-track);
+  border-top-color: currentColor;
+  border-right-color: currentColor;
+  border-radius: 999px;
+  animation: loading-indicator-line-spin 720ms linear infinite;
+}
+
+.loading-indicator-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 100vh;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(0, 168, 255, 0.16), transparent 28%),
+    linear-gradient(135deg, #020617 0%, #030b1e 58%, #06172c 100%);
+}
+
+@keyframes loading-indicator-line-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-indicator--line-spinner .loading-indicator__line {
+    animation-duration: 1.4s;
+  }
+}

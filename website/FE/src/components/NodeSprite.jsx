@@ -44,4 +44,8 @@ export function NodeSprite({
   );
 }
 
+<<<<<<< HEAD
 export default NodeSprite;
+=======
+export default NodeSprite;
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6

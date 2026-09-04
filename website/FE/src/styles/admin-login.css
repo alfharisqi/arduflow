@@ -1,30 +1,26 @@
 .admin-login-page {
   position: relative;
   display: flex;
-  flex-direction: row;
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-width: 1440px;
-  min-height: 985px;
-  padding: 325px 607px;
+  min-height: 100vh;
+  padding: 24px;
   background: #ffffff;
 }
 
-.admin-login-content {
+.admin-login-card {
   position: relative;
-  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   width: 226px;
-  height: 335px;
 }
 
-.admin-login-logo {
-  position: absolute;
-  top: 0;
-  left: 50%;
+.admin-login-brand {
   width: 104px;
   height: 28px;
-  transform: translateX(-50%);
+  margin: 0 auto 41px;
   font-family: 'Rajdhani', sans-serif;
   font-size: 24px;
   font-weight: 700;
@@ -34,14 +30,11 @@
   text-align: center;
 }
 
-.admin-login-logo strong {
+.admin-login-brand strong {
   color: #ff6a00;
 }
 
 .admin-login-panel {
-  position: absolute;
-  top: 69px;
-  left: 0;
   display: flex;
   flex-direction: column;
   align-items: center;

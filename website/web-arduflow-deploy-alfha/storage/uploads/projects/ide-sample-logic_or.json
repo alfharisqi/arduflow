@@ -1,0 +1,97 @@
+{
+  "name": "Logic_OR",
+  "board": "nano",
+  "nodes": [
+    {
+      "id": "constant-1781585648368",
+      "type": "constant",
+      "position": {
+        "x": 215.6413488454183,
+        "y": 5.969992014344189
+      },
+      "data": {
+        "value": false,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 106
+      },
+      "selected": true,
+      "dragging": false
+    },
+    {
+      "id": "bulb-1781585653000",
+      "type": "bulb",
+      "position": {
+        "x": 693.4409384784087,
+        "y": 38.18851182233233
+      },
+      "data": {
+        "value": false,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 148
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "logicOr-1781585797232",
+      "type": "logicOr",
+      "position": {
+        "x": 444.8596585800197,
+        "y": 15.494942402268023
+      },
+      "data": {
+        "value": false,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 165
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "constant-1781585813552",
+      "type": "constant",
+      "position": {
+        "x": 214.6413488454183,
+        "y": 134.9699920143441
+      },
+      "data": {
+        "value": false,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 106
+      },
+      "selected": false,
+      "dragging": false
+    }
+  ],
+  "edges": [
+    {
+      "source": "constant-1781585648368",
+      "target": "logicOr-1781585797232",
+      "targetHandle": "in1",
+      "id": "xy-edge__constant-1781585648368-logicOr-1781585797232in1"
+    },
+    {
+      "source": "logicOr-1781585797232",
+      "target": "bulb-1781585653000",
+      "id": "xy-edge__logicOr-1781585797232-bulb-1781585653000"
+    },
+    {
+      "source": "constant-1781585813552",
+      "target": "logicOr-1781585797232",
+      "targetHandle": "in2",
+      "id": "xy-edge__constant-1781585813552-logicOr-1781585797232in2"
+    }
+  ]
+}

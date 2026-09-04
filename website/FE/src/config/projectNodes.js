@@ -101,4 +101,8 @@ export function normalizeProjectNode(node) {
     category: node.category || '',
     description: node.description || '',
   };
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6

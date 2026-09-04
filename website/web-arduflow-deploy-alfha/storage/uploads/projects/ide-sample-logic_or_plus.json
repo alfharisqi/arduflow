@@ -1,0 +1,121 @@
+{
+  "name": "Logic_OR_plus",
+  "board": "nano",
+  "nodes": [
+    {
+      "id": "constant-1781585648368",
+      "type": "constant",
+      "position": {
+        "x": 214.6413488454183,
+        "y": -6.0300079856558
+      },
+      "data": {
+        "value": false,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 106
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "bulb-1781585653000",
+      "type": "bulb",
+      "position": {
+        "x": 688.4409384784087,
+        "y": 34.188511822332345
+      },
+      "data": {
+        "value": false,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 148
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "constant-1781585813552",
+      "type": "constant",
+      "position": {
+        "x": 214.6413488454183,
+        "y": 129.96999201434411
+      },
+      "data": {
+        "value": false,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 106
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "logicOrMulti-1781585843311",
+      "type": "logicOrMulti",
+      "position": {
+        "x": 461.34780228043246,
+        "y": 0.3503835546593592
+      },
+      "data": {
+        "value": false,
+        "inputCount": 3,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 243
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "constant-1781585865496",
+      "type": "constant",
+      "position": {
+        "x": 211.64134884541835,
+        "y": 258.96999201434403
+      },
+      "data": {
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 106
+      },
+      "selected": true,
+      "dragging": false
+    }
+  ],
+  "edges": [
+    {
+      "source": "constant-1781585648368",
+      "target": "logicOrMulti-1781585843311",
+      "targetHandle": "in1",
+      "id": "xy-edge__constant-1781585648368-logicOrMulti-1781585843311in1"
+    },
+    {
+      "source": "constant-1781585813552",
+      "target": "logicOrMulti-1781585843311",
+      "targetHandle": "in2",
+      "id": "xy-edge__constant-1781585813552-logicOrMulti-1781585843311in2"
+    },
+    {
+      "source": "logicOrMulti-1781585843311",
+      "target": "bulb-1781585653000",
+      "id": "xy-edge__logicOrMulti-1781585843311-bulb-1781585653000"
+    },
+    {
+      "source": "constant-1781585865496",
+      "target": "logicOrMulti-1781585843311",
+      "targetHandle": "in3",
+      "id": "xy-edge__constant-1781585865496-logicOrMulti-1781585843311in3"
+    }
+  ]
+}

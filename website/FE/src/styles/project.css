@@ -298,7 +298,7 @@
 .featured-card {
   position: relative;
   width: 344px;
-  height: 322px;
+  height: 350px;
   overflow: hidden;
   background: var(--navy-2);
   border: 1px solid var(--line);
@@ -320,45 +320,69 @@
   position: absolute;
   left: 24px;
   top: 202px;
-  width: 338px;
-  height: 102px;
+  right: 24px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  width: auto;
+  min-width: 0;
+  height: auto;
   padding: 0;
   font-family: "Rajdhani", sans-serif;
 }
 
 .featured-card h3 {
-  width: 320px;
-  min-height: 28.5px;
+  display: -webkit-box;
+  width: 100%;
+  min-height: 0;
   margin: 0 0 5.5px;
+  overflow: hidden;
   color: var(--white);
   font-size: 19px;
   font-weight: 600;
   line-height: 24px;
+  -webkit-box-orient: vertical;
+  line-clamp: 1;
+  -webkit-line-clamp: 1;
 }
 
 .featured-card__category {
+<<<<<<< HEAD
   width: 72px;
   height: 18px;
   display: flex;
   align-items: center;
   margin-top: -4.5px;
+=======
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 18px;
+  min-height: 18px;
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 300;
+  font-size: 15px;
+  font-weight: bold;
   line-height: 150%;
 }
 
 .featured-card p {
-  width: 338px;
-  min-height: 24px;
-  margin: 0;
+  display: -webkit-box;
+  width: 100%;
+  max-height: 30px;
+  margin: 6px 0 0;
+  overflow: hidden;
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: normal;
   line-height: 15px;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
 }
 
 .featured-card a {
+<<<<<<< HEAD
   position: absolute;
   left: 0;
   top: 85px;
@@ -366,7 +390,12 @@
   align-items: center;
   gap: 10px;
   width: max-content;
+=======
+  position: static;
+  width: 160px;
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
   height: 24px;
+  margin-top: 20px;
   color: var(--blue);
   font-size: 11px;
   font-weight: 700;
@@ -381,6 +410,7 @@
 
 .featured-card:nth-child(2) .featured-card__body {
   left: 20px;
+  right: 20px;
   top: 208px;
 }
 
@@ -570,13 +600,19 @@
 }
 
 .project-card p {
+  display: -webkit-box;
   width: 320px;
+  max-height: 30px;
   min-height: 24px;
   margin: 6px 0 0;
+  overflow: hidden;
   color: var(--muted);
   font-size: 12px;
   font-weight: 700;
   line-height: 15px;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
 }
 
 .project-card a {
@@ -711,6 +747,7 @@
   color: var(--orange);
 }
 
+<<<<<<< HEAD
 .project-link-arrow {
   display: inline-block;
   width: 16px;
@@ -901,6 +938,8 @@
   top: 111px;
 }
 
+=======
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
 .project-faq {
   min-height: 280px;
   background:
@@ -1597,10 +1636,16 @@
 }
 
 .all-project-card p {
+  display: -webkit-box;
   width: 313px;
+  max-height: 30px;
   margin: 6px 0 0;
+  overflow: hidden;
   color: var(--muted);
   font: 700 12px/15px "Rajdhani", sans-serif;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
 }
 
 .all-project-card a {

@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
-import bellIcon from '../../assets/icons/icon-bell-1.svg';
-import certificateIcon from '../../assets/icons/icon-downloadsim-1.svg';
+import { DashboardUserSidebarIcon } from './userSidebarIcons.jsx';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
-import { ProfileAvatar } from '../../features/profile-image-crop/ProfileAvatar.jsx';
+import { apiEndpoint, apiUrl } from '../../services/apiEndpoints.js';
+import { UserDashboardTopbar } from './UserDashboardTopbar.jsx';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 
 const menuItems = [
@@ -11,22 +11,15 @@ const menuItems = [
   { label: 'Progres Belajar', icon: 'graduation', href: '/progress-belajar' },
   { label: 'Proyek Saya', icon: 'folder', href: '/proyek-saya' },
   { label: 'Workshop / Program', icon: 'calendar', href: '/workshop-program' },
+  { label: 'Lead Saya', icon: 'lead', href: '/lead-saya' },
+  { label: 'Partner Saya', icon: 'partner', href: '/partner-saya' },
+  { label: 'Transaksi', icon: 'transaction', href: '/transaksi' },
   { label: 'Sertifikat', icon: 'certificate', href: '/sertifikat', active: true },
-  { label: 'IDE', icon: 'cpu', href: '/ide' },
+  { label: 'IDE', icon: 'cpu', href: '/ide-saya' },
   { label: 'Settings', icon: 'settings', href: '/settings' },
 ];
 
-const certificates = [
-  { id: 1, type: 'Course', status: 'Tersedia' },
-  { id: 2, type: 'Workshop', status: 'Menunggu' },
-  { id: 3, type: 'Course', status: 'Tidak Lulus' },
-  { id: 4, type: 'Course', status: 'Menunggu' },
-  { id: 5, type: 'Course', status: 'Menunggu' },
-  { id: 6, type: 'Course', status: 'Menunggu' },
-  { id: 7, type: 'Course', status: 'Menunggu' },
-  { id: 8, type: 'Course', status: 'Menunggu' },
-  { id: 9, type: 'Workshop', status: 'Tersedia' },
-];
+const CERTIFICATE_API_URL = apiEndpoint(import.meta.env.VITE_CERTIFICATE_API_URL, '/api/certificate-api.php');
 
 function getStoredUser() {
   try {
@@ -47,60 +40,101 @@ function getInitials(name) {
     .toUpperCase();
 }
 
-function SidebarIcon({ name }) {
-  const commonProps = {
-    width: '18',
-    height: '18',
-    viewBox: '0 0 24 24',
-    fill: 'none',
-    stroke: 'currentColor',
-    strokeWidth: '2',
-    strokeLinecap: 'round',
-    strokeLinejoin: 'round',
-    'aria-hidden': 'true',
-  };
+async function fetchCertificates() {
+  const response = await fetch(CERTIFICATE_API_URL, {
+    headers: {
+      Accept: 'application/json',
+    },
+  });
 
-  const paths = {
-    user: (
-      <>
-        <path d="M20 21a8 8 0 0 0-16 0" />
-        <circle cx="12" cy="7" r="4" />
-      </>
-    ),
-    graduation: (
-      <>
-        <path d="M22 10 12 5 2 10l10 5 10-5Z" />
-        <path d="M6 12v5c3 2 9 2 12 0v-5" />
-      </>
-    ),
-    folder: (
-      <>
-        <path d="M3 7h6l2 2h10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
-        <path d="M3 7V5a2 2 0 0 1 2-2h4l2 4" />
-      </>
-    ),
-    calendar: (
-      <>
-        <rect x="3" y="4" width="18" height="17" rx="2" />
-        <path d="M8 2v4M16 2v4M3 10h18" />
-        <path d="M8 14h2v2H8zM14 14h2v2h-2z" />
-      </>
-    ),
-    cpu: (
-      <>
-        <rect x="7" y="7" width="10" height="10" rx="1" />
-        <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 15h3M1 9h3M1 15h3" />
-      </>
-    ),
-    settings: (
-      <>
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H2.8a2 2 0 1 1 0-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V2.8a2 2 0 1 1 4 0V3a1.7 1.7 0 0 0 1 1.6h.1a1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1Z" />
-      </>
-    ),
-  };
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
+  }
 
-  return <svg {...commonProps}>{paths[name]}</svg>;
+  if (!response.ok || payload?.success === false) {
+    throw new Error(payload?.message || `Gagal memuat sertifikat (${response.status}).`);
+  }
+
+  const records = payload?.data?.certificates || payload?.certificates || payload?.data || [];
+  return Array.isArray(records) ? records : [];
+}
+
+function formatCertificateDate(value) {
+  if (!value) return 'Tanggal belum diatur';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Tanggal belum diatur';
+  return new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
+function getCertificateStatus(certificate) {
+  const status = String(certificate.status || '').toLowerCase();
+  if (status.includes('tidak') || status.includes('gagal') || status.includes('failed')) return 'Tidak Lulus';
+  if (status.includes('menunggu') || status.includes('pending') || status.includes('draft')) return 'Menunggu';
+  if (certificate.file?.url || certificate.file?.relativeUrl) return 'Tersedia';
+  return certificate.status || 'Menunggu';
+}
+
+function getCertificateStatusClass(status) {
+  if (status === 'Tersedia') return 'available';
+  if (status === 'Tidak Lulus') return 'failed';
+  return 'waiting';
+}
+
+function getParticipantName(certificate) {
+  return certificate.participantName
+    || certificate.participant_name
+    || certificate.userName
+    || certificate.user_name
+    || certificate.name
+    || 'Nama peserta belum tersedia';
+}
+
+function getCertificateFileUrl(certificate) {
+  const url = certificate.file?.url || certificate.file?.relativeUrl || certificate.file?.relative_url || '';
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url)) return url;
+  return apiUrl(url);
+}
+
+function isCurrentUserCertificate(certificate, user) {
+  const currentUserId = user.id ?? user.userId;
+  const certificateUserId = certificate.userId ?? certificate.user_id;
+  if (currentUserId != null && certificateUserId != null) {
+    return String(currentUserId) === String(certificateUserId);
+  }
+
+  const currentEmail = String(user.email || '').trim().toLowerCase();
+  const certificateEmail = String(certificate.email || '').trim().toLowerCase();
+  if (currentEmail && certificateEmail) {
+    return currentEmail === certificateEmail;
+  }
+
+  return true;
+}
+
+function openCertificateFile(certificate) {
+  const fileUrl = getCertificateFileUrl(certificate);
+  if (fileUrl) {
+    window.open(fileUrl, '_blank', 'noopener,noreferrer');
+  }
+}
+
+function downloadCertificateFile(certificate) {
+  const fileUrl = getCertificateFileUrl(certificate);
+  if (!fileUrl) return;
+  const link = document.createElement('a');
+  link.href = fileUrl;
+  link.download = certificate.file?.name || certificate.certificateNumber || '';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }
 
 function SearchIcon() {
@@ -141,10 +175,108 @@ function ViewActionIcon() {
 
 export function UserCertificates() {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialSidebarCollapsed);
+  const [certificates, setCertificates] = useState([]);
+  const [isLoadingCertificates, setIsLoadingCertificates] = useState(true);
+  const [certificatesError, setCertificatesError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortMode, setSortMode] = useState('Relevance');
+  const [statusFilter, setStatusFilter] = useState('Semua');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [expandedWorkshops, setExpandedWorkshops] = useState({});
+  const pageSize = 5;
   const user = getStoredUser();
   const fullName = user.name || user.fullName || 'Nama Lengkap';
   const greetingName = user.nickname || fullName;
   const profileImage = user.profileImage || user.avatar || '';
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadCertificates() {
+      setIsLoadingCertificates(true);
+      setCertificatesError('');
+      try {
+        const records = await fetchCertificates();
+        if (isMounted) {
+          setCertificates(records.filter((certificate) => isCurrentUserCertificate(certificate, user)));
+        }
+      } catch (error) {
+        if (isMounted) {
+          setCertificatesError(error.message || 'Gagal memuat sertifikat.');
+          setCertificates([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingCertificates(false);
+        }
+      }
+    }
+
+    loadCertificates();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user.email, user.id, user.userId]);
+
+  const workshopRows = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    const filteredCertificates = certificates.filter((certificate) => {
+      const status = getCertificateStatus(certificate);
+      if (statusFilter !== 'Semua' && status !== statusFilter) return false;
+      if (!query) return true;
+      return [
+        certificate.workshopTitle,
+        certificate.certificateTitle,
+        certificate.certificateNumber,
+        getParticipantName(certificate),
+        certificate.email,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query));
+    });
+
+    const grouped = filteredCertificates.reduce((groups, certificate) => {
+      const workshopTitle = certificate.workshopTitle || certificate.payload?.materialTitle || 'Workshop tanpa judul';
+      const workshopKey = String(certificate.workshopId || certificate.workshop_id || workshopTitle).toLowerCase();
+      const existing = groups.get(workshopKey) || {
+        key: workshopKey,
+        title: workshopTitle,
+        participants: [],
+      };
+      existing.participants.push(certificate);
+      groups.set(workshopKey, existing);
+      return groups;
+    }, new Map());
+
+    return [...grouped.values()].sort((left, right) => {
+      if (sortMode === 'Terbaru') {
+        const leftDate = left.participants.reduce((latest, item) => Math.max(latest, new Date(item.issuedAt || item.completedAt || 0).getTime()), 0);
+        const rightDate = right.participants.reduce((latest, item) => Math.max(latest, new Date(item.issuedAt || item.completedAt || 0).getTime()), 0);
+        return rightDate - leftDate;
+      }
+      if (sortMode === 'Status') {
+        return getCertificateStatus(left.participants[0]).localeCompare(getCertificateStatus(right.participants[0]));
+      }
+      return (Number(right.participants[0]?.id) || 0) - (Number(left.participants[0]?.id) || 0);
+    });
+  }, [certificates, searchTerm, sortMode, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(workshopRows.length / pageSize));
+  const paginatedWorkshops = workshopRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  useEffect(() => {
+    setCurrentPage(1);
+    setExpandedWorkshops({});
+  }, [searchTerm, sortMode, statusFilter]);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
+
+  function toggleWorkshop(workshopKey) {
+    setExpandedWorkshops((current) => ({ ...current, [workshopKey]: !current[workshopKey] }));
+  }
 
   function handleLogout() {
     window.localStorage.removeItem('arduflow_user');
@@ -185,11 +317,7 @@ export function UserCertificates() {
               href={item.href}
               key={item.label}
             >
-              {item.icon === 'certificate' ? (
-                <img className="dashboard-sidebar__asset-icon" src={certificateIcon} alt="" aria-hidden="true" />
-              ) : (
-                <SidebarIcon name={item.icon} />
-              )}
+              <DashboardUserSidebarIcon name={item.icon} />
               <span>{item.label}</span>
             </a>
           ))}
@@ -201,15 +329,7 @@ export function UserCertificates() {
       </aside>
 
       <section className="dashboard-shell">
-        <header className="dashboard-topbar">
-          <div className="dashboard-topbar__user">
-            <button className="dashboard-notification" type="button" aria-label="Notifikasi">
-              <img src={bellIcon} alt="" aria-hidden="true" />
-            </button>
-            <ProfileAvatar className="dashboard-mini-avatar" image={profileImage} name={fullName} />
-            <strong>{fullName}</strong>
-          </div>
-        </header>
+        <UserDashboardTopbar fullName={fullName} profileImage={profileImage} />
 
         <main className="dashboard-content user-certificates-content">
           <div className="dashboard-user-greeting">
@@ -222,68 +342,128 @@ export function UserCertificates() {
               <h2 id="certificates-title">Sertifikat yang didapat</h2>
               <div className="user-certificates-toolbar">
                 <label className="user-certificates-search">
-                  <span className="sr-only">Cari sertifikat</span>
-                  <input type="search" placeholder="Cari" />
+                  <span className="sr-only">Cari workshop atau peserta</span>
+                  <input type="search" placeholder="Cari workshop atau peserta" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} />
                   <SearchIcon />
                 </label>
 
                 <div className="user-certificates-controls">
                   <div className="user-certificates-sort">
                     <span>Urutkan</span>
-                    <select defaultValue="Relevance" aria-label="Urutkan sertifikat">
+                    <select value={sortMode} aria-label="Urutkan sertifikat" onChange={(event) => setSortMode(event.target.value)}>
                       <option>Relevance</option>
                       <option>Terbaru</option>
                       <option>Status</option>
                     </select>
                   </div>
-                  <button className="user-certificates-filter" type="button">
+                  <label className="user-certificates-filter">
                     <FilterIcon />
-                    <span>Filter</span>
-                  </button>
+                    <span className="sr-only">Filter status</span>
+                    <select value={statusFilter} aria-label="Filter status sertifikat" onChange={(event) => setStatusFilter(event.target.value)}>
+                      <option>Semua</option>
+                      <option>Tersedia</option>
+                      <option>Menunggu</option>
+                      <option>Tidak Lulus</option>
+                    </select>
+                  </label>
                 </div>
               </div>
             </div>
 
             <div className="user-certificates-table" role="table" aria-label="Sertifikat yang didapat">
               <div className="user-certificates-table__head" role="row">
-                <span>Nama Sertifikat</span>
-                <span>Jenis</span>
-                <span>Materi / Program</span>
+                <span>Workshop</span>
+                <span>Peserta</span>
                 <span>Tanggal Terbit</span>
-                <span>Nomor Sertifikat</span>
                 <span>Status</span>
-                <span>Action</span>
+                <span>Detail</span>
               </div>
-              {certificates.map((certificate) => (
-                <div className="user-certificates-table__row" role="row" key={certificate.id}>
-                  <span>Nama Sertifikat</span>
-                  <span>{certificate.type}</span>
-                  <span>Nama Metri / Program</span>
-                  <time>DD/MM/YYYY</time>
-                  <span>ARD-COURSE-DDMMYYYY&#123;NOMOR&#125;</span>
-                  <span>
-                    <b className={`user-certificates-pill user-certificates-pill--${certificate.status === 'Tersedia' ? 'available' : certificate.status === 'Tidak Lulus' ? 'failed' : 'waiting'}`}>
-                      {certificate.status}
-                    </b>
-                  </span>
-                  <div className="user-certificates-actions">
-                    <button className="user-certificates-action user-certificates-action--download" type="button" aria-label="Download sertifikat">
-                      <DownloadActionIcon />
-                    </button>
-                    <button className="user-certificates-action user-certificates-action--view" type="button" aria-label="Lihat sertifikat">
-                      <ViewActionIcon />
-                    </button>
-                  </div>
+              {isLoadingCertificates ? (
+                <div className="user-certificates-table__row" role="row">
+                  <span>Memuat sertifikat...</span>
+                  <span>-</span>
+                  <span>-</span>
+                  <span>-</span>
+                  <span>-</span>
                 </div>
-              ))}
+              ) : certificatesError ? (
+                <div className="user-certificates-table__row" role="row">
+                  <span>{certificatesError}</span>
+                  <span>-</span>
+                  <span>-</span>
+                  <span>-</span>
+                  <span>-</span>
+                </div>
+              ) : workshopRows.length === 0 ? (
+                <div className="user-certificates-table__row" role="row">
+                  <span>Belum ada sertifikat yang tersedia.</span>
+                  <span>-</span>
+                  <span>-</span>
+                  <span>-</span>
+                  <span>-</span>
+                </div>
+              ) : (
+                paginatedWorkshops.map((workshop) => {
+                  const availableCount = workshop.participants.filter((item) => getCertificateStatus(item) === 'Tersedia').length;
+                  const status = availableCount === workshop.participants.length
+                    ? 'Tersedia'
+                    : workshop.participants.some((item) => getCertificateStatus(item) === 'Menunggu')
+                      ? 'Menunggu'
+                      : 'Tidak Lulus';
+                  const latestCertificate = workshop.participants.reduce((latest, item) => {
+                    const itemDate = new Date(item.issuedAt || item.completedAt || 0).getTime();
+                    const latestDate = new Date(latest?.issuedAt || latest?.completedAt || 0).getTime();
+                    return itemDate > latestDate ? item : latest;
+                  }, workshop.participants[0]);
+                  const isExpanded = Boolean(expandedWorkshops[workshop.key]);
+                  return (
+                    <div className={`user-certificates-workshop-group${isExpanded ? ' is-expanded' : ''}`} key={workshop.key}>
+                      <div className="user-certificates-table__row" role="row">
+                        <span className="user-certificates-workshop-name">{workshop.title}</span>
+                        <span>{workshop.participants.length} peserta</span>
+                        <time>{formatCertificateDate(latestCertificate?.issuedAt || latestCertificate?.completedAt)}</time>
+                        <span>
+                          <b className={`user-certificates-pill user-certificates-pill--${getCertificateStatusClass(status)}`}>
+                            {status}
+                          </b>
+                        </span>
+                        <span className="user-certificates-table__action-cell">
+                          <button className="user-certificates-expand" type="button" aria-expanded={isExpanded} onClick={() => toggleWorkshop(workshop.key)}>
+                            {isExpanded ? 'Tutup' : 'Lihat peserta'}
+                          </button>
+                        </span>
+                      </div>
+                      {isExpanded ? (
+                        <div className="user-certificates-participants" role="region" aria-label={`Peserta ${workshop.title}`}>
+                          {workshop.participants.map((certificate) => {
+                            const participantStatus = getCertificateStatus(certificate);
+                            const hasFile = Boolean(getCertificateFileUrl(certificate));
+                            return (
+                              <div className="user-certificates-participant" key={certificate.id || certificate.certificateNumber || getParticipantName(certificate)}>
+                                <span><b>{getParticipantName(certificate)}</b><small>{certificate.email || certificate.participantEmail || '-'}</small></span>
+                                <span>{certificate.certificateNumber || '-'}</span>
+                                <span className={`user-certificates-pill user-certificates-pill--${getCertificateStatusClass(participantStatus)}`}>{participantStatus}</span>
+                                <div className="user-certificates-actions">
+                                  <button className="user-certificates-action user-certificates-action--download" type="button" aria-label={`Download sertifikat ${getParticipantName(certificate)}`} disabled={!hasFile} onClick={() => downloadCertificateFile(certificate)}><DownloadActionIcon /></button>
+                                  <button className="user-certificates-action user-certificates-action--view" type="button" aria-label={`Lihat sertifikat ${getParticipantName(certificate)}`} disabled={!hasFile} onClick={() => openCertificateFile(certificate)}><ViewActionIcon /></button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })
+              )}
             </div>
 
             <nav className="user-certificates-pagination" aria-label="Pagination sertifikat">
-              <button type="button" aria-label="Halaman sebelumnya">&lsaquo;</button>
-              <button className="user-certificates-pagination__active" type="button">1</button>
-              <button type="button">2</button>
-              <button type="button">3</button>
-              <button type="button" aria-label="Halaman berikutnya">&rsaquo;</button>
+              <button type="button" aria-label="Halaman sebelumnya" disabled={currentPage === 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}>&lsaquo;</button>
+              {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+                <button className={page === currentPage ? 'user-certificates-pagination__active' : ''} type="button" key={page} onClick={() => setCurrentPage(page)}>{page}</button>
+              ))}
+              <button type="button" aria-label="Halaman berikutnya" disabled={currentPage === totalPages} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}>&rsaquo;</button>
             </nav>
           </section>
         </main>

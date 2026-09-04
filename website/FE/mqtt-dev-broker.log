@@ -1,0 +1,6 @@
+
+> arduflow-fe@1.0.0 mqtt:broker
+> node scripts/mqtt-dev-broker.mjs
+
+MQTT TCP broker listening on 127.0.0.1:1883
+MQTT WebSocket broker listening on ws://127.0.0.1:9001/mqtt

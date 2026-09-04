@@ -44,11 +44,12 @@
 
 @media (max-width: 720px) {
   .site-footer {
-    padding: 44px 24px;
+    padding: 40px 18px;
   }
 
   .footer-inner {
     grid-template-columns: 1fr;
+    gap: 28px;
   }
 
   .footer-brand-block,
@@ -58,5 +59,22 @@
 
   .footer-bottom p {
     text-align: left;
+  }
+}
+
+@media (max-width: 420px) {
+  .site-footer {
+    padding: 34px 16px;
+  }
+
+  .footer-column ul,
+  .footer-contact ul {
+    gap: 6px;
+  }
+
+  .footer-socials {
+    flex-wrap: wrap;
+    width: 100%;
+    height: auto;
   }
 }

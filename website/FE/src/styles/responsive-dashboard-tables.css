@@ -1,0 +1,613 @@
+/* Dashboard tables use the available width instead of forcing horizontal scrolling. */
+.admin-dashboard-main table,
+.dashboard-user-page table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.admin-dashboard-main table th,
+.admin-dashboard-main table td,
+.dashboard-user-page table th,
+.dashboard-user-page table td {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.admin-dashboard-main [class*='table-card'],
+.admin-dashboard-main [class*='table-scroll'],
+.admin-dashboard-main [class*='table-wrap'],
+.dashboard-user-page [class*='table-card'],
+.dashboard-user-page [class*='table-scroll'],
+.dashboard-user-page [class*='table-wrap'] {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* These list tables are CSS grids rather than semantic tables. */
+.user-leads-table__head,
+.user-leads-table__row {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.user-workshop-table__head,
+.user-workshop-table__row {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.user-project-sales-table__head,
+.user-project-sales-table__row {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.user-certificates-table__head,
+.user-certificates-table__row {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.user-transactions-table__head,
+.user-transactions-table__row {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.project-upload-table__head,
+.project-upload-table__row,
+.project-upload-table__head--components,
+.project-upload-table__head--nodes,
+.admin-materials-table-head,
+.admin-materials-table-body article {
+  width: 100%;
+  min-width: 0;
+}
+
+.project-upload-table__head--components,
+.project-upload-table__head--nodes {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.admin-materials-table-head,
+.admin-materials-table-body article {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.user-leads-table__head > *,
+.user-leads-table__row > *,
+.user-workshop-table__head > *,
+.user-workshop-table__row > *,
+.user-project-sales-table__head > *,
+.user-project-sales-table__row > *,
+.user-certificates-table__head > *,
+.user-certificates-table__row > *,
+.user-transactions-table__head > *,
+.user-transactions-table__row > *,
+.project-upload-table__head > *,
+.project-upload-table__row > *,
+.admin-materials-table-head > *,
+.admin-materials-table-body article > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .admin-dashboard-main table,
+  .dashboard-user-page table {
+    font-size: 12px;
+  }
+
+  .admin-dashboard-main table th,
+  .admin-dashboard-main table td,
+  .dashboard-user-page table th,
+  .dashboard-user-page table td {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .user-leads-table__head,
+  .user-leads-table__row,
+  .user-workshop-table__head,
+  .user-workshop-table__row,
+  .user-project-sales-table__head,
+  .user-project-sales-table__row,
+  .user-certificates-table__head,
+  .user-certificates-table__row,
+  .user-transactions-table__head,
+  .user-transactions-table__row {
+    min-width: 0;
+  }
+
+  .user-leads-table__row,
+  .user-workshop-table__row,
+  .user-project-sales-table__row,
+  .user-certificates-table__row,
+  .user-transactions-table__row {
+    min-height: 58px;
+    height: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .admin-dashboard-main table,
+  .dashboard-user-page table {
+    font-size: 11px;
+  }
+
+  .admin-dashboard-main table th,
+  .admin-dashboard-main table td,
+  .dashboard-user-page table th,
+  .dashboard-user-page table td {
+    padding: 8px 5px;
+  }
+
+  .user-leads-table__head,
+  .user-leads-table__row,
+  .user-workshop-table__head,
+  .user-workshop-table__row,
+  .user-project-sales-table__head,
+  .user-project-sales-table__row,
+  .user-certificates-table__head,
+  .user-certificates-table__row,
+  .user-transactions-table__head,
+  .user-transactions-table__row {
+    font-size: 10px;
+  }
+}
+
+/* Shared admin table treatment, matching the stable Workshop table surface. */
+.admin-dashboard-main [class*='table-card'],
+.admin-dashboard-main [class*='table-scroll'],
+.admin-dashboard-main [class*='table-wrap'],
+.admin-dashboard-main .admin-db-panel {
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow-x: auto;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.admin-dashboard-main [class*='table-card'] table,
+.admin-dashboard-main [class*='table-scroll'] table,
+.admin-dashboard-main [class*='table-wrap'] table,
+.admin-dashboard-main .admin-db-panel table {
+  border-collapse: collapse;
+  font-family: 'Inter', sans-serif;
+}
+
+.admin-dashboard-main [class*='table-card'] th,
+.admin-dashboard-main [class*='table-scroll'] th,
+.admin-dashboard-main [class*='table-wrap'] th,
+.admin-dashboard-main .admin-db-panel th {
+  height: 46px;
+  background: #ffffff;
+  color: #7b809a;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.admin-dashboard-main [class*='table-card'] td,
+.admin-dashboard-main [class*='table-scroll'] td,
+.admin-dashboard-main [class*='table-wrap'] td,
+.admin-dashboard-main .admin-db-panel td {
+  min-height: 46px;
+  border-bottom: 1px solid #edf0f5;
+  color: #344767;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+  vertical-align: middle;
+}
+
+@media (max-width: 900px) {
+  .admin-dashboard-main [class*='table-card'],
+  .admin-dashboard-main [class*='table-scroll'],
+  .admin-dashboard-main [class*='table-wrap'],
+  .admin-dashboard-main .admin-db-panel {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-dashboard-main [class*='table-card'] table,
+  .admin-dashboard-main [class*='table-scroll'] table,
+  .admin-dashboard-main [class*='table-wrap'] table,
+  .admin-dashboard-main .admin-db-panel table {
+    width: max-content;
+    min-width: 100%;
+    table-layout: auto;
+  }
+}
+
+/* User dashboard tables follow the same compact admin table treatment. */
+.dashboard-user-page .user-leads-table,
+.dashboard-user-page .user-workshop-table,
+.dashboard-user-page .user-project-sales-table,
+.dashboard-user-page .user-certificates-table,
+.dashboard-user-page .user-transactions-table,
+.dashboard-user-page .project-upload-table {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid #eaecf0;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+  font-family: 'Inter', sans-serif;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dashboard-user-page .user-leads-table__head,
+.dashboard-user-page .user-leads-table__row,
+.dashboard-user-page .user-workshop-table__head,
+.dashboard-user-page .user-workshop-table__row,
+.dashboard-user-page .user-project-sales-table__head,
+.dashboard-user-page .user-project-sales-table__row,
+.dashboard-user-page .user-certificates-table__head,
+.dashboard-user-page .user-certificates-table__row,
+.dashboard-user-page .user-transactions-table__head,
+.dashboard-user-page .user-transactions-table__row,
+.dashboard-user-page .project-upload-table__head {
+  display: grid;
+  align-items: center;
+  gap: 0;
+  width: max-content;
+  min-width: 100%;
+  padding: 0;
+}
+
+.dashboard-user-page .user-leads-table__head,
+.dashboard-user-page .user-workshop-table__head,
+.dashboard-user-page .user-project-sales-table__head,
+.dashboard-user-page .user-certificates-table__head,
+.dashboard-user-page .user-transactions-table__head {
+  min-height: 46px;
+  border-bottom: 1px solid #eaecf0;
+  background: #ffffff;
+  color: #7b809a;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.dashboard-user-page .project-upload-table__head:first-child {
+  min-height: 46px;
+  border-bottom: 1px solid #eaecf0;
+  background: #ffffff;
+  color: #7b809a;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.dashboard-user-page .user-leads-table__row,
+.dashboard-user-page .user-workshop-table__row,
+.dashboard-user-page .user-project-sales-table__row,
+.dashboard-user-page .user-certificates-table__row,
+.dashboard-user-page .user-transactions-table__row {
+  min-height: 56px;
+  border-top: 0;
+  border-bottom: 1px solid #edf0f5;
+  background: #ffffff;
+  color: #344767;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.dashboard-user-page .project-upload-table__head:not(:first-child) {
+  min-height: 56px;
+  border-top: 0;
+  border-bottom: 1px solid #edf0f5;
+  background: #ffffff;
+  color: #344767;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.dashboard-user-page .user-leads-table__row:last-child,
+.dashboard-user-page .user-workshop-table__row:last-child,
+.dashboard-user-page .user-project-sales-table__row:last-child,
+.dashboard-user-page .user-certificates-table__row:last-child,
+.dashboard-user-page .user-transactions-table__row:last-child {
+  border-bottom: 0;
+}
+
+.dashboard-user-page .project-upload-table__head:last-child {
+  border-bottom: 0;
+}
+
+.dashboard-user-page .user-leads-table__row:hover,
+.dashboard-user-page .user-workshop-table__row:hover,
+.dashboard-user-page .user-project-sales-table__row:hover,
+.dashboard-user-page .user-certificates-table__row:hover,
+.dashboard-user-page .user-transactions-table__row:hover {
+  background: #f8fafc;
+}
+
+.dashboard-user-page .project-upload-table__head:not(:first-child):hover {
+  background: #f8fafc;
+}
+
+.dashboard-user-page .user-leads-table__head > *,
+.dashboard-user-page .user-leads-table__row > *,
+.dashboard-user-page .user-workshop-table__head > *,
+.dashboard-user-page .user-workshop-table__row > *,
+.dashboard-user-page .user-project-sales-table__head > *,
+.dashboard-user-page .user-project-sales-table__row > *,
+.dashboard-user-page .user-certificates-table__head > *,
+.dashboard-user-page .user-certificates-table__row > *,
+.dashboard-user-page .user-transactions-table__head > *,
+.dashboard-user-page .user-transactions-table__row > *,
+.dashboard-user-page .project-upload-table__head > * {
+  box-sizing: border-box;
+  min-width: 0;
+  overflow: hidden;
+  padding: 14px 16px;
+  text-overflow: ellipsis;
+}
+
+.dashboard-user-page .user-leads-table__head > *,
+.dashboard-user-page .user-workshop-table__head > *,
+.dashboard-user-page .user-project-sales-table__head > *,
+.dashboard-user-page .user-certificates-table__head > *,
+.dashboard-user-page .user-transactions-table__head > * {
+  white-space: nowrap;
+}
+
+.dashboard-user-page .project-upload-table__head:first-child > * {
+  white-space: nowrap;
+}
+
+.dashboard-user-page .user-leads-table__row > *,
+.dashboard-user-page .user-workshop-table__row > *,
+.dashboard-user-page .user-project-sales-table__row > *,
+.dashboard-user-page .user-certificates-table__row > *,
+.dashboard-user-page .user-transactions-table__row > * {
+  white-space: normal;
+}
+
+.dashboard-user-page .project-upload-table__head:not(:first-child) > * {
+  white-space: normal;
+}
+
+.dashboard-user-page .user-leads-table__head,
+.dashboard-user-page .user-leads-table__row {
+  grid-template-columns: minmax(180px, 1.3fr) minmax(190px, 1.4fr) minmax(140px, 1fr) minmax(140px, 1fr) minmax(120px, 0.8fr) 112px;
+  min-width: 980px;
+}
+
+.dashboard-user-page .user-workshop-table__head,
+.dashboard-user-page .user-workshop-table__row {
+  grid-template-columns: minmax(240px, 1.45fr) 120px minmax(220px, 1.25fr) 180px 140px 80px 260px;
+  min-width: 1240px;
+}
+
+.dashboard-user-page .user-project-sales-table__head,
+.dashboard-user-page .user-project-sales-table__row {
+  grid-template-columns: minmax(190px, 1.3fr) minmax(160px, 1fr) minmax(130px, 0.8fr) minmax(140px, 0.9fr) 104px;
+  min-width: 820px;
+}
+
+.dashboard-user-page .user-certificates-table__head,
+.dashboard-user-page .user-certificates-table__row {
+  grid-template-columns: minmax(300px, 1.5fr) 150px 170px 130px 170px;
+  min-width: 920px;
+}
+
+.dashboard-user-page .user-transactions-table__head,
+.dashboard-user-page .user-transactions-table__row {
+  grid-template-columns: minmax(190px, 1.15fr) minmax(200px, 1.2fr) 130px minmax(240px, 1.35fr) 150px 160px 260px;
+  min-width: 1430px;
+}
+
+.dashboard-user-page .project-upload-table__head {
+  min-width: 980px;
+}
+
+.dashboard-user-page .project-upload-table__head--actions,
+.dashboard-user-page .project-upload-table__head--steps {
+  grid-template-columns: minmax(220px, 1.4fr) minmax(280px, 1.8fr) 110px;
+}
+
+.dashboard-user-page .project-upload-table__head--components,
+.dashboard-user-page .project-upload-table__head--nodes {
+  grid-template-columns: 150px minmax(180px, 1.1fr) minmax(240px, 1.4fr) 150px 150px 110px;
+}
+
+.dashboard-user-page .user-leads-table__head > *:last-child,
+.dashboard-user-page .user-leads-table__row > .user-leads-table__action-cell,
+.dashboard-user-page .user-workshop-table__head > *:nth-child(6),
+.dashboard-user-page .user-workshop-table__head > *:nth-child(7),
+.dashboard-user-page .user-workshop-table__row > .user-workshop-table__action-cell,
+.dashboard-user-page .user-project-sales-table__head > *:last-child,
+.dashboard-user-page .user-project-sales-table__row > *:last-child,
+.dashboard-user-page .user-certificates-table__head > *:last-child,
+.dashboard-user-page .user-certificates-table__row > .user-certificates-table__action-cell,
+.dashboard-user-page .user-transactions-table__head > *:last-child,
+.dashboard-user-page .user-transactions-table__row > .user-transactions-payment-cell {
+  justify-self: center;
+  text-align: center;
+}
+
+.dashboard-user-page .user-leads-table__row > .user-leads-table__action-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  padding: 8px 12px;
+}
+
+.dashboard-user-page .user-leads-table__row > .user-leads-table__action-cell > button {
+  width: 82px;
+  min-height: 30px;
+  padding: 0 14px;
+}
+
+.dashboard-user-page .user-workshop-table__row > .user-workshop-table__action-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  padding: 8px 12px;
+}
+
+.dashboard-user-page .user-workshop-row-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: auto;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.dashboard-user-page .user-workshop-detail-button {
+  flex: 0 0 92px;
+  width: 92px;
+}
+
+.dashboard-user-page .user-workshop-testimonial-mini {
+  flex: 0 0 132px;
+  width: 132px;
+}
+
+.dashboard-user-page .user-transactions-payment-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  overflow: visible;
+  padding: 8px 12px;
+}
+
+.dashboard-user-page .user-transactions-payment-cell > strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  margin: 0;
+  color: #344054;
+  font-size: 12px;
+  line-height: 1.25;
+  text-align: center;
+  white-space: normal;
+}
+
+.dashboard-user-page .user-transactions-payment-toggle,
+.dashboard-user-page .user-transactions-detail-button {
+  width: 132px;
+  min-height: 30px;
+  margin: 0;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.dashboard-user-page .user-transactions-payment {
+  width: 100%;
+  max-width: 228px;
+  margin: 0;
+  gap: 8px;
+  text-align: left;
+}
+
+.dashboard-user-page .user-transactions-payment input,
+.dashboard-user-page .user-transactions-payment button {
+  width: 100%;
+}
+
+.dashboard-user-page .user-certificates-table__row > .user-certificates-table__action-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  padding: 8px 12px;
+}
+
+.dashboard-user-page .user-certificates-expand {
+  width: 120px;
+  min-height: 30px;
+  margin: 0;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.dashboard-user-page .user-certificates-workshop-group {
+  min-width: 920px;
+}
+
+.dashboard-user-page .user-certificates-participants {
+  margin: 0 16px 12px;
+  overflow-x: auto;
+}
+
+.dashboard-user-page .user-certificates-participant {
+  grid-template-columns: minmax(260px, 1.5fr) 180px 130px 100px;
+  min-width: 760px;
+}
+
+.dashboard-user-page .project-upload-table__head > *:last-child {
+  justify-self: center;
+  text-align: center;
+}
+
+.dashboard-user-page .user-workshop-table__row--state,
+.dashboard-user-page .user-transactions-table__row:has(> span:first-child:last-child) {
+  grid-template-columns: 1fr;
+  width: 100%;
+  min-width: 100%;
+}
+
+.dashboard-user-page .user-workshop-table__row--state > span {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.dashboard-user-page .user-leads-table__row > .user-leads-table__action-cell > button,
+.dashboard-user-page .user-workshop-detail-button,
+.dashboard-user-page .user-workshop-testimonial-mini,
+.dashboard-user-page .user-transactions-payment-toggle,
+.dashboard-user-page .user-transactions-detail-button,
+.dashboard-user-page .user-certificates-expand,
+.dashboard-user-page .user-certificates-action {
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #344054;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.dashboard-user-page .user-leads-table__row > .user-leads-table__action-cell > button:hover,
+.dashboard-user-page .user-workshop-detail-button:hover,
+.dashboard-user-page .user-workshop-testimonial-mini:hover,
+.dashboard-user-page .user-transactions-payment-toggle:hover,
+.dashboard-user-page .user-transactions-detail-button:hover,
+.dashboard-user-page .user-certificates-expand:hover,
+.dashboard-user-page .user-certificates-action:hover {
+  border-color: #d2d6da;
+  background: #f8fafc;
+  color: #1a73e8;
+}

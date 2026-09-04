@@ -1,0 +1,306 @@
+/* Shared public/user page layout.
+   Excludes dashboard pages and login/auth pages by using explicit public page selectors only. */
+
+:where(
+  .landing-inner,
+  .what-inner,
+  .visual-work-inner,
+  .problems-inner,
+  .benefits-inner,
+  .ide-access-inner,
+  .program-inner,
+  .tutorial-inner,
+  .projects-inner,
+  .gallery-inner,
+  .community-partners__inner,
+  .partners-inner,
+  .project-hero__inner,
+  .project-hero__content,
+  .project-detail__hero,
+  .project-detail__content,
+  .workshop-detail-shell,
+  .documentation-page__canvas,
+  .gallery-detail-page > section,
+  .contact-hero__inner,
+  .direct-contact__inner,
+  .office-faq__inner,
+  .article-shell,
+  .article-detail-page > article,
+  .article-related,
+  .tutorial-path-inner,
+  .tutorial-learning-copy,
+  .tutorial-overview-hero > div,
+  .materi-hero > div,
+  .materi-landing-inner,
+  .materials-page-shell,
+  .materials-section,
+  .materials-final-cta,
+  .ide-hero,
+  .ide-features,
+  .ide-workflow-section,
+  .ide-access-panel,
+  .ide-cta,
+  .about-container,
+  .not-found-content
+) {
+  max-width: var(--site-container-max);
+}
+
+:where(
+  .project-hero__inner,
+  .contact-hero__inner,
+  .direct-contact__inner,
+  .office-faq__inner,
+  .tutorial-path-inner,
+  .materials-page-shell,
+  .materi-landing-inner
+) {
+  width: min(var(--site-container-max), 100%);
+  margin-inline: auto;
+}
+
+:where(
+  .access-section-heading,
+  .access-checkout,
+  .access-steps,
+  .workshop-list-shell,
+  .all-projects-page,
+  .beginner-ebook-section,
+  .ide-ebook-section,
+  .hardware-ebook-section,
+  .tutorial-material-section,
+  .all-tutorial-section
+) {
+  width: min(var(--site-container-max), calc(100% - (var(--site-page-padding-x) * 2)));
+  margin-inline: auto;
+}
+
+:where(
+  .landing-inner,
+  .what-inner,
+  .visual-work-inner,
+  .problems-inner,
+  .benefits-inner,
+  .ide-access-inner,
+  .program-inner,
+  .tutorial-inner,
+  .projects-inner,
+  .partners-inner
+) {
+  width: min(var(--site-container-max), calc(100% - (var(--site-page-padding-x) * 2)));
+}
+
+:where(
+  .gallery-section,
+  .community-partners,
+  .access-page > section,
+  .project-hero,
+  .all-projects-page,
+  .project-detail,
+  .workshop-list-shell,
+  .workshop-detail-page,
+  .documentation-page,
+  .gallery-detail-page,
+  .contact-hero,
+  .direct-contact,
+  .office-faq,
+  .article-page,
+  .article-detail-page,
+  .tutorial-learning-hero,
+  .tutorial-path-section,
+  .beginner-ebook-section,
+  .ide-ebook-section,
+  .hardware-ebook-section,
+  .tutorial-material-section,
+  .all-tutorial-section,
+  .tutorial-overview-hero,
+  .materi-page,
+  .materi-landing-hero,
+  .materials-section,
+  .materials-final-cta,
+  .ide-page > section,
+  .about-page > section,
+  .not-found-page
+) {
+  padding-inline: var(--site-page-padding-x);
+}
+
+.tutorial-learning-hero {
+  display: grid;
+  grid-template-columns: minmax(0, var(--site-container-max));
+  justify-content: center;
+}
+
+.tutorial-learning-copy {
+  width: min(640px, 100%);
+}
+
+.tutorial-path-cards {
+  width: 100%;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 32px;
+}
+
+.tutorial-path-card {
+  width: 100%;
+}
+
+.tutorial-device-scene {
+  left: max(50%, calc(50% + 96px));
+}
+
+.project-hero__content {
+  margin-left: 0;
+  padding-top: var(--site-section-spacing-y);
+}
+
+.project-hero__visual {
+  right: 0;
+  width: min(560px, 50%);
+}
+
+.materi-landing-hero {
+  width: auto;
+  margin-inline: calc(var(--site-page-padding-x) * -1);
+}
+
+.materi-landing-inner {
+  left: 50%;
+  top: var(--site-section-spacing-y);
+  transform: translateX(-50%);
+}
+
+.materi-landing-visual {
+  right: 0;
+  left: auto;
+  width: min(560px, 50%);
+}
+
+.direct-contact,
+.office-faq {
+  margin-top: 0;
+}
+
+.direct-contact__inner {
+  padding: var(--site-section-spacing-y) 0;
+}
+
+.direct-contact__list {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+  width: 100%;
+}
+
+.office-faq__inner {
+  width: min(var(--site-container-max), 100%);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 40px;
+  padding-top: var(--site-section-spacing-y);
+}
+
+.office-card {
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.85fr);
+}
+
+.office-card p {
+  width: auto;
+}
+
+.landing-inner {
+  top: var(--site-section-spacing-y);
+}
+
+:where(
+  .gallery-section,
+  .community-partners,
+  .access-page > section,
+  .workshop-list-shell,
+  .workshop-detail-page,
+  .project-detail,
+  .article-page,
+  .article-detail-page,
+  .tutorial-material-section,
+  .all-tutorial-section,
+  .materi-page,
+  .materials-section,
+  .materials-final-cta,
+  .ide-page > section,
+  .not-found-page
+) {
+  padding-block: var(--site-section-spacing-y);
+}
+
+:where(
+  .what-section,
+  .visual-work-section,
+  .problems-section,
+  .benefits-section,
+  .ide-access-section,
+  .program-section,
+  .tutorial-section,
+  .projects-section,
+  .partners-section
+) > :where(
+  .what-inner,
+  .visual-work-inner,
+  .problems-inner,
+  .benefits-inner,
+  .ide-access-inner,
+  .program-inner,
+  .tutorial-inner,
+  .projects-inner,
+  .partners-inner
+) {
+  margin-inline: auto;
+}
+
+:where(
+  .gallery-section,
+  .community-partners
+) {
+  padding-block: var(--site-section-spacing-y);
+}
+
+:where(
+  .gallery-grid,
+  .partner-list,
+  .materials-section + .materials-section,
+  .article-related,
+  .office-faq,
+  .direct-contact
+) {
+  margin-top: var(--site-section-spacing-y);
+}
+
+@media (max-width: 760px) {
+  .landing-inner {
+    padding-block: var(--site-section-spacing-y);
+  }
+
+  .tutorial-path-cards,
+  .direct-contact__list,
+  .office-faq__inner {
+    grid-template-columns: 1fr;
+  }
+
+  .tutorial-device-scene,
+  .project-hero__visual,
+  .materi-landing-visual,
+  .contact-hero__image {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    max-width: 100%;
+    margin-top: 32px;
+  }
+
+  .project-hero__content,
+  .materi-landing-copy,
+  .contact-hero__copy {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    max-width: 100%;
+  }
+}

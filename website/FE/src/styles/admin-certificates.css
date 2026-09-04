@@ -1,53 +1,86 @@
 .admin-certificates-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
   min-height: calc(100vh - 56px);
-  background: #ffffff;
+  background: #f8fafc;
 }
 
 .admin-certificates-content {
   min-width: 0;
-  padding: 22px;
+  max-width: 1440px;
+  padding: 24px;
 }
 
 .admin-certificates-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
   margin-bottom: 18px;
 }
 
 .admin-certificates-heading h1 {
-  margin: 0 0 5px;
+  margin: 0 0 6px;
   font-family: 'Inter', sans-serif;
-  font-size: 22px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 800;
   color: #111827;
 }
 
-.admin-certificates-heading p {
+.admin-certificates-heading p,
+.admin-certificates-heading span {
   margin: 0;
   font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  color: #6b7280;
+  font-size: 13px;
+  color: #64748b;
 }
 
 .admin-certificates-heading span {
   margin: 0 8px;
 }
 
+.admin-certificates-heading > .admin-certificates-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 178px;
+  height: 44px;
+  padding: 0 20px;
+  border-radius: 10px;
+  box-shadow: 0 12px 24px -12px rgba(29, 78, 216, 0.55);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.admin-certificates-alert {
+  padding: 14px 16px;
+  margin: 0 0 18px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff1f2;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: #b91c1c;
+}
+
 .admin-certificates-stats {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
   gap: 14px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
+  overflow-x: auto;
+  padding-bottom: 4px;
 }
 
 .admin-certificates-stat {
   display: flex;
   align-items: center;
-  min-height: 104px;
+  min-height: 112px;
   gap: 14px;
   padding: 16px;
   border: 1px solid #dfe5ee;
-  border-radius: 8px;
+  border-radius: 10px;
   background: #ffffff;
 }
 
@@ -81,7 +114,7 @@
 .admin-certificates-stat p {
   margin-bottom: 6px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   color: #111827;
 }
 
@@ -89,81 +122,142 @@
   display: block;
   margin-bottom: 6px;
   font-family: 'Inter', sans-serif;
-  font-size: 23px;
+  font-size: 25px;
   color: #111827;
 }
 
 .admin-certificates-stat small {
-  font-size: 11px;
-  color: #4b5563;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #475569;
 }
 
 .admin-certificates-filter,
 .admin-certificates-table-card,
 .admin-certificates-panel,
-.admin-certificates-quick,
-.admin-certificates-detail {
+.admin-certificates-modal {
   border: 1px solid #dfe5ee;
-  border-radius: 8px;
+  border-radius: 10px;
   background: #ffffff;
 }
 
 .admin-certificates-filter {
   display: grid;
-  grid-template-columns: minmax(300px, 1.4fr) repeat(4, minmax(130px, 0.75fr));
+  grid-template-columns: minmax(320px, 1fr) minmax(170px, 220px) repeat(3, auto);
+  align-items: end;
   gap: 14px;
   padding: 16px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
+  overflow-x: auto;
 }
 
-.admin-certificates-filter label span {
+.admin-certificates-filter label span,
+.admin-certificates-form-grid label span {
   display: block;
   margin-bottom: 8px;
   font-family: 'Inter', sans-serif;
-  font-size: 11px;
-  color: #4b5563;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
 }
 
 .admin-certificates-search input,
 .admin-certificates-filter select,
-.admin-certificates-filter input[type='text'] {
+.admin-certificates-filter input,
+.admin-certificates-form-grid input,
+.admin-certificates-form-grid select,
+.admin-certificates-form-grid textarea {
   width: 100%;
-  height: 38px;
   border: 1px solid #d8dde6;
-  border-radius: 6px;
+  border-radius: 8px;
   background: #ffffff;
   font-family: 'Inter', sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   color: #111827;
 }
 
-.admin-certificates-search input {
+.admin-certificates-search input,
+.admin-certificates-filter select,
+.admin-certificates-filter input,
+.admin-certificates-form-grid input,
+.admin-certificates-form-grid select {
+  height: 42px;
   padding: 0 14px;
 }
 
-.admin-certificates-filter select,
-.admin-certificates-filter input[type='text'] {
-  padding: 0 12px;
+.admin-certificates-form-grid textarea {
+  min-height: 108px;
+  padding: 12px 14px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.admin-certificates-search {
+  position: relative;
+  min-width: 320px;
+}
+
+.admin-certificates-search::before {
+  content: '';
+  position: absolute;
+  left: 15px;
+  bottom: 13px;
+  width: 13px;
+  height: 13px;
+  border: 2px solid #94a3b8;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.admin-certificates-search::after {
+  content: '';
+  position: absolute;
+  left: 27px;
+  bottom: 11px;
+  width: 8px;
+  height: 2px;
+  border-radius: 2px;
+  background: #94a3b8;
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.admin-certificates-search input {
+  min-width: 320px;
+  padding-left: 42px;
+}
+
+.admin-certificates-search input:focus,
+.admin-certificates-filter select:focus,
+.admin-certificates-filter input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  outline: none;
 }
 
 .admin-certificates-filter button,
 .admin-certificates-pagination button,
 .admin-certificates-action,
+.admin-certificates-upload-action,
 .admin-certificates-panel button,
-.admin-certificates-quick button,
-.admin-certificates-detail-actions button {
-  height: 34px;
+.admin-certificates-modal-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
   border: 1px solid #d8dde6;
-  border-radius: 6px;
+  border-radius: 8px;
   background: #ffffff;
   font-family: 'Inter', sans-serif;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 700;
   color: #111827;
+  cursor: pointer;
 }
 
 .admin-certificates-filter button {
   align-self: end;
-  padding: 0 14px;
+  padding: 0 16px;
 }
 
 .admin-certificates-primary {
@@ -174,35 +268,107 @@
 
 .admin-certificates-table-card {
   overflow: hidden;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
+}
+
+.admin-certificates-table-scroll {
+  width: 100%;
+  overflow-x: auto;
 }
 
 .admin-certificates-table {
   width: 100%;
+  min-width: 940px;
   border-collapse: collapse;
   font-family: 'Inter', sans-serif;
 }
 
+/* Keep the certificate list aligned with the admin users table contract. */
+.admin-certificates-page .admin-certificates-select-grid {
+  grid-template-columns: minmax(220px, 280px);
+}
+
+.admin-certificates-page .admin-certificates-main-table th:first-child,
+.admin-certificates-page .admin-certificates-main-table td:first-child {
+  width: 42%;
+  min-width: 360px;
+  max-width: 520px;
+  padding-right: 24px;
+}
+
+.admin-certificates-page .admin-certificates-main-table th:nth-child(2),
+.admin-certificates-page .admin-certificates-main-table td:nth-child(2) {
+  width: 140px;
+  min-width: 140px;
+}
+
+.admin-certificates-page .admin-certificates-main-table th:nth-child(3),
+.admin-certificates-page .admin-certificates-main-table td:nth-child(3) {
+  width: 160px;
+  min-width: 160px;
+}
+
+.admin-certificates-page .admin-certificates-main-table th:nth-child(4),
+.admin-certificates-page .admin-certificates-main-table td:nth-child(4) {
+  width: 150px;
+  min-width: 150px;
+}
+
+.admin-certificates-page .admin-certificates-main-table th:last-child,
+.admin-certificates-page .admin-certificates-main-table td:last-child {
+  width: 72px;
+  min-width: 72px;
+}
+
+.admin-certificates-page .admin-certificates-main-table .admin-certificates-workshop-title {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.admin-certificates-page .admin-certificates-main-table .admin-users-actions {
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+
+.admin-certificates-page .admin-certificates-main-table .admin-users-actions button {
+  min-width: 0;
+}
+
+@media (max-width: 760px) {
+  .admin-certificates-page .admin-certificates-select-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .admin-certificates-table th,
 .admin-certificates-table td {
-  height: 42px;
-  padding: 0 8px;
+  min-height: 48px;
+  padding: 12px;
   border-bottom: 1px solid #e5e7eb;
-  font-size: 10.5px;
+  font-size: 13px;
+  line-height: 1.35;
   color: #111827;
   text-align: left;
+  vertical-align: middle;
   white-space: nowrap;
 }
 
 .admin-certificates-table th {
-  background: #fafafa;
-  font-weight: 700;
+  background: #f8fafc;
+  font-weight: 800;
 }
 
-.admin-certificates-table td:nth-child(2) {
+.admin-certificates-table td:first-child {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+}
+
+.admin-certificates-empty {
+  height: 92px;
+  color: #64748b !important;
+  text-align: center !important;
 }
 
 .admin-certificates-avatar,
@@ -217,21 +383,22 @@
 }
 
 .admin-certificates-avatar {
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
 }
 
 .admin-certificates-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 54px;
-  height: 22px;
-  padding: 0 8px;
+  min-width: 62px;
+  min-height: 24px;
+  padding: 3px 9px;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: 7px;
   font-family: 'Inter', sans-serif;
-  font-size: 10px;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .admin-certificates-badge--tersedia,
@@ -246,6 +413,25 @@
   border-color: #fed7aa;
   background: #fff7ed;
   color: #ea580c;
+}
+
+.admin-certificates-badge--belum-dibuat,
+.admin-certificates-badge--belum-ada-member {
+  border-color: #fed7aa;
+  background: #fff7ed;
+  color: #ea580c;
+}
+
+.admin-certificates-badge--sebagian {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.admin-certificates-badge--lengkap {
+  border-color: #bbf7d0;
+  background: #dcfce7;
+  color: #15803d;
 }
 
 .admin-certificates-badge--tidak-lulus,
@@ -267,39 +453,145 @@
   color: #6d28d9;
 }
 
+.admin-certificates-page .admin-certificates-main-table .admin-certificates-badge {
+  min-width: 58px;
+  height: 22px;
+  min-height: 22px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.admin-certificates-page .admin-certificates-main-table .admin-certificates-badge--lengkap {
+  background: #ecfdf3;
+  color: #027a48;
+}
+
+.admin-certificates-page .admin-certificates-main-table .admin-certificates-badge--sebagian {
+  background: #eff8ff;
+  color: #175cd3;
+}
+
+.admin-certificates-page .admin-certificates-main-table .admin-certificates-badge--belum-dibuat,
+.admin-certificates-page .admin-certificates-main-table .admin-certificates-badge--belum-ada-member {
+  background: #fffaeb;
+  color: #b54708;
+}
+
 .admin-certificates-actions {
   display: flex;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.admin-certificates-action {
-  min-width: 32px;
-  padding: 0 8px;
+.admin-certificates-action,
+.admin-certificates-upload-action {
+  min-width: 38px;
+  padding: 0 10px;
 }
 
-.admin-certificates-action img {
-  width: 14px;
-  height: 14px;
+.admin-certificates-action img,
+.admin-certificates-upload-action img {
+  width: 15px;
+  height: 15px;
+  object-fit: contain;
+}
+
+.admin-certificates-action.danger {
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+.admin-certificates-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.admin-certificates-secondary {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #d7dee8;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #172b45;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.admin-certificates-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.admin-certificates-upload-action input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.admin-certificates-workshop-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.admin-certificates-workshop-title span:last-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.admin-certificates-workshop-title b {
+  display: block;
+  max-width: 100%;
+  color: #111827;
+  font-weight: 800;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-certificates-workshop-title small {
+  display: block;
+  max-width: 100%;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .admin-certificates-pagination {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 52px;
-  padding: 0 14px;
+  min-height: 58px;
+  gap: 12px;
+  padding: 0 16px;
   font-family: 'Inter', sans-serif;
-  font-size: 12px;
+  font-size: 13px;
   color: #374151;
 }
 
 .admin-certificates-pagination div {
   display: flex;
-  gap: 6px;
+  gap: 8px;
 }
 
 .admin-certificates-pagination button {
-  width: 34px;
+  width: 36px;
   padding: 0;
 }
 
@@ -310,9 +602,8 @@
 
 .admin-certificates-bottom {
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr 1fr 0.9fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
-  margin-bottom: 18px;
 }
 
 .admin-certificates-panel {
@@ -324,87 +615,69 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 42px;
-  padding: 0 14px;
+  min-height: 50px;
+  padding: 0 16px;
   border-bottom: 1px solid #e5e7eb;
 }
 
 .admin-certificates-panel h2,
-.admin-certificates-panel-head h2,
-.admin-certificates-quick h2 {
+.admin-certificates-panel-head h2 {
   margin: 0;
   font-family: 'Inter', sans-serif;
-  font-size: 15px;
+  font-size: 18px;
   color: #111827;
 }
 
-.admin-certificates-panel-head a {
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  color: #2563eb;
-  text-decoration: none;
+.admin-certificates-panel-list {
+  padding: 14px 16px;
 }
 
-.admin-certificates-panel table {
-  width: 100%;
-  border-collapse: collapse;
-  font-family: 'Inter', sans-serif;
-}
-
-.admin-certificates-panel th,
-.admin-certificates-panel td {
-  height: 34px;
-  padding: 0 12px;
-  border-bottom: 1px solid #edf0f5;
-  font-size: 10.5px;
-  color: #111827;
-  text-align: left;
-  white-space: nowrap;
-}
-
-.admin-certificates-panel th {
-  font-weight: 700;
-}
-
-.admin-certificates-wide-button {
-  display: block;
-  width: calc(100% - 28px);
-  margin: 14px;
-}
-
+.admin-certificates-panel-list p,
 .admin-certificates-problems p,
 .admin-certificates-activity p {
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
-  min-height: 34px;
-  padding: 0 14px;
+  gap: 10px;
+  min-height: 38px;
   margin: 0;
   font-family: 'Inter', sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   color: #111827;
 }
 
+.admin-certificates-panel-list span,
+.admin-certificates-activity time {
+  color: #64748b;
+}
+
+.admin-certificates-problems p {
+  padding: 0 16px;
+}
+
 .admin-certificates-problems strong {
-  min-width: 28px;
-  height: 22px;
+  min-width: 32px;
+  height: 24px;
   padding: 4px 7px;
   border: 1px solid #fecaca;
-  border-radius: 4px;
+  border-radius: 6px;
   background: #fff1f2;
   color: #dc2626;
   text-align: center;
 }
 
+.admin-certificates-activity {
+  padding: 12px 16px;
+}
+
 .admin-certificates-activity p {
   grid-template-columns: auto 1fr auto;
-  gap: 8px;
 }
 
 .admin-certificates-dot {
   display: inline-block;
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
 }
 
@@ -414,102 +687,762 @@
 .admin-certificates-dot.is-orange { background: #f59e0b; }
 .admin-certificates-dot.is-gray { background: #d1d5db; }
 
-.admin-certificates-distribution ul {
-  padding: 0 18px 10px;
-  margin: 0;
-  list-style: none;
-  font-family: 'Inter', sans-serif;
-  font-size: 11px;
-  color: #111827;
-}
-
-.admin-certificates-distribution li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.admin-certificates-distribution li b {
-  margin-left: auto;
-}
-
-.admin-certificates-donut {
+.admin-certificates-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 126px;
-  height: 126px;
-  margin: 18px auto 10px;
-  border-radius: 50%;
-  background: conic-gradient(#16a34a 0 74%, #d1d5db 74% 86%, #ef4444 86% 91%, #f59e0b 91% 92%, #3b82f6 92% 100%);
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.42);
 }
 
-.admin-certificates-donut strong {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 78px;
-  height: 78px;
-  border-radius: 50%;
-  background: #ffffff;
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  line-height: 1.35;
-  text-align: center;
-  color: #111827;
+.admin-certificates-modal {
+  width: min(860px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  box-shadow: 0 24px 70px -28px rgba(15, 23, 42, 0.55);
 }
 
-.admin-certificates-quick {
-  padding: 14px;
+.admin-certificates-modal.detail {
+  width: min(560px, 100%);
 }
 
-.admin-certificates-quick h2 {
-  margin-bottom: 14px;
+.admin-certificates-modal.detail.admin-certificates-modal--wide {
+  width: min(1080px, 100%);
 }
 
-.admin-certificates-quick div {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 14px;
+.admin-certificates-template-modal {
+  width: min(1180px, 100%);
 }
 
-.admin-certificates-quick button {
-  width: 100%;
-}
-
-.admin-certificates-detail {
-  border-top: 0;
-  border-right: 0;
-  border-bottom: 0;
-  border-radius: 0;
-  min-height: calc(100vh - 56px);
-}
-
-.admin-certificates-detail-head {
+.admin-certificates-modal-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 48px;
-  padding: 0 16px;
+  gap: 16px;
+  padding: 18px 20px;
   border-bottom: 1px solid #e5e7eb;
 }
 
-.admin-certificates-detail-head h2 {
+.admin-certificates-modal-head h2 {
   margin: 0;
   font-family: 'Inter', sans-serif;
-  font-size: 15px;
+  font-size: 20px;
   color: #111827;
 }
 
-.admin-certificates-detail-head button {
+.admin-certificates-modal-subtitle {
+  margin: 5px 0 0;
+  color: #64748b;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+}
+
+.admin-certificates-modal-head button {
   border: 0;
   background: transparent;
-  font-size: 18px;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.admin-certificates-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  padding: 20px;
+}
+
+.admin-certificates-generate-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 16px 20px 0;
+  font-family: 'Inter', sans-serif;
+}
+
+.admin-certificates-generate-summary span {
+  display: grid;
+  gap: 4px;
+  min-height: 54px;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #111827;
+  font-size: 13px;
+}
+
+.admin-certificates-generate-summary b {
+  color: #64748b;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.admin-certificates-form-wide {
+  grid-column: 1 / -1;
+}
+
+.admin-certificates-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 20px 20px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.admin-certificates-modal-actions button {
+  min-width: 130px;
+  padding: 0 18px;
+}
+
+.admin-certificates-template-builder {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 18px;
+  padding: 20px;
+}
+
+.admin-certificates-template-sidebar {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.admin-certificates-template-upload,
+.admin-certificates-template-controls,
+.admin-certificates-template-field-list,
+.admin-certificates-template-saved {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.admin-certificates-template-upload {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  font-family: 'Inter', sans-serif;
+}
+
+.admin-certificates-template-upload span,
+.admin-certificates-template-controls span {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-certificates-template-upload input {
+  width: 100%;
+}
+
+.admin-certificates-template-upload input[type='text'] {
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid #d8dde6;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+}
+
+.admin-certificates-template-upload small {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.admin-certificates-template-saved {
+  display: grid;
+  gap: 8px;
+  max-height: 150px;
+  overflow-y: auto;
+  padding: 12px;
+  font-family: 'Inter', sans-serif;
+}
+
+.admin-certificates-template-saved > span {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-certificates-template-saved small {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.admin-certificates-template-saved div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+}
+
+.admin-certificates-template-saved button {
+  min-height: 32px;
+  padding: 0 9px;
+  border: 1px solid #d8dde6;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #111827;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.admin-certificates-template-field-list {
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.admin-certificates-template-field-list button {
+  display: grid;
+  width: 100%;
+  gap: 4px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #111827;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  text-align: left;
+}
+
+.admin-certificates-template-field-list button.is-active {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.admin-certificates-template-field-list span {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.admin-certificates-template-field-list small {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.admin-certificates-template-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 14px;
+}
+
+.admin-certificates-template-controls label {
+  display: grid;
+  gap: 6px;
+  font-family: 'Inter', sans-serif;
+}
+
+.admin-certificates-template-controls input,
+.admin-certificates-template-controls select,
+.admin-certificates-template-controls textarea {
+  width: 100%;
+  padding: 0 10px;
+  border: 1px solid #d8dde6;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+}
+
+.admin-certificates-template-controls input,
+.admin-certificates-template-controls select {
+  height: 38px;
+}
+
+.admin-certificates-template-controls textarea {
+  min-height: 72px;
+  padding: 10px;
+  resize: vertical;
+}
+
+.admin-certificates-template-control-wide {
+  grid-column: 1 / -1;
+}
+
+.admin-certificates-template-toggle {
+  grid-column: 1 / -1;
+  display: flex !important;
+  grid-template-columns: none !important;
+  align-items: center;
+  gap: 8px !important;
+}
+
+.admin-certificates-template-toggle input {
+  width: 16px;
+  height: 16px;
+}
+
+.admin-certificates-template-stage-wrap {
+  min-width: 0;
+}
+
+.admin-certificates-template-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1.414 / 1;
+  overflow: hidden;
+  border: 1px solid #d8dee9;
+  border-radius: 12px;
+  background: #fffdf8;
+}
+
+.admin-certificates-template-stage > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-certificates-template-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #64748b;
+  background:
+    linear-gradient(90deg, rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+    linear-gradient(rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+    #fffdf8;
+  background-size: 24px 24px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.admin-certificates-template-field {
+  position: absolute;
+  z-index: 2;
+  min-height: 22px;
+  padding: 2px 6px;
+  border: 1px dashed rgba(29, 78, 216, 0.55);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #0b1b30;
+  cursor: grab;
+  font-family: 'Inter', sans-serif;
+  font-weight: 800;
+  line-height: 1.12;
+  transform: translate(-50%, -50%);
+  user-select: none;
+}
+
+.admin-certificates-template-field:active {
+  cursor: grabbing;
+}
+
+.admin-certificates-template-field.is-active {
+  border-color: #ff7a00;
+  box-shadow: 0 0 0 3px rgba(255, 122, 0, 0.16);
+}
+
+.admin-certificates-template-field.is-qr {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  background:
+    linear-gradient(90deg, #0b1b30 45%, transparent 45% 55%, #0b1b30 55%) 0 0 / 12px 12px,
+    linear-gradient(#0b1b30 45%, transparent 45% 55%, #0b1b30 55%) 0 0 / 12px 12px,
+    #ffffff;
+  color: transparent;
+}
+
+.admin-certificates-template-field.is-signature {
+  min-height: 34px;
+  border-style: solid;
+  font-family: Georgia, serif;
+  font-style: italic;
+  font-weight: 600;
+}
+
+.admin-certificates-template-field-image,
+.admin-certificates-custom-preview-image {
+  position: absolute;
+  z-index: 2;
+  object-fit: contain;
+  transform: translate(-50%, -50%);
+  user-select: none;
+}
+
+.admin-certificates-template-field-image {
+  min-height: 24px;
+  border: 1px dashed rgba(29, 78, 216, 0.55);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.78);
+  cursor: grab;
+}
+
+.admin-certificates-template-field-image.is-active {
+  border-color: #ff7a00;
+  box-shadow: 0 0 0 3px rgba(255, 122, 0, 0.16);
+}
+
+.admin-certificates-template-json {
+  max-height: 150px;
+  margin: 14px 0 0;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #dbeafe;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.admin-certificates-member-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  font-family: 'Inter', sans-serif;
+}
+
+.admin-certificates-member-summary span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  color: #475569;
+  font-size: 13px;
+}
+
+.admin-certificates-member-summary b {
+  color: #111827;
+}
+
+.admin-certificates-member-filter {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(170px, 220px) auto auto;
+  align-items: end;
+  gap: 12px;
+  padding: 0 20px 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.admin-certificates-member-filter label span {
+  display: block;
+  margin-bottom: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.admin-certificates-member-filter select {
+  width: 100%;
+  height: 42px;
+  padding: 0 14px;
+  border: 1px solid #d8dde6;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+}
+
+.admin-certificates-member-filter button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 42px;
+  padding: 0 16px;
+  border: 1px solid #d8dde6;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.admin-certificates-member-filter > span {
+  align-self: center;
+  color: #64748b;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.admin-certificates-member-scroll {
+  max-height: min(58vh, 560px);
+}
+
+.admin-certificates-member-table th,
+.admin-certificates-member-table td {
+  white-space: nowrap;
+}
+
+.admin-certificates-preview-label {
+  display: block;
+  margin: 4px 0 10px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  color: #4b5563;
+  text-transform: uppercase;
+}
+
+.certificate-generator-preview {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 1.414 / 1;
+  min-height: 260px;
+  border: 1px solid #d8dee9;
+  border-radius: 12px;
+  background: #fffdf8;
+}
+
+.certificate-generator-preview__accent {
+  position: absolute;
+  top: 18px;
+  bottom: 18px;
+  width: 14px;
+  background: linear-gradient(180deg, #ff7a00 0%, #ff8a00 45%, #ffd600 100%);
+}
+
+.certificate-generator-preview__accent::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background: #0b1b30;
+}
+
+.certificate-generator-preview__accent.left {
+  left: 18px;
+}
+
+.certificate-generator-preview__accent.left::before {
+  left: 0;
+}
+
+.certificate-generator-preview__accent.right {
+  right: 18px;
+}
+
+.certificate-generator-preview__accent.right::before {
+  right: 0;
+}
+
+.certificate-generator-preview__frame {
+  position: absolute;
+  inset: 18px 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid #dce3ed;
+  border-radius: 8px;
+  padding: clamp(16px, 3vw, 28px) clamp(22px, 5vw, 44px);
+  text-align: left;
+}
+
+.certificate-generator-preview__logo,
+.certificate-generator-preview__frame p,
+.certificate-generator-preview__frame strong,
+.certificate-generator-preview__frame small {
+  margin: 0;
+}
+
+.certificate-generator-preview__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.certificate-generator-preview__logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 150px;
+  padding: 7px 13px 8px;
+  border-radius: 5px;
+  background: #0b1b30;
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(20px, 3.3vw, 34px);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.certificate-generator-preview__logo span {
+  color: #ffffff;
+}
+
+.certificate-generator-preview__logo b {
+  color: #ffc800;
+}
+
+.certificate-generator-preview__header > div {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+  color: #5e6875;
+  font-family: 'Inter', sans-serif;
+  text-align: right;
+}
+
+.certificate-generator-preview__header > div span {
+  font-size: clamp(9px, 1.2vw, 12px);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.certificate-generator-preview__header > div strong {
+  max-width: 250px;
+  font-size: clamp(11px, 1.6vw, 15px);
+  color: #172b45;
+}
+
+.certificate-generator-preview__header > div small {
+  font-size: clamp(9px, 1.2vw, 12px);
+}
+
+.certificate-generator-preview__number {
+  align-self: flex-start;
+  margin-top: 2px !important;
+  padding: 7px 14px;
+  border-radius: 6px;
+  background: #13263d;
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(10px, 1.35vw, 13px);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.certificate-generator-preview__body {
+  width: min(74%, 760px);
+  padding: clamp(4px, 1vw, 10px) 0;
+}
+
+.certificate-generator-preview__eyebrow {
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(11px, 1.4vw, 15px);
+  color: #5e6875;
+}
+
+.certificate-generator-preview__body > strong {
+  display: block;
+  max-width: 100%;
+  margin-top: 8px;
+  font-family: Georgia, serif;
+  font-size: clamp(22px, 4.1vw, 46px);
+  line-height: 1.05;
+  color: #0b1b30;
+  overflow-wrap: anywhere;
+}
+
+.certificate-generator-preview__line {
+  display: block;
+  width: min(56%, 340px);
+  height: 2px;
+  margin: 10px 0 16px;
+  background: linear-gradient(90deg, #ff7a00, #ffd600);
+}
+
+.certificate-generator-preview__description {
+  max-width: 560px;
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(11px, 1.45vw, 15px);
+  line-height: 1.35;
+  color: #5e6875;
+}
+
+.certificate-generator-preview__program {
+  margin-top: 6px !important;
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(17px, 2.25vw, 25px);
+  font-weight: 900;
+  color: #ff7a00;
+}
+
+.certificate-generator-preview__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 28px;
+}
+
+.certificate-generator-preview__signature,
+.certificate-generator-preview__qr {
+  display: grid;
+  gap: 4px;
+  font-family: 'Inter', sans-serif;
+}
+
+.certificate-generator-preview__signature small,
+.certificate-generator-preview__qr small {
+  color: #5e6875;
+  font-size: clamp(8px, 1.1vw, 11px);
+}
+
+.certificate-generator-preview__signature span,
+.certificate-generator-preview__signature strong {
+  color: #172b45;
+}
+
+.certificate-generator-preview__signature span {
+  font-size: clamp(11px, 1.5vw, 15px);
+}
+
+.certificate-generator-preview__signature i {
+  display: block;
+  width: 120px;
+  height: 1px;
+  margin: 14px 0 3px;
+  background: #b98324;
+}
+
+.certificate-generator-preview__signature strong {
+  font-size: clamp(11px, 1.45vw, 14px);
+}
+
+.certificate-generator-preview__qr {
+  justify-items: center;
+  max-width: 150px;
+  text-align: center;
+}
+
+.certificate-generator-preview__qr > span {
+  display: block;
+  width: clamp(48px, 8vw, 72px);
+  aspect-ratio: 1;
+  border: 6px solid #ffffff;
+  outline: 1px solid #dce3ed;
+  background:
+    linear-gradient(90deg, #0b1b30 45%, transparent 45% 55%, #0b1b30 55%) 0 0 / 18px 18px,
+    linear-gradient(#0b1b30 45%, transparent 45% 55%, #0b1b30 55%) 0 0 / 18px 18px,
+    #ffffff;
+}
+
+.certificate-generator-preview__qr strong {
+  color: #172b45;
+  font-size: clamp(9px, 1.2vw, 12px);
 }
 
 .admin-certificates-detail-profile {
-  padding: 22px 18px 12px;
+  padding: 22px 20px 16px;
   border-bottom: 1px solid #e5e7eb;
 }
 
@@ -526,86 +1459,134 @@
 }
 
 .admin-certificates-detail-profile h3 {
-  font-size: 16px;
+  font-size: 18px;
   color: #111827;
 }
 
 .admin-certificates-detail-profile p {
-  margin: 6px 0 9px;
-  font-size: 12px;
-  color: #111827;
-}
-
-.admin-certificates-detail dl {
-  padding: 16px;
-  margin: 0;
-  border-bottom: 1px solid #e5e7eb;
-  font-family: 'Inter', sans-serif;
-}
-
-.admin-certificates-detail dt {
-  margin-bottom: 5px;
-  font-size: 11px;
-  color: #6b7280;
-}
-
-.admin-certificates-detail dd {
-  margin: 0 0 13px;
-  font-size: 12px;
-  color: #111827;
-}
-
-.admin-certificates-history {
-  padding: 16px;
-  border-bottom: 1px solid #e5e7eb;
-  font-family: 'Inter', sans-serif;
-}
-
-.admin-certificates-history h3 {
-  margin: 0 0 10px;
+  margin: 6px 0 10px;
   font-size: 14px;
-  color: #111827;
+  color: #475569;
 }
 
-.admin-certificates-history p {
-  display: flex;
-  justify-content: space-between;
-  margin: 0 0 9px;
-  font-size: 11px;
-  color: #111827;
-}
-
-.admin-certificates-history b {
-  font-weight: 500;
-}
-
-.admin-certificates-history a {
-  font-size: 12px;
-  color: #2563eb;
-  text-decoration: none;
-}
-
-.admin-certificates-detail-actions {
+.admin-certificates-detail-list {
   display: grid;
-  gap: 10px;
-  padding: 16px;
+  grid-template-columns: 150px 1fr;
+  gap: 10px 16px;
+  padding: 20px;
+  margin: 0;
+  font-family: 'Inter', sans-serif;
 }
 
-.admin-certificates-detail-actions button {
-  width: 100%;
+.admin-certificates-detail-list dt {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
 }
 
-.admin-certificates-detail-actions .is-blue {
-  border-color: #1d4ed8;
-  background: #1d4ed8;
-  color: #ffffff;
+.admin-certificates-detail-list dd {
+  margin: 0;
+  font-size: 13px;
+  color: #111827;
 }
 
-.admin-certificates-detail-actions .is-danger {
-  border-color: #fca5a5;
-  color: #dc2626;
+@media (max-width: 1180px) {
+  .admin-certificates-stats {
+    grid-template-columns: repeat(3, minmax(180px, 1fr));
+  }
+
+  .admin-certificates-filter {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
+
+  .admin-certificates-search,
+  .admin-certificates-search input {
+    min-width: 0;
+  }
+
+  .admin-certificates-generate-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-certificates-member-filter {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-certificates-template-builder {
+    grid-template-columns: 1fr;
+  }
 }
 
-.admin-dashboard-page--collapsed .admin-certificates-layout {
-  grid-template-columns: minmax(0, 1fr) 320px;
+@media (max-width: 720px) {
+  .admin-certificates-content {
+    padding: 18px;
+  }
+
+  .admin-certificates-heading,
+  .admin-certificates-pagination {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-certificates-heading .admin-certificates-primary,
+  .admin-certificates-filter button {
+    width: 100%;
+  }
+
+  .admin-certificates-stats,
+  .admin-certificates-filter,
+  .admin-certificates-form-grid,
+  .admin-certificates-generate-summary,
+  .admin-certificates-member-filter {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-certificates-template-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .certificate-generator-preview {
+    min-height: 260px;
+  }
+
+  .certificate-generator-preview__accent {
+    top: 12px;
+    bottom: 12px;
+    width: 10px;
+  }
+
+  .certificate-generator-preview__frame {
+    inset: 12px 22px;
+    gap: 8px;
+    padding: 14px 18px;
+  }
+
+  .certificate-generator-preview__header {
+    gap: 12px;
+  }
+
+  .certificate-generator-preview__logo {
+    min-width: 110px;
+  }
+
+  .certificate-generator-preview__body {
+    width: 88%;
+  }
+
+  .certificate-generator-preview__footer {
+    gap: 14px;
+  }
+
+  .certificate-generator-preview__signature i {
+    width: 86px;
+    margin-top: 8px;
+  }
+
+  .certificate-generator-preview__qr {
+    max-width: 118px;
+  }
+
+  .admin-certificates-detail-list {
+    grid-template-columns: 1fr;
+  }
 }

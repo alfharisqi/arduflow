@@ -38,4 +38,8 @@ export const NODE_SPRITE_MAP = {
   'latch-sr-hold': { x: 458, y: 1029, width: 193, height: 209 },
   'math-operation': { x: 669, y: 1039, width: 183, height: 189 },
   'shift-register-8ch': { x: 872, y: 1028, width: 254, height: 249 },
+<<<<<<< HEAD
 };
+=======
+};
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6

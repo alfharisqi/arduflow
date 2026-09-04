@@ -1,9 +1,0 @@
-# Use this workspace to collaborate
-workspace:
-  id: 70468a6a-266b-44b6-8d3f-70630115c588
-
-localResources:
-  collections:
-    - ..\Arduflow API.postman_collection.json
-  environments:
-    - ..\Arduflow Local.postman_environment.json

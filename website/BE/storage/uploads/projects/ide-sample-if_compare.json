@@ -1,0 +1,98 @@
+{
+  "name": "IF_COMPARE",
+  "board": "nano",
+  "nodes": [
+    {
+      "id": "bulb-1781585653000",
+      "type": "bulb",
+      "position": {
+        "x": 688.4409384784087,
+        "y": 34.188511822332345
+      },
+      "data": {
+        "value": true,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 148
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "compare-1781585909595",
+      "type": "compare",
+      "position": {
+        "x": 453.7654029385652,
+        "y": 25.256020923437376
+      },
+      "data": {
+        "value": true,
+        "pin": "0",
+        "mode": ">"
+      },
+      "measured": {
+        "width": 178,
+        "height": 165
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "number-1781585932571",
+      "type": "number",
+      "position": {
+        "x": 131.42203317450821,
+        "y": -14.250442583759067
+      },
+      "data": {
+        "value": 1,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 210,
+        "height": 121
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "number-1781585938201",
+      "type": "number",
+      "position": {
+        "x": 135.42203317450821,
+        "y": 149.74955741624086
+      },
+      "data": {
+        "value": 0,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 210,
+        "height": 121
+      },
+      "selected": false,
+      "dragging": false
+    }
+  ],
+  "edges": [
+    {
+      "source": "compare-1781585909595",
+      "target": "bulb-1781585653000",
+      "id": "xy-edge__compare-1781585909595-bulb-1781585653000"
+    },
+    {
+      "source": "number-1781585932571",
+      "target": "compare-1781585909595",
+      "targetHandle": "a",
+      "id": "xy-edge__number-1781585932571-compare-1781585909595a"
+    },
+    {
+      "source": "number-1781585938201",
+      "target": "compare-1781585909595",
+      "targetHandle": "b",
+      "id": "xy-edge__number-1781585938201-compare-1781585909595b"
+    }
+  ]
+}

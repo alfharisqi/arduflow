@@ -1,12 +1,26 @@
 import dashboardIcon from '../../assets/icons/icons-dashboard-1.svg';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
-import clockIcon from '../../assets/icons/icon-clock-1.svg';
+import userIcon from '../../assets/icons/icon-user-2.svg';
+import workshopIcon from '../../assets/icons/icon-workshop-1.svg';
 import graduationIcon from '../../assets/icons/icon-graduation-cap-1.svg';
+<<<<<<< HEAD
 import galleryIcon from '../../assets/icons/icon-image-placeholder-1.svg';
 import bookIcon from '../../assets/icons/icon-book-1.svg';
 import mailIcon from '../../assets/icons/icon-mail-1.svg';
 import databaseIcon from '../../assets/icons/icons-database-1.svg';
 import fileIcon from '../../assets/icons/icon-file-text-1.svg';
+=======
+import fileIcon from '../../assets/icons/icon-file-text-1.svg';
+import contactIcon from '../../assets/icons/icon-kontak-1.svg';
+import mediaIcon from '../../assets/icons/icon-media.svg';
+import projectIcon from '../../assets/icons/icon-proyek.svg';
+import globeIcon from '../../assets/icons/icons-globe-1.svg';
+import mailIcon from '../../assets/icons/icon-mail-1.svg';
+import messageIcon from '../../assets/icons/icon-message-square-1.svg';
+import cpuIcon from '../../assets/icons/icon-cpu-1.svg';
+import databaseIcon from '../../assets/icons/icons-database-1.svg';
+import dollarIcon from '../../assets/icons/icon-dollar-1.svg';
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
 import settingsIcon from '../../assets/icons/icon-settings-1.svg';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import collapseIcon from '../../assets/icons/icon-arrowdown-1.svg';
@@ -17,6 +31,7 @@ const adminItems = [
     title: 'Utama',
     items: [
       { label: 'Dashboard', href: '/admin/dashboard', icon: dashboardIcon },
+<<<<<<< HEAD
       { label: 'Manajemen User', href: '/admin/users', icon: usersIcon },
       { label: 'Verifikasi Akun', href: '/admin/verification', icon: mailIcon, count: 12 },
       { label: 'Workshop / Program', href: '/admin/program', icon: clockIcon },
@@ -26,6 +41,26 @@ const adminItems = [
       { label: 'Galeri Kegiatan', href: '/admin/gallery', icon: galleryIcon },
       { label: 'Proyek', href: '/admin/projects', icon: galleryIcon },
       { label: 'Konten Draft', href: '/admin/drafts', icon: fileIcon },
+=======
+      { label: 'User', href: '/admin/users', icon: userIcon },
+      { label: 'Verifikasi Akun', href: '/admin/verification', icon: mailIcon },
+      { label: 'Workshop / Program', href: '/admin/program', icon: workshopIcon },
+      { label: 'Lead / Kontak', href: '/admin/leads', icon: contactIcon },
+      { label: 'Sertifikat', href: '/admin/certificates', icon: fileIcon },
+      { label: 'Transaksi', href: '/admin/transactions', icon: dollarIcon },
+    ],
+  },
+  {
+    title: 'Konten',
+    items: [
+      { label: 'Tutorial', href: '/admin/tutorial', icon: graduationIcon },
+      { label: 'Materi', href: '/admin/artikel', icon: fileIcon },
+      { label: 'Proyek', href: '/admin/projects', icon: projectIcon },
+      { label: 'Galeri Kegiatan', href: '/admin/gallery', icon: mediaIcon },
+      { label: 'Partner / Kolaborator', href: '/admin/partners', icon: globeIcon },
+      { label: 'Testimoni', href: '/admin/testimonials', icon: messageIcon },
+      { label: 'Arduflow IDE', href: '/admin/ide', icon: cpuIcon },
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
     ],
   },
   {
@@ -58,7 +93,7 @@ export function AdminSidebar({ isCollapsed = false, onToggleCollapse = () => {} 
   }
 
   return (
-    <aside className="admin-sidebar" aria-label="Admin sidebar">
+    <aside className={`admin-sidebar${isCollapsed ? ' is-collapsed' : ''}`} aria-label="Admin sidebar">
       <a className="admin-sidebar-brand" href="/admin/dashboard" aria-label="Arduflow Admin">
         <span>Admin Panel</span>
       </a>

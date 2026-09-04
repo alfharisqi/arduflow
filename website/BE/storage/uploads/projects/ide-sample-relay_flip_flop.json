@@ -1,0 +1,191 @@
+{
+  "name": "Relay_Flip_Flop",
+  "board": "nano",
+  "nodes": [
+    {
+      "id": "bulb-1781584716548",
+      "type": "bulb",
+      "position": {
+        "x": 583.6213644831822,
+        "y": -22.419981837573694
+      },
+      "data": {
+        "value": 0,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 148
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "squareWave-1781585157257",
+      "type": "squareWave",
+      "position": {
+        "x": 216.1548650842821,
+        "y": -128.0903421622972
+      },
+      "data": {
+        "value": 0,
+        "pin": "0",
+        "frequency": 0.5,
+        "minimized": false
+      },
+      "measured": {
+        "width": 183,
+        "height": 176
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "digitalWrite-1781585365277",
+      "type": "digitalWrite",
+      "position": {
+        "x": 580.7480260163109,
+        "y": -219.16629892176496
+      },
+      "data": {
+        "value": false,
+        "pin": "5",
+        "lastStateKey": "5-true-undefined",
+        "inverted": true
+      },
+      "measured": {
+        "width": 167,
+        "height": 164
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "schedule-1781592500346",
+      "type": "schedule",
+      "position": {
+        "x": 213.7417306930406,
+        "y": 171.4982761500842
+      },
+      "data": {
+        "value": false,
+        "duration": 1,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 188,
+        "height": 180
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "digitalWrite-1781592514478",
+      "type": "digitalWrite",
+      "position": {
+        "x": 583.1636022615727,
+        "y": 179.08849768989796
+      },
+      "data": {
+        "value": false,
+        "pin": "13",
+        "lastStateKey": "13-false-undefined"
+      },
+      "measured": {
+        "width": 167,
+        "height": 164
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "logicNot-1781592604419",
+      "type": "logicNot",
+      "position": {
+        "x": 790.0093971668085,
+        "y": -21.210066460492186
+      },
+      "data": {
+        "value": true,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 129
+      },
+      "selected": true,
+      "dragging": false
+    },
+    {
+      "id": "digitalWrite-1781592619532",
+      "type": "digitalWrite",
+      "position": {
+        "x": 984.5799642722415,
+        "y": -221.9378473643027
+      },
+      "data": {
+        "value": false,
+        "pin": "2",
+        "lastStateKey": "2-false-undefined",
+        "inverted": false
+      },
+      "measured": {
+        "width": 167,
+        "height": 164
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "bulb-1781592757946",
+      "type": "bulb",
+      "position": {
+        "x": 987.4032573939908,
+        "y": -27.974844821772557
+      },
+      "data": {
+        "value": true,
+        "pin": "0"
+      },
+      "measured": {
+        "width": 160,
+        "height": 148
+      },
+      "selected": false,
+      "dragging": false
+    }
+  ],
+  "edges": [
+    {
+      "source": "squareWave-1781585157257",
+      "target": "bulb-1781584716548",
+      "id": "xy-edge__squareWave-1781585157257-bulb-1781584716548"
+    },
+    {
+      "source": "squareWave-1781585157257",
+      "target": "digitalWrite-1781585365277",
+      "id": "xy-edge__squareWave-1781585157257-digitalWrite-1781585365277"
+    },
+    {
+      "source": "schedule-1781592500346",
+      "target": "digitalWrite-1781592514478",
+      "id": "xy-edge__schedule-1781592500346-digitalWrite-1781592514478"
+    },
+    {
+      "source": "squareWave-1781585157257",
+      "target": "logicNot-1781592604419",
+      "targetHandle": "in1",
+      "id": "xy-edge__squareWave-1781585157257-logicNot-1781592604419in1"
+    },
+    {
+      "source": "logicNot-1781592604419",
+      "target": "bulb-1781592757946",
+      "id": "xy-edge__logicNot-1781592604419-bulb-1781592757946"
+    },
+    {
+      "source": "squareWave-1781585157257",
+      "target": "digitalWrite-1781592619532",
+      "id": "xy-edge__squareWave-1781585157257-digitalWrite-1781592619532"
+    }
+  ]
+}

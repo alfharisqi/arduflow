@@ -1,11 +1,16 @@
 import { createElement, useEffect, useMemo, useRef, useState } from 'react';
+<<<<<<< HEAD
 import '@wokwi/elements';
+=======
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
 import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
-import bellIcon from '../../assets/icons/icon-bell-1.svg';
-import certificateIcon from '../../assets/icons/icon-downloadsim-1.svg';
+import { DashboardUserSidebarIcon } from './userSidebarIcons.jsx';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import projectImage from '../../assets/images/workshop-experience-student.png';
+<<<<<<< HEAD
 import { ProfileAvatar } from '../../features/profile-image-crop/ProfileAvatar.jsx';
+=======
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
 import { WorkshopImageCropper } from '../../features/profile-image-crop/WorkshopImageCropper.jsx';
 import { TinyMCEEditor } from '../../components/TinyMCEEditor.jsx';
 import { NodeSprite } from '../../components/NodeSprite.jsx';
@@ -16,7 +21,13 @@ import {
   normalizeNodeType,
 } from '../../config/projectNodes.js';
 import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
+<<<<<<< HEAD
 import { showConfirmAlert, showPromptAlert, showSuccessAlert } from '../../utils/alerts.js';
+=======
+import { completeProjectPayout, createTransaction, fetchFinanceConfig, fetchTransactions } from '../../services/transactionApi.js';
+import { showConfirmAlert, showSuccessAlert } from '../../utils/alerts.js';
+import { UserDashboardTopbar } from './UserDashboardTopbar.jsx';
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 
 const menuItems = [
@@ -24,14 +35,22 @@ const menuItems = [
   { label: 'Progres Belajar', icon: 'graduation', href: '/progress-belajar' },
   { label: 'Proyek Saya', icon: 'folder', href: '/proyek-saya', active: true },
   { label: 'Workshop / Program', icon: 'calendar', href: '/workshop-program' },
+<<<<<<< HEAD
   { label: 'Transaksi', icon: 'certificate', href: '/transaksi' },
   { label: 'IDE', icon: 'cpu', href: '/ide' },
+=======
+  { label: 'Lead Saya', icon: 'lead', href: '/lead-saya' },
+  { label: 'Partner Saya', icon: 'partner', href: '/partner-saya' },
+  { label: 'Transaksi', icon: 'transaction', href: '/transaksi' },
+  { label: 'IDE', icon: 'cpu', href: '/ide-saya' },
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
   { label: 'Sertifikat', icon: 'certificate', href: '/sertifikat' },
   { label: 'Settings', icon: 'settings', href: '/settings' },
 ];
 
 const PROJECT_API_URL = apiEndpoint(
   import.meta.env.VITE_PROJECT_API_URL,
+<<<<<<< HEAD
   'https://arduflow.indobilliard.com/apk/uploads/web/api/project-submit-sqlite.php'
 );
 
@@ -44,6 +63,11 @@ const PROJECT_UPLOAD_TARGET_FOLDER = 'project';
 const PROJECT_IMAGE_PUBLIC_BASE_URL =
   'https://arduflow.indobilliard.com/apk/uploads/web/storage/project';
 
+=======
+  '/api/projects-api.php'
+);
+
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
 const WOKWI_COMPONENT_CATALOG = [
   { category: 'Board', name: 'Arduino Uno R3', specification: 'ATmega328P development board', wokwiElement: 'wokwi-arduino-uno' },
   { category: 'Board', name: 'Arduino Mega', specification: 'ATmega2560 development board', wokwiElement: 'wokwi-arduino-mega' },
@@ -82,6 +106,114 @@ const SUPPORTED_WOKWI_ELEMENTS = new Set(
 );
 
 const MANUAL_PICKER_VALUE = '__manual__';
+<<<<<<< HEAD
+=======
+
+const PROJECT_CATEGORY_OPTIONS = [
+  'Pemula',
+  'Menengah',
+  'Lanjutan',
+  'Arduino',
+  'ESP32',
+  'Sensor',
+  'Aktuator',
+  'IoT',
+  'Otomasi',
+  'Smart Home',
+  'Robotik',
+  'Monitoring',
+];
+
+const PROJECT_FILE_ACCEPT = '.json,.flow,.schema,.txt,.md,.ino,.zip';
+const PROJECT_FILE_EXTENSIONS = ['json', 'flow', 'schema', 'txt', 'md', 'ino', 'zip'];
+const PROJECT_FILE_TEXT_PREVIEW_EXTENSIONS = new Set(['json', 'flow', 'schema', 'txt', 'md', 'ino']);
+const DEFAULT_PROJECT_FILE_LABELS = [
+  'File JSON',
+  'File Schema',
+  'File External Button',
+];
+
+const PROJECT_FORM_TABS = [
+  { id: 'basic', label: 'Info Dasar' },
+  { id: 'media', label: 'File & Gambar' },
+  { id: 'components', label: 'Komponen' },
+  { id: 'nodes', label: 'Node' },
+  { id: 'steps', label: 'Langkah' },
+  { id: 'publish', label: 'Publish' },
+];
+
+const PROJECT_FILTER_OPTIONS = [
+  { value: 'all', label: 'Semua Proyek' },
+  { value: 'uploaded', label: 'Di-upload Sendiri' },
+  { value: 'purchased', label: 'Dibeli' },
+  { value: 'selling', label: 'Sedang Dijual' },
+];
+
+const STEP_TEMPLATES = [
+  {
+    title: 'Persiapan Komponen',
+    description: 'Siapkan board, kabel jumper, sensor, aktuator, dan komponen lain yang dibutuhkan.',
+  },
+  {
+    title: 'Rakit Rangkaian',
+    description: 'Hubungkan setiap komponen ke pin yang sesuai berdasarkan diagram rangkaian proyek.',
+  },
+  {
+    title: 'Upload Program',
+    description: 'Buka file proyek, periksa konfigurasi board, lalu upload program ke mikrokontroler.',
+  },
+  {
+    title: 'Uji Fungsi',
+    description: 'Jalankan proyek dan pastikan input, output, serta alur node bekerja sesuai kebutuhan.',
+  },
+  {
+    title: 'Troubleshooting',
+    description: 'Jika hasil belum sesuai, periksa koneksi kabel, library, pin, dan data serial monitor.',
+  },
+];
+
+function normalizeStepReferences(references = []) {
+  return normalizeProjectList(references)
+    .map((item) => {
+      if (typeof item === 'string') {
+        return {
+          kind: 'component',
+          name: item.trim(),
+          category: '',
+          value: '',
+          description: '',
+        };
+      }
+
+      return {
+        kind: item?.kind === 'node' ? 'node' : 'component',
+        name: String(item?.name || item?.title || '').trim(),
+        category: String(item?.category || '').trim(),
+        value: String(item?.value ?? '').trim(),
+        description: String(item?.description || item?.specification || '').trim(),
+      };
+    })
+    .filter((item) => item.name);
+}
+
+function normalizeProjectSteps(steps = []) {
+  return steps.map((step, index) => ({
+    ...step,
+    order: index + 1,
+    title: step.title || '',
+    description: step.description || '',
+    references: normalizeStepReferences([
+      ...normalizeProjectList(step.references || step.items),
+      ...normalizeProjectList(step.components).map((item) => (
+        typeof item === 'string' ? item : { ...item, kind: 'component' }
+      )),
+      ...normalizeProjectList(step.nodes).map((item) => (
+        typeof item === 'string' ? { kind: 'node', name: item } : { ...item, kind: 'node' }
+      )),
+    ]),
+  }));
+}
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
 
 function getStoredUser() {
   try {
@@ -100,62 +232,6 @@ function getInitials(name) {
     .map((part) => part[0])
     .join('')
     .toUpperCase();
-}
-
-function SidebarIcon({ name }) {
-  const commonProps = {
-    width: '18',
-    height: '18',
-    viewBox: '0 0 24 24',
-    fill: 'none',
-    stroke: 'currentColor',
-    strokeWidth: '2',
-    strokeLinecap: 'round',
-    strokeLinejoin: 'round',
-    'aria-hidden': 'true',
-  };
-
-  const paths = {
-    user: (
-      <>
-        <path d="M20 21a8 8 0 0 0-16 0" />
-        <circle cx="12" cy="7" r="4" />
-      </>
-    ),
-    graduation: (
-      <>
-        <path d="M22 10 12 5 2 10l10 5 10-5Z" />
-        <path d="M6 12v5c3 2 9 2 12 0v-5" />
-      </>
-    ),
-    folder: (
-      <>
-        <path d="M3 7h6l2 2h10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
-        <path d="M3 7V5a2 2 0 0 1 2-2h4l2 4" />
-      </>
-    ),
-    calendar: (
-      <>
-        <rect x="3" y="4" width="18" height="17" rx="2" />
-        <path d="M8 2v4M16 2v4M3 10h18" />
-        <path d="M8 14h2v2H8zM14 14h2v2h-2z" />
-      </>
-    ),
-    cpu: (
-      <>
-        <rect x="7" y="7" width="10" height="10" rx="1" />
-        <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 15h3M1 9h3M1 15h3" />
-      </>
-    ),
-    settings: (
-      <>
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H2.8a2 2 0 1 1 0-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V2.8a2 2 0 1 1 4 0V3a1.7 1.7 0 0 0 1 1.6h.1a1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1Z" />
-      </>
-    ),
-  };
-
-  return <svg {...commonProps}>{paths[name]}</svg>;
 }
 
 function SearchIcon() {
@@ -277,7 +353,11 @@ function normalizeProjectList(value) {
 }
 
 function getProjectFileName(file) {
+<<<<<<< HEAD
   return file?.name || file?.file_name || file?.fileName || '';
+=======
+  return file?.original_name || file?.originalName || file?.name || file?.file_name || file?.fileName || '';
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
 }
 
 function getProjectFileUrl(file) {
@@ -293,6 +373,10 @@ function getInitialProjectForm(project) {
   const payload = projectPayload(project);
   const payment = project?.payment || payload.payment || {};
   const tags = normalizeProjectList(project?.tags || payload.tags);
+<<<<<<< HEAD
+=======
+  const projectFiles = normalizeProjectFiles(project);
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
 
   return {
     title: projectField(project, 'title'),
@@ -300,15 +384,30 @@ function getInitialProjectForm(project) {
     description: projectField(project, 'description'),
     tools: normalizeProjectList(project?.tools || payload.tools).map((tool) => (
       typeof tool === 'string'
+<<<<<<< HEAD
         ? { name: tool, specification: '', image: null, imageFile: null }
         : { ...tool, imageFile: null }
     )),
     nodes: normalizeProjectList(project?.nodes || payload.nodes).map(normalizeProjectNode),
+=======
+        ? { name: tool, specification: '', value: '', image: null, imageFile: null }
+        : { ...tool, value: tool.value || '', imageFile: null }
+    )),
+    nodes: normalizeProjectList(project?.nodes || payload.nodes).map((node) => ({
+      ...normalizeProjectNode(node),
+      value: node?.value || '',
+      imageFile: null,
+    })),
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
     steps: normalizeProjectList(project?.steps || payload.steps),
     isPaid: Boolean(payment.isPaid || project?.isPaid || payload.isPaid),
     price: payment.price || project?.price || payload.price || '',
     paymentCode: payment.paymentCode || project?.paymentCode || payload.paymentCode || '',
     projectFile: null,
+<<<<<<< HEAD
+=======
+    projectFiles,
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
     coverImage: null,
     circuitImage: null,
     altText: project?.coverImage?.altText || payload.coverImage?.altText || project?.altText || payload.altText || '',
@@ -320,11 +419,75 @@ function getInitialProjectForm(project) {
   };
 }
 
+<<<<<<< HEAD
+=======
+function createProjectFileEntry(file = null, label = '') {
+  return {
+    id: crypto.randomUUID(),
+    label,
+    file,
+    existingFile: null,
+    preview: '',
+  };
+}
+
+function normalizeProjectFiles(project) {
+  const payload = projectPayload(project);
+  const files = normalizeProjectList(project?.projectFiles || payload.projectFiles || payload.project_files);
+
+  if (files.length) {
+    return files.map((item, index) => ({
+      id: crypto.randomUUID(),
+      label: item?.label || item?.name || DEFAULT_PROJECT_FILE_LABELS[index] || `File Proyek ${index + 1}`,
+      file: null,
+      existingFile: item?.file && typeof item.file === 'object' ? item.file : item,
+      preview: '',
+    }));
+  }
+
+  if (project?.projectFile || payload.projectFile) {
+    return [{
+      id: crypto.randomUUID(),
+      label: 'File JSON',
+      file: null,
+      existingFile: project?.projectFile || payload.projectFile,
+      preview: '',
+    }];
+  }
+
+  return [createProjectFileEntry(null, DEFAULT_PROJECT_FILE_LABELS[0])];
+}
+
+function getProjectFileEntryName(entry) {
+  return entry?.file?.name || getProjectFileName(entry?.existingFile);
+}
+
+function formatFileSize(size) {
+  const value = Number(size || 0);
+  if (!value) return '-';
+  if (value >= 1024 * 1024) return `${(value / 1024 / 1024).toLocaleString('id-ID', { maximumFractionDigits: 1 })} MB`;
+  return `${Math.max(1, Math.round(value / 1024)).toLocaleString('id-ID')} KB`;
+}
+
+function getEmptyManualTool() {
+  return {
+    category: '',
+    name: '',
+    specification: '',
+    value: '',
+  };
+}
+
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
 function getEmptyManualNode() {
   return {
     name: '',
     category: '',
     description: '',
+<<<<<<< HEAD
+=======
+    value: '',
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
   };
 }
 
@@ -341,6 +504,101 @@ function RichTextEditor({ value, onChange, error }) {
   );
 }
 
+<<<<<<< HEAD
+=======
+function getProjectReferenceName(item, fallback) {
+  return String(item?.name || item?.title || fallback).trim();
+}
+
+function getProjectReferenceValue(item) {
+  return String(item?.value ?? '').trim();
+}
+
+function createStepReferenceItems(tools = [], nodes = []) {
+  return [
+    ...tools.map((tool, index) => ({
+      key: `component-${index}`,
+      kind: 'component',
+      name: getProjectReferenceName(tool, `Komponen ${index + 1}`),
+      category: tool?.category || '',
+      specification: tool?.specification || tool?.description || '',
+      description: tool?.specification || tool?.description || '',
+      value: getProjectReferenceValue(tool),
+    })),
+    ...nodes.map((node, index) => ({
+      key: `node-${index}`,
+      kind: 'node',
+      name: getProjectReferenceName(node, `Node ${index + 1}`),
+      category: node?.category || '',
+      description: node?.description || '',
+      value: getProjectReferenceValue(node),
+    })),
+  ].filter((item) => item.name);
+}
+
+function StepRichTextEditor({ value, onChange, references }) {
+  return (
+    <div className="project-upload-step-editor">
+      <TinyMCEEditor
+        value={value}
+        onChange={onChange}
+        height={260}
+        ariaLabel="Deskripsi langkah pengerjaan"
+        enableProjectReferences
+        projectReferences={references}
+      />
+    </div>
+  );
+}
+
+function getStepReferenceKey(reference) {
+  return [
+    reference?.kind || 'component',
+    reference?.name || '',
+    reference?.category || '',
+    reference?.value || '',
+  ].join('|').toLowerCase();
+}
+
+function StepReferencePicker({ references, selectedReferences, onToggle }) {
+  if (!references.length) {
+    return (
+      <div className="project-upload-step-linked is-empty">
+        Tambahkan komponen atau node terlebih dahulu.
+      </div>
+    );
+  }
+
+  const selectedKeys = new Set(selectedReferences.map(getStepReferenceKey));
+
+  return (
+    <div className="project-upload-step-linked" aria-label="Komponen dan node terkait langkah">
+      <span>Komponen/Node terkait</span>
+      <div>
+        {references.map((item) => {
+          const itemKey = getStepReferenceKey(item);
+          const selected = selectedKeys.has(itemKey);
+
+          return (
+            <button
+              type="button"
+              className={selected ? 'is-selected' : ''}
+              onClick={() => onToggle(item)}
+              aria-pressed={selected}
+              key={`${item.key}-${item.name}`}
+            >
+              <b>{item.kind === 'node' ? 'Node' : 'Komponen'}</b>
+              {item.name}
+              {item.value ? <small>{item.value}</small> : null}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
 function UploadRowActions({ onEdit, onDelete }) {
   return (
     <span className="project-upload-row-actions">
@@ -350,6 +608,7 @@ function UploadRowActions({ onEdit, onDelete }) {
   );
 }
 
+<<<<<<< HEAD
 function getWokwiPreviewScale(elementName = '') {
   const scaleMap = {
     'wokwi-arduino-uno': 0.95,
@@ -440,13 +699,29 @@ function WokwiComponentPreview({ elementName, fallback }) {
           pointerEvents: 'none',
         },
       })}
+=======
+function WokwiComponentPreview({ elementName, fallback }) {
+  if (!SUPPORTED_WOKWI_ELEMENTS.has(elementName)) {
+    return <span aria-hidden="true"><BoxPlusIcon /></span>;
+  }
+
+  return (
+    <span className="project-upload-wokwi-preview" aria-hidden="true" title={fallback}>
+      {createElement(elementName)}
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
     </span>
   );
 }
 
+<<<<<<< HEAD
 function ComponentImageField({ tool, index, onChange }) {
   const imageName = tool.imageFile?.name || getProjectFileName(tool.image);
   const imageUrl = tool.imageFile ? '' : getProjectFileUrl(tool.image);
+=======
+function ComponentImageField({ item, index, onChange, type = 'component' }) {
+  const imageName = item.imageFile?.name || getProjectFileName(item.image);
+  const imageUrl = item.imageFile ? '' : getProjectFileUrl(item.image);
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
 
   return (
     <label className="project-upload-component-image">
@@ -457,10 +732,19 @@ function ComponentImageField({ tool, index, onChange }) {
       />
       {imageUrl ? (
         <img src={imageUrl} alt="" />
+<<<<<<< HEAD
       ) : (
         <WokwiComponentPreview elementName={tool.wokwiElement} fallback={tool.name} />
       )}
       <small>{imageName || (tool.wokwiElement ? 'Preview Wokwi' : 'Upload gambar')}</small>
+=======
+      ) : type === 'node' ? (
+        <span className="project-upload-node-image-preview"><NodeSprite name={getProjectNodeType(item)} scale={0.22} title={item.name} /></span>
+      ) : (
+        <WokwiComponentPreview elementName={item.wokwiElement} fallback={item.name} />
+      )}
+      <small>{imageName || (type === 'node' ? 'Upload gambar' : (item.wokwiElement ? 'Preview Wokwi' : 'Upload gambar'))}</small>
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
     </label>
   );
 }
@@ -508,6 +792,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
   const [coverCrop, setCoverCrop] = useState(null);
   const [coverPreviewUrl, setCoverPreviewUrl] = useState('');
   const [circuitPreviewUrl, setCircuitPreviewUrl] = useState('');
+<<<<<<< HEAD
   const [selectedToolKey, setSelectedToolKey] = useState('');
   const [selectedNodeKey, setSelectedNodeKey] = useState('');
   const [nodeSearch, setNodeSearch] = useState('');
@@ -516,6 +801,40 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
   const existingProjectFileName = getProjectFileName(initialProject?.projectFile);
   const existingCoverImageName = getProjectFileName(initialProject?.coverImage);
   const existingCircuitImageName = getProjectFileName(initialProject?.circuitImage);
+=======
+  const [activeSection, setActiveSection] = useState('basic');
+  const [selectedToolKey, setSelectedToolKey] = useState('');
+  const [toolSearch, setToolSearch] = useState('');
+  const [isToolPickerOpen, setIsToolPickerOpen] = useState(false);
+  const [selectedNodeKey, setSelectedNodeKey] = useState('');
+  const [nodeSearch, setNodeSearch] = useState('');
+  const [isNodePickerOpen, setIsNodePickerOpen] = useState(false);
+  const [manualTool, setManualTool] = useState(() => getEmptyManualTool());
+  const [manualNode, setManualNode] = useState(() => getEmptyManualNode());
+  const existingCoverImageName = getProjectFileName(initialProject?.coverImage);
+  const existingCircuitImageName = getProjectFileName(initialProject?.circuitImage);
+  const categoryOptions = useMemo(() => (
+    PROJECT_CATEGORY_OPTIONS.includes(formData.category) || !formData.category
+      ? PROJECT_CATEGORY_OPTIONS
+      : [formData.category, ...PROJECT_CATEGORY_OPTIONS]
+  ), [formData.category]);
+  const stepReferenceItems = useMemo(
+    () => createStepReferenceItems(formData.tools, formData.nodes),
+    [formData.tools, formData.nodes]
+  );
+  const completionItems = useMemo(() => {
+    const descriptionText = stripHtml(formData.description).trim();
+    const projectFileCount = formData.projectFiles.filter((entry) => entry.file || entry.existingFile).length;
+
+    return [
+      { label: 'Info dasar', done: Boolean(formData.title.trim() && formData.category.trim() && descriptionText) },
+      { label: 'Cover & file', done: Boolean((formData.coverImage || coverPreviewUrl) && projectFileCount > 0) },
+      { label: 'Komponen', done: formData.tools.length > 0 },
+      { label: 'Node', done: formData.nodes.length > 0 },
+      { label: 'Langkah', done: formData.steps.length > 0 },
+    ];
+  }, [coverPreviewUrl, formData]);
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
 
   useEffect(() => {
     setFormData(getInitialProjectForm(initialProject));
@@ -524,9 +843,19 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     setJsonResult(null);
     setNewTag('');
     setSelectedToolKey('');
+<<<<<<< HEAD
     setSelectedNodeKey('');
     setNodeSearch('');
     setIsNodePickerOpen(false);
+=======
+    setToolSearch('');
+    setIsToolPickerOpen(false);
+    setSelectedNodeKey('');
+    setNodeSearch('');
+    setIsNodePickerOpen(false);
+    setActiveSection('basic');
+    setManualTool(getEmptyManualTool());
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
     setManualNode(getEmptyManualNode());
   }, [initialProject, mode, projectId]);
 
@@ -584,13 +913,41 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     }
   }
 
+<<<<<<< HEAD
+=======
+  function handleManualToolChange(event) {
+    const { name, value } = event.target;
+    setManualTool((current) => ({ ...current, [name]: value }));
+    clearFieldError('tools');
+  }
+
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
   function handleManualNodeChange(event) {
     const { name, value } = event.target;
     setManualNode((current) => ({ ...current, [name]: value }));
     clearFieldError('nodes');
   }
 
+<<<<<<< HEAD
   function handleFileChange(event) {
+=======
+  const filteredToolCatalog = useMemo(() => {
+    const keyword = toolSearch.trim().toLowerCase();
+
+    if (!keyword) {
+      return WOKWI_COMPONENT_CATALOG;
+    }
+
+    return WOKWI_COMPONENT_CATALOG.filter((tool) =>
+      [tool.category, tool.name, tool.specification, tool.wokwiElement]
+        .join(' ')
+        .toLowerCase()
+        .includes(keyword)
+    );
+  }, [toolSearch]);
+
+  async function handleFileChange(event) {
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
     const { name, files } = event.target;
     const file = files?.[0] || null;
     event.target.value = '';
@@ -621,6 +978,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
       return;
     }
 
+<<<<<<< HEAD
     if (name === 'projectFile' && file) {
       const extension = file.name.split('.').pop()?.toLowerCase() || '';
 
@@ -641,6 +999,8 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
       }
     }
 
+=======
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
     if (name === 'circuitImage' && file) {
       if (!file.type.startsWith('image/')) {
         setFieldErrors((current) => ({
@@ -663,6 +1023,105 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     clearFieldError(name);
   }
 
+<<<<<<< HEAD
+=======
+  function addProjectFileRow() {
+    setFormData((current) => ({
+      ...current,
+      projectFiles: [
+        ...current.projectFiles,
+        createProjectFileEntry(null, DEFAULT_PROJECT_FILE_LABELS[current.projectFiles.length] || `File Proyek ${current.projectFiles.length + 1}`),
+      ],
+    }));
+    clearFieldError('projectFile');
+  }
+
+  function updateProjectFileLabel(index, value) {
+    setFormData((current) => ({
+      ...current,
+      projectFiles: current.projectFiles.map((entry, entryIndex) =>
+        entryIndex === index ? { ...entry, label: value } : entry
+      ),
+    }));
+    clearFieldError('projectFile');
+  }
+
+  async function handleProjectFileChange(index, event) {
+    const file = event.target.files?.[0] || null;
+    event.target.value = '';
+
+    if (!file) return;
+
+    const extension = file.name.split('.').pop()?.toLowerCase() || '';
+
+    if (!PROJECT_FILE_EXTENSIONS.includes(extension)) {
+      setFieldErrors((current) => ({
+        ...current,
+        projectFile: 'Format file proyek harus .json, .flow, .schema, .txt, .md, .ino, atau .zip.',
+      }));
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setFieldErrors((current) => ({
+        ...current,
+        projectFile: 'Ukuran setiap file proyek maksimal 10 MB.',
+      }));
+      return;
+    }
+
+    let preview = '';
+
+    if (PROJECT_FILE_TEXT_PREVIEW_EXTENSIONS.has(extension)) {
+      try {
+        preview = await file.text();
+      } catch (error) {
+        console.error('File proyek tidak dapat dibaca:', error);
+        setFieldErrors((current) => ({
+          ...current,
+          projectFile: 'File proyek berhasil dipilih, tetapi isi file tidak dapat ditampilkan.',
+        }));
+      }
+    } else if (extension === 'zip') {
+      preview = `Preview ZIP tidak tersedia.\nFile: ${file.name}\nUkuran: ${formatFileSize(file.size)}`;
+    }
+
+    setFormData((current) => ({
+      ...current,
+      projectFile: index === 0 ? file : current.projectFile,
+      projectFiles: current.projectFiles.map((entry, entryIndex) =>
+        entryIndex === index ? { ...entry, file, preview } : entry
+      ),
+    }));
+    clearFieldError('projectFile');
+    setFormError('');
+  }
+
+  async function removeProjectFileRow(index) {
+    const entry = formData.projectFiles[index];
+    const hasFile = entry?.file || entry?.existingFile;
+
+    if (hasFile) {
+      const confirmed = await showConfirmAlert({
+        title: 'Hapus File Proyek?',
+        text: 'File ini akan dihapus dari daftar file proyek pada form.',
+        confirmButtonText: 'Hapus',
+      });
+      if (!confirmed) return;
+    }
+
+    setFormData((current) => {
+      const nextFiles = current.projectFiles.filter((_, entryIndex) => entryIndex !== index);
+      return {
+        ...current,
+        projectFiles: nextFiles.length ? nextFiles : [createProjectFileEntry(null, DEFAULT_PROJECT_FILE_LABELS[0])],
+        projectFile: nextFiles[0]?.file || null,
+      };
+    });
+    clearFieldError('projectFile');
+  }
+
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
   function handleApplyCoverCrop({ file }) {
     if (!file) return;
 
@@ -692,6 +1151,41 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
   }
 
   function addTool() {
+<<<<<<< HEAD
+=======
+    if (selectedToolKey === MANUAL_PICKER_VALUE) {
+      const name = manualTool.name.trim();
+
+      if (!name) {
+        setFieldErrors((current) => ({
+          ...current,
+          tools: 'Nama alat atau komponen manual wajib diisi.',
+        }));
+        return;
+      }
+
+      setFormData((current) => ({
+        ...current,
+        tools: [
+          ...current.tools,
+          {
+            category: manualTool.category.trim() || 'Manual',
+            name,
+            specification: manualTool.specification.trim(),
+            value: manualTool.value.trim(),
+            wokwiElement: '',
+            image: null,
+            imageFile: null,
+            source: 'manual',
+          },
+        ],
+      }));
+      setManualTool(getEmptyManualTool());
+      clearFieldError('tools');
+      return;
+    }
+
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
     const selectedTool = WOKWI_COMPONENT_CATALOG[Number(selectedToolKey)];
 
     if (!selectedTool) {
@@ -704,13 +1198,52 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
 
     setFormData((current) => ({
       ...current,
+<<<<<<< HEAD
       tools: [...current.tools, { ...selectedTool, image: null, imageFile: null }],
+=======
+      tools: [...current.tools, { ...selectedTool, value: '', image: null, imageFile: null }],
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
     }));
     setSelectedToolKey('');
     clearFieldError('tools');
   }
 
   function editTool(index) {
+<<<<<<< HEAD
+=======
+    if (selectedToolKey === MANUAL_PICKER_VALUE) {
+      const name = manualTool.name.trim();
+
+      if (!name) {
+        setFieldErrors((current) => ({
+          ...current,
+          tools: 'Isi data manual, lalu klik Edit pada baris komponen.',
+        }));
+        return;
+      }
+
+      setFormData((current) => ({
+        ...current,
+        tools: current.tools.map((tool, toolIndex) =>
+          toolIndex === index
+            ? {
+                ...tool,
+                category: manualTool.category.trim() || 'Manual',
+                name,
+                specification: manualTool.specification.trim(),
+                value: manualTool.value.trim(),
+                wokwiElement: '',
+                source: 'manual',
+              }
+            : tool
+        ),
+      }));
+      setManualTool(getEmptyManualTool());
+      clearFieldError('tools');
+      return;
+    }
+
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
     const selectedTool = WOKWI_COMPONENT_CATALOG[Number(selectedToolKey)];
 
     if (!selectedTool) {
@@ -725,7 +1258,11 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
       ...current,
       tools: current.tools.map((tool, toolIndex) =>
         toolIndex === index
+<<<<<<< HEAD
           ? { ...tool, ...selectedTool }
+=======
+          ? { ...tool, ...selectedTool, value: tool.value || '', image: tool.image || null, imageFile: tool.imageFile || null }
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
           : tool
       ),
     }));
@@ -764,6 +1301,18 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     clearFieldError('tools');
   }
 
+<<<<<<< HEAD
+=======
+  function updateToolValue(index, value) {
+    setFormData((current) => ({
+      ...current,
+      tools: current.tools.map((tool, toolIndex) =>
+        toolIndex === index ? { ...tool, value } : tool
+      ),
+    }));
+  }
+
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
   async function deleteTool(index) {
     const confirmed = await showConfirmAlert({
       title: 'Hapus Komponen?',
@@ -813,6 +1362,12 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
             name,
             category: manualNode.category.trim() || 'Manual',
             description: manualNode.description.trim(),
+<<<<<<< HEAD
+=======
+            value: manualNode.value.trim(),
+            image: null,
+            imageFile: null,
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
             source: 'manual',
           },
         ],
@@ -834,7 +1389,11 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
 
     setFormData((current) => ({
       ...current,
+<<<<<<< HEAD
       nodes: [...current.nodes, { ...selectedNode }],
+=======
+      nodes: [...current.nodes, { ...selectedNode, value: '', image: null, imageFile: null }],
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
     }));
     setSelectedNodeKey('');
     clearFieldError('nodes');
@@ -862,6 +1421,10 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
                 name,
                 category: manualNode.category.trim() || 'Manual',
                 description: manualNode.description.trim(),
+<<<<<<< HEAD
+=======
+                value: manualNode.value.trim(),
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
                 source: 'manual',
               }
             : node
@@ -885,7 +1448,11 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     setFormData((current) => ({
       ...current,
       nodes: current.nodes.map((node, nodeIndex) =>
+<<<<<<< HEAD
         nodeIndex === index ? { ...selectedNode } : node
+=======
+        nodeIndex === index ? { ...node, ...selectedNode, value: node.value || '', image: node.image || null, imageFile: node.imageFile || null } : node
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
       ),
     }));
     setSelectedNodeKey('');
@@ -905,6 +1472,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     }));
   }
 
+<<<<<<< HEAD
   async function addStep() {
     const title = await showPromptAlert({
       title: 'Judul Langkah',
@@ -921,10 +1489,65 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     setFormData((current) => ({
       ...current,
       steps: [...current.steps, { order: current.steps.length + 1, title: title.trim(), description: description.trim() }],
+=======
+  function updateNodeValue(index, value) {
+    setFormData((current) => ({
+      ...current,
+      nodes: current.nodes.map((node, nodeIndex) =>
+        nodeIndex === index ? { ...node, value } : node
+      ),
+    }));
+  }
+
+  function handleNodeImageChange(index, event) {
+    const file = event.target.files?.[0] || null;
+    event.target.value = '';
+
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setFieldErrors((current) => ({
+        ...current,
+        nodes: 'Gambar node harus berupa file gambar.',
+      }));
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setFieldErrors((current) => ({
+        ...current,
+        nodes: 'Ukuran gambar node maksimal 2 MB.',
+      }));
+      return;
+    }
+
+    setFormData((current) => ({
+      ...current,
+      nodes: current.nodes.map((node, nodeIndex) =>
+        nodeIndex === index ? { ...node, imageFile: file } : node
+      ),
+    }));
+    clearFieldError('nodes');
+  }
+
+  function addStep(template = null) {
+    setFormData((current) => ({
+      ...current,
+      steps: normalizeProjectSteps([
+        ...current.steps,
+        {
+          order: current.steps.length + 1,
+          title: template?.title || '',
+          description: template?.description || '',
+          references: [],
+        },
+      ]),
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
     }));
     clearFieldError('steps');
   }
 
+<<<<<<< HEAD
   async function editStep(index) {
     const selected = formData.steps[index];
     if (!selected) return;
@@ -948,6 +1571,62 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
         stepIndex === index ? { ...step, title: title.trim(), description: description.trim() } : step
       ),
     }));
+=======
+  function updateStep(index, field, value) {
+    setFormData((current) => ({
+      ...current,
+      steps: normalizeProjectSteps(current.steps.map((step, stepIndex) =>
+        stepIndex === index ? { ...step, [field]: value } : step
+      )),
+    }));
+    clearFieldError('steps');
+  }
+
+  function toggleStepReference(index, reference) {
+    const referenceData = {
+      kind: reference.kind === 'node' ? 'node' : 'component',
+      name: reference.name,
+      category: reference.category || '',
+      value: reference.value || '',
+      description: reference.description || reference.specification || '',
+    };
+    const referenceKey = getStepReferenceKey(referenceData);
+
+    setFormData((current) => ({
+      ...current,
+      steps: normalizeProjectSteps(current.steps.map((step, stepIndex) => {
+        if (stepIndex !== index) return step;
+
+        const currentReferences = normalizeStepReferences(step.references);
+        const hasReference = currentReferences.some((item) => getStepReferenceKey(item) === referenceKey);
+
+        return {
+          ...step,
+          references: hasReference
+            ? currentReferences.filter((item) => getStepReferenceKey(item) !== referenceKey)
+            : [...currentReferences, referenceData],
+        };
+      })),
+    }));
+    clearFieldError('steps');
+  }
+
+  function moveStep(index, direction) {
+    setFormData((current) => {
+      const nextIndex = index + direction;
+      if (nextIndex < 0 || nextIndex >= current.steps.length) return current;
+
+      const nextSteps = [...current.steps];
+      const [selected] = nextSteps.splice(index, 1);
+      nextSteps.splice(nextIndex, 0, selected);
+
+      return {
+        ...current,
+        steps: normalizeProjectSteps(nextSteps),
+      };
+    });
+    clearFieldError('steps');
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
   }
 
   async function deleteStep(index) {
@@ -959,9 +1638,13 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     if (!confirmed) return;
     setFormData((current) => ({
       ...current,
+<<<<<<< HEAD
       steps: current.steps
         .filter((_, stepIndex) => stepIndex !== index)
         .map((step, stepIndex) => ({ ...step, order: stepIndex + 1 })),
+=======
+      steps: normalizeProjectSteps(current.steps.filter((_, stepIndex) => stepIndex !== index)),
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
     }));
   }
 
@@ -1004,9 +1687,25 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
       : null;
   }
 
+<<<<<<< HEAD
   function toolToJson(tool) {
     if (typeof tool === 'string') {
       return { name: tool, specification: '' };
+=======
+  function projectFileEntryToJson(entry, index) {
+    const fileMeta = fileToJson(entry.file) || entry.existingFile || null;
+
+    return {
+      id: entry.id,
+      label: entry.label.trim() || DEFAULT_PROJECT_FILE_LABELS[index] || `File Proyek ${index + 1}`,
+      file: fileMeta,
+    };
+  }
+
+  function toolToJson(tool) {
+    if (typeof tool === 'string') {
+      return { name: tool, specification: '', value: '' };
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
     }
 
     const { imageFile, ...toolData } = tool || {};
@@ -1017,16 +1716,42 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     };
   }
 
+<<<<<<< HEAD
+=======
+  function nodeToJson(node) {
+    if (typeof node === 'string') {
+      return { name: node, category: '', description: '', value: '' };
+    }
+
+    const { imageFile, ...nodeData } = node || {};
+
+    return {
+      ...nodeData,
+      image: imageFile ? fileToJson(imageFile) : (nodeData.image || null),
+    };
+  }
+
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
   function validateProjectForm(status) {
     const isDraft = status === 'draft';
     const isEdit = mode === 'edit';
     const errors = {};
     const descriptionText = stripHtml(formData.description).trim();
+<<<<<<< HEAD
+=======
+    const validProjectFiles = formData.projectFiles.filter((entry) => entry.file || entry.existingFile);
+    const missingProjectFileNames = formData.projectFiles.some((entry) => (entry.file || entry.existingFile) && !entry.label.trim());
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
 
     if (!isDraft && !formData.title.trim()) errors.title = 'Judul proyek wajib diisi.';
     if (!isDraft && !formData.category.trim()) errors.category = 'Kategori wajib diisi.';
     if (!isDraft && !descriptionText) errors.description = 'Deskripsi proyek wajib diisi.';
+<<<<<<< HEAD
     if (!isDraft && !isEdit && !formData.projectFile) errors.projectFile = 'File proyek wajib dipilih.';
+=======
+    if (!isDraft && !isEdit && validProjectFiles.length === 0) errors.projectFile = 'Tambahkan minimal satu file proyek.';
+    if (!isDraft && missingProjectFileNames) errors.projectFile = 'Nama file proyek wajib diisi sebelum upload/disimpan.';
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
     if (!isDraft && !isEdit && !formData.coverImage) errors.coverImage = 'Gambar cover wajib dipilih.';
     if (!isDraft && formData.tools.length === 0) errors.tools = 'Tambahkan minimal satu alat atau komponen.';
     if (!isDraft && formData.nodes.length === 0) errors.nodes = 'Tambahkan minimal satu node ArduFlow.';
@@ -1050,6 +1775,13 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     }
 
     const now = new Date().toISOString();
+<<<<<<< HEAD
+=======
+    const projectFiles = formData.projectFiles
+      .filter((entry) => entry.file || entry.existingFile)
+      .map(projectFileEntryToJson);
+    const primaryProjectFile = projectFiles[0]?.file || initialProject?.projectFile || null;
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
     const result = {
       success: true,
       message: isDraft ? 'Draft proyek berhasil dibuat dalam format JSON.' : 'Proyek siap dipublikasikan dalam format JSON.',
@@ -1068,7 +1800,11 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
         category: formData.category.trim(),
         description: formData.description.trim(),
         tools: formData.tools.map(toolToJson),
+<<<<<<< HEAD
         nodes: formData.nodes,
+=======
+        nodes: formData.nodes.map(nodeToJson),
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
         steps: formData.steps,
         payment: {
           isPaid: formData.isPaid,
@@ -1076,7 +1812,12 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
           currency: 'IDR',
           paymentCode: formData.isPaid ? formData.paymentCode : null,
         },
+<<<<<<< HEAD
         projectFile: fileToJson(formData.projectFile) || initialProject?.projectFile || null,
+=======
+        projectFile: primaryProjectFile,
+        projectFiles,
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
         coverImage: formData.coverImage
           ? { ...fileToJson(formData.coverImage), altText: formData.altText.trim() }
           : (initialProject?.coverImage || null),
@@ -1100,6 +1841,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
     return result;
   }
 
+<<<<<<< HEAD
   async function uploadProjectImageToServer(file, imageType = 'project-image') {
     if (!file) {
       return null;
@@ -1529,6 +2271,86 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
       );
     }
   };
+=======
+  async function sendProjectToApi(status) {
+    const projectJson = createProjectJson(status);
+    if (!projectJson) return;
+    try {
+      const isEdit = mode === 'edit' && (projectId || initialProject?.id);
+      const payload = new FormData();
+      payload.append('payload', JSON.stringify(projectJson.data));
+
+      if (isEdit) {
+        payload.append('_method', 'PUT');
+      }
+
+      formData.projectFiles.filter((entry) => entry.file || entry.existingFile).forEach((entry, index) => {
+        if (entry.file) {
+          payload.append(`project_files[${index}]`, entry.file);
+        }
+      });
+
+      formData.tools.forEach((tool, index) => {
+        if (tool.imageFile) {
+          payload.append(`component_images[${index}]`, tool.imageFile);
+        }
+      });
+
+      formData.nodes.forEach((node, index) => {
+        if (node.imageFile) {
+          payload.append(`node_images[${index}]`, node.imageFile);
+        }
+      });
+
+      if (formData.coverImage) {
+        payload.append('cover_image', formData.coverImage);
+      }
+
+      if (formData.circuitImage) {
+        payload.append('circuit_image', formData.circuitImage);
+      }
+
+      const response = await fetch(isEdit ? `${PROJECT_API_URL}?id=${encodeURIComponent(projectId || initialProject.id)}` : PROJECT_API_URL, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+        },
+        body: payload,
+      });
+      const responseText = await response.text();
+
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch {
+        throw new Error(`Response API bukan JSON: ${responseText}`);
+      }
+
+      console.log('SQLite API URL:', PROJECT_API_URL);
+      console.log('SQLite API Status:', response.status);
+      console.log('SQLite API Response:', result);
+
+      if (!response.ok) {
+        const validationMessage = result.errors
+          ? Object.values(result.errors).join(' ')
+          : result.message;
+
+        throw new Error(validationMessage || 'Gagal menyimpan proyek.');
+      }
+
+      setJsonResult(result);
+      onSuccess?.(result.data || result);
+      await showSuccessAlert('Berhasil', result.message || (isEdit ? 'Proyek berhasil diperbarui.' : 'Proyek berhasil disimpan.'));
+    } catch (error) {
+      console.error('Gagal mengirim proyek ke API:', error);
+      setFormError(
+        error instanceof TypeError
+          ? `API tidak dapat dihubungi di ${PROJECT_API_URL}. Pastikan Apache aktif dan endpoint dapat dibuka.`
+          : error.message
+      );
+    }
+  }
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -1544,6 +2366,7 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
           Mode edit proyek aktif{projectId ? ` untuk ID proyek ${projectId}` : ''}. Silakan sesuaikan data proyek melalui form ini.
         </p>
       ) : null}
+<<<<<<< HEAD
 
       <div className="project-upload-layout">
         <form className="project-upload-main" id="project-upload-form" onSubmit={handleSubmit}>
@@ -1761,9 +2584,36 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
             {fieldErrors.coverImage ? <em className="project-upload-error">{fieldErrors.coverImage}</em> : null}
             <UploadField label="Alt Text" hint="Pilih gambar yang mewakili proyek Anda">
               <input name="altText" type="text" value={formData.altText} onChange={handleInputChange} placeholder="Deskripsikan proyek anda" />
-            </UploadField>
-          </section>
+=======
 
+      <section className="project-upload-actions project-upload-actions--top" aria-label="Aksi form proyek">
+        <button className="project-upload-publish" type="submit" form="project-upload-form"><PublishIcon /> Simpan Proyek</button>
+        <button className="project-upload-draft" type="button" onClick={() => sendProjectToApi('draft')}><SaveIcon /> Simpan Draft</button>
+        <button className="project-upload-cancel" type="button" onClick={onCancel}>Batal</button>
+      </section>
+
+      <nav className="project-upload-tabs" aria-label="Navigasi form proyek">
+        {PROJECT_FORM_TABS.map((tab) => (
+          <button
+            type="button"
+            className={activeSection === tab.id ? 'is-active' : ''}
+            onClick={() => setActiveSection(tab.id)}
+            key={tab.id}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </nav>
+
+      <div className="project-upload-layout">
+        <form className="project-upload-main" id="project-upload-form" onSubmit={handleSubmit}>
+          <section className={`project-upload-form-section${activeSection === 'basic' ? ' is-active' : ''}`}>
+            <UploadField label="Judul Proyek *" hint="Pilih judul yang jelas dan menarik" error={fieldErrors.title}>
+              <input name="title" type="text" value={formData.title} onChange={handleInputChange} placeholder="Masukkan judul proyek" aria-invalid={Boolean(fieldErrors.title)} />
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
+            </UploadField>
+
+<<<<<<< HEAD
           <section className="project-upload-card project-upload-cover">
             <h3>Gambar Rangkaian</h3>
             <label className={`project-upload-cover-box${fieldErrors.circuitImage ? ' has-error' : ''}`}>
@@ -1804,8 +2654,418 @@ export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projec
             <button className="project-upload-publish" type="submit" form="project-upload-form"><PublishIcon /> Publikasikan Proyek</button>
             <button className="project-upload-draft" type="button" onClick={() => sendProjectToApi('draft')}><SaveIcon /> Simpan Draft</button>
             <button className="project-upload-cancel" type="button" onClick={onCancel}>Batal</button>
+=======
+            <UploadField label="Kategori *" hint="Pilih kategori yang paling sesuai dengan proyek anda" error={fieldErrors.category}>
+              <select name="category" value={formData.category} onChange={handleInputChange} aria-invalid={Boolean(fieldErrors.category)}>
+                <option value="">Pilih kategori proyek</option>
+                {categoryOptions.map((category) => (
+                  <option value={category} key={category}>{category}</option>
+                ))}
+              </select>
+            </UploadField>
+
+            <div className="project-upload-field">
+              <span>Deskripsi Proyek *</span>
+              <RichTextEditor value={formData.description} onChange={handleDescriptionChange} error={fieldErrors.description} />
+              {fieldErrors.description ? <em className="project-upload-error">{fieldErrors.description}</em> : <small>Jelaskan fungsi, tujuan, dan cara kerja proyek anda</small>}
+            </div>
+
+            <div className="project-upload-inline-grid">
+              <section className="project-upload-card project-upload-extra">
+                <h3>Informasi Tambahan</h3>
+                <UploadField label="Tingkat Kesulitan"><select name="difficulty" value={formData.difficulty} onChange={handleInputChange}><option value="">Pilih tingkat kesulitan</option><option>Pemula</option><option>Menengah</option><option>Lanjutan</option></select></UploadField>
+                <UploadField label="Estimasi Waktu"><input name="estimatedTime" type="text" value={formData.estimatedTime} onChange={handleInputChange} placeholder="Contoh: 2-3 jam" /></UploadField>
+                <UploadField label="Bahasa Pemrograman"><input name="programmingLanguage" type="text" value={formData.programmingLanguage} onChange={handleInputChange} placeholder="Contoh: Arduino" /></UploadField>
+              </section>
+
+              <section className="project-upload-card project-upload-tags">
+                <h3>Tag</h3>
+                <div className="project-upload-tag-form"><input type="text" value={newTag} onChange={(event) => setNewTag(event.target.value)} placeholder="Tambah tag" /><button type="button" onClick={addTag}>Tambah</button></div>
+                <div className="project-upload-tag-list">{formData.tags.map((tag) => <button type="button" key={tag} onClick={() => removeTag(tag)}>{tag} x</button>)}</div>
+                <p>Tambah tag untuk memudahkan pencarian</p>
+              </section>
+            </div>
           </section>
-        </aside>
+
+          <section className={`project-upload-list-section project-upload-form-section${activeSection === 'components' ? ' is-active' : ''}`}>
+            <div className="project-upload-section-head">
+              <div><h3>Alat &amp; Komponen *</h3><p>Pilih alat dan komponen elektronik dari katalog Wokwi yang digunakan dalam proyek ini</p></div>
+              <button
+                type="button"
+                onClick={() => setIsToolPickerOpen((current) => !current)}
+              >
+                <PlusIcon /> {isToolPickerOpen ? 'Tutup Komponen' : 'Tambah Komponen'}
+              </button>
+            </div>
+            {isToolPickerOpen ? (
+              <div className="project-upload-node-picker-panel">
+                <div className="project-upload-node-search">
+                  <input
+                    type="search"
+                    placeholder="Cari komponen..."
+                    value={toolSearch}
+                    onChange={(event) => setToolSearch(event.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className={selectedToolKey === MANUAL_PICKER_VALUE ? 'is-active' : ''}
+                    onClick={() => {
+                      setSelectedToolKey(MANUAL_PICKER_VALUE);
+                      clearFieldError('tools');
+                    }}
+                  >
+                    <PlusIcon /> Manual
+                  </button>
+                  <button type="button" onClick={addTool}><PlusIcon /> Tambah Komponen</button>
+                </div>
+                {selectedToolKey === MANUAL_PICKER_VALUE ? (
+                  <div className="project-upload-manual-grid" aria-label="Tambah alat atau komponen manual">
+                    <input name="category" type="text" value={manualTool.category} onChange={handleManualToolChange} placeholder="Kategori manual" />
+                    <input name="name" type="text" value={manualTool.name} onChange={handleManualToolChange} placeholder="Nama alat/komponen *" />
+                    <input name="specification" type="text" value={manualTool.specification} onChange={handleManualToolChange} placeholder="Keterangan/spesifikasi" />
+                    <input name="value" type="text" value={manualTool.value} onChange={handleManualToolChange} placeholder="Value, contoh: 10k, D2, HIGH" />
+                  </div>
+                ) : null}
+                <div className="project-upload-node-grid" role="listbox" aria-label="Pilih alat atau komponen">
+                  {filteredToolCatalog.map((tool) => {
+                    const catalogIndex = WOKWI_COMPONENT_CATALOG.indexOf(tool);
+                    const isSelected = selectedToolKey === String(catalogIndex);
+
+                    return (
+                      <button
+                        type="button"
+                        className={`project-upload-node-card${isSelected ? ' is-selected' : ''}`}
+                        key={`${tool.category}-${tool.name}`}
+                        onClick={() => {
+                          setSelectedToolKey(String(catalogIndex));
+                          clearFieldError('tools');
+                        }}
+                        aria-pressed={isSelected}
+                      >
+                        <span className="project-upload-node-card__sprite">
+                          <WokwiComponentPreview elementName={tool.wokwiElement} fallback={tool.name} />
+                        </span>
+                        <span>{tool.name}</span>
+                        <small>{tool.category}</small>
+                      </button>
+                    );
+                  })}
+                  {filteredToolCatalog.length === 0 ? (
+                    <div className="project-upload-node-card project-upload-node-card--empty">
+                      <span>Komponen tidak ditemukan</span>
+                      <small>Coba kata kunci lain</small>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+            <div className={`project-upload-table${fieldErrors.tools ? ' has-error' : ''}`}>
+              <div className="project-upload-table__head project-upload-table__head--components"><span>Kategori</span><span>Nama Alat/Komponen</span><span>Keterangan/Spesifikasi</span><span>Value</span><span>Gambar</span><span>Aksi</span></div>
+              {formData.tools.length ? formData.tools.map((tool, index) => (
+                <div className="project-upload-table__head project-upload-table__head--components" key={`${tool.name}-${index}`}>
+                  <span>{tool.category || '-'}</span>
+                  <span>{tool.name}</span>
+                  <span>{tool.specification || '-'}</span>
+                  <input className="project-upload-table-input" type="text" value={tool.value || ''} onChange={(event) => updateToolValue(index, event.target.value)} placeholder="Value" />
+                  <ComponentImageField item={tool} index={index} onChange={handleComponentImageChange} />
+                  <UploadRowActions onEdit={() => editTool(index)} onDelete={() => deleteTool(index)} />
+                </div>
+              )) : (
+                <div className="project-upload-empty"><BoxPlusIcon /><strong>Belum ada alat atau komponen</strong><p>Pilih item dari katalog, lalu klik tombol “Tambah Item”</p></div>
+              )}
+            </div>
+            {fieldErrors.tools ? <em className="project-upload-error">{fieldErrors.tools}</em> : null}
+          </section>
+
+          <section className={`project-upload-list-section project-upload-form-section${activeSection === 'nodes' ? ' is-active' : ''}`}>
+            <div className="project-upload-section-head">
+              <div><h3>Node ArduFlow yang Digunakan *</h3><p>Pilih node dari katalog ArduFlow yang digunakan dalam proyek ini</p></div>
+              <button
+                type="button"
+                onClick={() => setIsNodePickerOpen((current) => !current)}
+              >
+                <PlusIcon /> {isNodePickerOpen ? 'Tutup Node' : 'Tambah Node'}
+              </button>
+            </div>
+            {isNodePickerOpen ? (
+              <div className="project-upload-node-picker-panel">
+                <div className="project-upload-node-search">
+                  <input
+                    type="search"
+                    placeholder="Cari node..."
+                    value={nodeSearch}
+                    onChange={(event) => setNodeSearch(event.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className={selectedNodeKey === MANUAL_PICKER_VALUE ? 'is-active' : ''}
+                    onClick={() => {
+                      setSelectedNodeKey(MANUAL_PICKER_VALUE);
+                      clearFieldError('nodes');
+                    }}
+                  >
+                    <PlusIcon /> Manual
+                  </button>
+                  <button type="button" onClick={addNode}><PlusIcon /> Tambah Node</button>
+                </div>
+                {selectedNodeKey === MANUAL_PICKER_VALUE ? (
+                  <div className="project-upload-manual-grid" aria-label="Tambah node ArduFlow manual">
+                    <input name="category" type="text" value={manualNode.category} onChange={handleManualNodeChange} placeholder="Kategori manual" />
+                    <input name="name" type="text" value={manualNode.name} onChange={handleManualNodeChange} placeholder="Nama node *" />
+                    <input name="description" type="text" value={manualNode.description} onChange={handleManualNodeChange} placeholder="Keterangan node" />
+                    <input name="value" type="text" value={manualNode.value} onChange={handleManualNodeChange} placeholder="Value, contoh: D2, 1023, true" />
+                  </div>
+                ) : null}
+                <div className="project-upload-node-grid" role="listbox" aria-label="Pilih node ArduFlow">
+                  {filteredNodeCatalog.map((node) => {
+                    const isSelected = selectedNodeKey === node.type;
+
+                    return (
+                      <button
+                        type="button"
+                        className={`project-upload-node-card${isSelected ? ' is-selected' : ''}`}
+                        key={node.type}
+                        onClick={() => {
+                          setSelectedNodeKey(node.type);
+                          clearFieldError('nodes');
+                        }}
+                        aria-pressed={isSelected}
+                      >
+                        <span className="project-upload-node-card__sprite">
+                          <NodeSprite name={node.type} scale={0.54} maxWidth={128} maxHeight={96} title={node.name} />
+                        </span>
+                        <span>{node.name}</span>
+                        <small>{node.category}</small>
+                      </button>
+                    );
+                  })}
+                  {filteredNodeCatalog.length === 0 ? (
+                    <div className="project-upload-node-card project-upload-node-card--empty">
+                      <span>Node tidak ditemukan</span>
+                      <small>Coba kata kunci lain</small>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+            {formData.nodes.length ? (
+              <div className={`project-upload-table${fieldErrors.nodes ? ' has-error' : ''}`}>
+                <div className="project-upload-table__head project-upload-table__head--nodes"><span>Node</span><span>Kategori</span><span>Keterangan</span><span>Value</span><span>Gambar</span><span>Aksi</span></div>
+                {formData.nodes.map((node, index) => (
+                  <div className="project-upload-table__head project-upload-table__head--nodes" key={`${node.name}-${index}`}>
+                    <span className="project-upload-selected-node">
+                      <NodeSprite name={getProjectNodeType(node)} scale={0.34} title={node.name} />
+                      <b>{node.name}</b>
+                    </span>
+                    <span>{node.category || '-'}</span>
+                    <span>{node.description || '-'}</span>
+                    <input className="project-upload-table-input" type="text" value={node.value || ''} onChange={(event) => updateNodeValue(index, event.target.value)} placeholder="Value" />
+                    <ComponentImageField item={node} index={index} onChange={handleNodeImageChange} type="node" />
+                    <UploadRowActions onEdit={() => editNode(index)} onDelete={() => deleteNode(index)} />
+                  </div>
+                ))}
+              </div>
+            ) : <EmptyUploadTable title="Belum ada node yang ditambahkan" description="Klik tombol “Tambah Node” untuk menambahkan" />}
+            {fieldErrors.nodes ? <em className="project-upload-error">{fieldErrors.nodes}</em> : null}
+          </section>
+
+          <section className={`project-upload-list-section project-upload-form-section${activeSection === 'steps' ? ' is-active' : ''}`}>
+            <div className="project-upload-section-head">
+              <div><h3>Langkah-langkah Pengerjaan *</h3><p>Susun langkah secara berurutan. Deskripsi mendukung format teks dan sematan komponen/node.</p></div>
+              <button type="button" onClick={() => addStep()}><PlusIcon /> Tambah Langkah</button>
+            </div>
+            <div className="project-upload-step-templates" aria-label="Template cepat langkah pengerjaan">
+              {STEP_TEMPLATES.map((template) => (
+                <button type="button" onClick={() => addStep(template)} key={template.title}>
+                  <PlusIcon /> {template.title}
+                </button>
+              ))}
+            </div>
+            {formData.steps.length ? (
+              <div className={`project-upload-step-list${fieldErrors.steps ? ' has-error' : ''}`}>
+                {formData.steps.map((step, index) => (
+                  <article className="project-upload-step-card" key={`${step.order}-${index}`}>
+                    <div className="project-upload-step-number">{step.order || index + 1}</div>
+                    <div className="project-upload-step-fields">
+                      <label>
+                        <span>Judul langkah</span>
+                        <input
+                          type="text"
+                          value={step.title}
+                          onChange={(event) => updateStep(index, 'title', event.target.value)}
+                          placeholder={`Langkah ${index + 1}`}
+                        />
+                      </label>
+                      <label>
+                        <span>Deskripsi</span>
+                        <StepRichTextEditor
+                          value={step.description}
+                          onChange={(value) => updateStep(index, 'description', value)}
+                          references={stepReferenceItems}
+                        />
+                      </label>
+                      <StepReferencePicker
+                        references={stepReferenceItems}
+                        selectedReferences={normalizeStepReferences(step.references)}
+                        onToggle={(reference) => toggleStepReference(index, reference)}
+                      />
+                    </div>
+                    <div className="project-upload-step-actions">
+                      <button type="button" onClick={() => moveStep(index, -1)} disabled={index === 0}>Naik</button>
+                      <button type="button" onClick={() => moveStep(index, 1)} disabled={index === formData.steps.length - 1}>Turun</button>
+                      <button type="button" className="is-danger" onClick={() => deleteStep(index)}>Hapus</button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : <EmptyUploadTable title="Belum ada langkah yang ditambahkan" description="Klik tombol “Tambah Langkah” untuk menambahkan" />}
+            {fieldErrors.steps ? <em className="project-upload-error">{fieldErrors.steps}</em> : null}
+          </section>
+
+          <section className={`project-upload-form-section${activeSection === 'publish' ? ' is-active' : ''}`}>
+            <div className="project-upload-price">
+              <div><h3>Harga Proyek &amp; Kode Pembayaran</h3><p>Atur harga dan buat kode pembayaran untuk pembeli</p></div>
+              <label className="project-upload-toggle">
+                <input name="isPaid" type="checkbox" checked={formData.isPaid} onChange={handleInputChange} />
+                <span />Proyek berbayar
+              </label>
+            </div>
+            <div className="project-upload-payment">
+              <span>Harga (IDR) *</span>
+              <label className={`project-upload-price-input${fieldErrors.price ? ' has-error' : ''}`}><span>IDR</span><input name="price" type="number" min="0" value={formData.price} onChange={handleInputChange} disabled={!formData.isPaid} placeholder="Contoh : 15000" aria-invalid={Boolean(fieldErrors.price)} /></label>
+              {fieldErrors.price ? <em className="project-upload-error">{fieldErrors.price}</em> : null}
+              <span>Kode Akses / Kode Pembayaran *</span>
+              <div className="project-upload-code-row">
+                <input className={fieldErrors.paymentCode ? 'has-error' : ''} type="text" value={formData.paymentCode} readOnly placeholder="Kode akan dibuat setelah di generate" aria-invalid={Boolean(fieldErrors.paymentCode)} />
+                <button type="button" onClick={generatePaymentCode} disabled={!formData.isPaid}><RefreshIcon /> Generate Kode</button>
+                <button type="button" onClick={copyPaymentCode} disabled={!formData.paymentCode}><CopyIcon /> Salin</button>
+              </div>
+              {fieldErrors.paymentCode ? <em className="project-upload-error">{fieldErrors.paymentCode}</em> : null}
+              <p className="project-upload-payment-info"><InfoIcon /><span>Kode pembayaran akan digunakan oleh pembeli untuk mengakses dan membuka proyek ini.<br />Kode dibuat otomatis setelah harga diisi</span></p>
+            </div>
+
+            <div className="project-upload-inline-grid">
+              <section className="project-upload-card project-upload-visibility">
+                <h3>Pengaturan Visibilitas</h3>
+                <label><input type="radio" name="visibility" value="public" checked={formData.visibility === 'public'} onChange={handleInputChange} /><span><strong>Publik</strong><small>Proyek dapat dilihat oleh semua orang</small></span></label>
+                <label><input type="radio" name="visibility" value="draft" checked={formData.visibility === 'draft'} onChange={handleInputChange} /><span><strong>Draft</strong><small>Simpan sebagai draft, belum dipublikasikan</small></span></label>
+              </section>
+
+              <section className="project-upload-card project-upload-preview-card">
+                <h3>Preview Ringkas</h3>
+                {coverPreviewUrl ? <img src={coverPreviewUrl} alt="Preview cover proyek" /> : null}
+                <div className="project-upload-preview-title">
+                  <strong>{formData.title.trim() || 'Judul proyek belum diisi'}</strong>
+                  <span>{formData.category.trim() || 'Kategori belum dipilih'}</span>
+                </div>
+                <dl>
+                  <div><dt>File</dt><dd>{formData.projectFiles.filter((entry) => entry.file || entry.existingFile).length}</dd></div>
+                  <div><dt>Komponen</dt><dd>{formData.tools.length}</dd></div>
+                  <div><dt>Node</dt><dd>{formData.nodes.length}</dd></div>
+                  <div><dt>Langkah</dt><dd>{formData.steps.length}</dd></div>
+                </dl>
+                <ul>
+                  {completionItems.map((item) => (
+                    <li className={item.done ? 'is-done' : ''} key={item.label}>
+                      <span aria-hidden="true" />
+                      {item.label}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            </div>
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
+          </section>
+
+          <section className={`project-upload-file-section project-upload-form-section${activeSection === 'media' ? ' is-active' : ''}`}>
+            <div className="project-upload-media-grid">
+              <section className="project-upload-card project-upload-cover">
+                <h3>Gambar Cover Proyek *</h3>
+                <label className={`project-upload-cover-box${fieldErrors.coverImage ? ' has-error' : ''}`}>
+                  <input name="coverImage" type="file" accept="image/png,image/jpeg" onChange={handleFileChange} />
+                  {coverPreviewUrl ? (
+                    <img className="project-upload-cover-preview" src={coverPreviewUrl} alt="Preview cover proyek" />
+                  ) : (
+                    <ImageIcon />
+                  )}
+                  <span>{formData.coverImage?.name || existingCoverImageName || 'Upload gambar cover'}</span>
+                  <small>{existingCoverImageName && !formData.coverImage ? 'Cover lama tetap digunakan jika tidak diganti' : 'PNG, JPG maksimal 2 MB'}</small>
+                  <strong>Pilih Gambar</strong>
+                </label>
+                {fieldErrors.coverImage ? <em className="project-upload-error">{fieldErrors.coverImage}</em> : null}
+                <UploadField label="Alt Text" hint="Pilih gambar yang mewakili proyek Anda">
+                  <input name="altText" type="text" value={formData.altText} onChange={handleInputChange} placeholder="Deskripsikan proyek anda" />
+                </UploadField>
+              </section>
+
+              <section className="project-upload-card project-upload-cover">
+                <h3>Gambar Rangkaian</h3>
+                <label className={`project-upload-cover-box${fieldErrors.circuitImage ? ' has-error' : ''}`}>
+                  <input name="circuitImage" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFileChange} />
+                  {circuitPreviewUrl ? (
+                    <img className="project-upload-cover-preview" src={circuitPreviewUrl} alt="Preview gambar rangkaian" />
+                  ) : (
+                    <ImageIcon />
+                  )}
+                  <span>{formData.circuitImage?.name || existingCircuitImageName || 'Upload gambar rangkaian'}</span>
+                  <small>{existingCircuitImageName && !formData.circuitImage ? 'Gambar lama tetap digunakan jika tidak diganti' : 'PNG, JPG, WEBP maksimal 2 MB'}</small>
+                  <strong>Pilih Gambar</strong>
+                </label>
+                {fieldErrors.circuitImage ? <em className="project-upload-error">{fieldErrors.circuitImage}</em> : null}
+              </section>
+            </div>
+
+            <div className="project-upload-section-head">
+              <div>
+                <h3>File Proyek *</h3>
+                <p>Tambahkan nama file terlebih dahulu, lalu upload file yang sesuai.</p>
+              </div>
+              <button type="button" onClick={addProjectFileRow}><PlusIcon /> Tambah File</button>
+            </div>
+            <div className={`project-upload-file-list${fieldErrors.projectFile ? ' has-error' : ''}`}>
+              {formData.projectFiles.map((entry, index) => {
+                const fileName = getProjectFileEntryName(entry);
+                const fileSize = entry.file?.size || entry.existingFile?.file_size || entry.existingFile?.size;
+                const previewText = entry.preview;
+
+                return (
+                  <article className="project-upload-file-item" key={entry.id}>
+                    <div className="project-upload-file-row">
+                      <input
+                        type="text"
+                        value={entry.label}
+                        onChange={(event) => updateProjectFileLabel(index, event.target.value)}
+                        placeholder={DEFAULT_PROJECT_FILE_LABELS[index] || `Nama file ${index + 1}`}
+                        aria-label={`Nama file proyek ${index + 1}`}
+                      />
+                      <label className="project-upload-file-picker">
+                        <input type="file" accept={PROJECT_FILE_ACCEPT} onChange={(event) => handleProjectFileChange(index, event)} />
+                        <PlusIcon />
+                        <span>{fileName || 'Upload file'}</span>
+                      </label>
+                      <button type="button" className="project-upload-file-remove" onClick={() => removeProjectFileRow(index)}>Hapus</button>
+                    </div>
+                    <small className="project-upload-file-meta">
+                      {fileName ? `${fileName} - ${formatFileSize(fileSize)}` : 'Format: json, flow, schema, txt, md, ino, zip | Maksimal 10 MB per file'}
+                    </small>
+                    {previewText ? (
+                      <div className="project-upload-file-preview" aria-label={`Preview ${entry.label || fileName || `file ${index + 1}`}`}>
+                        <div>
+                          <strong>{entry.label || 'Preview File'}</strong>
+                          <span>{fileName}</span>
+                        </div>
+                        <pre>{previewText}</pre>
+                      </div>
+                    ) : null}
+                  </article>
+                );
+              })}
+            </div>
+            {fieldErrors.projectFile ? <em className="project-upload-error">{fieldErrors.projectFile}</em> : null}
+            <p>Pastikan file yang diupload sudah berfungsi dengan baik</p>
+          </section>
+        </form>
+
       </div>
 
       {formError ? <p role="alert" style={{ color: '#b42318', marginTop: 16 }}>{formError}</p> : null}
@@ -1876,6 +3136,31 @@ function formatProjectPrice(project) {
   }).format(price);
 }
 
+<<<<<<< HEAD
+=======
+function isPaidProject(project) {
+  const payment = project?.payment || {};
+  return Boolean(payment.isPaid || project?.isPaid) && Number(payment.price || project?.price || 0) > 0;
+}
+
+function formatTransactionAmount(transaction) {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: transaction?.currency || 'IDR',
+    maximumFractionDigits: 0,
+  }).format(Number(transaction?.amount || 0));
+}
+
+function getProjectDetailItems(project, fieldName) {
+  const payload = projectPayload(project);
+  return normalizeProjectList(project?.[fieldName] || payload?.[fieldName]);
+}
+
+function getProjectDescription(project) {
+  return projectField(project, 'description', 'Belum ada deskripsi proyek.');
+}
+
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
 export function UserProjectGallery() {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(getInitialSidebarCollapsed);
   const searchParams = new URLSearchParams(window.location.search);
@@ -1894,6 +3179,18 @@ export function UserProjectGallery() {
   const [projectsError, setProjectsError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('Terbaru');
+<<<<<<< HEAD
+=======
+  const [filterBy, setFilterBy] = useState('all');
+  const [selectedSalesProject, setSelectedSalesProject] = useState(null);
+  const [selectedDetailProject, setSelectedDetailProject] = useState(null);
+  const [financeTransactions, setFinanceTransactions] = useState([]);
+  const [commissionRate, setCommissionRate] = useState(10);
+  const [selectedPayoutProjectIds, setSelectedPayoutProjectIds] = useState([]);
+  const [payoutPurpose, setPayoutPurpose] = useState('');
+  const [isPayoutSubmitting, setIsPayoutSubmitting] = useState(false);
+  const [payoutMessage, setPayoutMessage] = useState('');
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
 
   async function loadProjects() {
     setProjectsLoading(true);
@@ -1919,8 +3216,70 @@ export function UserProjectGallery() {
       }
 
       const rows = Array.isArray(result.data) ? result.data : [];
+<<<<<<< HEAD
       const ownedProjects = currentUserId
         ? rows.filter((project) => String(project.userId || project.payload?.userId || '') === String(currentUserId))
+=======
+      const transactionParams = {};
+      if (currentUserId) transactionParams.userId = currentUserId;
+      if (user.email) transactionParams.email = user.email;
+      const paidProjectIds = new Set();
+      const projectSales = new Map();
+
+      if (transactionParams.userId || transactionParams.email) {
+        try {
+          const transactions = await fetchTransactions(transactionParams);
+          transactions
+            .filter((transaction) => transaction.itemType === 'project' && transaction.status === 'paid')
+            .forEach((transaction) => {
+              if (transaction.itemId !== null && transaction.itemId !== undefined) {
+                paidProjectIds.add(String(transaction.itemId));
+              }
+            });
+        } catch (transactionError) {
+          console.error('Gagal mengambil transaksi proyek user:', transactionError);
+        }
+      }
+
+      try {
+        const transactions = await fetchTransactions();
+        setFinanceTransactions(transactions);
+        transactions
+          .filter((transaction) => transaction.itemType === 'project' && transaction.status === 'paid' && transaction.itemId !== null && transaction.itemId !== undefined)
+          .forEach((transaction) => {
+            const projectId = String(transaction.itemId);
+            const sales = projectSales.get(projectId) || [];
+            sales.push(transaction);
+            projectSales.set(projectId, sales);
+          });
+      } catch (salesError) {
+        console.error('Gagal mengambil histori penjualan proyek:', salesError);
+        setFinanceTransactions([]);
+      }
+
+      try {
+        const financeConfig = await fetchFinanceConfig();
+        setCommissionRate(Number(financeConfig?.commissionRate ?? 10));
+      } catch (financeError) {
+        console.error('Gagal mengambil pengaturan komisi:', financeError);
+      }
+
+      const ownedProjects = currentUserId
+        ? rows.map((project) => {
+            const isOwner = String(project.userId || project.payload?.userId || '') === String(currentUserId);
+            const isPurchased = paidProjectIds.has(String(project.id || ''));
+            const salesHistory = projectSales.get(String(project.id || '')) || [];
+
+            return {
+              ...project,
+              salesCount: salesHistory.length,
+              salesHistory,
+              accessType: isOwner ? 'uploaded' : 'purchased',
+              isOwnerProject: isOwner,
+              isPurchasedProject: !isOwner && isPurchased,
+            };
+          }).filter((project) => project.isOwnerProject || project.isPurchasedProject)
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
         : rows;
 
       setProjects(ownedProjects);
@@ -1942,8 +3301,20 @@ export function UserProjectGallery() {
 
   const visibleProjects = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
+<<<<<<< HEAD
     const filtered = query
       ? projects.filter((project) => {
+=======
+    const scopedProjects = projects.filter((project) => {
+      if (filterBy === 'uploaded') return project.accessType === 'uploaded';
+      if (filterBy === 'purchased') return project.accessType === 'purchased';
+      if (filterBy === 'selling') return project.accessType === 'uploaded' && isPaidProject(project);
+      return true;
+    });
+
+    const filtered = query
+      ? scopedProjects.filter((project) => {
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
           const haystack = [
             project.title,
             project.category,
@@ -1953,7 +3324,11 @@ export function UserProjectGallery() {
 
           return haystack.includes(query);
         })
+<<<<<<< HEAD
       : [...projects];
+=======
+      : [...scopedProjects];
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
 
     return filtered.sort((first, second) => {
       if (sortBy === 'Nama') {
@@ -1964,7 +3339,109 @@ export function UserProjectGallery() {
       const secondTime = new Date(second.updatedAt || second.createdAt || 0).getTime() || 0;
       return secondTime - firstTime;
     });
+<<<<<<< HEAD
   }, [projects, searchQuery, sortBy]);
+=======
+  }, [filterBy, projects, searchQuery, sortBy]);
+
+  const salesRows = useMemo(() => projects
+    .filter((project) => project.isOwnerProject && isPaidProject(project))
+    .map((project) => {
+      const gross = (project.salesHistory || []).reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
+      const commission = gross * (commissionRate / 100);
+      const paidOut = financeTransactions
+        .filter((transaction) => transaction.itemType === 'project_payout' && String(transaction.itemId) === String(project.id) && ['proof_sent', 'done'].includes(transaction.status))
+        .reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
+      return {
+        project,
+        gross,
+        commission,
+        paidOut,
+        net: gross - commission,
+        available: Math.max(0, gross - commission - paidOut),
+        sold: project.salesHistory?.length || 0,
+      };
+    }), [commissionRate, financeTransactions, projects]);
+
+  const payoutTransactions = useMemo(() => financeTransactions.filter((transaction) => (
+    transaction.itemType === 'project_payout' && String(transaction.userId || '') === String(currentUserId || '')
+  )), [currentUserId, financeTransactions]);
+
+  const selectableSalesRows = useMemo(() => salesRows.filter((row) => row.available > 0), [salesRows]);
+  const selectedPayoutRows = useMemo(() => salesRows.filter((row) => (
+    selectedPayoutProjectIds.includes(String(row.project.id)) && row.available > 0
+  )), [salesRows, selectedPayoutProjectIds]);
+  const selectedPayoutAmount = selectedPayoutRows.reduce((sum, row) => sum + row.available, 0);
+
+  const payoutTotal = useMemo(() => payoutTransactions
+    .filter((transaction) => ['proof_sent', 'done'].includes(transaction.status))
+    .reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0), [payoutTransactions]);
+
+  const grossSales = salesRows.reduce((sum, row) => sum + row.gross, 0);
+  const totalCommission = salesRows.reduce((sum, row) => sum + row.commission, 0);
+  const availableBalance = Math.max(0, grossSales - totalCommission - payoutTotal);
+
+  async function handlePayoutSubmit(event) {
+    event.preventDefault();
+    if (!selectedPayoutRows.length) {
+      setPayoutMessage('Pilih minimal satu proyek yang akan dicairkan melalui checkbox tabel.');
+      return;
+    }
+    if (!payoutPurpose.trim()) {
+      setPayoutMessage('Tujuan pencairan dana wajib diisi.');
+      return;
+    }
+    setIsPayoutSubmitting(true);
+    setPayoutMessage('Mengajukan pencairan dana...');
+    try {
+      await Promise.all(selectedPayoutRows.map((selected) => createTransaction({
+          userId: currentUserId,
+          userName: fullName,
+          email: user.email || '',
+          itemType: 'project_payout',
+          itemId: selected.project.id,
+          itemTitle: `Pencairan: ${selected.project.title || 'Proyek'}`,
+          amount: selected.available,
+          currency: 'IDR',
+          status: 'payout_requested',
+          notes: payoutPurpose.trim(),
+          payload: {
+            purpose: payoutPurpose.trim(),
+            projectTitle: selected.project.title || '',
+            grossAmount: selected.gross,
+            commissionRate,
+            commissionAmount: selected.commission,
+          },
+        })));
+      setPayoutPurpose('');
+      setSelectedPayoutProjectIds([]);
+      setPayoutMessage(`Pengajuan pencairan ${selectedPayoutRows.length} proyek berhasil dikirim ke admin.`);
+      await loadProjects();
+    } catch (error) {
+      setPayoutMessage(error.message || 'Pengajuan pencairan gagal dikirim.');
+    } finally {
+      setIsPayoutSubmitting(false);
+    }
+  }
+
+  async function handleCompletePayout(transaction) {
+    try {
+      const updated = await completeProjectPayout(transaction.id);
+      setFinanceTransactions((current) => current.map((item) => item.id === transaction.id ? updated : item));
+      setPayoutMessage('Pencairan ditandai selesai.');
+    } catch (error) {
+      setPayoutMessage(error.message || 'Status pencairan gagal diperbarui.');
+    }
+  }
+
+  const editingInitialProject = useMemo(() => {
+    if (projectFormMode !== 'edit' || !editProjectId) {
+      return null;
+    }
+
+    return projects.find((project) => String(project.id) === String(editProjectId)) || null;
+  }, [editProjectId, projectFormMode, projects]);
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
 
   function handleLogout() {
     window.localStorage.removeItem('arduflow_user');
@@ -2005,11 +3482,7 @@ export function UserProjectGallery() {
               href={item.href}
               key={item.label}
             >
-              {item.icon === 'certificate' ? (
-                <img className="dashboard-sidebar__asset-icon" src={certificateIcon} alt="" aria-hidden="true" />
-              ) : (
-                <SidebarIcon name={item.icon} />
-              )}
+              <DashboardUserSidebarIcon name={item.icon} />
               <span>{item.label}</span>
             </a>
           ))}
@@ -2021,15 +3494,7 @@ export function UserProjectGallery() {
       </aside>
 
       <section className="dashboard-shell">
-        <header className="dashboard-topbar">
-          <div className="dashboard-topbar__user">
-            <button className="dashboard-notification" type="button" aria-label="Notifikasi">
-              <img src={bellIcon} alt="" aria-hidden="true" />
-            </button>
-            <ProfileAvatar className="dashboard-mini-avatar" image={profileImage} name={fullName} />
-            <strong>{fullName}</strong>
-          </div>
-        </header>
+        <UserDashboardTopbar fullName={fullName} profileImage={profileImage} />
 
         <main className="dashboard-content user-project-content">
           {!isUploadFormOpen ? (
@@ -2043,6 +3508,10 @@ export function UserProjectGallery() {
             <ProjectUploadForm
               mode={projectFormMode}
               projectId={editProjectId}
+<<<<<<< HEAD
+=======
+              initialProject={editingInitialProject}
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
               onSuccess={() => {
                 loadProjects();
                 if (!isAdminProjectEditRoute) {
@@ -2077,10 +3546,15 @@ export function UserProjectGallery() {
                       <option>Nama</option>
                     </select>
                   </div>
-                  <button className="user-project-filter" type="button">
+                  <label className="user-project-filter">
+                    <span className="sr-only">Filter proyek</span>
                     <FilterIcon />
-                    <span>Filter</span>
-                  </button>
+                    <select value={filterBy} onChange={(event) => setFilterBy(event.target.value)} aria-label="Filter proyek">
+                      {PROJECT_FILTER_OPTIONS.map((option) => (
+                        <option value={option.value} key={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
                   <button className="user-project-upload" type="button" onClick={() => setUploadFormOpen(true)}>
                     <UploadIcon />
                     <span>Upload</span>
@@ -2106,8 +3580,25 @@ export function UserProjectGallery() {
                       <div className="user-project-card__body">
                         <h3>{project.title || 'Tanpa judul'}</h3>
                         <p>{project.category || '-'}</p>
+<<<<<<< HEAD
                         <time>{formatProjectDate(project)}</time>
                         <strong>{formatProjectPrice(project)}</strong>
+=======
+                        <div className="user-project-card__meta">
+                          <span>{project.accessType === 'purchased' ? 'Dibeli' : 'Di-upload sendiri'}</span>
+                          {isPaidProject(project) ? <span>Dijual</span> : <span>Gratis</span>}
+                        </div>
+                        <time>{formatProjectDate(project)}</time>
+                        <strong>{formatProjectPrice(project)}</strong>
+                        <small className="user-project-card__sold">{Number(project.salesCount || 0).toLocaleString('id-ID')} terjual</small>
+                        <button
+                          className="user-project-card__action"
+                          type="button"
+                          onClick={() => setSelectedDetailProject(project)}
+                        >
+                          Detail Proyek
+                        </button>
+>>>>>>> 6a7aa1f8d9998e3fe071562cdfcae924f28d61a6
                       </div>
                     </article>
                   );
@@ -2122,6 +3613,227 @@ export function UserProjectGallery() {
             </nav>
             </section>
           )}
+
+          {!isUploadFormOpen ? (
+            <section className="user-project-sales-section" aria-labelledby="sales-history-title">
+              <div className="user-project-sales-section__header">
+                <div>
+                  <span className="user-project-sales-section__eyebrow">KEUANGAN PROYEK</span>
+                  <h2 id="sales-history-title">Histori Penjualan</h2>
+                  <p>Kelola penjualan proyek, pendapatan bersih, dan pengajuan pencairan dana.</p>
+                </div>
+                <div className="user-project-sales-metrics">
+                  <article><small>Pendapatan kotor</small><strong>{formatTransactionAmount({ amount: grossSales })}</strong></article>
+                  <article><small>Komisi ArduFlow ({commissionRate}%)</small><strong>{formatTransactionAmount({ amount: totalCommission })}</strong></article>
+                  <article><small>Sudah dicairkan</small><strong>{formatTransactionAmount({ amount: payoutTotal })}</strong></article>
+                  <article><small>Saldo tersedia</small><strong>{formatTransactionAmount({ amount: availableBalance })}</strong></article>
+                </div>
+              </div>
+
+              <div className="user-project-sales-table user-project-sales-table--finance" role="table" aria-label="Histori penjualan proyek">
+                <div className="user-project-sales-table__head" role="row">
+                  <span className="user-project-sales-table__select"><input type="checkbox" aria-label="Pilih semua proyek yang bisa dicairkan" checked={selectableSalesRows.length > 0 && selectedPayoutRows.length === selectableSalesRows.length} onChange={(event) => setSelectedPayoutProjectIds(event.target.checked ? selectableSalesRows.map((row) => String(row.project.id)) : [])} /></span>
+                  <span>Proyek</span><span>Harga</span><span>Terjual</span><span>Belum cair</span><span>Sudah cair</span><span>Pendapatan bersih</span><span>Detail</span>
+                </div>
+                {salesRows.length ? salesRows.map((row) => (
+                  <div className="user-project-sales-table__row" role="row" key={row.project.id}>
+                    <span className="user-project-sales-table__select"><input type="checkbox" aria-label={`Pilih pencairan ${row.project.title || 'proyek'}`} checked={selectedPayoutProjectIds.includes(String(row.project.id))} disabled={row.available <= 0} onChange={(event) => setSelectedPayoutProjectIds((current) => event.target.checked ? [...new Set([...current, String(row.project.id)])] : current.filter((id) => id !== String(row.project.id)))} /></span>
+                    <span>{row.project.title || 'Tanpa judul'}</span>
+                    <span>{formatProjectPrice(row.project)}</span>
+                    <span>{row.sold.toLocaleString('id-ID')}</span>
+                    <span>{formatTransactionAmount({ amount: row.available })}</span>
+                    <span>{formatTransactionAmount({ amount: row.paidOut })}</span>
+                    <span>{formatTransactionAmount({ amount: row.net })}</span>
+                    <span><button type="button" onClick={() => setSelectedSalesProject(row.project)}>Detail pembeli</button></span>
+                  </div>
+                )) : (
+                  <p className="user-project-sales-empty">Belum ada penjualan proyek yang berhasil.</p>
+                )}
+              </div>
+
+              <div className="user-project-payout-area">
+                <div>
+                  <h3>Ajukan pencairan dana</h3>
+                  <p>Pilih proyek melalui checkbox tabel. Dana akan diproses admin setelah pengajuan diterima, dan komisi ArduFlow sudah dikurangi dari saldo bersih.</p>
+                </div>
+                <form className="user-project-payout-form" onSubmit={handlePayoutSubmit}>
+                  <div className="user-project-payout-selection"><span>{selectedPayoutRows.length} proyek dipilih</span><strong>{formatTransactionAmount({ amount: selectedPayoutAmount })}</strong></div>
+                  <label>Tujuan pencairan dana<textarea value={payoutPurpose} onChange={(event) => setPayoutPurpose(event.target.value)} placeholder="Contoh: pencairan ke rekening BCA atas nama..." rows="3" /></label>
+                  <button type="submit" disabled={isPayoutSubmitting || selectedPayoutRows.length === 0}>{isPayoutSubmitting ? 'Mengirim...' : 'Ajukan pencairan'}</button>
+                </form>
+              </div>
+
+              {payoutTransactions.length ? (
+                <div className="user-project-payout-history">
+                  <h3>Riwayat pencairan</h3>
+                  {payoutTransactions.map((transaction) => (
+                    <div key={transaction.id}><span>{transaction.itemTitle}</span><strong>{formatTransactionAmount(transaction)}</strong><b className={`is-${transaction.status}`}>{transaction.status === 'proof_sent' ? 'Bukti dikirim' : transaction.status === 'done' ? 'Selesai' : 'Menunggu admin'}</b>{transaction.proofFile?.url ? <a href={transaction.proofFile.url} target="_blank" rel="noreferrer">Lihat bukti</a> : null}{transaction.status === 'proof_sent' ? <button type="button" onClick={() => handleCompletePayout(transaction)}>Konfirmasi pencairan</button> : null}</div>
+                  ))}
+                </div>
+              ) : null}
+              {payoutMessage ? <p className="user-project-payout-message" role="status">{payoutMessage}</p> : null}
+            </section>
+          ) : null}
+
+          {selectedSalesProject ? (
+            <section className="user-project-sales-modal" role="dialog" aria-modal="true" aria-labelledby="user-project-sales-title">
+              <button
+                className="user-project-sales-modal__backdrop"
+                type="button"
+                aria-label="Tutup histori penjualan"
+                onClick={() => setSelectedSalesProject(null)}
+              />
+              <article className="user-project-sales-panel">
+                <header>
+                  <div>
+                    <span>Histori Penjualan Proyek</span>
+                    <h2 id="user-project-sales-title">{selectedSalesProject.title || 'Tanpa judul'}</h2>
+                    <p>{Number(selectedSalesProject.salesCount || 0).toLocaleString('id-ID')} transaksi berhasil</p>
+                  </div>
+                  <button type="button" onClick={() => setSelectedSalesProject(null)} aria-label="Tutup">x</button>
+                </header>
+                {selectedSalesProject.salesHistory?.length ? (
+                  <div className="user-project-sales-table" role="table" aria-label="Histori transaksi penjualan proyek">
+                    <div className="user-project-sales-table__head" role="row">
+                      <span>Pembeli</span>
+                      <span>Invoice</span>
+                      <span>Tanggal</span>
+                      <span>Nominal</span>
+                      <span>Status</span>
+                    </div>
+                    {selectedSalesProject.salesHistory.map((transaction) => (
+                      <div className="user-project-sales-table__row" role="row" key={transaction.id || transaction.invoiceNumber}>
+                        <span>{transaction.userName || transaction.email || '-'}</span>
+                        <span>{transaction.invoiceNumber || '-'}</span>
+                        <time>{formatProjectDate({ updatedAt: transaction.paidAt || transaction.createdAt })}</time>
+                        <span>{formatTransactionAmount(transaction)}</span>
+                        <span><b>Paid</b></span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="user-project-sales-empty">Belum ada pembelian untuk proyek ini.</p>
+                )}
+              </article>
+            </section>
+          ) : null}
+
+          {selectedDetailProject ? (() => {
+            const coverUrl = resolveProjectCoverUrl(selectedDetailProject) || projectImage;
+            const tools = getProjectDetailItems(selectedDetailProject, 'tools');
+            const nodes = getProjectDetailItems(selectedDetailProject, 'nodes');
+            const steps = getProjectDetailItems(selectedDetailProject, 'steps');
+            const projectFiles = normalizeProjectFiles(selectedDetailProject)
+              .map((entry) => ({
+                label: entry.label,
+                name: getProjectFileEntryName(entry),
+                url: getProjectFileUrl(entry.existingFile),
+              }))
+              .filter((entry) => entry.name || entry.url);
+            const description = getProjectDescription(selectedDetailProject);
+
+            return (
+              <section className="user-project-detail-modal" role="dialog" aria-modal="true" aria-labelledby="user-project-detail-title">
+                <button
+                  className="user-project-detail-modal__backdrop"
+                  type="button"
+                  aria-label="Tutup detail proyek"
+                  onClick={() => setSelectedDetailProject(null)}
+                />
+                <article className="user-project-detail-panel">
+                  <header>
+                    <div>
+                      <span>{selectedDetailProject.accessType === 'purchased' ? 'Proyek Dibeli' : 'Proyek Upload Sendiri'}</span>
+                      <h2 id="user-project-detail-title">{selectedDetailProject.title || 'Tanpa judul'}</h2>
+                      <p>{selectedDetailProject.category || 'Tanpa kategori'}</p>
+                    </div>
+                    <button type="button" onClick={() => setSelectedDetailProject(null)} aria-label="Tutup">x</button>
+                  </header>
+
+                  <div className="user-project-detail-body">
+                    <aside className="user-project-detail-media">
+                      <img src={coverUrl} alt={selectedDetailProject.coverImage?.altText || selectedDetailProject.title || 'Cover proyek'} />
+                      <div className="user-project-detail-summary">
+                        <article><small>Harga</small><strong>{formatProjectPrice(selectedDetailProject)}</strong></article>
+                        <article><small>Terjual</small><strong>{Number(selectedDetailProject.salesCount || 0).toLocaleString('id-ID')}</strong></article>
+                        <article><small>Akses</small><strong>{selectedDetailProject.accessType === 'purchased' ? 'Dibeli' : 'Pemilik'}</strong></article>
+                        <article><small>Status</small><strong>{isPaidProject(selectedDetailProject) ? 'Dijual' : 'Gratis'}</strong></article>
+                      </div>
+                    </aside>
+
+                    <div className="user-project-detail-main">
+                      <section className="user-project-detail-section user-project-detail-section--description">
+                        <h3>Deskripsi</h3>
+                        <p>{stripHtml(description) || 'Belum ada deskripsi proyek.'}</p>
+                      </section>
+
+                      <section className="user-project-detail-grid">
+                        <div className="user-project-detail-section">
+                          <h3>Komponen</h3>
+                          {tools.length ? (
+                            <ul>
+                              {tools.map((tool, index) => (
+                                <li key={`${tool?.name || tool}-${index}`}>{tool?.name || tool}{tool?.value ? ` - ${tool.value}` : ''}</li>
+                              ))}
+                            </ul>
+                          ) : <p>Belum ada komponen.</p>}
+                        </div>
+
+                        <div className="user-project-detail-section">
+                          <h3>Node</h3>
+                          {nodes.length ? (
+                            <ul>
+                              {nodes.map((node, index) => (
+                                <li key={`${node?.name || node}-${index}`}>{node?.name || node}{node?.value ? ` - ${node.value}` : ''}</li>
+                              ))}
+                            </ul>
+                          ) : <p>Belum ada node.</p>}
+                        </div>
+                      </section>
+
+                      <section className="user-project-detail-section">
+                        <h3>Langkah Pengerjaan</h3>
+                        {steps.length ? (
+                          <ol>
+                            {steps.map((step, index) => (
+                              <li key={`${step?.title || 'step'}-${index}`}>
+                                <strong>{step?.title || `Langkah ${index + 1}`}</strong>
+                                <span>{stripHtml(step?.description || '') || '-'}</span>
+                              </li>
+                            ))}
+                          </ol>
+                        ) : <p>Belum ada langkah pengerjaan.</p>}
+                      </section>
+
+                      <section className="user-project-detail-section">
+                        <h3>File Proyek</h3>
+                        {projectFiles.length ? (
+                          <div className="user-project-detail-files">
+                            {projectFiles.map((file, index) => (
+                              file.url ? (
+                                <a href={file.url} target="_blank" rel="noreferrer" key={`${file.name}-${index}`}>
+                                  {file.label || file.name}
+                                </a>
+                              ) : (
+                                <span key={`${file.name}-${index}`}>{file.label || file.name}</span>
+                              )
+                            ))}
+                          </div>
+                        ) : <p>Belum ada file proyek.</p>}
+                      </section>
+
+                      <footer>
+                        <a href={`/project/detail?id=${encodeURIComponent(selectedDetailProject.id)}`}>Buka Halaman Proyek</a>
+                        {selectedDetailProject.isOwnerProject ? (
+                          <a href={`/proyek-saya?mode=edit&projectId=${encodeURIComponent(selectedDetailProject.id)}`}>Edit Proyek</a>
+                        ) : null}
+                      </footer>
+                    </div>
+                  </div>
+                </article>
+              </section>
+            );
+          })() : null}
         </main>
       </section>
     </div>
