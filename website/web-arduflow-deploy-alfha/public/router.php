@@ -2,6 +2,23 @@
 
 declare(strict_types=1);
 
+use Arduflow\Api\Http\ErrorHandler;
+
+$root = dirname(__DIR__);
+$autoload = $root . '/vendor/autoload.php';
+
+if (!is_file($autoload)) {
+    http_response_code(500);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['message' => 'Dependency PHP belum diinstal. Jalankan composer install.']);
+    return true;
+}
+
+require_once $autoload;
+
+$errorHandler = new ErrorHandler($root . '/storage/logs/app.log');
+$errorHandler->register();
+
 $path = parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?: '/';
 $file = __DIR__ . $path;
 

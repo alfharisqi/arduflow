@@ -16,6 +16,7 @@
   "scripts": {
     "serve": "php -S 0.0.0.0:8000 router.php",
     "db:init": "php scripts/init-sqlite.php",
+    "db:migrate": "php scripts/migrate.php",
     "db:import-auth": "php scripts/import-auth-from-node-sqlite.php",
     "db:import": "php scripts/import-mysql-to-sqlite.php",
     "db:check": "php scripts/check-database-consistency.php",
@@ -26,10 +27,14 @@
     "test:auth": "php tests/auth-integration.php",
     "test:sync": "php tests/sync-integration.php",
     "test:content": "php tests/content-integration.php",
+    "test:api-performance": "php tests/api-performance.php",
+    "test:api-smoke": "php tests/api-smoke.php",
+    "db:optimize-api": "php scripts/optimize-api-indexes.php",
     "test": [
       "@test:auth",
       "@test:sync",
-      "@test:content"
+      "@test:content",
+      "@test:api-performance"
     ]
   },
   "config": {

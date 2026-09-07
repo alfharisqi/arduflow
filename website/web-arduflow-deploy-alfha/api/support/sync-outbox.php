@@ -24,26 +24,6 @@ function afwSyncUuid(): string
     );
 }
 
-function afwSyncTableColumns(PDO $pdo, string $table): array
-{
-    $statement = $pdo->query('PRAGMA table_info(' . $table . ')');
-    if ($statement === false) {
-        return [];
-    }
-
-    return array_map(
-        static fn (array $column): string => (string) $column['name'],
-        $statement->fetchAll(PDO::FETCH_ASSOC),
-    );
-}
-
-function afwSyncAddColumnIfMissing(PDO $pdo, string $table, string $column, string $definition): void
-{
-    if (!in_array($column, afwSyncTableColumns($pdo, $table), true)) {
-        $pdo->exec(sprintf('ALTER TABLE %s ADD COLUMN %s %s', $table, $column, $definition));
-    }
-}
-
 function afwSyncAllowedColumns(): array
 {
     return [
@@ -95,60 +75,8 @@ function afwSyncAllowedColumns(): array
     ];
 }
 
-function afwSyncEnsureInfrastructure(PDO $pdo): void
-{
-    $pdo->exec(
-        "CREATE TABLE IF NOT EXISTS sync_outbox (
-            id TEXT PRIMARY KEY,
-            event_id TEXT NOT NULL UNIQUE,
-            table_name TEXT NOT NULL,
-            row_id TEXT NOT NULL,
-            operation TEXT NOT NULL CHECK (operation IN ('insert', 'update', 'delete')),
-            payload TEXT NOT NULL,
-            version INTEGER NOT NULL DEFAULT 1,
-            status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'synced', 'failed')),
-            retry_count INTEGER NOT NULL DEFAULT 0,
-            next_retry_at TEXT,
-            last_error TEXT,
-            worker_id TEXT,
-            locked_at TEXT,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            synced_at TEXT
-        )"
-    );
-    $pdo->exec('CREATE INDEX IF NOT EXISTS sync_outbox_ready_idx ON sync_outbox(status, next_retry_at, created_at)');
-    $pdo->exec('CREATE INDEX IF NOT EXISTS sync_outbox_worker_idx ON sync_outbox(worker_id, status)');
-    $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS sync_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            batch_id TEXT NOT NULL,
-            total_events INTEGER NOT NULL,
-            success_events INTEGER NOT NULL DEFAULT 0,
-            failed_events INTEGER NOT NULL DEFAULT 0,
-            started_at TEXT NOT NULL,
-            finished_at TEXT,
-            duration_ms INTEGER,
-            mysql_status TEXT,
-            error_message TEXT
-        )'
-    );
-}
-
-function afwSyncEnsureTable(PDO $pdo, string $table): void
-{
-    if (!isset(afwSyncAllowedColumns()[$table]) || afwSyncTableColumns($pdo, $table) === []) {
-        return;
-    }
-
-    afwSyncAddColumnIfMissing($pdo, $table, 'version', 'INTEGER NOT NULL DEFAULT 1');
-    afwSyncAddColumnIfMissing($pdo, $table, 'deleted_at', 'TEXT NULL');
-}
-
 function afwSyncTouch(PDO $pdo, string $table, int|string $rowId, string $operation): void
 {
-    afwSyncEnsureTable($pdo, $table);
-
     if ($operation === 'insert') {
         return;
     }
@@ -175,13 +103,11 @@ function afwSyncEnqueue(PDO $pdo, string $table, int|string $rowId, string $oper
         return null;
     }
 
-    afwSyncEnsureInfrastructure($pdo);
-    afwSyncEnsureTable($pdo, $table);
     if ($touch) {
         afwSyncTouch($pdo, $table, $rowId, $operation);
     }
 
-    $availableColumns = array_values(array_intersect($allowed[$table], afwSyncTableColumns($pdo, $table)));
+    $availableColumns = $allowed[$table];
     if ($availableColumns === []) {
         return null;
     }
