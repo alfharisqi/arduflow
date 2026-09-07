@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Arduflow\Api\Support\Env;
 
-const MATERI_API_VERSION = 'materi-v5-post';
+const MATERI_API_VERSION = 'materi-v6-table-materi';
 
 $projectRoot = dirname(__DIR__);
 $autoloadPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
@@ -161,8 +161,8 @@ if (!function_exists('getDatabaseConnection')) {
 
 try {
     $database = getDatabaseConnection();
+    migrateLegacyTutorialTablesToMateri($database);
     createTables($database);
-
     switch ($_SERVER['REQUEST_METHOD']) {
         case 'GET':
             getAllMateri($database);
@@ -204,10 +204,130 @@ try {
     );
 }
 
+
+function databaseTableExists(PDO $database, string $tableName): bool
+{
+    $statement = $database->prepare(
+        'SELECT 1
+         FROM sqlite_master
+         WHERE type = :type
+           AND name = :name
+         LIMIT 1'
+    );
+
+    $statement->execute([
+        ':type' => 'table',
+        ':name' => $tableName,
+    ]);
+
+    return (bool) $statement->fetchColumn();
+}
+
+
+function databaseColumnExists(
+    PDO $database,
+    string $tableName,
+    string $columnName
+): bool {
+    if (!databaseTableExists($database, $tableName)) {
+        return false;
+    }
+
+    $allowedTables = [
+        'materi',
+        'materi_chapters',
+        'materi_learning_objectives',
+        'materi_slides',
+    ];
+
+    if (!in_array($tableName, $allowedTables, true)) {
+        return false;
+    }
+
+    $columns = $database->query(
+        'PRAGMA table_info(' . $tableName . ')'
+    )->fetchAll();
+
+    foreach ($columns as $column) {
+        if (
+            isset($column['name'])
+            && (string) $column['name'] === $columnName
+        ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
+function migrateLegacyTutorialTablesToMateri(PDO $database): void
+{
+    $tableMap = [
+        'tutorials' => 'materi',
+        'tutorial_chapters' => 'materi_chapters',
+        'tutorial_learning_objectives' => 'materi_learning_objectives',
+        'tutorial_slides' => 'materi_slides',
+    ];
+
+    /*
+     * ALTER TABLE RENAME pada SQLite modern otomatis memperbarui
+     * referensi foreign key. foreign_keys dimatikan sementara agar
+     * migrasi database lama lebih aman.
+     */
+    $database->exec('PRAGMA foreign_keys = OFF');
+
+    try {
+        foreach ($tableMap as $oldTable => $newTable) {
+            $oldExists = databaseTableExists($database, $oldTable);
+            $newExists = databaseTableExists($database, $newTable);
+
+            if ($oldExists && !$newExists) {
+                $database->exec(
+                    'ALTER TABLE '
+                    . $oldTable
+                    . ' RENAME TO '
+                    . $newTable
+                );
+            }
+        }
+
+        $childTables = [
+            'materi_chapters',
+            'materi_learning_objectives',
+            'materi_slides',
+        ];
+
+        foreach ($childTables as $tableName) {
+            if (
+                databaseColumnExists(
+                    $database,
+                    $tableName,
+                    'tutorial_id'
+                )
+                && !databaseColumnExists(
+                    $database,
+                    $tableName,
+                    'materi_id'
+                )
+            ) {
+                $database->exec(
+                    'ALTER TABLE '
+                    . $tableName
+                    . ' RENAME COLUMN tutorial_id TO materi_id'
+                );
+            }
+        }
+    } finally {
+        $database->exec('PRAGMA foreign_keys = ON');
+    }
+}
+
+
 function createTables(PDO $database): void
 {
     $database->exec(
-        'CREATE TABLE IF NOT EXISTS tutorials (
+        'CREATE TABLE IF NOT EXISTS materi (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL,
             slug TEXT NOT NULL UNIQUE,
@@ -241,37 +361,37 @@ function createTables(PDO $database): void
     );
 
     $database->exec(
-        'CREATE TABLE IF NOT EXISTS tutorial_chapters (
+        'CREATE TABLE IF NOT EXISTS materi_chapters (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tutorial_id INTEGER NOT NULL,
+            materi_id INTEGER NOT NULL,
             chapter_order INTEGER NOT NULL DEFAULT 1,
             title TEXT NOT NULL,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
-            FOREIGN KEY (tutorial_id)
-                REFERENCES tutorials(id)
+            FOREIGN KEY (materi_id)
+                REFERENCES materi(id)
                 ON DELETE CASCADE
         )'
     );
 
     $database->exec(
-        'CREATE TABLE IF NOT EXISTS tutorial_learning_objectives (
+        'CREATE TABLE IF NOT EXISTS materi_learning_objectives (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tutorial_id INTEGER NOT NULL,
+            materi_id INTEGER NOT NULL,
             objective_order INTEGER NOT NULL DEFAULT 1,
             objective TEXT NOT NULL,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
-            FOREIGN KEY (tutorial_id)
-                REFERENCES tutorials(id)
+            FOREIGN KEY (materi_id)
+                REFERENCES materi(id)
                 ON DELETE CASCADE
         )'
     );
 
     $database->exec(
-        'CREATE TABLE IF NOT EXISTS tutorial_slides (
+        'CREATE TABLE IF NOT EXISTS materi_slides (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tutorial_id INTEGER NOT NULL,
+            materi_id INTEGER NOT NULL,
             chapter_id INTEGER,
             slide_order INTEGER NOT NULL,
             title TEXT NOT NULL,
@@ -289,11 +409,11 @@ function createTables(PDO $database): void
             video_url TEXT,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
-            FOREIGN KEY (tutorial_id)
-                REFERENCES tutorials(id)
+            FOREIGN KEY (materi_id)
+                REFERENCES materi(id)
                 ON DELETE CASCADE,
             FOREIGN KEY (chapter_id)
-                REFERENCES tutorial_chapters(id)
+                REFERENCES materi_chapters(id)
                 ON DELETE SET NULL
         )'
     );
@@ -305,84 +425,84 @@ function createTables(PDO $database): void
      */
     ensureTableColumn(
         $database,
-        'tutorials',
+        'materi',
         'active',
         'INTEGER NOT NULL DEFAULT 1'
     );
     ensureTableColumn(
         $database,
-        'tutorials',
+        'materi',
         'show_on_page',
         'INTEGER NOT NULL DEFAULT 1'
     );
     ensureTableColumn(
         $database,
-        'tutorials',
+        'materi',
         'featured',
         'INTEGER NOT NULL DEFAULT 0'
     );
     ensureTableColumn(
         $database,
-        'tutorials',
+        'materi',
         'comments',
         'INTEGER NOT NULL DEFAULT 1'
     );
-    ensureTableColumn($database, 'tutorials', 'access_type', 'TEXT');
-    ensureTableColumn($database, 'tutorials', 'featured_order', 'INTEGER');
-    ensureTableColumn($database, 'tutorials', 'prerequisite', 'TEXT');
-    ensureTableColumn($database, 'tutorials', 'cta_text', 'TEXT');
-    ensureTableColumn($database, 'tutorials', 'cta_target_link', 'TEXT');
-    ensureTableColumn($database, 'tutorials', 'cta_url_slug', 'TEXT');
-    ensureTableColumn($database, 'tutorials', 'publish_schedule', 'TEXT');
+    ensureTableColumn($database, 'materi', 'access_type', 'TEXT');
+    ensureTableColumn($database, 'materi', 'featured_order', 'INTEGER');
+    ensureTableColumn($database, 'materi', 'prerequisite', 'TEXT');
+    ensureTableColumn($database, 'materi', 'cta_text', 'TEXT');
+    ensureTableColumn($database, 'materi', 'cta_target_link', 'TEXT');
+    ensureTableColumn($database, 'materi', 'cta_url_slug', 'TEXT');
+    ensureTableColumn($database, 'materi', 'publish_schedule', 'TEXT');
 
-    ensureTableColumn($database, 'tutorial_slides', 'chapter_id', 'INTEGER');
+    ensureTableColumn($database, 'materi_slides', 'chapter_id', 'INTEGER');
     ensureTableColumn(
         $database,
-        'tutorial_slides',
+        'materi_slides',
         'estimated_time',
         'TEXT'
     );
     ensureTableColumn(
         $database,
-        'tutorial_slides',
+        'materi_slides',
         'status',
         'TEXT NOT NULL DEFAULT "draft"'
     );
     ensureTableColumn(
         $database,
-        'tutorial_slides',
+        'materi_slides',
         'image_type',
         'TEXT'
     );
     ensureTableColumn(
         $database,
-        'tutorial_slides',
+        'materi_slides',
         'image_size',
         'INTEGER'
     );
-    ensureTableColumn($database, 'tutorial_slides', 'code_title', 'TEXT');
-    ensureTableColumn($database, 'tutorial_slides', 'code_language', 'TEXT');
-    ensureTableColumn($database, 'tutorial_slides', 'code_content', 'TEXT');
+    ensureTableColumn($database, 'materi_slides', 'code_title', 'TEXT');
+    ensureTableColumn($database, 'materi_slides', 'code_language', 'TEXT');
+    ensureTableColumn($database, 'materi_slides', 'code_content', 'TEXT');
     ensureTableColumn(
         $database,
-        'tutorial_slides',
+        'materi_slides',
         'allow_copy',
         'INTEGER NOT NULL DEFAULT 1'
     );
 
     $database->exec(
-        'CREATE INDEX IF NOT EXISTS idx_tutorial_chapters_tutorial
-         ON tutorial_chapters (tutorial_id, chapter_order)'
+        'CREATE INDEX IF NOT EXISTS idx_materi_chapters_materi
+         ON materi_chapters (materi_id, chapter_order)'
     );
 
     $database->exec(
-        'CREATE INDEX IF NOT EXISTS idx_tutorial_objectives_tutorial
-         ON tutorial_learning_objectives (tutorial_id, objective_order)'
+        'CREATE INDEX IF NOT EXISTS idx_materi_objectives_materi
+         ON materi_learning_objectives (materi_id, objective_order)'
     );
 
     $database->exec(
-        'CREATE INDEX IF NOT EXISTS idx_tutorial_slides_chapter
-         ON tutorial_slides (tutorial_id, chapter_id, slide_order)'
+        'CREATE INDEX IF NOT EXISTS idx_materi_slides_chapter
+         ON materi_slides (materi_id, chapter_id, slide_order)'
     );
 }
 
@@ -394,10 +514,10 @@ function ensureTableColumn(
     string $definition
 ): void {
     $allowedTables = [
-        'tutorials',
-        'tutorial_slides',
-        'tutorial_chapters',
-        'tutorial_learning_objectives',
+        'materi',
+        'materi_slides',
+        'materi_chapters',
+        'materi_learning_objectives',
     ];
 
     if (!in_array($tableName, $allowedTables, true)) {
@@ -1351,14 +1471,14 @@ function insertTutorialStructure(
     string $currentTimestamp
 ): void {
     $chapterStatement = $database->prepare(
-        'INSERT INTO tutorial_chapters (
-            tutorial_id,
+        'INSERT INTO materi_chapters (
+            materi_id,
             chapter_order,
             title,
             created_at,
             updated_at
         ) VALUES (
-            :tutorial_id,
+            :materi_id,
             :chapter_order,
             :title,
             :created_at,
@@ -1376,7 +1496,7 @@ function insertTutorialStructure(
 
     foreach ($chapters as $index => $chapter) {
         $chapterStatement->execute([
-            ':tutorial_id' => $tutorialId,
+            ':materi_id' => $tutorialId,
             ':chapter_order' => isset($chapter['order'])
                 ? (int) $chapter['order']
                 : $index + 1,
@@ -1396,14 +1516,14 @@ function insertTutorialStructure(
     }
 
     $objectiveStatement = $database->prepare(
-        'INSERT INTO tutorial_learning_objectives (
-            tutorial_id,
+        'INSERT INTO materi_learning_objectives (
+            materi_id,
             objective_order,
             objective,
             created_at,
             updated_at
         ) VALUES (
-            :tutorial_id,
+            :materi_id,
             :objective_order,
             :objective,
             :created_at,
@@ -1413,7 +1533,7 @@ function insertTutorialStructure(
 
     foreach ($learningObjectives as $index => $objective) {
         $objectiveStatement->execute([
-            ':tutorial_id' => $tutorialId,
+            ':materi_id' => $tutorialId,
             ':objective_order' => $index + 1,
             ':objective' => (string) $objective,
             ':created_at' => $currentTimestamp,
@@ -1422,8 +1542,8 @@ function insertTutorialStructure(
     }
 
     $slideStatement = $database->prepare(
-        'INSERT INTO tutorial_slides (
-            tutorial_id,
+        'INSERT INTO materi_slides (
+            materi_id,
             chapter_id,
             slide_order,
             title,
@@ -1442,7 +1562,7 @@ function insertTutorialStructure(
             created_at,
             updated_at
         ) VALUES (
-            :tutorial_id,
+            :materi_id,
             :chapter_id,
             :slide_order,
             :title,
@@ -1552,7 +1672,7 @@ function insertTutorialStructure(
             );
 
         $slideStatement->execute([
-            ':tutorial_id' => $tutorialId,
+            ':materi_id' => $tutorialId,
             ':chapter_id' => $chapterId,
             ':slide_order' => $slideOrder,
             ':title' => isset($slide['title'])
@@ -1611,27 +1731,27 @@ function replaceTutorialStructure(
     string $currentTimestamp
 ): void {
     $deleteSlides = $database->prepare(
-        'DELETE FROM tutorial_slides
-         WHERE tutorial_id = :tutorial_id'
+        'DELETE FROM materi_slides
+         WHERE materi_id = :materi_id'
     );
     $deleteSlides->execute([
-        ':tutorial_id' => $tutorialId,
+        ':materi_id' => $tutorialId,
     ]);
 
     $deleteObjectives = $database->prepare(
-        'DELETE FROM tutorial_learning_objectives
-         WHERE tutorial_id = :tutorial_id'
+        'DELETE FROM materi_learning_objectives
+         WHERE materi_id = :materi_id'
     );
     $deleteObjectives->execute([
-        ':tutorial_id' => $tutorialId,
+        ':materi_id' => $tutorialId,
     ]);
 
     $deleteChapters = $database->prepare(
-        'DELETE FROM tutorial_chapters
-         WHERE tutorial_id = :tutorial_id'
+        'DELETE FROM materi_chapters
+         WHERE materi_id = :materi_id'
     );
     $deleteChapters->execute([
-        ':tutorial_id' => $tutorialId,
+        ':materi_id' => $tutorialId,
     ]);
 
     insertTutorialStructure(
@@ -1678,11 +1798,11 @@ function getAllMateri(PDO $database): void
             publish_schedule,
             created_at,
             updated_at
-         FROM tutorials
+         FROM materi
          ORDER BY display_order ASC, id DESC'
     );
 
-    $tutorials = $statement->fetchAll();
+    $materi = $statement->fetchAll();
 
     $chapterStatement = $database->prepare(
         'SELECT
@@ -1691,16 +1811,16 @@ function getAllMateri(PDO $database): void
             title,
             created_at,
             updated_at
-         FROM tutorial_chapters
-         WHERE tutorial_id = :tutorial_id
+         FROM materi_chapters
+         WHERE materi_id = :materi_id
          ORDER BY chapter_order ASC, id ASC'
     );
 
     $objectiveStatement = $database->prepare(
         'SELECT
             objective
-         FROM tutorial_learning_objectives
-         WHERE tutorial_id = :tutorial_id
+         FROM materi_learning_objectives
+         WHERE materi_id = :materi_id
          ORDER BY objective_order ASC, id ASC'
     );
 
@@ -1722,21 +1842,21 @@ function getAllMateri(PDO $database): void
             image_type,
             image_size,
             video_url
-         FROM tutorial_slides
-         WHERE tutorial_id = :tutorial_id
+         FROM materi_slides
+         WHERE materi_id = :materi_id
          ORDER BY slide_order ASC, id ASC'
     );
 
-    foreach ($tutorials as &$tutorial) {
+    foreach ($materi as &$tutorial) {
         $tutorialId = (int) $tutorial['id'];
 
         $chapterStatement->execute([
-            ':tutorial_id' => $tutorialId,
+            ':materi_id' => $tutorialId,
         ]);
         $chapters = $chapterStatement->fetchAll();
 
         $objectiveStatement->execute([
-            ':tutorial_id' => $tutorialId,
+            ':materi_id' => $tutorialId,
         ]);
         $objectiveRows = $objectiveStatement->fetchAll();
 
@@ -1752,7 +1872,7 @@ function getAllMateri(PDO $database): void
         );
 
         $slideStatement->execute([
-            ':tutorial_id' => $tutorialId,
+            ':materi_id' => $tutorialId,
         ]);
         $slides = $slideStatement->fetchAll();
 
@@ -1887,8 +2007,8 @@ function getAllMateri(PDO $database): void
     sendJsonResponse([
         'success' => true,
         'message' => 'Data materi berhasil diambil.',
-        'data' => $tutorials,
-        'total' => count($tutorials),
+        'data' => $materi,
+        'total' => count($materi),
     ]);
 }
 
@@ -2115,7 +2235,7 @@ function createMateri(PDO $database): void
         $database->beginTransaction();
 
         $statement = $database->prepare(
-            'INSERT INTO tutorials (
+            'INSERT INTO materi (
                 title,
                 slug,
                 category,
@@ -2386,7 +2506,7 @@ function updateMateri(PDO $database): void
 
     $checkStatement = $database->prepare(
         'SELECT *
-         FROM tutorials
+         FROM materi
          WHERE id = :id
          LIMIT 1'
     );
@@ -2595,7 +2715,7 @@ function updateMateri(PDO $database): void
         $database->beginTransaction();
 
         $statement = $database->prepare(
-            'UPDATE tutorials
+            'UPDATE materi
              SET
                 title = :title,
                 slug = :slug,
@@ -2857,7 +2977,7 @@ function deleteMateri(PDO $database): void
 
     $checkStatement = $database->prepare(
         'SELECT id, title, slug, card_image_name
-         FROM tutorials
+         FROM materi
          WHERE id = :id
          LIMIT 1'
     );
@@ -2881,12 +3001,12 @@ function deleteMateri(PDO $database): void
 
     $slideImageStatement = $database->prepare(
         'SELECT image_name, video_url
-         FROM tutorial_slides
-         WHERE tutorial_id = :tutorial_id'
+         FROM materi_slides
+         WHERE materi_id = :materi_id'
     );
 
     $slideImageStatement->execute([
-        ':tutorial_id' => $tutorialId,
+        ':materi_id' => $tutorialId,
     ]);
 
     $slideMediaRows = $slideImageStatement->fetchAll();
@@ -2922,18 +3042,18 @@ function deleteMateri(PDO $database): void
         $database->beginTransaction();
 
         $deleteSlides = $database->prepare(
-            'DELETE FROM tutorial_slides
-             WHERE tutorial_id = :tutorial_id'
+            'DELETE FROM materi_slides
+             WHERE materi_id = :materi_id'
         );
 
         $deleteSlides->execute([
-            ':tutorial_id' => $tutorialId,
+            ':materi_id' => $tutorialId,
         ]);
 
         $deletedSlides = $deleteSlides->rowCount();
 
         $deleteTutorial = $database->prepare(
-            'DELETE FROM tutorials
+            'DELETE FROM materi
              WHERE id = :id'
         );
 
