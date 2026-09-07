@@ -26,6 +26,8 @@ import zapIcon from '../../assets/icons/icon-zap-1.svg';
 
 import '../../styles/admin-article.css';
 
+const PAGE_SIZE = 6;
+
 
 const DEPLOY_URL = (
   import.meta.env.VITE_DEPLOY_URL ||
@@ -284,6 +286,8 @@ export function AdminArticle() {
 
   const [featuredFilter, setFeaturedFilter] =
     useState('');
+
+  const [page, setPage] = useState(1);
 
 
   const handleToggleSidebar = () => {
@@ -565,6 +569,7 @@ export function AdminArticle() {
     setStatusFilter('');
     setCategoryFilter('');
     setFeaturedFilter('');
+    setPage(1);
   };
 
 
@@ -810,6 +815,45 @@ export function AdminArticle() {
   );
 
 
+
+  useEffect(() => {
+    setPage(1);
+  }, [
+    searchTerm,
+    statusFilter,
+    categoryFilter,
+    featuredFilter,
+  ]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredArticles.length / PAGE_SIZE)
+  );
+
+  useEffect(() => {
+    setPage((current) =>
+      Math.min(current, totalPages)
+    );
+  }, [totalPages]);
+
+  const paginatedArticles = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+
+    return filteredArticles.slice(
+      start,
+      start + PAGE_SIZE
+    );
+  }, [filteredArticles, page]);
+
+  const firstShown = filteredArticles.length
+    ? (page - 1) * PAGE_SIZE + 1
+    : 0;
+
+  const lastShown = Math.min(
+    page * PAGE_SIZE,
+    filteredArticles.length
+  );
+
   return (
     <main
       className={`admin-dashboard-page admin-article-page${
@@ -832,19 +876,26 @@ export function AdminArticle() {
           onSearchChange={setSearchTerm}
         />
 
-        <div className="admin-article-layout">
-          <section className="admin-article-content">
-            <div className="admin-article-heading">
+        <div className="admin-users-layout admin-article-layout">
+          <section className="admin-users-content admin-article-content">
+            <div className="admin-users-heading">
               <div>
                 <h1>Artikel</h1>
-
                 <p>
-                  Dashboard
-                  <span>/</span>
-                  Artikel
+                  Dashboard <span>/</span> Artikel
                 </p>
               </div>
             </div>
+
+            {loadError ? (
+              <div
+                className="admin-form-message is-error"
+                role="alert"
+                style={{ marginBottom: 16 }}
+              >
+                {loadError}
+              </div>
+            ) : null}
 
             {actionMessage ? (
               <p
@@ -864,9 +915,33 @@ export function AdminArticle() {
               </p>
             ) : null}
 
+            <section
+              className="admin-users-summary"
+              aria-label="Ringkasan artikel"
+            >
+              {articleStats.map((item) => (
+                <article
+                  className="admin-users-stat"
+                  key={item.label}
+                >
+                  <span
+                    className={`admin-article-stat-tone is-${item.tone}`}
+                  >
+                    <img src={item.icon} alt="" />
+                  </span>
+
+                  <div>
+                    <p>{item.label}</p>
+                    <strong>{item.value}</strong>
+                    <small>{item.note}</small>
+                  </div>
+                </article>
+              ))}
+            </section>
+
             {selectedArticleCount ? (
               <section
-                className="admin-article-bulk-actions"
+                className="admin-article-bulk-actions admin-article-bulk-actions--program"
                 aria-label="Aksi artikel terpilih"
               >
                 <span>
@@ -899,583 +974,521 @@ export function AdminArticle() {
             ) : null}
 
             <section
-              className="admin-article-stats"
-              aria-label="Ringkasan artikel"
-            >
-              {articleStats.map((item) => (
-                <article
-                  className="admin-article-stat"
-                  key={item.label}
-                >
-                  <span
-                    className={`admin-article-stat-icon is-${item.tone}`}
-                  >
-                    <img
-                      src={item.icon}
-                      alt=""
-                    />
-                  </span>
-
-                  <div>
-                    <p>{item.label}</p>
-                    <strong>
-                      {item.value}
-                    </strong>
-                    <small>
-                      {item.note}
-                    </small>
-                  </div>
-                </article>
-              ))}
-            </section>
-
-            <section
-              className="admin-article-filter"
+              className="admin-users-filter"
               aria-label="Filter artikel"
             >
-              <label className="admin-article-search">
-                <input
-                  type="search"
-                  placeholder="Cari judul artikel..."
-                  value={searchTerm}
-                  onChange={(event) =>
-                    setSearchTerm(
-                      event.target.value
-                    )
-                  }
-                />
-              </label>
+              <div className="admin-users-filter-row">
+                <label className="admin-users-search">
+                  <input
+                    type="search"
+                    placeholder="Cari judul artikel..."
+                    value={searchTerm}
+                    onChange={(event) =>
+                      setSearchTerm(event.target.value)
+                    }
+                  />
+                </label>
 
-              <label>
-                <span>Status</span>
-
-                <select
-                  value={statusFilter}
-                  onChange={(event) =>
-                    setStatusFilter(
-                      event.target.value
-                    )
-                  }
+                <button
+                  type="button"
+                  onClick={resetFilters}
                 >
-                  <option value="">
-                    Semua Status
-                  </option>
+                  Reset Filter
+                </button>
 
-                  <option value="published">
-                    Published
-                  </option>
-
-                  <option value="draft">
-                    Draft
-                  </option>
-
-                  <option value="archived">
-                    Archived
-                  </option>
-                </select>
-              </label>
-
-              <label>
-                <span>Kategori</span>
-
-                <select
-                  value={categoryFilter}
-                  onChange={(event) =>
-                    setCategoryFilter(
-                      event.target.value
-                    )
-                  }
+                <button
+                  type="button"
+                  onClick={fetchArticleData}
                 >
-                  <option value="">
-                    Semua Kategori
-                  </option>
+                  {isLoading ? 'Memuat...' : 'Muat Ulang'}
+                </button>
 
-                  {categoryOptions.map(
-                    (category) => (
-                      <option
-                        key={category}
-                        value={category}
-                      >
-                        {category}
-                      </option>
-                    )
-                  )}
-                </select>
-              </label>
-
-              <label>
-                <span>Featured</span>
-
-                <select
-                  value={featuredFilter}
-                  onChange={(event) =>
-                    setFeaturedFilter(
-                      event.target.value
-                    )
-                  }
+                <a
+                  className="admin-users-primary"
+                  href="/admin/artikel/tambah"
                 >
-                  <option value="">
-                    Semua
-                  </option>
+                  + Tambah Artikel
+                </a>
+              </div>
 
-                  <option value="featured">
-                    Featured
-                  </option>
-
-                  <option value="normal">
-                    Tidak Featured
-                  </option>
-                </select>
-              </label>
-
-              <label>
-                <span>Author / Admin</span>
-
-                <select
-                  value=""
-                  disabled
-                >
-                  <option value="">
-                    Admin
-                  </option>
-                </select>
-              </label>
-
-              <label>
-                <span>Tanggal Publish</span>
-
-                <input
-                  type="text"
-                  placeholder="Semua tanggal"
-                  disabled
-                />
-              </label>
-
-              <button
-                type="button"
-                onClick={resetFilters}
-              >
-                Reset Filter
-              </button>
-            </section>
-
-            <div className="admin-article-table-toolbar">
-              <a
-                className="admin-article-primary"
-                href="/admin/artikel/tambah"
-              >
-                + Tambah Artikel
-              </a>
-            </div>
-
-            <section className="admin-article-table-card">
-              <table className="admin-article-table">
-                <thead>
-                  <tr>
-                    <th>
-                      <input
-                        type="checkbox"
-                        aria-label="Pilih semua artikel"
-                        checked={
-                          isFilteredArticlesChecked
-                        }
-                        disabled={
-                          filteredArticles.length === 0
-                        }
-                        onChange={
-                          handleToggleFilteredChecks
-                        }
-                      />
-                    </th>
-
-                    <th>Judul Artikel</th>
-                    <th>Kategori</th>
-                    <th>Status</th>
-                    <th>Author</th>
-                    <th>Viewer</th>
-                    <th>Featured</th>
-                    <th>Tgl Publish</th>
-                    <th>Update Terakhir</th>
-                    <th>Aksi</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {isLoading && (
-                    <tr>
-                      <td colSpan="10">
-                        Memuat data artikel...
-                      </td>
-                    </tr>
-                  )}
-
-                  {!isLoading &&
-                    loadError && (
-                      <tr>
-                        <td colSpan="10">
-                          <strong>
-                            Gagal mengambil data artikel.
-                          </strong>
-
-                          <br />
-
-                          <small>
-                            {loadError}
-                          </small>
-                        </td>
-                      </tr>
-                    )}
-
-                  {!isLoading &&
-                    !loadError &&
-                    filteredArticles.length ===
-                      0 && (
-                      <tr>
-                        <td colSpan="10">
-                          Belum ada artikel yang sesuai.
-                        </td>
-                      </tr>
-                    )}
-
-                  {!isLoading &&
-                    !loadError &&
-                    filteredArticles.map(
-                      (item, index) => {
-                        const key =
-                          getArticleKey(item);
-
-                        return (
-                          <tr
-                            key={
-                              item.id ||
-                              item.slug ||
-                              item.title
-                            }
-                          >
-                            <td>
-                              <input
-                                type="checkbox"
-                                aria-label={`Pilih ${item.title}`}
-                                checked={checkedArticleKeys.includes(
-                                  key
-                                )}
-                                onClick={(event) =>
-                                  event.stopPropagation()
-                                }
-                                onChange={() =>
-                                  handleToggleArticleCheck(
-                                    item
-                                  )
-                                }
-                              />
-                            </td>
-
-                            <td>
-                              <ArticleThumbnail
-                                src={
-                                  item.coverImageUrl
-                                }
-                                index={index}
-                              />
-
-                              <span>
-                                <b>
-                                  {item.title}
-                                </b>
-
-                                <small>
-                                  {item.excerpt ||
-                                    item.slug ||
-                                    '-'}
-                                </small>
-                              </span>
-                            </td>
-
-                            <td>
-                              <ArticleBadge>
-                                {item.category}
-                              </ArticleBadge>
-                            </td>
-
-                            <td>
-                              <ArticleBadge>
-                                {item.status}
-                              </ArticleBadge>
-                            </td>
-
-                            <td>
-                              {item.author}
-                            </td>
-
-                            <td>
-                              {item.viewer}
-                            </td>
-
-                            <td>
-                              {item.featured
-                                ? 'Ya'
-                                : 'Tidak'}
-                            </td>
-
-                            <td>
-                              {formatDate(
-                                item.publishedAt
-                              )}
-                            </td>
-
-                            <td>
-                              {formatDate(
-                                item.updatedAt ||
-                                  item.createdAt
-                              )}
-                            </td>
-
-                            <td>
-                              <AdminActionDropdown
-                                label={`Buka aksi untuk ${item.title}`}
-                                items={[
-                                  {
-                                    label: 'Lihat',
-                                    icon: <img src={eyeIcon} alt="" />,
-                                    onSelect: () => setSelectedArticle(item),
-                                  },
-                                  {
-                                    label: 'Edit',
-                                    href: `/admin/artikel/edit?id=${encodeURIComponent(item.id)}`,
-                                  },
-                                  {
-                                    label: 'Delete',
-                                    tone: 'danger',
-                                    onSelect: () => handleDelete(item),
-                                  },
-                                ]}
-                              />
-                            </td>
-                          </tr>
-                        );
-                      }
-                    )}
-                </tbody>
-              </table>
-
-              <div className="admin-article-pagination">
-                <span>
-                  Menampilkan{' '}
-                  {filteredArticles.length
-                    ? 1
-                    : 0}{' '}
-                  - {filteredArticles.length}{' '}
-                  dari {filteredArticles.length}{' '}
-                  data
-                </span>
-
-                <div>
-                  <button
-                    type="button"
-                    disabled
+              <div className="admin-users-select-grid admin-article-program-filter-grid">
+                <label>
+                  <span>Status</span>
+                  <select
+                    value={statusFilter}
+                    onChange={(event) =>
+                      setStatusFilter(
+                        event.target.value
+                      )
+                    }
                   >
-                    &lt;
-                  </button>
+                    <option value="">
+                      Semua Status
+                    </option>
+                    <option value="published">
+                      Published
+                    </option>
+                    <option value="draft">
+                      Draft
+                    </option>
+                    <option value="archived">
+                      Archived
+                    </option>
+                  </select>
+                </label>
 
-                  <button
-                    type="button"
-                    className="is-active"
+                <label>
+                  <span>Kategori</span>
+                  <select
+                    value={categoryFilter}
+                    onChange={(event) =>
+                      setCategoryFilter(
+                        event.target.value
+                      )
+                    }
                   >
-                    1
-                  </button>
+                    <option value="">
+                      Semua Kategori
+                    </option>
 
-                  <button
-                    type="button"
-                    disabled
+                    {categoryOptions.map(
+                      (category) => (
+                        <option
+                          key={category}
+                          value={category}
+                        >
+                          {category}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </label>
+
+                <label>
+                  <span>Featured</span>
+                  <select
+                    value={featuredFilter}
+                    onChange={(event) =>
+                      setFeaturedFilter(
+                        event.target.value
+                      )
+                    }
                   >
-                    &gt;
-                  </button>
-                </div>
+                    <option value="">
+                      Semua Artikel
+                    </option>
+                    <option value="featured">
+                      Featured
+                    </option>
+                    <option value="normal">
+                      Tidak Featured
+                    </option>
+                  </select>
+                </label>
 
-                <select defaultValue="10">
-                  <option value="10">
-                    10 / halaman
-                  </option>
-                </select>
+                <label>
+                  <span>Author / Admin</span>
+                  <select value="" disabled>
+                    <option value="">
+                      Admin
+                    </option>
+                  </select>
+                </label>
               </div>
             </section>
 
-            <section className="admin-article-bottom">
-              <article className="admin-article-panel">
-                <div className="admin-article-panel-head">
-                  <h2>
-                    Artikel Terbaru dari SQLite
-                  </h2>
-                </div>
-
-                <table>
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>Judul</th>
-                      <th>Status</th>
-                      <th>Dibuat</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {latestArticles.length === 0 ? (
-                      <tr>
-                        <td colSpan="4">
-                          Belum ada artikel.
-                        </td>
-                      </tr>
-                    ) : (
-                      latestArticles.map(
-                        (item, index) => (
-                          <tr
-                            key={
-                              item.id ||
-                              item.slug
-                            }
-                          >
-                            <td>
-                              {index + 1}
-                            </td>
-
-                            <td>
-                              {item.title}
-                            </td>
-
-                            <td>
-                              {item.status}
-                            </td>
-
-                            <td>
-                              {formatDate(
-                                item.createdAt
-                              )}
-                            </td>
-                          </tr>
-                        )
-                      )
-                    )}
-                  </tbody>
-                </table>
-              </article>
-
-              <article className="admin-article-panel">
-                <div className="admin-article-panel-head">
-                  <h2>
-                    Draft Perlu Dilanjutkan
-                  </h2>
-                </div>
-
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Judul</th>
-                      <th>Author</th>
-                      <th>Terakhir Diedit</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {draftArticles.length === 0 ? (
-                      <tr>
-                        <td colSpan="3">
-                          Tidak ada draft.
-                        </td>
-                      </tr>
-                    ) : (
-                      draftArticles.map(
-                        (item) => (
-                          <tr
-                            key={
-                              item.id ||
-                              item.slug
-                            }
-                          >
-                            <td>
-                              {item.title}
-                            </td>
-
-                            <td>
-                              {item.author}
-                            </td>
-
-                            <td>
-                              {formatDate(
-                                item.updatedAt
-                              )}
-                            </td>
-                          </tr>
-                        )
-                      )
-                    )}
-                  </tbody>
-                </table>
-              </article>
-
-              <article className="admin-article-panel admin-article-issues">
-                <div className="admin-article-panel-head">
-                  <h2>
-                    Artikel Perlu Dilengkapi
-                  </h2>
-                </div>
-
-                {issueItems.map(
-                  (item) => (
-                    <p key={item[0]}>
-                      <span>
-                        {item[0]}
-                      </span>
-
-                      <strong>
-                        {item[1]}
-                      </strong>
-                    </p>
-                  )
-                )}
-              </article>
-
-              <article className="admin-article-panel admin-article-activity">
-                <div className="admin-article-panel-head">
-                  <h2>
-                    Aktivitas Terbaru
-                  </h2>
-                </div>
-
-                {activityItems.length === 0 ? (
+            <section className="admin-users-table-card">
+              <div className="admin-users-table-header">
+                <div>
+                  <h2>Daftar Artikel</h2>
                   <p>
-                    <b>
-                      Belum ada aktivitas artikel.
-                    </b>
+                    {filteredArticles.length} artikel ditemukan
                   </p>
-                ) : (
-                  activityItems.map(
-                    (item) => (
-                      <p
-                        key={`${item[0]}-${item[1]}`}
+                </div>
+
+                <span>
+                  {paginatedArticles.length} ditampilkan
+                </span>
+              </div>
+
+              <div className="admin-article-table-scroll">
+                <table className="admin-users-table admin-article-table admin-article-table--program">
+                  <thead>
+                    <tr>
+                      <th>
+                        <label className="admin-article-select-title">
+                          <input
+                            type="checkbox"
+                            aria-label="Pilih semua artikel"
+                            checked={
+                              isFilteredArticlesChecked
+                            }
+                            disabled={
+                              filteredArticles.length === 0
+                            }
+                            onChange={
+                              handleToggleFilteredChecks
+                            }
+                          />
+                          <span>Judul Artikel</span>
+                        </label>
+                      </th>
+                      <th>Kategori</th>
+                      <th>Status</th>
+                      <th>Author</th>
+                      <th>Viewer</th>
+                      <th>Featured</th>
+                      <th>Tgl Publish</th>
+                      <th>Update Terakhir</th>
+                      <th>Aksi</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {isLoading ? (
+                      <tr>
+                        <td colSpan="9" style={{ textAlign: 'center', padding: 28 }}>
+                          Memuat data artikel...
+                        </td>
+                      </tr>
+                    ) : loadError ? (
+                      <tr>
+                        <td colSpan="9" style={{ textAlign: 'center', padding: 28 }}>
+                          Gagal mengambil data artikel. {loadError}
+                        </td>
+                      </tr>
+                    ) : paginatedArticles.length === 0 ? (
+                      <tr>
+                        <td colSpan="9" style={{ textAlign: 'center', padding: 28 }}>
+                          Belum ada artikel yang sesuai dengan filter.
+                        </td>
+                      </tr>
+                    ) : (
+                      paginatedArticles.map(
+                        (item, index) => {
+                          const key =
+                            getArticleKey(item);
+
+                          return (
+                            <tr
+                              key={
+                                item.id ||
+                                item.slug ||
+                                item.title
+                              }
+                            >
+                              <td>
+                                <div className="admin-article-program-name-cell">
+                                  <input
+                                    type="checkbox"
+                                    aria-label={`Pilih ${item.title}`}
+                                    checked={
+                                      checkedArticleKeys.includes(
+                                        key
+                                      )
+                                    }
+                                    onClick={(event) =>
+                                      event.stopPropagation()
+                                    }
+                                    onChange={() =>
+                                      handleToggleArticleCheck(
+                                        item
+                                      )
+                                    }
+                                  />
+
+                                  <button
+                                    type="button"
+                                    className="admin-users-name-button admin-article-program-name-button"
+                                    onClick={() =>
+                                      setSelectedArticle(item)
+                                    }
+                                  >
+                                    <ArticleThumbnail
+                                      src={
+                                        item.coverImageUrl
+                                      }
+                                      index={index}
+                                    />
+
+                                    <span>
+                                      <b>{item.title}</b>
+                                      <small>
+                                        {item.excerpt ||
+                                          item.slug ||
+                                          '-'}
+                                      </small>
+                                    </span>
+                                  </button>
+                                </div>
+                              </td>
+
+                              <td>
+                                <ArticleBadge>
+                                  {item.category}
+                                </ArticleBadge>
+                              </td>
+
+                              <td>
+                                <ArticleBadge>
+                                  {item.status}
+                                </ArticleBadge>
+                              </td>
+
+                              <td>{item.author}</td>
+                              <td>{item.viewer}</td>
+
+                              <td>
+                                {item.featured
+                                  ? 'Ya'
+                                  : 'Tidak'}
+                              </td>
+
+                              <td>
+                                {formatDate(
+                                  item.publishedAt
+                                )}
+                              </td>
+
+                              <td>
+                                {formatDate(
+                                  item.updatedAt ||
+                                    item.createdAt
+                                )}
+                              </td>
+
+                              <td>
+                                <AdminActionDropdown
+                                  label={`Buka aksi untuk ${item.title}`}
+                                  items={[
+                                    {
+                                      label: 'Lihat',
+                                      icon: (
+                                        <img
+                                          src={eyeIcon}
+                                          alt=""
+                                        />
+                                      ),
+                                      onSelect: () =>
+                                        setSelectedArticle(
+                                          item
+                                        ),
+                                    },
+                                    {
+                                      label: 'Edit',
+                                      href: `/admin/artikel/edit?id=${encodeURIComponent(
+                                        item.id
+                                      )}`,
+                                    },
+                                    {
+                                      label: 'Delete',
+                                      tone: 'danger',
+                                      onSelect: () =>
+                                        handleDelete(
+                                          item
+                                        ),
+                                    },
+                                  ]}
+                                />
+                              </td>
+                            </tr>
+                          );
+                        }
+                      )
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="admin-users-pagination">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPage((current) =>
+                      Math.max(1, current - 1)
+                    )
+                  }
+                  disabled={page <= 1}
+                >
+                  Previous
+                </button>
+
+                <div>
+                  {Array.from(
+                    { length: totalPages },
+                    (_, index) => index + 1
+                  )
+                    .slice(
+                      Math.max(0, page - 3),
+                      Math.max(0, page - 3) + 5
+                    )
+                    .map((pageNumber) => (
+                      <button
+                        type="button"
+                        key={pageNumber}
+                        className={
+                          pageNumber === page
+                            ? 'is-active'
+                            : ''
+                        }
+                        onClick={() =>
+                          setPage(pageNumber)
+                        }
                       >
-                        <span
-                          className={`admin-article-dot is-${item[2]}`}
+                        {pageNumber}
+                      </button>
+                    ))}
+                </div>
+
+                <span>
+                  Page {page} of {totalPages}
+                  <small>
+                    Menampilkan {firstShown} - {lastShown} dari{' '}
+                    {filteredArticles.length} artikel
+                  </small>
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPage((current) =>
+                      Math.min(
+                        totalPages,
+                        current + 1
+                      )
+                    )
+                  }
+                  disabled={page >= totalPages}
+                >
+                  Next
+                </button>
+              </div>
+            </section>
+
+            <section className="admin-users-bottom admin-article-bottom-program">
+              <article className="admin-users-panel">
+                <h2>Artikel Terbaru</h2>
+
+                {latestArticles.length === 0 ? (
+                  <p>Belum ada artikel.</p>
+                ) : (
+                  latestArticles.map(
+                    (item, index) => (
+                      <p
+                        key={
+                          item.id ||
+                          item.slug
+                        }
+                      >
+                        <ArticleThumbnail
+                          src={
+                            item.coverImageUrl
+                          }
+                          index={index}
                         />
-
-                        <b>
-                          {item[0]}
-                        </b>
-
-                        <time>
-                          {item[1]}
-                        </time>
+                        <b>{item.title}</b>
+                        <span>{item.category}</span>
+                        <span>
+                          {formatDate(
+                            item.createdAt
+                          )}
+                        </span>
+                        <ArticleBadge>
+                          {item.status}
+                        </ArticleBadge>
                       </p>
                     )
                   )
                 )}
               </article>
-            </section>
 
-            <section className="admin-article-quick">
-              <h2>Aksi Cepat</h2>
+              <article className="admin-users-panel">
+                <h2>Draft Perlu Dilanjutkan</h2>
 
-              <div>
-                <a href="/admin/artikel/tambah">
+                {draftArticles.length === 0 ? (
+                  <p>Tidak ada draft.</p>
+                ) : (
+                  draftArticles.map((item) => (
+                    <p
+                      key={
+                        item.id ||
+                        item.slug
+                      }
+                    >
+                      <span
+                        className="admin-article-draft-dot"
+                        aria-hidden="true"
+                      />
+                      <b>{item.title}</b>
+                      <span>{item.author}</span>
+                      <span>
+                        {formatDate(
+                          item.updatedAt
+                        )}
+                      </span>
+                      <ArticleBadge>
+                        {item.status}
+                      </ArticleBadge>
+                    </p>
+                  ))
+                )}
+              </article>
+
+              <article className="admin-users-panel admin-article-summary-panel">
+                <h2>Ringkasan Artikel</h2>
+
+                <p>
+                  <span>Published</span>
+                  <strong>
+                    {
+                      articles.filter(
+                        (item) =>
+                          item.status ===
+                          'published'
+                      ).length
+                    }
+                  </strong>
+                </p>
+
+                <p>
+                  <span>Draft</span>
+                  <strong>
+                    {
+                      articles.filter(
+                        (item) =>
+                          item.status === 'draft'
+                      ).length
+                    }
+                  </strong>
+                </p>
+
+                <p>
+                  <span>Archived</span>
+                  <strong>
+                    {
+                      articles.filter(
+                        (item) =>
+                          item.status ===
+                          'archived'
+                      ).length
+                    }
+                  </strong>
+                </p>
+
+                <p>
+                  <span>
+                    {issueItems[0]?.[0] ||
+                      'Cover kosong'}
+                  </span>
+                  <strong>
+                    {issueItems[0]?.[1] || 0}
+                  </strong>
+                </p>
+
+                <a
+                  href="/admin/artikel/tambah"
+                  className="admin-users-primary"
+                >
                   Buat Artikel Baru
                 </a>
 
@@ -1483,13 +1496,9 @@ export function AdminArticle() {
                   type="button"
                   onClick={fetchArticleData}
                 >
-                  Muat Ulang Data Artikel
+                  Refresh Data SQLite
                 </button>
-
-                <a href="/artikel">
-                  Lihat Halaman Artikel
-                </a>
-              </div>
+              </article>
             </section>
           </section>
 
@@ -1693,6 +1702,7 @@ export function AdminArticle() {
               </aside>
             </div>
           ) : null}
+
         </div>
       </section>
     </main>

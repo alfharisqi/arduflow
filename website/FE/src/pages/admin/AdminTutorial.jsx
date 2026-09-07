@@ -1,16 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AdminNotificationButton } from './AdminChrome.jsx';
 import { AdminSidebar } from './AdminSidebar.jsx';
 import {
   getInitialAdminSidebarCollapsed,
   persistAdminSidebarCollapsed,
 } from './adminSidebarState.js';
-import bellIcon from '../../assets/icons/icon-bell-1.svg';
 import bookIcon from '../../assets/icons/icon-book-1.svg';
 import checkIcon from '../../assets/icons/icon-circle-check-1.svg';
 import clockIcon from '../../assets/icons/icon-clock-1.svg';
 import fileIcon from '../../assets/icons/icon-file-text-1.svg';
 import usersIcon from '../../assets/icons/icon-users-1.svg';
-import eyeIcon from '../../assets/icons/icon-eyeopen-1.svg';
 import zapIcon from '../../assets/icons/icon-zap-1.svg';
 
 const DEPLOY_URL = (
@@ -23,6 +22,8 @@ const MATERI_API_URL =
 
 const MATERI_IMAGE_BASE_URL =
   `${DEPLOY_URL}/uploads/materi`;
+
+const PAGE_SIZE = 6;
 
 function extractMateriImageFileName(value) {
   const candidate = String(value || '').trim();
@@ -153,7 +154,7 @@ function handleMateriImageError(event, fileName) {
   image.src = proxyUrl;
 }
 
-function AdminTutorialTopbar() {
+function AdminTutorialTopbar({ searchTerm, onSearchChange }) {
   return (
     <header className="admin-dashboard-topbar">
       <label className="admin-dashboard-search">
@@ -162,17 +163,13 @@ function AdminTutorialTopbar() {
           type="search"
           placeholder="Cari tutorial / materi"
           aria-label="Cari tutorial atau materi"
+          value={searchTerm}
+          onChange={(event) => onSearchChange(event.target.value)}
         />
       </label>
 
       <div className="admin-dashboard-account">
-        <button
-          className="admin-dashboard-notif"
-          type="button"
-          aria-label="Notifikasi"
-        >
-          <img src={bellIcon} alt="" />
-        </button>
+        <AdminNotificationButton />
 
         <span className="admin-dashboard-avatar" aria-hidden="true" />
 
@@ -186,69 +183,18 @@ function AdminTutorialTopbar() {
 }
 
 function TutorialBadge({ children }) {
-  const slug = String(children || '-')
+  const label = String(children || '-');
+  const slug = label
     .toLowerCase()
     .replace(/\s+/g, '-')
     .replace(/\//g, '-');
 
   return (
-    <span className={`admin-tutorial-badge admin-tutorial-badge--${slug}`}>
-      {children || '-'}
-    </span>
-  );
-}
-
-function TutorialAction({
-  label,
-  children,
-  onClick,
-  variant = 'default',
-  disabled = false,
-}) {
-  const variantStyle = {
-    view: {
-      color: '#2563eb',
-      background: '#eff6ff',
-      borderColor: '#bfdbfe',
-    },
-    edit: {
-      color: '#d97706',
-      background: '#fffbeb',
-      borderColor: '#fde68a',
-    },
-    delete: {
-      color: '#dc2626',
-      background: '#fef2f2',
-      borderColor: '#fecaca',
-    },
-    default: {},
-  }[variant] || {};
-
-  return (
-    <button
-      className={`admin-tutorial-action admin-tutorial-action--${variant}`}
-      type="button"
-      aria-label={label}
-      title={label}
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        width: 34,
-        height: 34,
-        minWidth: 34,
-        padding: 0,
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        border: '1px solid #e5e7eb',
-        borderRadius: 8,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.55 : 1,
-        ...variantStyle,
-      }}
+    <span
+      className={`admin-users-badge admin-users-badge--${slug} admin-tutorial-badge admin-tutorial-badge--${slug}`}
     >
-      {children}
-    </button>
+      {label}
+    </span>
   );
 }
 
@@ -391,6 +337,10 @@ export function AdminTutorial() {
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [levelFilter, setLevelFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const [openActionTutorialId, setOpenActionTutorialId] = useState(null);
+  const [actionMenuPosition, setActionMenuPosition] = useState({ top: 0, left: 0 });
+  const actionButtonRefs = useRef(new Map());
 
   const handleToggleSidebar = () => {
     setSidebarCollapsed((value) => {
@@ -472,10 +422,13 @@ export function AdminTutorial() {
   };
 
   const handleViewTutorial = (item) => {
+    setOpenActionTutorialId(null);
     setSelectedTutorial(item);
   };
 
   const handleEditTutorial = (item) => {
+    setOpenActionTutorialId(null);
+
     if (!item?.id) {
       return;
     }
@@ -485,6 +438,8 @@ export function AdminTutorial() {
   };
 
   const handleDeleteTutorial = async (item) => {
+    setOpenActionTutorialId(null);
+
     if (!item?.id || deletingId !== null) {
       return;
     }
@@ -545,6 +500,65 @@ export function AdminTutorial() {
   useEffect(() => {
     fetchTutorials();
   }, []);
+
+  useEffect(() => {
+    if (openActionTutorialId === null) return undefined;
+
+    function closeActions(event) {
+      if (
+        !event.target.closest?.('.admin-users-action-menu') &&
+        !event.target.closest?.('.admin-users-action-popover')
+      ) {
+        setOpenActionTutorialId(null);
+      }
+    }
+
+    function closeWithEscape(event) {
+      if (event.key === 'Escape') {
+        setOpenActionTutorialId(null);
+      }
+    }
+
+    document.addEventListener('mousedown', closeActions);
+    document.addEventListener('keydown', closeWithEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', closeActions);
+      document.removeEventListener('keydown', closeWithEscape);
+    };
+  }, [openActionTutorialId]);
+
+  useEffect(() => {
+    if (openActionTutorialId === null) return undefined;
+
+    function updateActionMenuPosition() {
+      const button = actionButtonRefs.current.get(openActionTutorialId);
+      if (!button) return;
+
+      const rect = button.getBoundingClientRect();
+      const menuWidth = 190;
+      const gap = 8;
+      const left = Math.max(
+        12,
+        Math.min(window.innerWidth - menuWidth - 12, rect.right - menuWidth)
+      );
+      const top = Math.max(
+        12,
+        Math.min(window.innerHeight - 12, rect.bottom + gap)
+      );
+
+      setActionMenuPosition({ top, left });
+    }
+
+    updateActionMenuPosition();
+    window.addEventListener('resize', updateActionMenuPosition);
+    window.addEventListener('scroll', updateActionMenuPosition, true);
+
+    return () => {
+      window.removeEventListener('resize', updateActionMenuPosition);
+      window.removeEventListener('scroll', updateActionMenuPosition, true);
+    };
+  }, [openActionTutorialId]);
 
   const tutorialStats = useMemo(() => {
     const total = tutorials.length;
@@ -712,11 +726,45 @@ export function AdminTutorial() {
       ]);
   }, [tutorials]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, statusFilter, categoryFilter, levelFilter]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredTutorials.length / PAGE_SIZE)
+  );
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, totalPages));
+  }, [totalPages]);
+
+  const paginatedTutorials = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filteredTutorials.slice(start, start + PAGE_SIZE);
+  }, [filteredTutorials, page]);
+
+  const openActionTutorial = useMemo(() => {
+    return tutorials.find(
+      (item) => String(item.id) === String(openActionTutorialId)
+    ) || null;
+  }, [tutorials, openActionTutorialId]);
+
+  const firstShown = filteredTutorials.length
+    ? (page - 1) * PAGE_SIZE + 1
+    : 0;
+
+  const lastShown = Math.min(
+    page * PAGE_SIZE,
+    filteredTutorials.length
+  );
+
   const resetFilters = () => {
     setSearchTerm('');
     setStatusFilter('');
     setCategoryFilter('');
     setLevelFilter('');
+    setPage(1);
   };
 
   return (
@@ -734,11 +782,14 @@ export function AdminTutorial() {
         className="admin-dashboard-main"
         aria-label="Tutorial dan materi admin"
       >
-        <AdminTutorialTopbar />
+        <AdminTutorialTopbar
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+        />
 
-        <div className="admin-tutorial-layout">
-          <section className="admin-tutorial-content">
-            <div className="admin-tutorial-heading">
+        <div className="admin-users-layout admin-tutorial-layout">
+          <section className="admin-users-content admin-tutorial-content">
+            <div className="admin-users-heading">
               <div>
                 <h1>Tutorial / Materi</h1>
                 <p>
@@ -747,15 +798,23 @@ export function AdminTutorial() {
               </div>
             </div>
 
+            {loadError && (
+              <div
+                className="admin-form-message is-error"
+                role="alert"
+                style={{ marginBottom: 16 }}
+              >
+                {loadError}
+              </div>
+            )}
+
             <section
-              className="admin-tutorial-stats"
+              className="admin-users-summary"
               aria-label="Ringkasan tutorial"
             >
               {tutorialStats.map((item) => (
-                <article className="admin-tutorial-stat" key={item.label}>
-                  <span
-                    className={`admin-tutorial-stat-icon is-${item.tone}`}
-                  >
+                <article className="admin-users-stat" key={item.label}>
+                  <span className={`admin-tutorial-stat-tone is-${item.tone}`}>
                     <img src={item.icon} alt="" />
                   </span>
 
@@ -769,405 +828,382 @@ export function AdminTutorial() {
             </section>
 
             <section
-              className="admin-tutorial-filter"
+              className="admin-users-filter"
               aria-label="Filter tutorial"
             >
-              <label className="admin-tutorial-search">
-                <input
-                  type="search"
-                  placeholder="Cari judul tutorial..."
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                />
-              </label>
+              <div className="admin-users-filter-row">
+                <label className="admin-users-search">
+                  <input
+                    type="search"
+                    placeholder="Cari judul tutorial..."
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                  />
+                </label>
 
-              <label>
-                <span>Status</span>
-                <select
-                  value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value)}
+                <button type="button" onClick={resetFilters}>
+                  Reset Filter
+                </button>
+
+                <button type="button" onClick={fetchTutorials}>
+                  {isLoading ? 'Memuat...' : 'Muat Ulang'}
+                </button>
+
+                <a
+                  className="admin-users-primary"
+                  href="/admin/tutorial/tambah"
                 >
-                  <option value="">Semua Status</option>
-                  <option value="Published">Published</option>
-                  <option value="Draft">Draft</option>
-                  <option value="Pending Review">Pending Review</option>
-                  <option value="Archived">Archived</option>
-                </select>
-              </label>
+                  + Tambah Materi
+                </a>
+              </div>
 
-              <label>
-                <span>Kategori</span>
-                <select
-                  value={categoryFilter}
-                  onChange={(event) => setCategoryFilter(event.target.value)}
-                >
-                  <option value="">Semua Kategori</option>
-                  {categoryOptions.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="admin-users-select-grid">
+                <label>
+                  <span>Status</span>
+                  <select
+                    value={statusFilter}
+                    onChange={(event) => setStatusFilter(event.target.value)}
+                  >
+                    <option value="">Semua Status</option>
+                    <option value="Published">Published</option>
+                    <option value="Draft">Draft</option>
+                    <option value="Pending Review">Pending Review</option>
+                    <option value="Archived">Archived</option>
+                  </select>
+                </label>
 
-              <label>
-                <span>Level</span>
-                <select
-                  value={levelFilter}
-                  onChange={(event) => setLevelFilter(event.target.value)}
-                >
-                  <option value="">Semua Level</option>
-                  {levelOptions.map((level) => (
-                    <option key={level} value={level}>
-                      {level}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                <span>Author / Admin</span>
-                <select value="" disabled>
-                  <option value="">Admin</option>
-                </select>
-              </label>
-
-              <label>
-                <span>Tanggal Publish</span>
-                <input
-                  type="text"
-                  placeholder="Belum tersedia di filter API"
-                  disabled
-                />
-              </label>
-
-              <button type="button" onClick={resetFilters}>
-                Reset Filter
-              </button>
-            </section>
-
-            <div className="admin-tutorial-table-toolbar">
-              <a
-                className="admin-tutorial-primary"
-                href="/admin/tutorial/tambah"
-              >
-                + Tambah Materi
-              </a>
-
-              <button type="button" onClick={fetchTutorials}>
-                {isLoading ? 'Memuat...' : 'Muat Ulang Data'}
-              </button>
-            </div>
-
-            <section className="admin-tutorial-table-card">
-              <table className="admin-tutorial-table">
-                <thead>
-                  <tr>
-                    <th>
-                      <input
-                        type="checkbox"
-                        aria-label="Pilih semua tutorial"
-                      />
-                    </th>
-                    <th>Judul Tutorial</th>
-                    <th>Kategori</th>
-                    <th>Level</th>
-                    <th>Status</th>
-                    <th>Author</th>
-                    <th>Viewer</th>
-                    <th>Selesai</th>
-                    <th>Tgl Dibuat</th>
-                    <th>Tgl Publish</th>
-                    <th>Update Terakhir</th>
-                    <th>Aksi</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {isLoading && (
-                    <tr>
-                      <td colSpan="12">Memuat data materi dari API deploy...</td>
-                    </tr>
-                  )}
-
-                  {!isLoading && loadError && (
-                    <tr>
-                      <td colSpan="12">
-                        <strong>Gagal mengambil data SQLite.</strong>
-                        <br />
-                        <small>{loadError}</small>
-                        <br />
-                        <small>
-                          Endpoint: {MATERI_API_URL}
-                        </small>
-                      </td>
-                    </tr>
-                  )}
-
-                  {!isLoading && !loadError && filteredTutorials.length === 0 && (
-                    <tr>
-                      <td colSpan="12">
-                        Belum ada data materi yang sesuai di server.
-                      </td>
-                    </tr>
-                  )}
-
-                  {!isLoading &&
-                    !loadError &&
-                    filteredTutorials.map((item, index) => (
-                      <tr key={item.id || item.slug || item.title}>
-                        <td>
-                          <input
-                            type="checkbox"
-                            aria-label={`Pilih ${item.title}`}
-                          />
-                        </td>
-
-                        <td>
-                          {item.cardImageUrl ? (
-                            <img
-                              className={`admin-tutorial-thumb is-${index % 4}`}
-                              src={item.cardImageUrl}
-                              alt={`Thumbnail ${item.title}`}
-                              loading="lazy"
-                              onError={(event) =>
-                                handleMateriImageError(
-                                  event,
-                                  item.cardImageName
-                                )
-                              }
-                              style={{
-                                display: 'block',
-                                width: 56,
-                                height: 42,
-                                minWidth: 56,
-                                objectFit: 'cover',
-                                borderRadius: 8,
-                                background: '#eef2f7',
-                              }}
-                            />
-                          ) : (
-                            <span
-                              className={`admin-tutorial-thumb is-${index % 4}`}
-                              aria-hidden="true"
-                            />
-                          )}
-                          <span>
-                            <b>{item.title}</b>
-                            <small>{item.description}</small>
-                          </span>
-                        </td>
-
-                        <td>
-                          <TutorialBadge>{item.category}</TutorialBadge>
-                        </td>
-
-                        <td>
-                          <TutorialBadge>{item.level}</TutorialBadge>
-                        </td>
-
-                        <td>
-                          <TutorialBadge>{item.status}</TutorialBadge>
-                        </td>
-
-                        <td>{item.author}</td>
-                        <td>{item.viewer}</td>
-                        <td>{item.completed}</td>
-                        <td>{item.createdAt}</td>
-                        <td>{item.publishedAt}</td>
-                        <td>{item.updatedAt}</td>
-
-                        <td>
-                          <div
-                            className="admin-tutorial-actions"
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: 6,
-                              flexWrap: 'nowrap',
-                              minWidth: 176,
-                            }}
-                          >
-                            <TutorialAction
-                              label={`Lihat detail ${item.title}`}
-                              variant="view"
-                              onClick={() => handleViewTutorial(item)}
-                            >
-                              <img
-                                src={eyeIcon}
-                                alt=""
-                                style={{ width: 17, height: 17 }}
-                              />
-                            </TutorialAction>
-
-                            <a
-                              className="admin-article-action"
-                              href={`/admin/tutorial/tambah?id=${encodeURIComponent(
-                                item.id
-                              )}`}
-                              aria-label={`Edit ${item.title}`}
-                            >
-                              Edit
-                            </a>
-
-                            <button
-                              className="admin-article-action"
-                              type="button"
-                              aria-label={`Delete ${item.title}`}
-                              disabled={deletingId === item.id}
-                              onClick={() => handleDeleteTutorial(item)}
-                            >
-                              {deletingId === item.id ? 'Menghapus...' : 'Delete'}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
+                <label>
+                  <span>Kategori</span>
+                  <select
+                    value={categoryFilter}
+                    onChange={(event) => setCategoryFilter(event.target.value)}
+                  >
+                    <option value="">Semua Kategori</option>
+                    {categoryOptions.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
                     ))}
-                </tbody>
-              </table>
+                  </select>
+                </label>
 
-              <div className="admin-tutorial-pagination">
-                <span>
-                  Menampilkan {filteredTutorials.length ? 1 : 0} -{' '}
-                  {filteredTutorials.length} dari {filteredTutorials.length}{' '}
-                  data
-                </span>
+                <label>
+                  <span>Level</span>
+                  <select
+                    value={levelFilter}
+                    onChange={(event) => setLevelFilter(event.target.value)}
+                  >
+                    <option value="">Semua Level</option>
+                    {levelOptions.map((level) => (
+                      <option key={level} value={level}>
+                        {level}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-                <div>
-                  <button type="button" disabled>
-                    &lt;
-                  </button>
-                  <button type="button" className="is-active">
-                    1
-                  </button>
-                  <button type="button" disabled>
-                    &gt;
-                  </button>
-                </div>
-
-                <select defaultValue="10">
-                  <option value="10">10 / halaman</option>
-                </select>
+                <label>
+                  <span>Author / Admin</span>
+                  <select value="" disabled>
+                    <option value="">Admin</option>
+                  </select>
+                </label>
               </div>
             </section>
 
-            <section className="admin-tutorial-bottom">
-              <article className="admin-tutorial-panel">
-                <div className="admin-tutorial-panel-head">
-                  <h2>Materi Terbaru</h2>
+            <section className="admin-users-table-card">
+              <div className="admin-users-table-header">
+                <div>
+                  <h2>Daftar Tutorial / Materi</h2>
+                  <p>{filteredTutorials.length} materi ditemukan</p>
                 </div>
+                <span>{paginatedTutorials.length} ditampilkan</span>
+              </div>
 
-                <table>
+              <div className="admin-tutorial-table-scroll">
+                <table className="admin-users-table admin-tutorial-table">
                   <thead>
                     <tr>
-                      <th>#</th>
-                      <th>Judul</th>
+                      <th>Judul Tutorial</th>
+                      <th>Kategori</th>
+                      <th>Level</th>
                       <th>Status</th>
-                      <th>Dibuat</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {latestTutorials.length === 0 ? (
-                      <tr>
-                        <td colSpan="4">Belum ada materi.</td>
-                      </tr>
-                    ) : (
-                      latestTutorials.map((item, index) => (
-                        <tr key={item.id || item.slug}>
-                          <td>{index + 1}</td>
-                          <td>{item.title}</td>
-                          <td>{item.status}</td>
-                          <td>{item.createdAt}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </article>
-
-              <article className="admin-tutorial-panel">
-                <div className="admin-tutorial-panel-head">
-                  <h2>Draft Perlu Dilanjutkan</h2>
-                </div>
-
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Judul</th>
                       <th>Author</th>
-                      <th>Terakhir Diedit</th>
+                      <th>Viewer</th>
+                      <th>Selesai</th>
+                      <th>Tgl Dibuat</th>
+                      <th>Tgl Publish</th>
+                      <th>Update Terakhir</th>
+                      <th>Aksi</th>
                     </tr>
                   </thead>
 
                   <tbody>
-                    {draftTutorials.length === 0 ? (
+                    {isLoading ? (
                       <tr>
-                        <td colSpan="3">Tidak ada draft.</td>
+                        <td colSpan="11" style={{ textAlign: 'center', padding: 28 }}>
+                          Memuat data materi dari API deploy...
+                        </td>
+                      </tr>
+                    ) : loadError ? (
+                      <tr>
+                        <td colSpan="11" style={{ textAlign: 'center', padding: 28 }}>
+                          Gagal mengambil data SQLite. {loadError}
+                        </td>
+                      </tr>
+                    ) : paginatedTutorials.length === 0 ? (
+                      <tr>
+                        <td colSpan="11" style={{ textAlign: 'center', padding: 28 }}>
+                          Belum ada data materi yang cocok dengan filter.
+                        </td>
                       </tr>
                     ) : (
-                      draftTutorials.map((item) => (
-                        <tr key={item.id || item.slug}>
-                          <td>{item.title}</td>
-                          <td>{item.author}</td>
-                          <td>{item.updatedAt}</td>
-                        </tr>
-                      ))
+                      paginatedTutorials.map((item, index) => {
+                        const actionKey = String(item.id ?? item.slug ?? item.title);
+
+                        return (
+                          <tr
+                            key={item.id || item.slug || item.title}
+                            className={
+                              selectedTutorial?.id === item.id ? 'is-selected' : ''
+                            }
+                          >
+                            <td>
+                              <button
+                                type="button"
+                                className="admin-users-name-button"
+                                onClick={() => handleViewTutorial(item)}
+                              >
+                                {item.cardImageUrl ? (
+                                  <img
+                                    className={`admin-tutorial-thumb is-${index % 4}`}
+                                    src={item.cardImageUrl}
+                                    alt={`Thumbnail ${item.title}`}
+                                    loading="lazy"
+                                    onError={(event) =>
+                                      handleMateriImageError(
+                                        event,
+                                        item.cardImageName
+                                      )
+                                    }
+                                  />
+                                ) : (
+                                  <span
+                                    className={`admin-tutorial-thumb is-${index % 4}`}
+                                    aria-hidden="true"
+                                  />
+                                )}
+
+                                <span>
+                                  <b>{item.title}</b>
+                                  <small>{item.description}</small>
+                                </span>
+                              </button>
+                            </td>
+
+                            <td><TutorialBadge>{item.category}</TutorialBadge></td>
+                            <td><TutorialBadge>{item.level}</TutorialBadge></td>
+                            <td><TutorialBadge>{item.status}</TutorialBadge></td>
+                            <td>{item.author}</td>
+                            <td>{item.viewer}</td>
+                            <td>{item.completed}</td>
+                            <td>{item.createdAt}</td>
+                            <td>{item.publishedAt}</td>
+                            <td>{item.updatedAt}</td>
+
+                            <td>
+                              <div className="admin-users-actions admin-users-action-menu">
+                                <button
+                                  type="button"
+                                  className="admin-users-action-trigger"
+                                  ref={(node) => {
+                                    if (node) actionButtonRefs.current.set(actionKey, node);
+                                    else actionButtonRefs.current.delete(actionKey);
+                                  }}
+                                  aria-label={`Buka aksi untuk ${item.title}`}
+                                  aria-expanded={String(openActionTutorialId) === actionKey}
+                                  onClick={() =>
+                                    setOpenActionTutorialId((current) =>
+                                      String(current) === actionKey ? null : actionKey
+                                    )
+                                  }
+                                >
+                                  ...
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
-              </article>
+              </div>
 
-              <article className="admin-tutorial-panel admin-tutorial-issues">
-                <div className="admin-tutorial-panel-head">
-                  <h2>Materi Bermasalah</h2>
+              <div className="admin-users-pagination">
+                <button
+                  type="button"
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  disabled={page <= 1}
+                >
+                  Previous
+                </button>
+
+                <div>
+                  {Array.from({ length: totalPages }, (_, index) => index + 1)
+                    .slice(
+                      Math.max(0, page - 3),
+                      Math.max(0, page - 3) + 5
+                    )
+                    .map((pageNumber) => (
+                      <button
+                        type="button"
+                        key={pageNumber}
+                        className={pageNumber === page ? 'is-active' : ''}
+                        onClick={() => setPage(pageNumber)}
+                      >
+                        {pageNumber}
+                      </button>
+                    ))}
                 </div>
 
-                {issueItems.map((item) => (
-                  <p key={item[0]}>
-                    <span>{item[0]}</span>
-                    <strong>{item[1]}</strong>
-                  </p>
-                ))}
-              </article>
+                <span>
+                  Page {page} of {totalPages}
+                  <small>
+                    Menampilkan {firstShown} - {lastShown} dari{' '}
+                    {filteredTutorials.length} materi
+                  </small>
+                </span>
 
-              <article className="admin-tutorial-panel admin-tutorial-activity">
-                <div className="admin-tutorial-panel-head">
-                  <h2>Aktivitas Terbaru</h2>
-                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPage((current) => Math.min(totalPages, current + 1))
+                  }
+                  disabled={page >= totalPages}
+                >
+                  Next
+                </button>
+              </div>
+            </section>
 
-                {activityItems.length === 0 ? (
-                  <p>
-                    <b>Belum ada aktivitas materi.</b>
-                  </p>
+            <section className="admin-users-bottom admin-tutorial-bottom-program">
+              <article className="admin-users-panel">
+                <h2>Materi Terbaru</h2>
+
+                {latestTutorials.length === 0 ? (
+                  <p>Belum ada materi.</p>
                 ) : (
-                  activityItems.map((item) => (
-                    <p key={`${item[0]}-${item[1]}`}>
-                      <span
-                        className={`admin-tutorial-dot is-${item[2]}`}
-                      />
-                      <b>{item[0]}</b>
-                      <time>{item[1]}</time>
+                  latestTutorials.map((item, index) => (
+                    <p key={item.id || item.slug}>
+                      {item.cardImageUrl ? (
+                        <img
+                          className="admin-tutorial-mini-thumb"
+                          src={item.cardImageUrl}
+                          alt=""
+                          onError={(event) =>
+                            handleMateriImageError(event, item.cardImageName)
+                          }
+                        />
+                      ) : (
+                        <span
+                          className={`admin-tutorial-mini-thumb admin-tutorial-thumb is-${index % 4}`}
+                          aria-hidden="true"
+                        />
+                      )}
+                      <b>{item.title}</b>
+                      <span>{item.category}</span>
+                      <span>{item.createdAt}</span>
+                      <TutorialBadge>{item.status}</TutorialBadge>
                     </p>
                   ))
                 )}
               </article>
-            </section>
 
-            <section className="admin-tutorial-quick">
-              <h2>Aksi Cepat</h2>
-              <div>
-                <a href="/admin/tutorial/tambah">Buat Tutorial Baru</a>
+              <article className="admin-users-panel">
+                <h2>Draft Perlu Dilanjutkan</h2>
+
+                {draftTutorials.length === 0 ? (
+                  <p>Tidak ada draft.</p>
+                ) : (
+                  draftTutorials.map((item) => (
+                    <p key={item.id || item.slug}>
+                      <span className="admin-tutorial-draft-dot" aria-hidden="true" />
+                      <b>{item.title}</b>
+                      <span>{item.author}</span>
+                      <span>{item.updatedAt}</span>
+                      <TutorialBadge>{item.status}</TutorialBadge>
+                    </p>
+                  ))
+                )}
+              </article>
+
+              <article className="admin-users-panel admin-tutorial-summary-panel">
+                <h2>Ringkasan Materi</h2>
+
+                <p>
+                  <span>Published</span>
+                  <strong>{tutorials.filter((item) => item.status === 'Published').length}</strong>
+                </p>
+                <p>
+                  <span>Draft</span>
+                  <strong>{tutorials.filter((item) => item.status === 'Draft').length}</strong>
+                </p>
+                <p>
+                  <span>Pending Review</span>
+                  <strong>{tutorials.filter((item) => item.status === 'Pending Review').length}</strong>
+                </p>
+                <p>
+                  <span>{issueItems[0]?.[0] || 'Thumbnail kosong'}</span>
+                  <strong>{issueItems[0]?.[1] || 0}</strong>
+                </p>
+
+                <a href="/admin/tutorial/tambah" className="admin-users-primary">
+                  Buat Materi Baru
+                </a>
                 <button type="button" onClick={fetchTutorials}>
-                  Muat Ulang Data
+                  Refresh Data SQLite
                 </button>
-                <button type="button">Export Data Tutorial</button>
-                <button type="button">Cek Link Rusak</button>
-                <button type="button">Reorder Materi Belajar</button>
-              </div>
+              </article>
             </section>
           </section>
+
+          {openActionTutorial ? (
+            <div
+              className="admin-users-action-popover"
+              role="menu"
+              style={{
+                top: `${actionMenuPosition.top}px`,
+                left: `${actionMenuPosition.left}px`,
+              }}
+            >
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => handleViewTutorial(openActionTutorial)}
+              >
+                Detail
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => handleEditTutorial(openActionTutorial)}
+              >
+                Edit Materi
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="admin-users-action-danger"
+                disabled={deletingId === openActionTutorial.id}
+                onClick={() => handleDeleteTutorial(openActionTutorial)}
+              >
+                {deletingId === openActionTutorial.id
+                  ? 'Menghapus...'
+                  : 'Hapus Materi'}
+              </button>
+            </div>
+          ) : null}
 
           <style>{`
             .admin-tutorial-modal-backdrop {

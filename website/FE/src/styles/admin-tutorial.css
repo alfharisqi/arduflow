@@ -3443,3 +3443,245 @@ button.admin-article-action:disabled {
     font-size: 11.5px;
   }
 }
+
+/* =========================================================
+   ADMIN TUTORIAL — VISUAL PARITY WITH ADMIN PROGRAM
+   Core sections use the shared admin-users design system.
+   These overrides neutralize old tutorial-table layout rules.
+   ========================================================= */
+
+.admin-tutorial-page .admin-tutorial-layout {
+  display: block;
+  min-height: calc(100vh - 56px);
+  background: #ffffff;
+  overflow: visible;
+}
+
+.admin-tutorial-page .admin-tutorial-content {
+  min-width: 0;
+  padding: 22px;
+  overflow: hidden;
+}
+
+.admin-tutorial-page .admin-users-summary {
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.admin-tutorial-page .admin-users-stat {
+  min-width: 172px;
+}
+
+.admin-tutorial-stat-tone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+}
+
+.admin-tutorial-stat-tone img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.admin-tutorial-stat-tone.is-blue { background: #e8f0ff; }
+.admin-tutorial-stat-tone.is-green { background: #e7f8ed; }
+.admin-tutorial-stat-tone.is-orange { background: #fff3e3; }
+.admin-tutorial-stat-tone.is-purple { background: #f2e7ff; }
+.admin-tutorial-stat-tone.is-red { background: #feeaea; }
+
+.admin-tutorial-page .admin-users-filter-row {
+  grid-template-columns: minmax(260px, 1fr) auto auto auto;
+}
+
+.admin-tutorial-page .admin-users-select-grid {
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+}
+
+.admin-tutorial-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.admin-tutorial-page .admin-tutorial-table {
+  width: 100%;
+  min-width: 1260px;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.admin-tutorial-page .admin-tutorial-table th,
+.admin-tutorial-page .admin-tutorial-table td {
+  height: 44px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 11px;
+  color: #111827;
+  text-align: left;
+  vertical-align: middle;
+  white-space: normal;
+}
+
+.admin-tutorial-page .admin-tutorial-table th {
+  background: #fafafa;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Neutralize the previous td:nth-child(2) flex rule. */
+.admin-tutorial-page .admin-tutorial-table td:nth-child(2) {
+  display: table-cell;
+  min-width: 0;
+}
+
+.admin-tutorial-page .admin-tutorial-table th:nth-child(1),
+.admin-tutorial-page .admin-tutorial-table td:nth-child(1) {
+  width: 300px;
+}
+
+.admin-tutorial-page .admin-tutorial-table th:nth-child(2),
+.admin-tutorial-page .admin-tutorial-table td:nth-child(2),
+.admin-tutorial-page .admin-tutorial-table th:nth-child(3),
+.admin-tutorial-page .admin-tutorial-table td:nth-child(3),
+.admin-tutorial-page .admin-tutorial-table th:nth-child(4),
+.admin-tutorial-page .admin-tutorial-table td:nth-child(4) {
+  width: 118px;
+}
+
+.admin-tutorial-page .admin-tutorial-table th:nth-child(5),
+.admin-tutorial-page .admin-tutorial-table td:nth-child(5) {
+  width: 100px;
+}
+
+.admin-tutorial-page .admin-tutorial-table th:nth-child(6),
+.admin-tutorial-page .admin-tutorial-table td:nth-child(6),
+.admin-tutorial-page .admin-tutorial-table th:nth-child(7),
+.admin-tutorial-page .admin-tutorial-table td:nth-child(7) {
+  width: 78px;
+  text-align: center;
+}
+
+.admin-tutorial-page .admin-tutorial-table th:nth-child(8),
+.admin-tutorial-page .admin-tutorial-table td:nth-child(8),
+.admin-tutorial-page .admin-tutorial-table th:nth-child(9),
+.admin-tutorial-page .admin-tutorial-table td:nth-child(9),
+.admin-tutorial-page .admin-tutorial-table th:nth-child(10),
+.admin-tutorial-page .admin-tutorial-table td:nth-child(10) {
+  width: 118px;
+}
+
+.admin-tutorial-page .admin-tutorial-table th:nth-child(11),
+.admin-tutorial-page .admin-tutorial-table td:nth-child(11) {
+  width: 72px;
+  text-align: center;
+}
+
+.admin-tutorial-page .admin-users-name-button {
+  width: 100%;
+  min-width: 0;
+}
+
+.admin-tutorial-page .admin-users-name-button > span:last-child {
+  min-width: 0;
+}
+
+.admin-tutorial-page .admin-users-name-button b,
+.admin-tutorial-page .admin-users-name-button small {
+  display: block;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-tutorial-page .admin-users-name-button small {
+  margin-top: 3px;
+  color: #6b7280;
+}
+
+.admin-tutorial-page .admin-tutorial-thumb {
+  display: inline-block;
+  flex: none;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  border: 1px solid #cfd5de;
+  border-radius: 8px !important;
+  object-fit: cover;
+  overflow: hidden;
+}
+
+.admin-tutorial-mini-thumb {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  border: 1px solid #cfd5de;
+  border-radius: 6px;
+  object-fit: cover;
+  background: #eef2f7;
+}
+
+.admin-tutorial-draft-dot {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  border-radius: 50%;
+  background: #fff3e3;
+  border: 1px solid #fed7aa;
+}
+
+.admin-tutorial-page .admin-tutorial-bottom-program {
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+}
+
+.admin-tutorial-page .admin-tutorial-summary-panel p {
+  grid-template-columns: 1fr auto;
+}
+
+.admin-tutorial-page .admin-tutorial-summary-panel > a,
+.admin-tutorial-page .admin-tutorial-summary-panel > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  margin: 12px 0 0 14px;
+  padding: 0 14px;
+  border: 1px solid #d8dde6;
+  border-radius: 6px;
+  background: #fff;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.admin-tutorial-page .admin-tutorial-summary-panel > button {
+  margin-left: 8px;
+}
+
+@media (max-width: 1100px) {
+  .admin-tutorial-page .admin-users-select-grid {
+    grid-template-columns: repeat(2, minmax(160px, 1fr));
+  }
+
+  .admin-tutorial-page .admin-tutorial-bottom-program {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-tutorial-page .admin-users-filter-row,
+  .admin-tutorial-page .admin-users-select-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-tutorial-page .admin-users-filter-row > button,
+  .admin-tutorial-page .admin-users-filter-row > a {
+    width: 100%;
+  }
+}
