@@ -126,22 +126,7 @@ function notificationTableExists(PDO $pdo, string $table): bool
     $statement = $pdo->prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = :table LIMIT 1");
     $statement->execute([':table' => $table]);
     return (bool) $statement->fetchColumn();
-}
-
-function ensureNotificationEmailLog(PDO $pdo): void
-{
-    $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS user_notification_email_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            notification_key TEXT NOT NULL,
-            email TEXT NOT NULL,
-            sent_at TEXT NOT NULL,
-            UNIQUE(notification_key, email)
-        )'
-    );
-}
-
-function normalizeNotificationStatus(string $status): string
+}function normalizeNotificationStatus(string $status): string
 {
     return strtolower(trim($status));
 }
@@ -479,7 +464,6 @@ try {
     }
 
     $pdo = notificationPdo();
-    ensureNotificationEmailLog($pdo);
 
     $notifications = [
         ...buildTransactionNotifications($pdo, $userId, $email),

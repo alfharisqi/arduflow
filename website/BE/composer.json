@@ -16,6 +16,7 @@
   "scripts": {
     "serve": "php -S 0.0.0.0:8000 router.php",
     "db:init": "php scripts/init-sqlite.php",
+    "db:migrate": "php scripts/migrate.php",
     "db:import-auth": "php scripts/import-auth-from-node-sqlite.php",
     "db:import": "php scripts/import-mysql-to-sqlite.php",
     "db:check": "php scripts/check-database-consistency.php",

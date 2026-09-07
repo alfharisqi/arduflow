@@ -21,53 +21,7 @@ if ($method === 'POST' && isset($_GET['_method'])) {
 function testimonialsNow(): string
 {
     return gmdate('Y-m-d\TH:i:s\Z');
-}
-
-function testimonialsEnsureSchema(PDO $pdo): void
-{
-    $statement = $pdo->query(
-        "SELECT 1
-         FROM sqlite_master
-         WHERE type = 'table'
-         AND name = 'testimonials'
-         LIMIT 1"
-    );
-
-    if ($statement->fetchColumn() !== false) {
-        return;
-    }
-
-    $pdo->exec(
-        'CREATE TABLE testimonials (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            source_type TEXT NOT NULL DEFAULT "general",
-            source_id TEXT NOT NULL DEFAULT "",
-            user_id TEXT NOT NULL DEFAULT "",
-            name TEXT NOT NULL DEFAULT "",
-            email TEXT NOT NULL DEFAULT "",
-            role TEXT NOT NULL DEFAULT "",
-            quote TEXT NOT NULL DEFAULT "",
-            rating INTEGER NOT NULL DEFAULT 5,
-            consent_public INTEGER NOT NULL DEFAULT 0,
-            status TEXT NOT NULL DEFAULT "Menunggu",
-            admin_note TEXT NOT NULL DEFAULT "",
-            deleted_at TEXT,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        );
-
-        CREATE INDEX idx_testimonials_status
-        ON testimonials(status);
-
-        CREATE INDEX idx_testimonials_email
-        ON testimonials(email);
-
-        CREATE INDEX idx_testimonials_source
-        ON testimonials(source_type, source_id);'
-    );
-}
-
-function testimonialFromRow(array $row): array
+}function testimonialFromRow(array $row): array
 {
     return [
         'id' => (int) $row['id'],
@@ -209,8 +163,6 @@ function testimonialStats(PDO $pdo): array
 
 try {
     $pdo = afwPdo();
-
-    testimonialsEnsureSchema($pdo);
 
     $id = isset($_GET['id']) && $_GET['id'] !== ''
         ? (int) $_GET['id']

@@ -115,77 +115,6 @@ function tableExists(PDO $pdo, string $table): bool
     return $cache[$key] = $statement->fetchColumn() !== false;
 }
 
-function tableColumns(PDO $pdo, string $table): array
-{
-    if (!tableExists($pdo, $table)) {
-        return [];
-    }
-
-    $statement = $pdo->query(
-        'PRAGMA table_info(' . $table . ')'
-    );
-
-    return array_column(
-        $statement->fetchAll(),
-        'name'
-    );
-}
-
-function ensureColumns(PDO $pdo, string $table, array $definitions): void
-{
-    $columns = tableColumns($pdo, $table);
-
-    foreach ($definitions as $column => $definition) {
-        if (!in_array($column, $columns, true)) {
-            $pdo->exec(
-                'ALTER TABLE '
-                . $table
-                . ' ADD COLUMN '
-                . $column
-                . ' '
-                . $definition
-            );
-        }
-    }
-}
-
-function ensureWorkshopRegistrationColumns(PDO $pdo): void
-{
-    if (!tableExists($pdo, 'workshop_registrations')) {
-        return;
-    }
-
-    ensureColumns(
-        $pdo,
-        'workshop_registrations',
-        [
-            'workshop_id' => 'INTEGER NULL',
-            'member_names' => 'TEXT NULL',
-            'transaction_id' => 'INTEGER NULL',
-        ]
-    );
-}
-
-function ensureCollaborationColumns(PDO $pdo): void
-{
-    if (!tableExists($pdo, 'collaborations')) {
-        return;
-    }
-
-    ensureColumns(
-        $pdo,
-        'collaborations',
-        [
-            'description' => 'TEXT NULL',
-            'proposal_file_name' => 'TEXT NULL',
-            'proposal_file_type' => 'TEXT NULL',
-            'proposal_file_size' => 'INTEGER NULL',
-            'proposal_file_path' => 'TEXT NULL',
-            'proposal_file_url' => 'TEXT NULL',
-        ]
-    );
-}
-
 function saveUploadedProposal(array $uploadedFile, string $projectRoot): ?array
 {
     $uploadError = (int) (
@@ -330,111 +259,6 @@ function saveUploadedProposal(array $uploadedFile, string $projectRoot): ?array
     ];
 }
 
-function ensureTransactionTablesForWorkshop(PDO $pdo): void
-{
-    $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS transactions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NULL,
-            user_name TEXT,
-            email TEXT,
-            item_type TEXT NOT NULL DEFAULT "workshop",
-            item_id INTEGER NULL,
-            item_title TEXT NOT NULL,
-            amount REAL NOT NULL DEFAULT 0,
-            currency TEXT NOT NULL DEFAULT "IDR",
-            payment_method TEXT,
-            payment_channel TEXT,
-            payment_code TEXT,
-            recipient_name TEXT,
-            qris_file_name TEXT,
-            qris_file_type TEXT,
-            qris_file_size INTEGER,
-            qris_file_path TEXT,
-            qris_file_url TEXT,
-            invoice_number TEXT NOT NULL UNIQUE,
-            reference_number TEXT,
-            status TEXT NOT NULL DEFAULT "pending",
-            paid_at TEXT,
-            due_at TEXT,
-            notes TEXT,
-            proof_file_name TEXT,
-            proof_file_type TEXT,
-            proof_file_size INTEGER,
-            proof_file_path TEXT,
-            proof_file_url TEXT,
-            proof_uploaded_at TEXT,
-            reviewed_at TEXT,
-            reviewed_by TEXT,
-            rejection_reason TEXT,
-            payload_json TEXT NOT NULL DEFAULT "{}",
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        )'
-    );
-
-    $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS payment_methods (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            method_type TEXT NOT NULL DEFAULT "Transfer Bank",
-            channel TEXT,
-            recipient_name TEXT,
-            payment_code TEXT,
-            qris_file_name TEXT,
-            qris_file_type TEXT,
-            qris_file_size INTEGER,
-            qris_file_path TEXT,
-            qris_file_url TEXT,
-            is_active INTEGER NOT NULL DEFAULT 1,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        )'
-    );
-
-    $pdo->exec(
-        'CREATE INDEX IF NOT EXISTS
-         idx_transactions_email
-         ON transactions(email)'
-    );
-
-    $pdo->exec(
-        'CREATE INDEX IF NOT EXISTS
-         idx_transactions_status
-         ON transactions(status)'
-    );
-}
-
-function ensurePartnersTableForCollaboration(PDO $pdo): void
-{
-    $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS partners (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            type TEXT NOT NULL DEFAULT "Institusi",
-            pic_name TEXT NOT NULL DEFAULT "",
-            pic_role TEXT NOT NULL DEFAULT "",
-            email TEXT NOT NULL DEFAULT "",
-            whatsapp TEXT NOT NULL DEFAULT "",
-            city TEXT NOT NULL DEFAULT "",
-            province TEXT NOT NULL DEFAULT "",
-            website TEXT NOT NULL DEFAULT "",
-            social_media TEXT NOT NULL DEFAULT "",
-            description TEXT NOT NULL DEFAULT "",
-            programs_json TEXT NOT NULL DEFAULT "[]",
-            status TEXT NOT NULL DEFAULT "Draft",
-            show_homepage INTEGER NOT NULL DEFAULT 0,
-            featured INTEGER NOT NULL DEFAULT 0,
-            follow_up_note TEXT NOT NULL DEFAULT "",
-            start_date TEXT,
-            last_contact_at TEXT,
-            deleted_at TEXT,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        )'
-    );
-}
-
 function syncCollaborationToPartner(
     PDO $pdo,
     string $institutionName,
@@ -449,8 +273,6 @@ function syncCollaborationToPartner(
     ?array $proposalFile,
     string $now
 ): ?int {
-    ensurePartnersTableForCollaboration($pdo);
-
     $existingStatement = $pdo->prepare(
         'SELECT id
          FROM partners
@@ -1368,10 +1190,6 @@ function fetchAdminLeads(
             'collaborations'
         )
     ) {
-        ensureCollaborationColumns(
-            $pdo
-        );
-
         $sql =
             'SELECT
                 id,
@@ -1556,10 +1374,6 @@ function fetchAdminLeads(
             'workshop_registrations'
         )
     ) {
-        ensureWorkshopRegistrationColumns(
-            $pdo
-        );
-
         $sql =
             'SELECT
                 id,
@@ -2662,10 +2476,6 @@ if ($formType === 'collaboration') {
         );
     }
 
-    ensureCollaborationColumns(
-        $pdo
-    );
-
     $participantEstimateValue =
         $participantEstimate !== ''
             ? $participantEstimate
@@ -3172,10 +2982,6 @@ if ($formType === 'workshop') {
         );
     }
 
-    ensureWorkshopRegistrationColumns(
-        $pdo
-    );
-
     $institutionNameValue =
         $institutionName !== ''
             ? $institutionName
@@ -3197,10 +3003,6 @@ if ($formType === 'workshop') {
             : null;
 
     try {
-        ensureTransactionTablesForWorkshop(
-            $pdo
-        );
-
         $participantCount =
             (int) (
                 preg_replace(

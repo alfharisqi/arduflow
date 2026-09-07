@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 use Arduflow\Api\Support\Env;
 
-require_once __DIR__ . '/support/sqlite-schema.php';
-
 const MATERI_API_VERSION = 'materi-v5-post';
 
 $projectRoot = dirname(__DIR__);
@@ -163,7 +161,6 @@ if (!function_exists('getDatabaseConnection')) {
 
 try {
     $database = getDatabaseConnection();
-    createTables($database);
 
     switch ($_SERVER['REQUEST_METHOD']) {
         case 'GET':
@@ -203,188 +200,6 @@ try {
             'error' => $error->getMessage(),
         ],
         500
-    );
-}
-
-function createTables(PDO $database): void
-{
-    $database->exec(
-        'CREATE TABLE IF NOT EXISTS tutorials (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            slug TEXT NOT NULL UNIQUE,
-            category TEXT NOT NULL,
-            display_order INTEGER NOT NULL DEFAULT 1,
-            short_description TEXT NOT NULL,
-            full_description TEXT NOT NULL,
-            card_image_name TEXT,
-            card_image_type TEXT,
-            card_image_size INTEGER,
-            difficulty_level TEXT,
-            estimated_time TEXT,
-            page_order INTEGER NOT NULL,
-            status TEXT NOT NULL DEFAULT "draft",
-            active INTEGER NOT NULL DEFAULT 1,
-            show_on_page INTEGER NOT NULL DEFAULT 1,
-            featured INTEGER NOT NULL DEFAULT 0,
-            comments INTEGER NOT NULL DEFAULT 1,
-            access_type TEXT,
-            featured_order INTEGER,
-            user_level TEXT NOT NULL DEFAULT "semua_pengguna",
-            access_requirement TEXT,
-            prerequisite TEXT,
-            cta_text TEXT,
-            cta_target_link TEXT,
-            cta_url_slug TEXT,
-            publish_schedule TEXT,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        )'
-    );
-
-    $database->exec(
-        'CREATE TABLE IF NOT EXISTS tutorial_chapters (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tutorial_id INTEGER NOT NULL,
-            chapter_order INTEGER NOT NULL DEFAULT 1,
-            title TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            FOREIGN KEY (tutorial_id)
-                REFERENCES tutorials(id)
-                ON DELETE CASCADE
-        )'
-    );
-
-    $database->exec(
-        'CREATE TABLE IF NOT EXISTS tutorial_learning_objectives (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tutorial_id INTEGER NOT NULL,
-            objective_order INTEGER NOT NULL DEFAULT 1,
-            objective TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            FOREIGN KEY (tutorial_id)
-                REFERENCES tutorials(id)
-                ON DELETE CASCADE
-        )'
-    );
-
-    $database->exec(
-        'CREATE TABLE IF NOT EXISTS tutorial_slides (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tutorial_id INTEGER NOT NULL,
-            chapter_id INTEGER,
-            slide_order INTEGER NOT NULL,
-            title TEXT NOT NULL,
-            content_type TEXT NOT NULL DEFAULT "text",
-            content TEXT,
-            code_title TEXT,
-            code_language TEXT,
-            code_content TEXT,
-            allow_copy INTEGER NOT NULL DEFAULT 1,
-            estimated_time TEXT,
-            status TEXT NOT NULL DEFAULT "draft",
-            image_name TEXT,
-            image_type TEXT,
-            image_size INTEGER,
-            video_url TEXT,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            FOREIGN KEY (tutorial_id)
-                REFERENCES tutorials(id)
-                ON DELETE CASCADE,
-            FOREIGN KEY (chapter_id)
-                REFERENCES tutorial_chapters(id)
-                ON DELETE SET NULL
-        )'
-    );
-
-    /*
-     * Migration otomatis untuk database SQLite lama.
-     * ALTER TABLE hanya dijalankan jika kolom belum ada.
-     * Data tutorial dan slide lama tetap dipertahankan.
-     */
-    afwEnsureSqliteColumns($database, 'tutorials', [
-        'active' => 'INTEGER NOT NULL DEFAULT 1',
-        'show_on_page' => 'INTEGER NOT NULL DEFAULT 1',
-        'featured' => 'INTEGER NOT NULL DEFAULT 0',
-        'comments' => 'INTEGER NOT NULL DEFAULT 1',
-        'access_type' => 'TEXT',
-        'featured_order' => 'INTEGER',
-        'prerequisite' => 'TEXT',
-        'cta_text' => 'TEXT',
-        'cta_target_link' => 'TEXT',
-        'cta_url_slug' => 'TEXT',
-        'publish_schedule' => 'TEXT',
-    ]);
-
-    afwEnsureSqliteColumns($database, 'tutorial_slides', [
-        'chapter_id' => 'INTEGER',
-        'estimated_time' => 'TEXT',
-        'status' => 'TEXT NOT NULL DEFAULT "draft"',
-        'image_type' => 'TEXT',
-        'image_size' => 'INTEGER',
-        'code_title' => 'TEXT',
-        'code_language' => 'TEXT',
-        'code_content' => 'TEXT',
-        'allow_copy' => 'INTEGER NOT NULL DEFAULT 1',
-    ]);
-
-    $database->exec(
-        'CREATE INDEX IF NOT EXISTS idx_tutorial_chapters_tutorial
-         ON tutorial_chapters (tutorial_id, chapter_order)'
-    );
-
-    $database->exec(
-        'CREATE INDEX IF NOT EXISTS idx_tutorial_objectives_tutorial
-         ON tutorial_learning_objectives (tutorial_id, objective_order)'
-    );
-
-    $database->exec(
-        'CREATE INDEX IF NOT EXISTS idx_tutorial_slides_chapter
-         ON tutorial_slides (tutorial_id, chapter_id, slide_order)'
-    );
-}
-
-
-function ensureTableColumn(
-    PDO $database,
-    string $tableName,
-    string $columnName,
-    string $definition
-): void {
-    $allowedTables = [
-        'tutorials',
-        'tutorial_slides',
-        'tutorial_chapters',
-        'tutorial_learning_objectives',
-    ];
-
-    if (!in_array($tableName, $allowedTables, true)) {
-        throw new InvalidArgumentException('Nama tabel migration tidak valid.');
-    }
-
-    $columns = $database->query(
-        'PRAGMA table_info(' . $tableName . ')'
-    )->fetchAll();
-
-    foreach ($columns as $column) {
-        if (
-            isset($column['name'])
-            && (string) $column['name'] === $columnName
-        ) {
-            return;
-        }
-    }
-
-    $database->exec(
-        'ALTER TABLE '
-        . $tableName
-        . ' ADD COLUMN '
-        . $columnName
-        . ' '
-        . $definition
     );
 }
 

@@ -508,216 +508,30 @@ if (!$adminTable) {
 
 /*
 |--------------------------------------------------------------------------
-| CEK KOLOM TABLE ADMINS
-|--------------------------------------------------------------------------
-*/
-
-$columns = $pdo
-    ->query(
-        'PRAGMA table_info(admins)'
-    )
-    ->fetchAll();
-
-$columnNames = array_map(
-    static function (array $column): string {
-        return (string) (
-            $column['name'] ?? ''
-        );
-    },
-    $columns
-);
-
-/*
-|--------------------------------------------------------------------------
-| PASSWORD COLUMN
-|--------------------------------------------------------------------------
-|
-| Mendukung:
-|
-| password_hash
-| password
-|--------------------------------------------------------------------------
-*/
-
-$passwordColumn = null;
-
-if (
-    in_array(
-        'password_hash',
-        $columnNames,
-        true
-    )
-) {
-    $passwordColumn =
-        'password_hash';
-} elseif (
-    in_array(
-        'password',
-        $columnNames,
-        true
-    )
-) {
-    $passwordColumn =
-        'password';
-}
-
-if ($passwordColumn === null) {
-    sendJson(
-        500,
-        false,
-        'Kolom password admin tidak ditemukan.',
-        [
-            'available_columns' =>
-                $columnNames,
-        ]
-    );
-}
-
-/*
-|--------------------------------------------------------------------------
-| IDENTIFIER CONDITIONS
-|--------------------------------------------------------------------------
-*/
-
-$identifierConditions = [];
-
-if (
-    in_array(
-        'email',
-        $columnNames,
-        true
-    )
-) {
-    $identifierConditions[] =
-        'LOWER(email) = LOWER(:identifier)';
-}
-
-if (
-    in_array(
-        'username',
-        $columnNames,
-        true
-    )
-) {
-    $identifierConditions[] =
-        'LOWER(username) = LOWER(:identifier)';
-}
-
-if (
-    in_array(
-        'name',
-        $columnNames,
-        true
-    )
-) {
-    $identifierConditions[] =
-        'LOWER(name) = LOWER(:identifier)';
-}
-
-if ($identifierConditions === []) {
-    sendJson(
-        500,
-        false,
-        'Kolom email, username, atau name tidak ditemukan pada tabel admins.',
-        [
-            'available_columns' =>
-                $columnNames,
-        ]
-    );
-}
-
-/*
-|--------------------------------------------------------------------------
-| SELECT COLUMNS
-|--------------------------------------------------------------------------
-*/
-
-$selectColumns = [
-    'id',
-];
-
-$optionalColumns = [
-    'name',
-    'username',
-    'email',
-    'role',
-    'status',
-    'is_active',
-    'created_at',
-    'updated_at',
-    'deleted_at',
-];
-
-foreach (
-    $optionalColumns
-    as $column
-) {
-    if (
-        in_array(
-            $column,
-            $columnNames,
-            true
-        )
-    ) {
-        $selectColumns[] =
-            $column;
-    }
-}
-
-$selectColumns[] =
-    $passwordColumn;
-
-/*
-|--------------------------------------------------------------------------
 | QUERY ADMIN
 |--------------------------------------------------------------------------
 */
 
-$whereConditions = [
-    '('
-    . implode(
-        ' OR ',
-        $identifierConditions
+$passwordColumn = 'password_hash';
+$sql = 'SELECT
+        id,
+        name,
+        username,
+        email,
+        role,
+        is_active,
+        created_at,
+        updated_at,
+        deleted_at,
+        password_hash
+    FROM admins
+    WHERE (
+        LOWER(email) = LOWER(:identifier)
+        OR LOWER(username) = LOWER(:identifier)
+        OR LOWER(name) = LOWER(:identifier)
     )
-    . ')',
-];
-
-/*
-|--------------------------------------------------------------------------
-| DELETED AT
-|--------------------------------------------------------------------------
-*/
-
-if (
-    in_array(
-        'deleted_at',
-        $columnNames,
-        true
-    )
-) {
-    $whereConditions[] =
-        'deleted_at IS NULL';
-}
-
-/*
-|--------------------------------------------------------------------------
-| SQL
-|--------------------------------------------------------------------------
-*/
-
-$sql =
-    'SELECT '
-    . implode(
-        ', ',
-        $selectColumns
-    )
-    . ' FROM admins'
-    . ' WHERE '
-    . implode(
-        ' AND ',
-        $whereConditions
-    )
-    . ' LIMIT 1';
+    AND deleted_at IS NULL
+    LIMIT 1';
 
 try {
     $statement = $pdo->prepare(
@@ -892,42 +706,6 @@ if (!$passwordValid) {
         401,
         false,
         'Email, username, nama admin, atau kata sandi salah.'
-    );
-}
-
-/*
-|--------------------------------------------------------------------------
-| ADMIN AUTH TOKENS
-|--------------------------------------------------------------------------
-*/
-
-try {
-    $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS admin_auth_tokens (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-            admin_id INTEGER NOT NULL,
-
-            token_hash TEXT NOT NULL UNIQUE,
-
-            expires_at TEXT NOT NULL,
-
-            created_at TEXT NOT NULL,
-
-            FOREIGN KEY (admin_id)
-                REFERENCES admins(id)
-                ON DELETE CASCADE
-        )'
-    );
-} catch (Throwable $exception) {
-    sendJson(
-        500,
-        false,
-        'Tabel session admin tidak dapat disiapkan.',
-        [
-            'detail' =>
-                $exception->getMessage(),
-        ]
     );
 }
 

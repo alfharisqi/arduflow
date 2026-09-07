@@ -9,7 +9,6 @@ if (PHP_SAPI !== 'cli') {
 
 $root = dirname(__DIR__);
 require $root . '/vendor/autoload.php';
-require $root . '/api/support/query-indexes.php';
 \Arduflow\Api\Support\Env::load($root . '/.env');
 $config = require $root . '/config/database.php';
 $path = (string) $config['sqlite']['path'];
@@ -30,7 +29,7 @@ $backup = $backupDirectory . '/before-api-indexes-' . gmdate('Ymd-His') . '-' . 
 $pdo->exec('VACUUM INTO ' . $pdo->quote($backup));
 $pdo->beginTransaction();
 try {
-    $result = afwInstallApiQueryIndexes($pdo);
+    $result = \Arduflow\Api\Database\ApiQueryIndexes::install($pdo);
     $pdo->commit();
 } catch (Throwable $error) {
     $pdo->rollBack();

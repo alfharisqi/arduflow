@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/sqlite-schema.php';
-
 function ensureUploadStorage(string $projectRoot, string $module): array
 {
     $safeModule = preg_replace('/[^a-z0-9_-]+/i', '-', strtolower($module)) ?: 'general';
@@ -132,17 +130,4 @@ function normalizeStoredImage(?array $image, array $storage, string $prefix): ?a
         'file_path' => $path,
         'file_url' => $url,
     ];
-}
-
-function addColumnIfMissing(PDO $pdo, string $table, string $column, string $definition): void
-{
-    $statement = $pdo->query('PRAGMA table_info(' . $table . ')');
-    $columns = array_map(
-        static fn (array $row): string => (string) ($row['name'] ?? ''),
-        $statement ? $statement->fetchAll(PDO::FETCH_ASSOC) : []
-    );
-
-    if (!in_array($column, $columns, true)) {
-        $pdo->exec('ALTER TABLE ' . $table . ' ADD COLUMN ' . $column . ' ' . $definition);
-    }
 }

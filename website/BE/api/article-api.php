@@ -233,49 +233,7 @@ function serveStoredImage(): never
 
     readfile($filePath);
     exit;
-}
-
-function createTables(PDO $database): void
-{
-    $database->exec(
-        'CREATE TABLE IF NOT EXISTS articles (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            slug TEXT NOT NULL UNIQUE,
-            category TEXT NOT NULL,
-            author TEXT NOT NULL DEFAULT "Admin ArduFlow",
-            excerpt TEXT NOT NULL DEFAULT "",
-            content TEXT NOT NULL,
-            cover_image_name TEXT,
-            cover_image_type TEXT,
-            cover_image_size INTEGER,
-            tags TEXT NOT NULL DEFAULT "[]",
-            status TEXT NOT NULL DEFAULT "draft",
-            featured INTEGER NOT NULL DEFAULT 0,
-            viewer INTEGER NOT NULL DEFAULT 0,
-            published_at TEXT,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        )'
-    );
-
-    $database->exec(
-        'CREATE UNIQUE INDEX IF NOT EXISTS idx_articles_slug
-         ON articles (slug)'
-    );
-
-    $database->exec(
-        'CREATE INDEX IF NOT EXISTS idx_articles_status
-         ON articles (status, published_at)'
-    );
-
-    $database->exec(
-        'CREATE INDEX IF NOT EXISTS idx_articles_category
-         ON articles (category)'
-    );
-}
-
-function slugify(string $value): string
+}function slugify(string $value): string
 {
     $value = trim($value);
 
@@ -1048,7 +1006,6 @@ if (
 
 try {
     $database = getDatabaseConnection();
-    createTables($database);
 
     switch ($_SERVER['REQUEST_METHOD']) {
         case 'GET':

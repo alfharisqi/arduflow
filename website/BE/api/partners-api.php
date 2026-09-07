@@ -83,108 +83,6 @@ function partnersTableExists(PDO $pdo, string $table): bool
         $statement->fetchColumn() !== false;
 }
 
-function partnersColumns(PDO $pdo, string $table): array
-{
-    static $cache = [];
-
-    $key = spl_object_id($pdo) . ':' . $table;
-
-    if (isset($cache[$key])) {
-        return $cache[$key];
-    }
-
-    if (!partnersTableExists($pdo, $table)) {
-        return $cache[$key] = [];
-    }
-
-    $statement = $pdo->query(
-        'PRAGMA table_info("'
-        . str_replace('"', '""', $table)
-        . '")'
-    );
-
-    return $cache[$key] =
-        array_column(
-            $statement->fetchAll(),
-            'name'
-        );
-}
-
-function partnersEnsureSchema(PDO $pdo): void
-{
-    $tableWasMissing =
-        !partnersTableExists($pdo, 'partners');
-
-    if ($tableWasMissing) {
-        $pdo->exec(
-            'CREATE TABLE partners (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                type TEXT NOT NULL DEFAULT "Institusi",
-                pic_name TEXT NOT NULL DEFAULT "",
-                pic_role TEXT NOT NULL DEFAULT "",
-                email TEXT NOT NULL DEFAULT "",
-                whatsapp TEXT NOT NULL DEFAULT "",
-                city TEXT NOT NULL DEFAULT "",
-                province TEXT NOT NULL DEFAULT "",
-                website TEXT NOT NULL DEFAULT "",
-                social_media TEXT NOT NULL DEFAULT "",
-                logo_url TEXT NOT NULL DEFAULT "",
-                description TEXT NOT NULL DEFAULT "",
-                programs_json TEXT NOT NULL DEFAULT "[]",
-                status TEXT NOT NULL DEFAULT "Draft",
-                show_homepage INTEGER NOT NULL DEFAULT 0,
-                featured INTEGER NOT NULL DEFAULT 0,
-                follow_up_note TEXT NOT NULL DEFAULT "",
-                start_date TEXT,
-                last_contact_at TEXT,
-                deleted_at TEXT,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            )'
-        );
-    } elseif (
-        !in_array(
-            'logo_url',
-            partnersColumns($pdo, 'partners'),
-            true
-        )
-    ) {
-        $pdo->exec(
-            'ALTER TABLE partners
-             ADD COLUMN logo_url TEXT NOT NULL DEFAULT ""'
-        );
-    }
-
-    $indexes = $pdo->query(
-        "SELECT name
-         FROM sqlite_master
-         WHERE type = 'index'
-         AND name IN (
-             'idx_partners_status',
-             'idx_partners_homepage'
-         )"
-    )->fetchAll(PDO::FETCH_COLUMN);
-
-    if (!in_array('idx_partners_status', $indexes, true)) {
-        $pdo->exec(
-            'CREATE INDEX idx_partners_status
-             ON partners(status)'
-        );
-    }
-
-    if (!in_array('idx_partners_homepage', $indexes, true)) {
-        $pdo->exec(
-            'CREATE INDEX idx_partners_homepage
-             ON partners(show_homepage, featured)'
-        );
-    }
-
-    if ($tableWasMissing) {
-        partnersSeed($pdo);
-    }
-}
-
 function partnersSeed(PDO $pdo): void
 {
     $seed = [
@@ -450,39 +348,7 @@ function partnersSeed(PDO $pdo): void
             ':updated_at' => $now,
         ]);
     }
-}
-
-function partnersEnsureCollaborationColumns(PDO $pdo): void
-{
-    if (!partnersTableExists($pdo, 'collaborations')) {
-        return;
-    }
-
-    $columns =
-        partnersColumns(
-            $pdo,
-            'collaborations'
-        );
-
-    $required = [
-        'description' => 'TEXT NULL',
-        'proposal_file_url' => 'TEXT NULL',
-    ];
-
-    foreach ($required as $column => $definition) {
-        if (!in_array($column, $columns, true)) {
-            $pdo->exec(
-                'ALTER TABLE collaborations
-                 ADD COLUMN '
-                . $column
-                . ' '
-                . $definition
-            );
-        }
-    }
-}
-
-function partnersExistingNames(PDO $pdo): array
+}function partnersExistingNames(PDO $pdo): array
 {
     $names = [];
 
@@ -563,10 +429,6 @@ function partnersSyncSources(PDO $pdo): void
             'collaborations'
         )
     ) {
-        partnersEnsureCollaborationColumns(
-            $pdo
-        );
-
         $statement = $pdo->query(
             'SELECT
                 id,
@@ -1685,8 +1547,6 @@ function publishPartnerEvent(
 
 try {
     $pdo = afwPdo();
-
-    partnersEnsureSchema($pdo);
 
     $id =
         isset($_GET['id'])

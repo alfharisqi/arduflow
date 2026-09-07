@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 // Isolated SQLite fixtures: no application database, SMTP, MQTT or network access.
-require_once dirname(__DIR__) . '/api/support/sqlite-schema.php';
+require_once dirname(__DIR__) . '/vendor/autoload.php';
 
 final class ApiCountingStatement extends PDOStatement
 {
@@ -91,7 +91,7 @@ $assert = static function (bool $condition, string $message) use (&$assertions):
 };
 $api = dirname(__DIR__) . '/api';
 $baseline = $argv[1] ?? null;
-$materialFunctions = ['createTables', 'ensureTableColumn', 'getAllMateri'];
+$materialFunctions = ['getAllMateri'];
 $stubs = 'function sendJsonResponse(array $payload, int $status = 200): void { throw new \ApiCapturedResponse($payload); }
     function getArticleImagePath(?string $name): ?string { return $name === null ? null : "/cards/" . $name; }
     function getArticleImageUrl(?string $name): ?string { return getArticleImagePath($name); }
@@ -99,7 +99,74 @@ $stubs = 'function sendJsonResponse(array $payload, int $status = 200): void { t
     function getSlideImageUrl(?string $name): ?string { return getSlideImagePath($name); }';
 loadApiFunctions($api . '/materi-api.php', 'CurrentMateri', $materialFunctions, $stubs);
 $pdo = new ApiCountingPdo();
-CurrentMateri\createTables($pdo);
+$pdo->exec('CREATE TABLE tutorials (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    slug TEXT NOT NULL UNIQUE,
+    category TEXT NOT NULL,
+    display_order INTEGER NOT NULL DEFAULT 1,
+    short_description TEXT NOT NULL,
+    full_description TEXT NOT NULL,
+    card_image_name TEXT,
+    card_image_type TEXT,
+    card_image_size INTEGER,
+    difficulty_level TEXT,
+    estimated_time TEXT,
+    page_order INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT "draft",
+    active INTEGER NOT NULL DEFAULT 1,
+    show_on_page INTEGER NOT NULL DEFAULT 1,
+    featured INTEGER NOT NULL DEFAULT 0,
+    comments INTEGER NOT NULL DEFAULT 1,
+    access_type TEXT,
+    featured_order INTEGER,
+    user_level TEXT NOT NULL DEFAULT "semua_pengguna",
+    access_requirement TEXT,
+    prerequisite TEXT,
+    cta_text TEXT,
+    cta_target_link TEXT,
+    cta_url_slug TEXT,
+    publish_schedule TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+)');
+$pdo->exec('CREATE TABLE tutorial_chapters (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tutorial_id INTEGER NOT NULL,
+    chapter_order INTEGER NOT NULL DEFAULT 1,
+    title TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+)');
+$pdo->exec('CREATE TABLE tutorial_learning_objectives (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tutorial_id INTEGER NOT NULL,
+    objective_order INTEGER NOT NULL DEFAULT 1,
+    objective TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+)');
+$pdo->exec('CREATE TABLE tutorial_slides (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tutorial_id INTEGER NOT NULL,
+    chapter_id INTEGER,
+    slide_order INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    content_type TEXT NOT NULL DEFAULT "text",
+    content TEXT,
+    code_title TEXT,
+    code_language TEXT,
+    code_content TEXT,
+    allow_copy INTEGER NOT NULL DEFAULT 1,
+    estimated_time TEXT,
+    status TEXT NOT NULL DEFAULT "draft",
+    image_name TEXT,
+    image_type TEXT,
+    image_size INTEGER,
+    video_url TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+)');
 for ($id = 1; $id <= 100; $id++) {
     $pdo->exec("INSERT INTO tutorials (id, title, slug, category, short_description, full_description, page_order, display_order, created_at, updated_at)
         VALUES ($id, 'Materi $id', 'materi-$id', 'IoT', 'Ringkas', 'Lengkap', 1, " . ($id % 3) . ", '2026-01-01', '2026-01-02')");
@@ -136,39 +203,6 @@ if ($baseline !== null) {
     $beforeMaterialQueries = count($pdo->queries);
     $assert($before === $current, 'Materi response differs from baseline');
 }
-$pdo->queries = [];
-CurrentMateri\createTables($pdo);
-$schemaReads = count(array_filter($pdo->queries, static fn ($sql) => str_starts_with($sql, 'PRAGMA table_info')));
-$assert($schemaReads === 2, 'Materi schema should inspect each optional-column table once');
-
-$schema = new ApiCountingPdo();
-$schema->exec('CREATE TABLE sample (id INTEGER PRIMARY KEY)');
-$schema->beginTransaction();
-afwEnsureSqliteColumns($schema, 'sample', ['label' => 'TEXT']);
-$schema->rollBack();
-afwEnsureSqliteColumns($schema, 'sample', ['label' => 'TEXT', 'active' => 'INTEGER DEFAULT 1']);
-$schema->exec("INSERT INTO sample (label) VALUES ('retained')");
-afwEnsureSqliteColumns($schema, 'sample', ['label' => 'TEXT', 'active' => 'INTEGER DEFAULT 1']);
-$assert($schema->query('SELECT label FROM sample')->fetchColumn() === 'retained', 'Schema helper preserves data and handles rollback');
-$second = new ApiCountingPdo();
-$second->exec('CREATE TABLE sample (id INTEGER PRIMARY KEY)');
-afwEnsureSqliteColumns($second, 'sample', ['label' => 'TEXT']);
-$assert(count($second->query('PRAGMA table_info(sample)')->fetchAll()) === 2, 'Connections must not share schema state');
-
-loadApiFunctions($api . '/transactions-api.php', 'CurrentTransactions', ['ensureTransactionTables', 'addColumnIfMissing']);
-$transactions = new ApiCountingPdo();
-CurrentTransactions\ensureTransactionTables($transactions);
-$transactions->queries = [];
-CurrentTransactions\ensureTransactionTables($transactions);
-$transactionSchemaReads = count(array_filter($transactions->queries, static fn ($sql) => str_starts_with($sql, 'PRAGMA table_info')));
-$assert($transactionSchemaReads === 3, 'Transaction schema checks should be grouped by table');
-if ($baseline !== null) {
-    loadApiFunctions($baseline . '/transactions-api.php', 'BeforeTransactions', ['ensureTransactionTables', 'addColumnIfMissing']);
-    $transactions->queries = [];
-    BeforeTransactions\ensureTransactionTables($transactions);
-    $beforeTransactionSchemaReads = count(array_filter($transactions->queries, static fn ($sql) => str_starts_with($sql, 'PRAGMA table_info')));
-}
-
 loadApiFunctions($api . '/user-notifications-api.php', 'CurrentNotifications', ['notificationSentEmailKeys', 'notificationEmailWasSent']);
 $logs = new ApiCountingPdo();
 $logs->exec('CREATE TABLE user_notification_email_logs (id INTEGER PRIMARY KEY, notification_key TEXT, email TEXT, UNIQUE(notification_key, email))');
@@ -191,10 +225,18 @@ $assert(CurrentNotifications\notificationSentEmailKeys($logs, [], 'user@example.
 $assert(CurrentNotifications\notificationSentEmailKeys($logs, $notifications, '') === [], 'Empty email needs no lookup');
 $assert($logs->queries === [], 'Empty inputs must not query');
 
-require_once $api . '/support/query-indexes.php';
-$installed = afwInstallApiQueryIndexes($transactions);
+$transactions = new ApiCountingPdo();
+$transactions->exec('CREATE TABLE transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    email TEXT,
+    deleted_at TEXT,
+    updated_at TEXT,
+    created_at TEXT
+)');
+$installed = Arduflow\Api\Database\ApiQueryIndexes::install($transactions);
 $assert(in_array('afw_transactions_email_feed', $installed['created'], true), 'Transaction email index installed');
-$assert(afwInstallApiQueryIndexes($transactions)['created'] === [], 'Index installation is idempotent');
+$assert(Arduflow\Api\Database\ApiQueryIndexes::install($transactions)['created'] === [], 'Index installation is idempotent');
 $plan = $transactions->query("EXPLAIN QUERY PLAN SELECT id FROM transactions
     WHERE deleted_at IS NULL AND LOWER(email) = LOWER('user@example.com')
     ORDER BY updated_at DESC, created_at DESC LIMIT 50")->fetchAll();
@@ -204,8 +246,40 @@ $assert(!str_contains($planText, 'TEMP B-TREE'), 'Notification ordering needs no
 
 require_once $api . '/support/sync-outbox.php';
 $sync = new ApiCountingPdo();
-$sync->exec('CREATE TABLE leads (id INTEGER PRIMARY KEY, name TEXT, created_at TEXT, updated_at TEXT)');
-$sync->exec("INSERT INTO leads VALUES (1, 'Fixture', '2026-01-01', '2026-01-01')");
+$sync->exec('CREATE TABLE leads (
+    id INTEGER PRIMARY KEY,
+    name TEXT,
+    email TEXT,
+    whatsapp TEXT,
+    topic TEXT,
+    message TEXT,
+    source TEXT,
+    status TEXT,
+    created_at TEXT,
+    updated_at TEXT,
+    deleted_at TEXT,
+    version INTEGER NOT NULL DEFAULT 1
+)');
+$sync->exec("CREATE TABLE sync_outbox (
+    id TEXT PRIMARY KEY,
+    event_id TEXT NOT NULL UNIQUE,
+    table_name TEXT NOT NULL,
+    row_id TEXT NOT NULL,
+    operation TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL DEFAULT 'pending',
+    retry_count INTEGER NOT NULL DEFAULT 0,
+    next_retry_at TEXT,
+    last_error TEXT,
+    worker_id TEXT,
+    locked_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    synced_at TEXT
+)");
+$sync->exec("INSERT INTO leads (id, name, email, whatsapp, topic, message, source, status, created_at, updated_at)
+    VALUES (1, 'Fixture', 'user@example.com', '628111', 'IoT', 'Message', 'test', 'new', '2026-01-01', '2026-01-01')");
 afwSyncEnqueue($sync, 'leads', 1, 'insert', false);
 afwSyncEnqueue($sync, 'leads', 1, 'update');
 afwSyncEnqueue($sync, 'leads', 1, 'delete');
@@ -242,8 +316,7 @@ if ($baseline !== null) {
 echo json_encode([
     'success' => true, 'assertions' => $assertions,
     'materi_100_items_queries' => ['before' => $beforeMaterialQueries, 'after' => $materialQueries],
-    'materi_schema_reads' => $schemaReads,
-    'transaction_schema_reads' => ['before' => $beforeTransactionSchemaReads ?? null, 'after' => $transactionSchemaReads],
+    'endpoint_schema_setup' => 'moved_to_cli_migration',
     'notification_delivery_queries_100_items' => ['before' => 100, 'after' => $notificationQueries],
     'certificate_legacy_title_scans' => $fallbackQueries,
     'notification_query_plan' => $planText,

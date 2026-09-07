@@ -226,88 +226,6 @@ function resolveDatabasePath(
     return $path;
 }
 
-function tableColumns(
-    PDO $pdo,
-    string $table
-): array {
-    static $cache = [];
-
-    $key =
-        spl_object_id($pdo)
-        . ':'
-        . $table;
-
-    if (isset($cache[$key])) {
-        return $cache[$key];
-    }
-
-    $statement = $pdo->query(
-        'PRAGMA table_info("'
-        . str_replace(
-            '"',
-            '""',
-            $table
-        )
-        . '")'
-    );
-
-    return $cache[$key] =
-        array_column(
-            $statement->fetchAll(),
-            'name'
-        );
-}
-
-function ensureGalleryTables(PDO $pdo): void
-{
-    $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS gallery_submissions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            tag TEXT NOT NULL,
-            description TEXT NOT NULL,
-            user_name TEXT NOT NULL,
-            event_date TEXT NOT NULL,
-            detail_link TEXT NULL,
-            note TEXT NULL,
-            cover_path TEXT NULL,
-            cover_url TEXT NULL,
-            cover_original_name TEXT NULL,
-            cover_mime TEXT NULL,
-            cover_size INTEGER NULL,
-            status TEXT NOT NULL DEFAULT "draft",
-            payload_json TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        )'
-    );
-
-    $columns = tableColumns(
-        $pdo,
-        'gallery_submissions'
-    );
-
-    $missing = [
-        'cover_url' => 'TEXT',
-        'cover_path' => 'TEXT',
-        'cover_original_name' => 'TEXT',
-        'cover_mime' => 'TEXT',
-        'cover_size' => 'INTEGER',
-    ];
-
-    foreach ($missing as $column => $definition) {
-        if (!in_array($column, $columns, true)) {
-            $pdo->exec(
-                'ALTER TABLE gallery_submissions
-                 ADD COLUMN '
-                . $column
-                . ' '
-                . $definition
-            );
-        }
-    }
-}
-
 function ensureGalleryStorage(
     string $projectRoot
 ): array {
@@ -709,8 +627,6 @@ try {
             )
         )
     );
-
-    ensureGalleryTables($pdo);
 
     if ($method === 'GET') {
         $id =

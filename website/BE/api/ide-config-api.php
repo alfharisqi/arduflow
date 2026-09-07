@@ -124,66 +124,7 @@ function resolveIdeDatabasePath(
         $path,
         $busyTimeout,
     ];
-}
-
-function ensureIdeConfigTable(
-    PDO $pdo
-): void {
-    $tableExists = $pdo->query(
-        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'ide_config'"
-    )->fetchColumn();
-    if ($tableExists && $pdo->query('SELECT 1 FROM ide_config WHERE id = 1')->fetchColumn()) {
-        return;
-    }
-
-    $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS ide_config (
-            id INTEGER PRIMARY KEY CHECK (id = 1),
-            title TEXT NOT NULL DEFAULT "Akses ArduFlow IDE",
-            price INTEGER NOT NULL DEFAULT 150000,
-            currency TEXT NOT NULL DEFAULT "IDR",
-            duration_days INTEGER NOT NULL DEFAULT 365,
-            is_active INTEGER NOT NULL DEFAULT 1,
-            description TEXT,
-            updated_at TEXT NOT NULL
-        )'
-    );
-
-    $statement = $pdo->prepare(
-        'INSERT OR IGNORE INTO ide_config (
-            id,
-            title,
-            price,
-            currency,
-            duration_days,
-            is_active,
-            description,
-            updated_at
-        ) VALUES (
-            1,
-            :title,
-            150000,
-            "IDR",
-            365,
-            1,
-            :description,
-            :updated_at
-        )'
-    );
-
-    $statement->execute([
-        ':title' =>
-            'Akses ArduFlow IDE',
-
-        ':description' =>
-            'Akses visual programming ArduFlow IDE untuk membuat dan mengelola project Arduino dan IoT.',
-
-        ':updated_at' =>
-            jakartaIdeNow(),
-    ]);
-}
-
-function getIdeConfig(
+}function getIdeConfig(
     PDO $pdo
 ): array {
     $row = $pdo->query(
@@ -397,10 +338,6 @@ try {
     $pdo->exec(
         'PRAGMA busy_timeout = '
         . $busyTimeout
-    );
-
-    ensureIdeConfigTable(
-        $pdo
     );
 
     if ($method === 'GET') {
