@@ -2,9 +2,12 @@
 
 declare(strict_types=1);
 
+const JSON_FLAGS = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
+
 header('Content-Type: application/json; charset=utf-8');
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
 $allowedOrigins = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
@@ -15,7 +18,7 @@ $allowedOrigins = [
 ];
 
 if (in_array($origin, $allowedOrigins, true)) {
-    header("Access-Control-Allow-Origin: {$origin}");
+    header('Access-Control-Allow-Origin: ' . $origin);
     header('Vary: Origin');
 }
 
@@ -31,42 +34,108 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
 function respondIde(int $status, array $payload): never
 {
     http_response_code($status);
-    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+
+    echo json_encode(
+        $payload,
+        JSON_FLAGS
+    );
+
     exit;
-}
-
-function resolveIdeDatabasePath(string $projectRoot, array $databaseConfig): array
-{
-    $sqliteConfig = $databaseConfig['sqlite'] ?? null;
-
-    if (!is_array($sqliteConfig)) {
-        throw new RuntimeException('Konfigurasi SQLite tidak ditemukan.');
-    }
-
-    $databasePath = trim((string) ($sqliteConfig['path'] ?? ''));
-    $busyTimeout = (int) ($sqliteConfig['busy_timeout_ms'] ?? 15000);
-
-    if ($databasePath === '') {
-        throw new RuntimeException('Path database SQLite belum dikonfigurasi.');
-    }
-
-    $isWindowsAbsolutePath = preg_match('/^[A-Za-z]:[\\\\\/]/', $databasePath) === 1;
-    $isUnixAbsolutePath = str_starts_with($databasePath, '/');
-
-    if (!$isWindowsAbsolutePath && !$isUnixAbsolutePath) {
-        $databasePath = $projectRoot . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $databasePath);
-    }
-
-    return [$databasePath, $busyTimeout];
 }
 
 function jakartaIdeNow(): string
 {
-    return (new DateTimeImmutable('now', new DateTimeZone('Asia/Jakarta')))->format(DateTimeInterface::ATOM);
+    static $timezone;
+
+    $timezone ??= new DateTimeZone(
+        'Asia/Jakarta'
+    );
+
+    return (
+        new DateTimeImmutable(
+            'now',
+            $timezone
+        )
+    )->format(
+        DateTimeInterface::ATOM
+    );
 }
 
-function ensureIdeConfigTable(PDO $pdo): void
-{
+function resolveIdeDatabasePath(
+    string $projectRoot,
+    array $config
+): array {
+    $sqlite =
+        $config['sqlite']
+        ?? null;
+
+    if (!is_array($sqlite)) {
+        throw new RuntimeException(
+            'Konfigurasi SQLite tidak ditemukan.'
+        );
+    }
+
+    $path = trim(
+        (string) (
+            $sqlite['path']
+            ?? ''
+        )
+    );
+
+    $busyTimeout = max(
+        1000,
+        (int) (
+            $sqlite['busy_timeout_ms']
+            ?? 15000
+        )
+    );
+
+    if ($path === '') {
+        throw new RuntimeException(
+            'Path database SQLite belum dikonfigurasi.'
+        );
+    }
+
+    $isAbsolute =
+        preg_match(
+            '/^[A-Za-z]:[\\\\\/]/',
+            $path
+        ) === 1
+        || str_starts_with(
+            $path,
+            '/'
+        );
+
+    if (!$isAbsolute) {
+        $path =
+            $projectRoot
+            . DIRECTORY_SEPARATOR
+            . str_replace(
+                [
+                    '/',
+                    '\\',
+                ],
+                DIRECTORY_SEPARATOR,
+                $path
+            );
+    }
+
+    return [
+        $path,
+        $busyTimeout,
+    ];
+}
+
+function ensureIdeConfigTable(
+    PDO $pdo
+): void {
+    $tableExists = $pdo->query(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'ide_config'"
+    )->fetchColumn();
+    if ($tableExists && $pdo->query('SELECT 1 FROM ide_config WHERE id = 1')->fetchColumn()) {
+        return;
+    }
+
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS ide_config (
             id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -80,159 +149,420 @@ function ensureIdeConfigTable(PDO $pdo): void
         )'
     );
 
-    $statement = $pdo->query('SELECT COUNT(*) FROM ide_config WHERE id = 1');
+    $statement = $pdo->prepare(
+        'INSERT OR IGNORE INTO ide_config (
+            id,
+            title,
+            price,
+            currency,
+            duration_days,
+            is_active,
+            description,
+            updated_at
+        ) VALUES (
+            1,
+            :title,
+            150000,
+            "IDR",
+            365,
+            1,
+            :description,
+            :updated_at
+        )'
+    );
 
-    if ((int) $statement->fetchColumn() === 0) {
-        $insert = $pdo->prepare(
-            'INSERT INTO ide_config (
-                id, title, price, currency, duration_days, is_active, description, updated_at
-            ) VALUES (
-                1, :title, 150000, "IDR", 365, 1, :description, :updated_at
-            )'
-        );
+    $statement->execute([
+        ':title' =>
+            'Akses ArduFlow IDE',
 
-        $insert->execute([
-            ':title' => 'Akses ArduFlow IDE',
-            ':description' => 'Akses visual programming ArduFlow IDE untuk membuat dan mengelola project Arduino dan IoT.',
-            ':updated_at' => jakartaIdeNow(),
-        ]);
-    }
+        ':description' =>
+            'Akses visual programming ArduFlow IDE untuk membuat dan mengelola project Arduino dan IoT.',
+
+        ':updated_at' =>
+            jakartaIdeNow(),
+    ]);
 }
 
-function getIdeConfig(PDO $pdo): array
-{
-    $statement = $pdo->query('SELECT * FROM ide_config WHERE id = 1 LIMIT 1');
-    $row = $statement->fetch(PDO::FETCH_ASSOC) ?: [];
+function getIdeConfig(
+    PDO $pdo
+): array {
+    $row = $pdo->query(
+        'SELECT
+            title,
+            price,
+            currency,
+            duration_days,
+            is_active,
+            description,
+            updated_at
+         FROM ide_config
+         WHERE id = 1
+         LIMIT 1'
+    )->fetch() ?: [];
 
     return [
-        'title' => (string) ($row['title'] ?? 'Akses ArduFlow IDE'),
-        'price' => (int) ($row['price'] ?? 150000),
-        'currency' => (string) ($row['currency'] ?? 'IDR'),
-        'durationDays' => (int) ($row['duration_days'] ?? 365),
-        'isActive' => ((int) ($row['is_active'] ?? 1)) === 1,
-        'description' => (string) ($row['description'] ?? ''),
-        'updatedAt' => (string) ($row['updated_at'] ?? ''),
+        'title' =>
+            (string) (
+                $row['title']
+                ?? 'Akses ArduFlow IDE'
+            ),
+
+        'price' =>
+            (int) (
+                $row['price']
+                ?? 150000
+            ),
+
+        'currency' =>
+            (string) (
+                $row['currency']
+                ?? 'IDR'
+            ),
+
+        'durationDays' =>
+            (int) (
+                $row['duration_days']
+                ?? 365
+            ),
+
+        'isActive' =>
+            (int) (
+                $row['is_active']
+                ?? 1
+            ) === 1,
+
+        'description' =>
+            (string) (
+                $row['description']
+                ?? ''
+            ),
+
+        'updatedAt' =>
+            (string) (
+                $row['updated_at']
+                ?? ''
+            ),
     ];
 }
 
-try {
-    $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
+function readIdeInput(): array
+{
+    $raw =
+        file_get_contents(
+            'php://input'
+        );
 
-    if (!in_array($method, ['GET', 'POST', 'PUT'], true)) {
-        respondIde(405, [
-            'success' => false,
-            'message' => 'Method tidak diizinkan.',
-        ]);
+    if (
+        $raw === false
+        || trim($raw) === ''
+    ) {
+        return [];
     }
 
-    $projectRoot = dirname(__DIR__);
-    $autoloadPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
-    $configPath = $projectRoot . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'database.php';
+    try {
+        $decoded = json_decode(
+            $raw,
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+    } catch (JsonException) {
+        respondIde(
+            400,
+            [
+                'success' => false,
+                'message' =>
+                    'JSON tidak valid.',
+            ]
+        );
+    }
+
+    if (!is_array($decoded)) {
+        return [];
+    }
+
+    $incoming =
+        $decoded['data']
+        ?? $decoded;
+
+    return is_array($incoming)
+        ? $incoming
+        : [];
+}
+
+try {
+    $method = strtoupper(
+        $_SERVER['REQUEST_METHOD']
+        ?? 'GET'
+    );
+
+    if (
+        !in_array(
+            $method,
+            [
+                'GET',
+                'POST',
+                'PUT',
+            ],
+            true
+        )
+    ) {
+        header(
+            'Allow: GET, POST, PUT, OPTIONS'
+        );
+
+        respondIde(
+            405,
+            [
+                'success' => false,
+                'message' =>
+                    'Method tidak diizinkan.',
+            ]
+        );
+    }
+
+    $projectRoot =
+        dirname(__DIR__);
+
+    $autoloadPath =
+        $projectRoot
+        . '/vendor/autoload.php';
+
+    $configPath =
+        $projectRoot
+        . '/config/database.php';
 
     if (is_file($autoloadPath)) {
         require_once $autoloadPath;
     }
 
-    if (class_exists(\Arduflow\Api\Support\Env::class)) {
-        \Arduflow\Api\Support\Env::load($projectRoot . DIRECTORY_SEPARATOR . '.env');
+    if (
+        class_exists(
+            \Arduflow\Api\Support\Env::class
+        )
+    ) {
+        \Arduflow\Api\Support\Env::load(
+            $projectRoot
+            . '/.env'
+        );
     }
 
     if (!is_file($configPath)) {
-        throw new RuntimeException('File konfigurasi database tidak ditemukan.');
+        throw new RuntimeException(
+            'File konfigurasi database tidak ditemukan.'
+        );
     }
 
-    $databaseConfig = require $configPath;
-    [$databasePath, $busyTimeout] = resolveIdeDatabasePath($projectRoot, $databaseConfig);
-    $databaseDirectory = dirname($databasePath);
+    [
+        $databasePath,
+        $busyTimeout,
+    ] = resolveIdeDatabasePath(
+        $projectRoot,
+        require $configPath
+    );
 
-    if (!is_dir($databaseDirectory) && !mkdir($databaseDirectory, 0775, true) && !is_dir($databaseDirectory)) {
-        throw new RuntimeException('Folder database gagal dibuat.');
+    $databaseDirectory =
+        dirname($databasePath);
+
+    if (
+        !is_dir($databaseDirectory)
+        && !mkdir(
+            $databaseDirectory,
+            0775,
+            true
+        )
+        && !is_dir($databaseDirectory)
+    ) {
+        throw new RuntimeException(
+            'Folder database gagal dibuat.'
+        );
     }
 
-    $pdo = new PDO('sqlite:' . $databasePath);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    $pdo->exec('PRAGMA busy_timeout = ' . max(1000, $busyTimeout));
-    ensureIdeConfigTable($pdo);
+    $pdo = new PDO(
+        'sqlite:' . $databasePath,
+        null,
+        null,
+        [
+            PDO::ATTR_ERRMODE =>
+                PDO::ERRMODE_EXCEPTION,
+
+            PDO::ATTR_DEFAULT_FETCH_MODE =>
+                PDO::FETCH_ASSOC,
+
+            PDO::ATTR_EMULATE_PREPARES =>
+                false,
+        ]
+    );
+
+    $pdo->exec(
+        'PRAGMA busy_timeout = '
+        . $busyTimeout
+    );
+
+    ensureIdeConfigTable(
+        $pdo
+    );
 
     if ($method === 'GET') {
-        respondIde(200, [
-            'success' => true,
-            'message' => 'Konfigurasi IDE berhasil diambil.',
-            'data' => [
-                'config' => getIdeConfig($pdo),
-            ],
-        ]);
+        respondIde(
+            200,
+            [
+                'success' => true,
+
+                'message' =>
+                    'Konfigurasi IDE berhasil diambil.',
+
+                'data' => [
+                    'config' =>
+                        getIdeConfig(
+                            $pdo
+                        ),
+                ],
+            ]
+        );
     }
 
-    $rawBody = file_get_contents('php://input');
-    $decoded = $rawBody ? json_decode($rawBody, true) : [];
-    $incoming = is_array($decoded) ? ($decoded['data'] ?? $decoded) : [];
+    $incoming =
+        readIdeInput();
 
-    if (!is_array($incoming)) {
-        $incoming = [];
-    }
+    $current =
+        getIdeConfig(
+            $pdo
+        );
 
-    $title = trim((string) ($incoming['title'] ?? 'Akses ArduFlow IDE'));
-    $price = (int) ($incoming['price'] ?? 150000);
-    $durationDays = (int) ($incoming['durationDays'] ?? $incoming['duration_days'] ?? 365);
-    $isActive = filter_var($incoming['isActive'] ?? $incoming['is_active'] ?? true, FILTER_VALIDATE_BOOL) ? 1 : 0;
-    $description = trim((string) ($incoming['description'] ?? ''));
+    $title = trim(
+        (string) (
+            $incoming['title']
+            ?? $current['title']
+        )
+    );
+
+    $price =
+        (int) (
+            $incoming['price']
+            ?? $current['price']
+        );
+
+    $durationDays =
+        (int) (
+            $incoming['durationDays']
+            ?? $incoming['duration_days']
+            ?? $current['durationDays']
+        );
+
+    $isActiveRaw =
+        $incoming['isActive']
+        ?? $incoming['is_active']
+        ?? $current['isActive'];
+
+    $isActive =
+        filter_var(
+            $isActiveRaw,
+            FILTER_VALIDATE_BOOL
+        )
+            ? 1
+            : 0;
+
+    $description = trim(
+        (string) (
+            $incoming['description']
+            ?? $current['description']
+        )
+    );
 
     $errors = [];
 
     if ($title === '') {
-        $errors['title'] = 'Judul produk IDE wajib diisi.';
+        $errors['title'] =
+            'Judul produk IDE wajib diisi.';
     }
 
     if ($price < 0) {
-        $errors['price'] = 'Harga IDE tidak boleh negatif.';
+        $errors['price'] =
+            'Harga IDE tidak boleh negatif.';
     }
 
     if ($durationDays < 1) {
-        $errors['durationDays'] = 'Durasi akses minimal 1 hari.';
+        $errors['durationDays'] =
+            'Durasi akses minimal 1 hari.';
     }
 
     if ($errors !== []) {
-        respondIde(422, [
-            'success' => false,
-            'message' => 'Validasi konfigurasi IDE gagal.',
-            'errors' => $errors,
-        ]);
+        respondIde(
+            422,
+            [
+                'success' => false,
+
+                'message' =>
+                    'Validasi konfigurasi IDE gagal.',
+
+                'errors' =>
+                    $errors,
+            ]
+        );
     }
 
-    $statement = $pdo->prepare(
-        'UPDATE ide_config SET
-            title = :title,
-            price = :price,
-            duration_days = :duration_days,
-            is_active = :is_active,
-            description = :description,
-            updated_at = :updated_at
-         WHERE id = 1'
-    );
+    $statement =
+        $pdo->prepare(
+            'UPDATE ide_config SET
+                title = :title,
+                price = :price,
+                duration_days = :duration_days,
+                is_active = :is_active,
+                description = :description,
+                updated_at = :updated_at
+             WHERE id = 1'
+        );
 
     $statement->execute([
-        ':title' => $title,
-        ':price' => $price,
-        ':duration_days' => $durationDays,
-        ':is_active' => $isActive,
-        ':description' => $description,
-        ':updated_at' => jakartaIdeNow(),
+        ':title' =>
+            $title,
+
+        ':price' =>
+            $price,
+
+        ':duration_days' =>
+            $durationDays,
+
+        ':is_active' =>
+            $isActive,
+
+        ':description' =>
+            $description,
+
+        ':updated_at' =>
+            jakartaIdeNow(),
     ]);
 
-    respondIde(200, [
-        'success' => true,
-        'message' => 'Konfigurasi IDE berhasil disimpan.',
-        'data' => [
-            'config' => getIdeConfig($pdo),
-        ],
-    ]);
+    respondIde(
+        200,
+        [
+            'success' => true,
+
+            'message' =>
+                'Konfigurasi IDE berhasil disimpan.',
+
+            'data' => [
+                'config' =>
+                    getIdeConfig(
+                        $pdo
+                    ),
+            ],
+        ]
+    );
 } catch (Throwable $error) {
-    respondIde(500, [
-        'success' => false,
-        'message' => 'Gagal mengakses konfigurasi IDE.',
-        'data' => [
-            'detail' => $error->getMessage(),
-        ],
-    ]);
+    respondIde(
+        500,
+        [
+            'success' => false,
+
+            'message' =>
+                'Gagal mengakses konfigurasi IDE.',
+
+            'data' => [
+                'detail' =>
+                    $error->getMessage(),
+            ],
+        ]
+    );
 }

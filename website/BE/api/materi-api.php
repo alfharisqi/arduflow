@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use Arduflow\Api\Support\Env;
 
+require_once __DIR__ . '/support/sqlite-schema.php';
+
 const MATERI_API_VERSION = 'materi-v5-post';
 
 $projectRoot = dirname(__DIR__);
@@ -303,72 +305,31 @@ function createTables(PDO $database): void
      * ALTER TABLE hanya dijalankan jika kolom belum ada.
      * Data tutorial dan slide lama tetap dipertahankan.
      */
-    ensureTableColumn(
-        $database,
-        'tutorials',
-        'active',
-        'INTEGER NOT NULL DEFAULT 1'
-    );
-    ensureTableColumn(
-        $database,
-        'tutorials',
-        'show_on_page',
-        'INTEGER NOT NULL DEFAULT 1'
-    );
-    ensureTableColumn(
-        $database,
-        'tutorials',
-        'featured',
-        'INTEGER NOT NULL DEFAULT 0'
-    );
-    ensureTableColumn(
-        $database,
-        'tutorials',
-        'comments',
-        'INTEGER NOT NULL DEFAULT 1'
-    );
-    ensureTableColumn($database, 'tutorials', 'access_type', 'TEXT');
-    ensureTableColumn($database, 'tutorials', 'featured_order', 'INTEGER');
-    ensureTableColumn($database, 'tutorials', 'prerequisite', 'TEXT');
-    ensureTableColumn($database, 'tutorials', 'cta_text', 'TEXT');
-    ensureTableColumn($database, 'tutorials', 'cta_target_link', 'TEXT');
-    ensureTableColumn($database, 'tutorials', 'cta_url_slug', 'TEXT');
-    ensureTableColumn($database, 'tutorials', 'publish_schedule', 'TEXT');
+    afwEnsureSqliteColumns($database, 'tutorials', [
+        'active' => 'INTEGER NOT NULL DEFAULT 1',
+        'show_on_page' => 'INTEGER NOT NULL DEFAULT 1',
+        'featured' => 'INTEGER NOT NULL DEFAULT 0',
+        'comments' => 'INTEGER NOT NULL DEFAULT 1',
+        'access_type' => 'TEXT',
+        'featured_order' => 'INTEGER',
+        'prerequisite' => 'TEXT',
+        'cta_text' => 'TEXT',
+        'cta_target_link' => 'TEXT',
+        'cta_url_slug' => 'TEXT',
+        'publish_schedule' => 'TEXT',
+    ]);
 
-    ensureTableColumn($database, 'tutorial_slides', 'chapter_id', 'INTEGER');
-    ensureTableColumn(
-        $database,
-        'tutorial_slides',
-        'estimated_time',
-        'TEXT'
-    );
-    ensureTableColumn(
-        $database,
-        'tutorial_slides',
-        'status',
-        'TEXT NOT NULL DEFAULT "draft"'
-    );
-    ensureTableColumn(
-        $database,
-        'tutorial_slides',
-        'image_type',
-        'TEXT'
-    );
-    ensureTableColumn(
-        $database,
-        'tutorial_slides',
-        'image_size',
-        'INTEGER'
-    );
-    ensureTableColumn($database, 'tutorial_slides', 'code_title', 'TEXT');
-    ensureTableColumn($database, 'tutorial_slides', 'code_language', 'TEXT');
-    ensureTableColumn($database, 'tutorial_slides', 'code_content', 'TEXT');
-    ensureTableColumn(
-        $database,
-        'tutorial_slides',
-        'allow_copy',
-        'INTEGER NOT NULL DEFAULT 1'
-    );
+    afwEnsureSqliteColumns($database, 'tutorial_slides', [
+        'chapter_id' => 'INTEGER',
+        'estimated_time' => 'TEXT',
+        'status' => 'TEXT NOT NULL DEFAULT "draft"',
+        'image_type' => 'TEXT',
+        'image_size' => 'INTEGER',
+        'code_title' => 'TEXT',
+        'code_language' => 'TEXT',
+        'code_content' => 'TEXT',
+        'allow_copy' => 'INTEGER NOT NULL DEFAULT 1',
+    ]);
 
     $database->exec(
         'CREATE INDEX IF NOT EXISTS idx_tutorial_chapters_tutorial
@@ -1684,28 +1645,31 @@ function getAllMateri(PDO $database): void
 
     $tutorials = $statement->fetchAll();
 
-    $chapterStatement = $database->prepare(
+    $chapterStatement = $database->query(
         'SELECT
+            tutorial_id,
             id,
             chapter_order AS "order",
             title,
             created_at,
             updated_at
          FROM tutorial_chapters
-         WHERE tutorial_id = :tutorial_id
-         ORDER BY chapter_order ASC, id ASC'
+         WHERE tutorial_id IN (SELECT id FROM tutorials)
+         ORDER BY tutorial_id ASC, chapter_order ASC, id ASC'
     );
 
-    $objectiveStatement = $database->prepare(
+    $objectiveStatement = $database->query(
         'SELECT
+            tutorial_id,
             objective
          FROM tutorial_learning_objectives
-         WHERE tutorial_id = :tutorial_id
-         ORDER BY objective_order ASC, id ASC'
+         WHERE tutorial_id IN (SELECT id FROM tutorials)
+         ORDER BY tutorial_id ASC, objective_order ASC, id ASC'
     );
 
-    $slideStatement = $database->prepare(
+    $slideStatement = $database->query(
         'SELECT
+            tutorial_id,
             id,
             chapter_id,
             slide_order AS "order",
@@ -1723,38 +1687,36 @@ function getAllMateri(PDO $database): void
             image_size,
             video_url
          FROM tutorial_slides
-         WHERE tutorial_id = :tutorial_id
-         ORDER BY slide_order ASC, id ASC'
+         WHERE tutorial_id IN (SELECT id FROM tutorials)
+         ORDER BY tutorial_id ASC, slide_order ASC, id ASC'
     );
+
+    $chaptersByTutorial = [];
+    while ($row = $chapterStatement->fetch()) {
+        $tutorialId = (int) $row['tutorial_id'];
+        unset($row['tutorial_id']);
+        $chaptersByTutorial[$tutorialId][] = $row;
+    }
+    $objectivesByTutorial = [];
+    while ($row = $objectiveStatement->fetch()) {
+        $objective = trim((string) ($row['objective'] ?? ''));
+        if ($objective !== '') {
+            $objectivesByTutorial[(int) $row['tutorial_id']][] = $objective;
+        }
+    }
+    $slidesByTutorial = [];
+    while ($row = $slideStatement->fetch()) {
+        $tutorialId = (int) $row['tutorial_id'];
+        unset($row['tutorial_id']);
+        $slidesByTutorial[$tutorialId][] = $row;
+    }
 
     foreach ($tutorials as &$tutorial) {
         $tutorialId = (int) $tutorial['id'];
-
-        $chapterStatement->execute([
-            ':tutorial_id' => $tutorialId,
-        ]);
-        $chapters = $chapterStatement->fetchAll();
-
-        $objectiveStatement->execute([
-            ':tutorial_id' => $tutorialId,
-        ]);
-        $objectiveRows = $objectiveStatement->fetchAll();
-
-        $learningObjectives = array_values(
-            array_filter(
-                array_map(
-                    static fn(array $row): string =>
-                        trim((string) ($row['objective'] ?? '')),
-                    $objectiveRows
-                ),
-                static fn(string $value): bool => $value !== ''
-            )
-        );
-
-        $slideStatement->execute([
-            ':tutorial_id' => $tutorialId,
-        ]);
-        $slides = $slideStatement->fetchAll();
+        $chapters = $chaptersByTutorial[$tutorialId] ?? [];
+        $learningObjectives = $objectivesByTutorial[$tutorialId] ?? [];
+        $slides = $slidesByTutorial[$tutorialId] ?? [];
+        unset($chaptersByTutorial[$tutorialId], $objectivesByTutorial[$tutorialId], $slidesByTutorial[$tutorialId]);
 
         if ($chapters === [] && $slides !== []) {
             $legacyChapterId = 'legacy-' . $tutorialId;
@@ -3194,7 +3156,7 @@ function sendJsonResponse(array $response, int $statusCode = 200): void
 
     echo json_encode(
         $response,
-        JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE
+        JSON_UNESCAPED_UNICODE
     );
 
     exit;

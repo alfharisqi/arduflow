@@ -616,7 +616,10 @@ function getArticles(PDO $database): never
     $statement = $database->prepare($sql);
     $statement->execute($parameters);
 
-    $rows = array_map('mapArticle', $statement->fetchAll());
+    $rows = [];
+    while ($row = $statement->fetch()) {
+        $rows[] = mapArticle($row);
+    }
 
     sendJsonResponse([
         'success' => true,

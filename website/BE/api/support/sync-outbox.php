@@ -137,12 +137,22 @@ function afwSyncEnsureInfrastructure(PDO $pdo): void
 
 function afwSyncEnsureTable(PDO $pdo, string $table): void
 {
-    if (!isset(afwSyncAllowedColumns()[$table]) || afwSyncTableColumns($pdo, $table) === []) {
+    if (!isset(afwSyncAllowedColumns()[$table])) {
         return;
     }
 
-    afwSyncAddColumnIfMissing($pdo, $table, 'version', 'INTEGER NOT NULL DEFAULT 1');
-    afwSyncAddColumnIfMissing($pdo, $table, 'deleted_at', 'TEXT NULL');
+    $columns = afwSyncTableColumns($pdo, $table);
+    if ($columns === []) {
+        return;
+    }
+    foreach ([
+        'version' => 'INTEGER NOT NULL DEFAULT 1',
+        'deleted_at' => 'TEXT NULL',
+    ] as $column => $definition) {
+        if (!in_array($column, $columns, true)) {
+            $pdo->exec("ALTER TABLE {$table} ADD COLUMN {$column} {$definition}");
+        }
+    }
 }
 
 function afwSyncTouch(PDO $pdo, string $table, int|string $rowId, string $operation): void
@@ -176,9 +186,10 @@ function afwSyncEnqueue(PDO $pdo, string $table, int|string $rowId, string $oper
     }
 
     afwSyncEnsureInfrastructure($pdo);
-    afwSyncEnsureTable($pdo, $table);
     if ($touch) {
         afwSyncTouch($pdo, $table, $rowId, $operation);
+    } else {
+        afwSyncEnsureTable($pdo, $table);
     }
 
     $availableColumns = array_values(array_intersect($allowed[$table], afwSyncTableColumns($pdo, $table)));

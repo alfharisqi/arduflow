@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/sqlite-schema.php';
+
 function ensureUploadStorage(string $projectRoot, string $module): array
 {
     $safeModule = preg_replace('/[^a-z0-9_-]+/i', '-', strtolower($module)) ?: 'general';

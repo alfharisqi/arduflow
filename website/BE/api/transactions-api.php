@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/support/sqlite-schema.php';
+
 header('Content-Type: application/json; charset=utf-8');
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
@@ -57,7 +59,7 @@ if (!in_array($method, ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], true)) {
 function respond(int $status, array $payload): never
 {
     http_response_code($status);
-    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
 
@@ -147,24 +149,26 @@ function ensureTransactionTables(PDO $pdo): void
             updated_at TEXT NOT NULL
         )'
     );
-    addColumnIfMissing($pdo, 'transactions', 'proof_file_name', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'payment_code', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'recipient_name', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'qris_file_name', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'qris_file_type', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'qris_file_size', 'INTEGER');
-    addColumnIfMissing($pdo, 'transactions', 'qris_file_path', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'qris_file_url', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'proof_file_type', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'proof_file_size', 'INTEGER');
-    addColumnIfMissing($pdo, 'transactions', 'proof_file_path', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'proof_file_url', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'proof_uploaded_at', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'reviewed_at', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'reviewed_by', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'rejection_reason', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'deleted_at', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'version', 'INTEGER NOT NULL DEFAULT 1');
+    afwEnsureSqliteColumns($pdo, 'transactions', [
+        'proof_file_name' => 'TEXT',
+        'payment_code' => 'TEXT',
+        'recipient_name' => 'TEXT',
+        'qris_file_name' => 'TEXT',
+        'qris_file_type' => 'TEXT',
+        'qris_file_size' => 'INTEGER',
+        'qris_file_path' => 'TEXT',
+        'qris_file_url' => 'TEXT',
+        'proof_file_type' => 'TEXT',
+        'proof_file_size' => 'INTEGER',
+        'proof_file_path' => 'TEXT',
+        'proof_file_url' => 'TEXT',
+        'proof_uploaded_at' => 'TEXT',
+        'reviewed_at' => 'TEXT',
+        'reviewed_by' => 'TEXT',
+        'rejection_reason' => 'TEXT',
+        'deleted_at' => 'TEXT',
+        'version' => 'INTEGER NOT NULL DEFAULT 1',
+    ]);
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_transactions_email ON transactions(email)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status)');
@@ -190,8 +194,10 @@ function ensureTransactionTables(PDO $pdo): void
     $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_user_entitlements_transaction ON user_entitlements(transaction_id)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_user_entitlements_user_id ON user_entitlements(user_id)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_user_entitlements_email ON user_entitlements(email)');
-    addColumnIfMissing($pdo, 'user_entitlements', 'deleted_at', 'TEXT');
-    addColumnIfMissing($pdo, 'user_entitlements', 'version', 'INTEGER NOT NULL DEFAULT 1');
+    afwEnsureSqliteColumns($pdo, 'user_entitlements', [
+        'deleted_at' => 'TEXT',
+        'version' => 'INTEGER NOT NULL DEFAULT 1',
+    ]);
 
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS payment_methods (
@@ -213,18 +219,20 @@ function ensureTransactionTables(PDO $pdo): void
             updated_at TEXT NOT NULL
         )'
     );
-    addColumnIfMissing($pdo, 'payment_methods', 'method_type', 'TEXT NOT NULL DEFAULT "Transfer Bank"');
-    addColumnIfMissing($pdo, 'payment_methods', 'channel', 'TEXT');
-    addColumnIfMissing($pdo, 'payment_methods', 'recipient_name', 'TEXT');
-    addColumnIfMissing($pdo, 'payment_methods', 'payment_code', 'TEXT');
-    addColumnIfMissing($pdo, 'payment_methods', 'qris_file_name', 'TEXT');
-    addColumnIfMissing($pdo, 'payment_methods', 'qris_file_type', 'TEXT');
-    addColumnIfMissing($pdo, 'payment_methods', 'qris_file_size', 'INTEGER');
-    addColumnIfMissing($pdo, 'payment_methods', 'qris_file_path', 'TEXT');
-    addColumnIfMissing($pdo, 'payment_methods', 'qris_file_url', 'TEXT');
-    addColumnIfMissing($pdo, 'payment_methods', 'is_active', 'INTEGER NOT NULL DEFAULT 1');
-    addColumnIfMissing($pdo, 'payment_methods', 'deleted_at', 'TEXT');
-    addColumnIfMissing($pdo, 'payment_methods', 'version', 'INTEGER NOT NULL DEFAULT 1');
+    afwEnsureSqliteColumns($pdo, 'payment_methods', [
+        'method_type' => 'TEXT NOT NULL DEFAULT "Transfer Bank"',
+        'channel' => 'TEXT',
+        'recipient_name' => 'TEXT',
+        'payment_code' => 'TEXT',
+        'qris_file_name' => 'TEXT',
+        'qris_file_type' => 'TEXT',
+        'qris_file_size' => 'INTEGER',
+        'qris_file_path' => 'TEXT',
+        'qris_file_url' => 'TEXT',
+        'is_active' => 'INTEGER NOT NULL DEFAULT 1',
+        'deleted_at' => 'TEXT',
+        'version' => 'INTEGER NOT NULL DEFAULT 1',
+    ]);
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_payment_methods_active ON payment_methods(is_active)');
 
     $workshopRegistrationTable = $pdo->query(
@@ -766,7 +774,7 @@ try {
     $pdo->exec('PRAGMA busy_timeout = ' . max(1000, $busyTimeout));
     $pdo->exec('PRAGMA foreign_keys = ON');
     ensureTransactionTables($pdo);
-    if (function_exists('afwSyncEnsureInfrastructure')) {
+    if ($method !== 'GET' && function_exists('afwSyncEnsureInfrastructure')) {
         afwSyncEnsureInfrastructure($pdo);
         foreach (['transactions', 'payment_methods', 'user_entitlements'] as $syncTable) {
             afwSyncEnsureTable($pdo, $syncTable);
@@ -1284,7 +1292,10 @@ try {
 
         $statement = $pdo->prepare($sql);
         $statement->execute($params);
-        $transactions = array_map('rowToTransaction', $statement->fetchAll());
+        $transactions = [];
+        while ($row = $statement->fetch()) {
+            $transactions[] = rowToTransaction($row);
+        }
 
         respond(200, [
             'success' => true,
