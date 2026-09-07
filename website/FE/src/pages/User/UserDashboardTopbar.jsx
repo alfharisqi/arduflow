@@ -6,15 +6,7 @@ import {
   getStoredNotificationReads,
   persistNotificationReads,
 } from '../../services/userNotificationApi.js';
-
-function getStoredUser() {
-  try {
-    const raw = window.localStorage.getItem('arduflow_user');
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
+import { getStoredUser } from '../../services/authSession.js';
 
 function formatNotificationTime(value) {
   if (!value) return 'Baru saja';
@@ -50,7 +42,7 @@ export function UserDashboardTopbar({ fullName, profileImage }) {
   const [error, setError] = useState('');
   const dropdownRef = useRef(null);
 
-  const user = getStoredUser();
+  const user = getStoredUser() || {};
   const displayName = fullName || user.name || user.fullName || 'Nama Lengkap';
   const avatarImage = profileImage || user.profileImage || user.avatar || '';
 

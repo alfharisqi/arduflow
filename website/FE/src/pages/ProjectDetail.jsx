@@ -14,6 +14,7 @@ import {
   updateProjectInteraction,
 } from "../services/projectApi.js";
 import { createTransaction, fetchTransactions } from "../services/transactionApi.js";
+import { getStoredUser, getStoredUserToken } from "../services/authSession.js";
 import { NodeSprite } from "../components/NodeSprite.jsx";
 import { getProjectNodeType } from "../config/projectNodes.js";
 
@@ -40,15 +41,6 @@ function formatCurrency(value, currency = "IDR") {
     currency,
     maximumFractionDigits: 0,
   }).format(Number(value) || 0);
-}
-
-function getStoredUser() {
-  try {
-    const raw = window.localStorage.getItem("arduflow_user");
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
 }
 
 function getUserId(user) {
@@ -1332,11 +1324,12 @@ function ProjectHero({
   }, [paidProject, project.id]);
 
   async function handleBuyProject() {
-    const user = getStoredUser();
+    const token = getStoredUserToken();
+    const user = getStoredUser() || {};
     const userId = getUserId(user);
     const email = getUserEmail(user);
 
-    if (!userId && !email) {
+    if (!token || (!userId && !email)) {
       window.location.href = `/signin?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
       return;
     }
@@ -1351,9 +1344,6 @@ function ProjectHero({
 
     try {
       const transaction = await createTransaction({
-        userId,
-        userName: user.name || user.fullName || user.username || "User",
-        email,
         itemType: "project",
         itemId: project.id,
         itemTitle: project.title,

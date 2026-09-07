@@ -1,4 +1,5 @@
 import { apiEndpoint, apiUrl } from './apiEndpoints.js';
+import { getStoredUserToken } from './authSession.js';
 
 const TRANSACTION_API_URL = apiEndpoint(
   import.meta.env.VITE_TRANSACTION_API_URL,
@@ -6,13 +7,20 @@ const TRANSACTION_API_URL = apiEndpoint(
 );
 
 async function requestTransactions(url, options = {}) {
+  const { skipUserAuth = false, ...fetchOptions } = options;
   const isFormData = options.body instanceof FormData;
+  const token = skipUserAuth ? '' : getStoredUserToken();
+  const existingHeaders = options.headers || {};
+  const hasAuthorizationHeader = Object.keys(existingHeaders).some(
+    (key) => key.toLowerCase() === 'authorization'
+  );
   const response = await fetch(url, {
-    ...options,
+    ...fetchOptions,
     headers: {
       Accept: 'application/json',
       ...(options.body && !isFormData ? { 'Content-Type': 'application/json' } : {}),
-      ...(options.headers || {}),
+      ...(token && !hasAuthorizationHeader ? { Authorization: `Bearer ${token}` } : {}),
+      ...existingHeaders,
     },
   });
 
@@ -151,8 +159,8 @@ function paymentMethodBody(data = {}) {
   return JSON.stringify({ data });
 }
 
-export async function fetchTransactions(params = {}) {
-  const payload = await requestTransactions(`${TRANSACTION_API_URL}${buildQuery(params)}`);
+export async function fetchTransactions(params = {}, options = {}) {
+  const payload = await requestTransactions(`${TRANSACTION_API_URL}${buildQuery(params)}`, options);
   const records = payload?.data?.transactions || payload?.transactions || payload?.data || [];
   return Array.isArray(records) ? records.map(normalizeTransaction).filter(Boolean) : [];
 }
@@ -201,7 +209,7 @@ export async function deletePaymentMethod(id) {
   });
 }
 
-export async function createTransaction(data) {
+export async function createTransaction(data, options = {}) {
   if (typeof File !== 'undefined' && data?.qrisFile instanceof File) {
     const { qrisFile, ...payloadData } = data;
     const formData = new FormData();
@@ -211,6 +219,7 @@ export async function createTransaction(data) {
     const payload = await requestTransactions(TRANSACTION_API_URL, {
       method: 'POST',
       body: formData,
+      ...options,
     });
     return normalizeTransaction(payload?.data?.transaction || payload?.transaction || payload?.data);
   }
@@ -218,6 +227,7 @@ export async function createTransaction(data) {
   const payload = await requestTransactions(TRANSACTION_API_URL, {
     method: 'POST',
     body: JSON.stringify({ data }),
+    ...options,
   });
   return normalizeTransaction(payload?.data?.transaction || payload?.transaction || payload?.data);
 }

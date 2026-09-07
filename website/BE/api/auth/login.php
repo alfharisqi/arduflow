@@ -88,17 +88,6 @@ if (!$isModernHash || !password_verify($password, $passwordHash)) {
 }
 
 try {
-    $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS auth_tokens (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            token_hash TEXT NOT NULL UNIQUE,
-            expires_at TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )'
-    );
-
     $plainToken = bin2hex(random_bytes(32));
     $now = gmdate('Y-m-d\TH:i:s\Z');
     $expiresAt = gmdate('Y-m-d\TH:i:s\Z', time() + 86400);

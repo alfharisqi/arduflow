@@ -161,8 +161,6 @@ if (!function_exists('getDatabaseConnection')) {
 
 try {
     $database = getDatabaseConnection();
-    migrateLegacyTutorialTablesToMateri($database);
-    createTables($database);
     switch ($_SERVER['REQUEST_METHOD']) {
         case 'GET':
             getAllMateri($database);
@@ -201,349 +199,6 @@ try {
             'error' => $error->getMessage(),
         ],
         500
-    );
-}
-
-
-function databaseTableExists(PDO $database, string $tableName): bool
-{
-    $statement = $database->prepare(
-        'SELECT 1
-         FROM sqlite_master
-         WHERE type = :type
-           AND name = :name
-         LIMIT 1'
-    );
-
-    $statement->execute([
-        ':type' => 'table',
-        ':name' => $tableName,
-    ]);
-
-    return (bool) $statement->fetchColumn();
-}
-
-
-function databaseColumnExists(
-    PDO $database,
-    string $tableName,
-    string $columnName
-): bool {
-    if (!databaseTableExists($database, $tableName)) {
-        return false;
-    }
-
-    $allowedTables = [
-        'materi',
-        'materi_chapters',
-        'materi_learning_objectives',
-        'materi_slides',
-    ];
-
-    if (!in_array($tableName, $allowedTables, true)) {
-        return false;
-    }
-
-    $columns = $database->query(
-        'PRAGMA table_info(' . $tableName . ')'
-    )->fetchAll();
-
-    foreach ($columns as $column) {
-        if (
-            isset($column['name'])
-            && (string) $column['name'] === $columnName
-        ) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-
-function migrateLegacyTutorialTablesToMateri(PDO $database): void
-{
-    $tableMap = [
-        'tutorials' => 'materi',
-        'tutorial_chapters' => 'materi_chapters',
-        'tutorial_learning_objectives' => 'materi_learning_objectives',
-        'tutorial_slides' => 'materi_slides',
-    ];
-
-    /*
-     * ALTER TABLE RENAME pada SQLite modern otomatis memperbarui
-     * referensi foreign key. foreign_keys dimatikan sementara agar
-     * migrasi database lama lebih aman.
-     */
-    $database->exec('PRAGMA foreign_keys = OFF');
-
-    try {
-        foreach ($tableMap as $oldTable => $newTable) {
-            $oldExists = databaseTableExists($database, $oldTable);
-            $newExists = databaseTableExists($database, $newTable);
-
-            if ($oldExists && !$newExists) {
-                $database->exec(
-                    'ALTER TABLE '
-                    . $oldTable
-                    . ' RENAME TO '
-                    . $newTable
-                );
-            }
-        }
-
-        $childTables = [
-            'materi_chapters',
-            'materi_learning_objectives',
-            'materi_slides',
-        ];
-
-        foreach ($childTables as $tableName) {
-            if (
-                databaseColumnExists(
-                    $database,
-                    $tableName,
-                    'tutorial_id'
-                )
-                && !databaseColumnExists(
-                    $database,
-                    $tableName,
-                    'materi_id'
-                )
-            ) {
-                $database->exec(
-                    'ALTER TABLE '
-                    . $tableName
-                    . ' RENAME COLUMN tutorial_id TO materi_id'
-                );
-            }
-        }
-    } finally {
-        $database->exec('PRAGMA foreign_keys = ON');
-    }
-}
-
-
-function createTables(PDO $database): void
-{
-    $database->exec(
-        'CREATE TABLE IF NOT EXISTS materi (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            slug TEXT NOT NULL UNIQUE,
-            category TEXT NOT NULL,
-            display_order INTEGER NOT NULL DEFAULT 1,
-            short_description TEXT NOT NULL,
-            full_description TEXT NOT NULL,
-            card_image_name TEXT,
-            card_image_type TEXT,
-            card_image_size INTEGER,
-            difficulty_level TEXT,
-            estimated_time TEXT,
-            page_order INTEGER NOT NULL,
-            status TEXT NOT NULL DEFAULT "draft",
-            active INTEGER NOT NULL DEFAULT 1,
-            show_on_page INTEGER NOT NULL DEFAULT 1,
-            featured INTEGER NOT NULL DEFAULT 0,
-            comments INTEGER NOT NULL DEFAULT 1,
-            access_type TEXT,
-            featured_order INTEGER,
-            user_level TEXT NOT NULL DEFAULT "semua_pengguna",
-            access_requirement TEXT,
-            prerequisite TEXT,
-            cta_text TEXT,
-            cta_target_link TEXT,
-            cta_url_slug TEXT,
-            publish_schedule TEXT,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        )'
-    );
-
-    $database->exec(
-        'CREATE TABLE IF NOT EXISTS materi_chapters (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            materi_id INTEGER NOT NULL,
-            chapter_order INTEGER NOT NULL DEFAULT 1,
-            title TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            FOREIGN KEY (materi_id)
-                REFERENCES materi(id)
-                ON DELETE CASCADE
-        )'
-    );
-
-    $database->exec(
-        'CREATE TABLE IF NOT EXISTS materi_learning_objectives (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            materi_id INTEGER NOT NULL,
-            objective_order INTEGER NOT NULL DEFAULT 1,
-            objective TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            FOREIGN KEY (materi_id)
-                REFERENCES materi(id)
-                ON DELETE CASCADE
-        )'
-    );
-
-    $database->exec(
-        'CREATE TABLE IF NOT EXISTS materi_slides (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            materi_id INTEGER NOT NULL,
-            chapter_id INTEGER,
-            slide_order INTEGER NOT NULL,
-            title TEXT NOT NULL,
-            content_type TEXT NOT NULL DEFAULT "text",
-            content TEXT,
-            code_title TEXT,
-            code_language TEXT,
-            code_content TEXT,
-            allow_copy INTEGER NOT NULL DEFAULT 1,
-            estimated_time TEXT,
-            status TEXT NOT NULL DEFAULT "draft",
-            image_name TEXT,
-            image_type TEXT,
-            image_size INTEGER,
-            video_url TEXT,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            FOREIGN KEY (materi_id)
-                REFERENCES materi(id)
-                ON DELETE CASCADE,
-            FOREIGN KEY (chapter_id)
-                REFERENCES materi_chapters(id)
-                ON DELETE SET NULL
-        )'
-    );
-
-    /*
-     * Migration otomatis untuk database SQLite lama.
-     * ALTER TABLE hanya dijalankan jika kolom belum ada.
-     * Data tutorial dan slide lama tetap dipertahankan.
-     */
-    ensureTableColumn(
-        $database,
-        'materi',
-        'active',
-        'INTEGER NOT NULL DEFAULT 1'
-    );
-    ensureTableColumn(
-        $database,
-        'materi',
-        'show_on_page',
-        'INTEGER NOT NULL DEFAULT 1'
-    );
-    ensureTableColumn(
-        $database,
-        'materi',
-        'featured',
-        'INTEGER NOT NULL DEFAULT 0'
-    );
-    ensureTableColumn(
-        $database,
-        'materi',
-        'comments',
-        'INTEGER NOT NULL DEFAULT 1'
-    );
-    ensureTableColumn($database, 'materi', 'access_type', 'TEXT');
-    ensureTableColumn($database, 'materi', 'featured_order', 'INTEGER');
-    ensureTableColumn($database, 'materi', 'prerequisite', 'TEXT');
-    ensureTableColumn($database, 'materi', 'cta_text', 'TEXT');
-    ensureTableColumn($database, 'materi', 'cta_target_link', 'TEXT');
-    ensureTableColumn($database, 'materi', 'cta_url_slug', 'TEXT');
-    ensureTableColumn($database, 'materi', 'publish_schedule', 'TEXT');
-
-    ensureTableColumn($database, 'materi_slides', 'chapter_id', 'INTEGER');
-    ensureTableColumn(
-        $database,
-        'materi_slides',
-        'estimated_time',
-        'TEXT'
-    );
-    ensureTableColumn(
-        $database,
-        'materi_slides',
-        'status',
-        'TEXT NOT NULL DEFAULT "draft"'
-    );
-    ensureTableColumn(
-        $database,
-        'materi_slides',
-        'image_type',
-        'TEXT'
-    );
-    ensureTableColumn(
-        $database,
-        'materi_slides',
-        'image_size',
-        'INTEGER'
-    );
-    ensureTableColumn($database, 'materi_slides', 'code_title', 'TEXT');
-    ensureTableColumn($database, 'materi_slides', 'code_language', 'TEXT');
-    ensureTableColumn($database, 'materi_slides', 'code_content', 'TEXT');
-    ensureTableColumn(
-        $database,
-        'materi_slides',
-        'allow_copy',
-        'INTEGER NOT NULL DEFAULT 1'
-    );
-
-    $database->exec(
-        'CREATE INDEX IF NOT EXISTS idx_materi_chapters_materi
-         ON materi_chapters (materi_id, chapter_order)'
-    );
-
-    $database->exec(
-        'CREATE INDEX IF NOT EXISTS idx_materi_objectives_materi
-         ON materi_learning_objectives (materi_id, objective_order)'
-    );
-
-    $database->exec(
-        'CREATE INDEX IF NOT EXISTS idx_materi_slides_chapter
-         ON materi_slides (materi_id, chapter_id, slide_order)'
-    );
-}
-
-
-function ensureTableColumn(
-    PDO $database,
-    string $tableName,
-    string $columnName,
-    string $definition
-): void {
-    $allowedTables = [
-        'materi',
-        'materi_slides',
-        'materi_chapters',
-        'materi_learning_objectives',
-    ];
-
-    if (!in_array($tableName, $allowedTables, true)) {
-        throw new InvalidArgumentException('Nama tabel migration tidak valid.');
-    }
-
-    $columns = $database->query(
-        'PRAGMA table_info(' . $tableName . ')'
-    )->fetchAll();
-
-    foreach ($columns as $column) {
-        if (
-            isset($column['name'])
-            && (string) $column['name'] === $columnName
-        ) {
-            return;
-        }
-    }
-
-    $database->exec(
-        'ALTER TABLE '
-        . $tableName
-        . ' ADD COLUMN '
-        . $columnName
-        . ' '
-        . $definition
     );
 }
 
@@ -1804,28 +1459,31 @@ function getAllMateri(PDO $database): void
 
     $materi = $statement->fetchAll();
 
-    $chapterStatement = $database->prepare(
+    $chapterStatement = $database->query(
         'SELECT
+            materi_id AS tutorial_id,
             id,
             chapter_order AS "order",
             title,
             created_at,
             updated_at
          FROM materi_chapters
-         WHERE materi_id = :materi_id
-         ORDER BY chapter_order ASC, id ASC'
+         WHERE materi_id IN (SELECT id FROM materi)
+         ORDER BY materi_id ASC, chapter_order ASC, id ASC'
     );
 
-    $objectiveStatement = $database->prepare(
+    $objectiveStatement = $database->query(
         'SELECT
+            materi_id AS tutorial_id,
             objective
          FROM materi_learning_objectives
-         WHERE materi_id = :materi_id
-         ORDER BY objective_order ASC, id ASC'
+         WHERE materi_id IN (SELECT id FROM materi)
+         ORDER BY materi_id ASC, objective_order ASC, id ASC'
     );
 
-    $slideStatement = $database->prepare(
+    $slideStatement = $database->query(
         'SELECT
+            materi_id AS tutorial_id,
             id,
             chapter_id,
             slide_order AS "order",
@@ -1843,38 +1501,38 @@ function getAllMateri(PDO $database): void
             image_size,
             video_url
          FROM materi_slides
-         WHERE materi_id = :materi_id
-         ORDER BY slide_order ASC, id ASC'
+         WHERE materi_id IN (SELECT id FROM materi)
+         ORDER BY materi_id ASC, slide_order ASC, id ASC'
     );
+
+    $chaptersByTutorial = [];
+    while ($row = $chapterStatement->fetch()) {
+        $tutorialId = (int) $row['tutorial_id'];
+        unset($row['tutorial_id']);
+        $chaptersByTutorial[$tutorialId][] = $row;
+    }
+
+    $objectivesByTutorial = [];
+    while ($row = $objectiveStatement->fetch()) {
+        $objective = trim((string) ($row['objective'] ?? ''));
+        if ($objective !== '') {
+            $objectivesByTutorial[(int) $row['tutorial_id']][] = $objective;
+        }
+    }
+
+    $slidesByTutorial = [];
+    while ($row = $slideStatement->fetch()) {
+        $tutorialId = (int) $row['tutorial_id'];
+        unset($row['tutorial_id']);
+        $slidesByTutorial[$tutorialId][] = $row;
+    }
 
     foreach ($materi as &$tutorial) {
         $tutorialId = (int) $tutorial['id'];
-
-        $chapterStatement->execute([
-            ':materi_id' => $tutorialId,
-        ]);
-        $chapters = $chapterStatement->fetchAll();
-
-        $objectiveStatement->execute([
-            ':materi_id' => $tutorialId,
-        ]);
-        $objectiveRows = $objectiveStatement->fetchAll();
-
-        $learningObjectives = array_values(
-            array_filter(
-                array_map(
-                    static fn(array $row): string =>
-                        trim((string) ($row['objective'] ?? '')),
-                    $objectiveRows
-                ),
-                static fn(string $value): bool => $value !== ''
-            )
-        );
-
-        $slideStatement->execute([
-            ':materi_id' => $tutorialId,
-        ]);
-        $slides = $slideStatement->fetchAll();
+        $chapters = $chaptersByTutorial[$tutorialId] ?? [];
+        $learningObjectives = $objectivesByTutorial[$tutorialId] ?? [];
+        $slides = $slidesByTutorial[$tutorialId] ?? [];
+        unset($chaptersByTutorial[$tutorialId], $objectivesByTutorial[$tutorialId], $slidesByTutorial[$tutorialId]);
 
         if ($chapters === [] && $slides !== []) {
             $legacyChapterId = 'legacy-' . $tutorialId;
@@ -1939,8 +1597,17 @@ function getAllMateri(PDO $database): void
                     'file_size' => isset($slide['image_size'])
                         ? (int) $slide['image_size']
                         : null,
+                    'path' => $slide['image_path'],
                     'url' => $slide['image_url'],
                 ]
+                : null;
+
+            $videoUrl = isset($slide['video_url'])
+                ? trim((string) $slide['video_url'])
+                : '';
+            $slide['video_url'] = $videoUrl !== '' ? $videoUrl : null;
+            $slide['video_embed_url'] = $videoUrl !== ''
+                ? normalizeVideoUrlForEmbed($videoUrl)
                 : null;
         }
         unset($slide);
@@ -1948,59 +1615,13 @@ function getAllMateri(PDO $database): void
         $tutorial['chapters'] = $chapters;
         $tutorial['learning_objectives'] = $learningObjectives;
         $tutorial['slides'] = $slides;
-        $tutorial['total_slides'] = count($slides);
-        $tutorial['total_chapters'] = count($chapters);
-
-        $imageName = isset($tutorial['card_image_name'])
-            ? (string) $tutorial['card_image_name']
-            : null;
-
-        $tutorial['card_image_path'] = getArticleImagePath(
-            $imageName
-        );
-
-        $tutorial['card_image_url'] = getArticleImageUrl(
-            $imageName
-        );
-
-        $tutorial['active'] = (bool) ($tutorial['active'] ?? 0);
-        $tutorial['show_on_page'] = (bool) ($tutorial['show_on_page'] ?? 0);
+        $tutorial['slide_count'] = count($slides);
+        $tutorial['card_image_path'] = getCardImagePath($tutorial['card_image_name'] ?? null);
+        $tutorial['card_image_url'] = getCardImageUrl($tutorial['card_image_name'] ?? null);
+        $tutorial['active'] = (bool) ($tutorial['active'] ?? 1);
+        $tutorial['show_on_page'] = (bool) ($tutorial['show_on_page'] ?? 1);
         $tutorial['featured'] = (bool) ($tutorial['featured'] ?? 0);
-        $tutorial['comments'] = (bool) ($tutorial['comments'] ?? 0);
-
-        $tutorial['learning_information'] = [
-            'difficulty_level' => $tutorial['difficulty_level'] ?? null,
-            'estimated_time' => $tutorial['estimated_time'] ?? null,
-            'learning_objectives' => $learningObjectives,
-        ];
-
-        $tutorial['page_settings'] = [
-            'page_order' => isset($tutorial['page_order'])
-                ? (int) $tutorial['page_order']
-                : null,
-            'status' => $tutorial['status'] ?? 'draft',
-            'active' => $tutorial['active'],
-            'show_on_page' => $tutorial['show_on_page'],
-            'featured' => $tutorial['featured'],
-            'comments' => $tutorial['comments'],
-            'access_type' => $tutorial['access_type'] ?? null,
-            'featured_order' => isset($tutorial['featured_order'])
-                ? (int) $tutorial['featured_order']
-                : null,
-        ];
-
-        $tutorial['access_settings'] = [
-            'user_level' => $tutorial['user_level'] ?? 'semua_pengguna',
-            'access_requirement' => $tutorial['access_requirement'] ?? null,
-            'prerequisite' => $tutorial['prerequisite'] ?? null,
-        ];
-
-        $tutorial['cta'] = [
-            'text' => $tutorial['cta_text'] ?? null,
-            'target_link' => $tutorial['cta_target_link'] ?? null,
-            'url_slug' => $tutorial['cta_url_slug'] ?? null,
-            'publish_schedule' => $tutorial['publish_schedule'] ?? null,
-        ];
+        $tutorial['comments'] = (bool) ($tutorial['comments'] ?? 1);
     }
     unset($tutorial);
 
@@ -2011,7 +1632,6 @@ function getAllMateri(PDO $database): void
         'total' => count($materi),
     ]);
 }
-
 
 function createMateri(PDO $database): void
 {
@@ -3314,7 +2934,7 @@ function sendJsonResponse(array $response, int $statusCode = 200): void
 
     echo json_encode(
         $response,
-        JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE
+        JSON_UNESCAPED_UNICODE
     );
 
     exit;

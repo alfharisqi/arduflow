@@ -5,6 +5,7 @@ import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import { fetchUserLeadHistory } from '../../features/leads/leadApi.js';
 import { UserDashboardTopbar } from './UserDashboardTopbar.jsx';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
+import { getStoredUser, logoutCurrentUser } from '../../services/authSession.js';
 
 const menuItems = [
   { label: 'Profil', icon: 'user', href: '/dashboard' },
@@ -24,15 +25,6 @@ const categoryLabels = {
   collaboration: 'Kolaborasi',
   workshop: 'Workshop',
 };
-
-function getStoredUser() {
-  try {
-    const raw = window.localStorage.getItem('arduflow_user');
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
 
 function formatHistoryDate(value, fallback) {
   if (fallback && fallback !== '-') {
@@ -95,7 +87,7 @@ export function UserLeadDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLead, setSelectedLead] = useState(null);
 
-  const user = getStoredUser();
+  const user = getStoredUser() || {};
   const fullName = user.name || user.fullName || user.full_name || 'Nama Lengkap';
   const greetingName = user.nickname || user.username || fullName;
   const email = user.email || '';
@@ -175,10 +167,7 @@ export function UserLeadDashboard() {
     .join(', ');
 
   function handleLogout() {
-    window.localStorage.removeItem('arduflow_user');
-    window.localStorage.removeItem('arduflow_user_token');
-    window.dispatchEvent(new Event('arduflow-auth-change'));
-    window.location.assign('/signin');
+    logoutCurrentUser({ redirectTo: '/signin' });
   }
 
   function handleSidebarToggle() {
