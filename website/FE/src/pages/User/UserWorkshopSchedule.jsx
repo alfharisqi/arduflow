@@ -8,6 +8,7 @@ import { fetchTransactions } from '../../services/transactionApi.js';
 import { fetchWorkshopDetail, fetchWorkshops, isPublicWorkshop } from '../../services/workshopApi.js';
 import { UserDashboardTopbar } from './UserDashboardTopbar.jsx';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
+import { getStoredUser, logoutCurrentUser } from '../../services/authSession.js';
 
 const menuItems = [
   { label: 'Profil', icon: 'user', href: '/dashboard' },
@@ -21,15 +22,6 @@ const menuItems = [
   { label: 'IDE', icon: 'cpu', href: '/ide-saya' },
   { label: 'Settings', icon: 'settings', href: '/settings' },
 ];
-
-function getStoredUser() {
-  try {
-    const raw = window.localStorage.getItem('arduflow_user');
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
 
 function parseWorkshopDate(value) {
   if (!value) return null;
@@ -204,7 +196,7 @@ export function UserWorkshopSchedule() {
   const [testimonialForm, setTestimonialForm] = useState({ quote: '', role: '', rating: 5, consentPublic: true });
   const [testimonialError, setTestimonialError] = useState('');
   const [isSendingTestimonial, setSendingTestimonial] = useState(false);
-  const user = getStoredUser();
+  const user = getStoredUser() || {};
   const fullName = user.name || user.fullName || 'Nama Lengkap';
   const greetingName = user.nickname || fullName;
   const profileImage = user.profileImage || user.avatar || '';
@@ -334,10 +326,7 @@ export function UserWorkshopSchedule() {
   }, [currentPage, totalPages]);
 
   function handleLogout() {
-    window.localStorage.removeItem('arduflow_user');
-    window.localStorage.removeItem('arduflow_user_token');
-    window.dispatchEvent(new Event('arduflow-auth-change'));
-    window.location.assign('/signin');
+    logoutCurrentUser({ redirectTo: '/signin' });
   }
 
   function handleSidebarToggle() {

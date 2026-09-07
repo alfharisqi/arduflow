@@ -5,6 +5,7 @@ import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import { apiEndpoint, apiUrl } from '../../services/apiEndpoints.js';
 import { UserDashboardTopbar } from './UserDashboardTopbar.jsx';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
+import { getStoredUser, logoutCurrentUser } from '../../services/authSession.js';
 
 const menuItems = [
   { label: 'Profil', icon: 'user', href: '/dashboard' },
@@ -20,15 +21,6 @@ const menuItems = [
 ];
 
 const CERTIFICATE_API_URL = apiEndpoint(import.meta.env.VITE_CERTIFICATE_API_URL, '/api/certificate-api.php');
-
-function getStoredUser() {
-  try {
-    const raw = window.localStorage.getItem('arduflow_user');
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
 
 function getInitials(name) {
   return (name || 'Nama Lengkap')
@@ -184,7 +176,7 @@ export function UserCertificates() {
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedWorkshops, setExpandedWorkshops] = useState({});
   const pageSize = 5;
-  const user = getStoredUser();
+  const user = getStoredUser() || {};
   const fullName = user.name || user.fullName || 'Nama Lengkap';
   const greetingName = user.nickname || fullName;
   const profileImage = user.profileImage || user.avatar || '';
@@ -279,10 +271,7 @@ export function UserCertificates() {
   }
 
   function handleLogout() {
-    window.localStorage.removeItem('arduflow_user');
-    window.localStorage.removeItem('arduflow_user_token');
-    window.dispatchEvent(new Event('arduflow-auth-change'));
-    window.location.assign('/signin');
+    logoutCurrentUser({ redirectTo: '/signin' });
   }
 
   function handleSidebarToggle() {

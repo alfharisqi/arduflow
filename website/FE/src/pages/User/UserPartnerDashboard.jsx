@@ -7,6 +7,7 @@ import { fetchPartners, updatePartner, uploadPartnerLogo } from '../../services/
 import { createTestimonial, fetchTestimonials, updateTestimonial } from '../../services/testimonialApi.js';
 import { UserDashboardTopbar } from './UserDashboardTopbar.jsx';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
+import { getStoredUser, logoutCurrentUser } from '../../services/authSession.js';
 
 const menuItems = [
   { label: 'Profil', icon: 'user', href: '/dashboard' },
@@ -20,15 +21,6 @@ const menuItems = [
   { label: 'IDE', icon: 'cpu', href: '/ide-saya' },
   { label: 'Settings', icon: 'settings', href: '/settings' },
 ];
-
-function getStoredUser() {
-  try {
-    const raw = window.localStorage.getItem('arduflow_user');
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
 
 function normalizeText(value) {
   return String(value || '').trim().toLowerCase();
@@ -152,7 +144,7 @@ export function UserPartnerDashboard() {
   const [testimonialError, setTestimonialError] = useState('');
   const [isSendingTestimonial, setSendingTestimonial] = useState(false);
 
-  const user = getStoredUser();
+  const user = getStoredUser() || {};
   const fullName = user.name || user.fullName || user.full_name || 'Nama Lengkap';
   const greetingName = user.nickname || user.username || fullName;
   const profileImage = user.profileImage || user.profile_image || user.avatar || '';
@@ -206,10 +198,7 @@ export function UserPartnerDashboard() {
   }), [partners]);
 
   function handleLogout() {
-    window.localStorage.removeItem('arduflow_user');
-    window.localStorage.removeItem('arduflow_user_token');
-    window.dispatchEvent(new Event('arduflow-auth-change'));
-    window.location.assign('/signin');
+    logoutCurrentUser({ redirectTo: '/signin' });
   }
 
   function handleSidebarToggle() {

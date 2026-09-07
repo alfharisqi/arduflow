@@ -237,6 +237,74 @@ function readTransactionBody(): array
     return readJsonBody();
 }
 
+function transactionBearerToken(): ?string
+{
+    $authorizationHeader =
+        $_SERVER['HTTP_AUTHORIZATION']
+        ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
+        ?? '';
+
+    if (!preg_match('/Bearer\s+(.+)/i', $authorizationHeader, $matches)) {
+        return null;
+    }
+
+    $token = trim($matches[1]);
+    return $token !== '' ? $token : null;
+}
+
+function transactionCurrentUser(PDO $pdo): ?array
+{
+    $token = transactionBearerToken();
+    if ($token === null) {
+        return null;
+    }
+
+    $statement = $pdo->prepare(
+        'SELECT
+            u.id,
+            u.name,
+            u.username,
+            u.email
+         FROM auth_tokens AS t
+         INNER JOIN users AS u ON u.id = t.user_id
+         WHERE t.token_hash = :token_hash
+           AND t.expires_at > :now
+           AND u.deleted_at IS NULL
+         LIMIT 1'
+    );
+
+    $statement->execute([
+        ':token_hash' => hash('sha256', $token),
+        ':now' => gmdate('Y-m-d\TH:i:s\Z'),
+    ]);
+
+    $user = $statement->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($user)) {
+        respond(401, [
+            'success' => false,
+            'message' => 'Session tidak valid atau sudah kedaluwarsa.',
+        ]);
+    }
+
+    return $user;
+}
+
+function applyUserSessionToTransaction(array $transaction, ?array $sessionUser): array
+{
+    if ($sessionUser !== null) {
+        $transaction['user_id'] = (int) $sessionUser['id'];
+        $transaction['user_name'] = trim(
+            (string) ($sessionUser['name'] ?: $sessionUser['username'] ?: '')
+        );
+        $transaction['email'] = trim((string) ($sessionUser['email'] ?? ''));
+
+        return $transaction;
+    }
+
+    $transaction['user_id'] = null;
+    return $transaction;
+}
+
 function storeQrisFile(int $transactionId, string $projectRoot): ?array
 {
     $file = $_FILES['qris'] ?? $_FILES['qrisFile'] ?? null;
@@ -1088,9 +1156,22 @@ try {
     }
 
     if ($method === 'GET') {
+        $sessionUser = transactionCurrentUser($pdo);
+
         if ($transactionId !== null) {
             $row = findTransaction($pdo, $transactionId);
             if ($row === null) {
+                respond(404, [
+                    'success' => false,
+                    'message' => 'Transaksi tidak ditemukan.',
+                ]);
+            }
+
+            if (
+                $sessionUser !== null
+                && (int) ($row['user_id'] ?? 0) !== (int) $sessionUser['id']
+                && strcasecmp((string) ($row['email'] ?? ''), (string) ($sessionUser['email'] ?? '')) !== 0
+            ) {
                 respond(404, [
                     'success' => false,
                     'message' => 'Transaksi tidak ditemukan.',
@@ -1110,7 +1191,11 @@ try {
         $hasUserId = isset($_GET['userId']) && $_GET['userId'] !== '';
         $hasEmail = isset($_GET['email']) && trim((string) $_GET['email']) !== '';
 
-        if ($hasUserId && $hasEmail) {
+        if ($sessionUser !== null) {
+            $where[] = '(user_id = :session_user_id OR LOWER(email) = LOWER(:session_email))';
+            $params[':session_user_id'] = (int) $sessionUser['id'];
+            $params[':session_email'] = trim((string) ($sessionUser['email'] ?? ''));
+        } elseif ($hasUserId && $hasEmail) {
             $where[] = '(user_id = :user_id OR LOWER(email) = LOWER(:email))';
             $params[':user_id'] = (int) $_GET['userId'];
             $params[':email'] = trim((string) $_GET['email']);
@@ -1151,7 +1236,11 @@ try {
 
     if ($method === 'POST') {
         $incoming = readTransactionBody();
-        $transaction = transactionFromBody($incoming);
+        $sessionUser = transactionCurrentUser($pdo);
+        $transaction = applyUserSessionToTransaction(
+            transactionFromBody($incoming),
+            $sessionUser
+        );
         $errors = validateTransaction($transaction);
         if ($errors !== []) {
             respond(422, [

@@ -626,7 +626,7 @@ export function AdminProjects() {
       const projectData = Array.isArray(result.data) ? result.data : [];
       setProjects(projectData);
       try {
-        setProjectTransactions(await fetchTransactions());
+        setProjectTransactions(await fetchTransactions({}, { skipUserAuth: true }));
       } catch (transactionError) {
         console.error('Gagal memuat jumlah penjualan proyek:', transactionError);
         setProjectTransactions([]);

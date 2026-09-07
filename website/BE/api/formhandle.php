@@ -115,6 +115,59 @@ function tableExists(PDO $pdo, string $table): bool
     return $cache[$key] = $statement->fetchColumn() !== false;
 }
 
+function formBearerToken(): ?string
+{
+    $authorizationHeader =
+        $_SERVER['HTTP_AUTHORIZATION']
+        ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
+        ?? '';
+
+    if (!preg_match('/Bearer\s+(.+)/i', $authorizationHeader, $matches)) {
+        return null;
+    }
+
+    $token = trim($matches[1]);
+    return $token !== '' ? $token : null;
+}
+
+function formCurrentUser(PDO $pdo): ?array
+{
+    $token = formBearerToken();
+    if ($token === null) {
+        return null;
+    }
+
+    if (!tableExists($pdo, 'auth_tokens') || !tableExists($pdo, 'users')) {
+        sendJson(401, false, 'Session user tidak tersedia.');
+    }
+
+    $statement = $pdo->prepare(
+        'SELECT
+            u.id,
+            u.name,
+            u.username,
+            u.email
+         FROM auth_tokens AS t
+         INNER JOIN users AS u ON u.id = t.user_id
+         WHERE t.token_hash = :token_hash
+         AND t.expires_at > :now
+         AND u.deleted_at IS NULL
+         LIMIT 1'
+    );
+
+    $statement->execute([
+        ':token_hash' => hash('sha256', $token),
+        ':now' => gmdate('Y-m-d\TH:i:s\Z'),
+    ]);
+
+    $user = $statement->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($user)) {
+        sendJson(401, false, 'Session tidak valid atau sudah kedaluwarsa.');
+    }
+
+    return $user;
+}
+
 function saveUploadedProposal(array $uploadedFile, string $projectRoot): ?array
 {
     $uploadError = (int) (
@@ -3034,6 +3087,37 @@ if ($formType === 'workshop') {
                 $pdo
             );
 
+        $sessionUser =
+            formCurrentUser(
+                $pdo
+            );
+
+        $transactionUserId =
+            $sessionUser !== null
+                ? (int) $sessionUser['id']
+                : null;
+
+        $transactionUserName =
+            $sessionUser !== null
+                ? trim(
+                    (string) (
+                        $sessionUser['name']
+                        ?: $sessionUser['username']
+                        ?: ''
+                    )
+                )
+                : $participantName;
+
+        $transactionEmail =
+            $sessionUser !== null
+                ? trim(
+                    (string) (
+                        $sessionUser['email']
+                        ?? ''
+                    )
+                )
+                : $participantEmail;
+
         $invoiceNumber =
             generateWorkshopInvoiceNumber();
 
@@ -3179,7 +3263,7 @@ if ($formType === 'workshop') {
                     created_at,
                     updated_at
                 ) VALUES (
-                    NULL,
+                    :user_id,
                     :user_name,
                     :email,
                     "workshop",
@@ -3209,11 +3293,14 @@ if ($formType === 'workshop') {
             );
 
         $transactionStatement->execute([
+            ':user_id' =>
+                $transactionUserId,
+
             ':user_name' =>
-                $participantName,
+                $transactionUserName,
 
             ':email' =>
-                $participantEmail,
+                $transactionEmail,
 
             ':item_id' =>
                 $workshopId,

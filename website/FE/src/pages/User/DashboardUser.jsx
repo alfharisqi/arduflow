@@ -11,6 +11,11 @@ import {
   getUserSession,
   updateUserProfile,
 } from '../../services/authApi.js';
+import {
+  clearUserAuthState,
+  getStoredUserToken,
+  logoutCurrentUser,
+} from '../../services/authSession.js';
 
 import {
   fetchWorkshops,
@@ -700,9 +705,7 @@ export function DashboardUser() {
 
     async function loadUserProfile() {
       const token =
-        window.localStorage.getItem(
-          'arduflow_user_token'
-        );
+        getStoredUserToken();
 
       if (!token) {
         window.location.assign(
@@ -784,13 +787,7 @@ export function DashboardUser() {
         if (
           error?.status === 401
         ) {
-          window.localStorage.removeItem(
-            'arduflow_user'
-          );
-
-          window.localStorage.removeItem(
-            'arduflow_user_token'
-          );
+          clearUserAuthState();
 
           if (active) {
             window.location.assign(
@@ -940,23 +937,7 @@ export function DashboardUser() {
   */
 
   function handleLogout() {
-    window.localStorage.removeItem(
-      'arduflow_user'
-    );
-
-    window.localStorage.removeItem(
-      'arduflow_user_token'
-    );
-
-    window.dispatchEvent(
-      new Event(
-        'arduflow-auth-change'
-      )
-    );
-
-    window.location.assign(
-      '/signin'
-    );
+    logoutCurrentUser({ redirectTo: '/signin' });
   }
 
   /*
