@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 const AFW_PROJECT_ROOT = __DIR__ . '/../..';
 
+require_once __DIR__ . '/autoload-app.php';
+
 function afwSendJson(
     int $status,
     bool $success,

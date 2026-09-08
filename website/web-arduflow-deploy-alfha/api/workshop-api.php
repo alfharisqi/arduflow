@@ -541,6 +541,12 @@ if ($action !== '') {
  */
 
 $projectRoot = dirname(__DIR__);
+require_once __DIR__ . '/support/autoload-app.php';
+
+if (class_exists(\Arduflow\Api\Support\Env::class)) {
+    \Arduflow\Api\Support\Env::load($projectRoot . DIRECTORY_SEPARATOR . '.env');
+}
+
 $configPath = $projectRoot . '/config/database.php';
 
 if (!file_exists($configPath)) {

@@ -5,11 +5,7 @@ declare(strict_types=1);
 use Arduflow\Api\Support\Env;
 
 $projectRoot = dirname(__DIR__);
-$autoloadPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
-
-if (is_file($autoloadPath)) {
-    require_once $autoloadPath;
-}
+require_once __DIR__ . '/support/autoload-app.php';
 
 if (class_exists(Env::class)) {
     Env::load($projectRoot . DIRECTORY_SEPARATOR . '.env');

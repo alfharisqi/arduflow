@@ -5,13 +5,10 @@ declare(strict_types=1);
 use Arduflow\Api\Support\Env;
 use PHPMailer\PHPMailer\PHPMailer;
 
-$autoload = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
+require_once __DIR__ . '/support/autoload-app.php';
 
-if (is_file($autoload)) {
-    require_once $autoload;
-    if (class_exists(Env::class)) {
-        Env::load(dirname(__DIR__) . DIRECTORY_SEPARATOR . '.env');
-    }
+if (class_exists(Env::class)) {
+    Env::load(dirname(__DIR__) . DIRECTORY_SEPARATOR . '.env');
 }
 
 date_default_timezone_set('Asia/Jakarta');
