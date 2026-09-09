@@ -2579,3 +2579,127 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
   color: #ffffff;
 }
+
+/* =========================================================
+   GALLERY CARD - CLICKABLE + HOVER
+   ========================================================= */
+
+.documentation-card {
+  position: relative;
+
+  overflow: hidden;
+
+  color: inherit;
+
+  text-decoration: none;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.25s ease,
+    border-color 0.25s ease,
+    background-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+
+/* HOVER CARD */
+
+.documentation-card:hover {
+  transform: translateY(-8px);
+
+  border-color: #00a8ff;
+
+  background: #08203b;
+
+  box-shadow:
+    0 20px 40px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(0, 168, 255, 0.1),
+    0 0 24px rgba(0, 168, 255, 0.08);
+}
+
+
+/* IMAGE */
+
+.documentation-card__image {
+  transition:
+    transform 0.35s ease,
+    filter 0.35s ease;
+}
+
+
+.documentation-card:hover .documentation-card__image {
+  transform: scale(1.035);
+
+  filter: brightness(1.06);
+}
+
+
+/* JUDUL */
+
+.documentation-card__title-row h2 {
+  transition: color 0.25s ease;
+}
+
+
+.documentation-card:hover
+.documentation-card__title-row h2 {
+  color: #ffffff;
+}
+
+
+/* PANAH */
+
+.documentation-card__arrow {
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  width: 24px;
+  height: 28px;
+
+  flex: 0 0 24px;
+
+  padding-top: 4px;
+
+  color: #fff9f9;
+
+  font-family: "Inter", sans-serif;
+  font-size: 24px;
+
+  line-height: 24px;
+
+  transition:
+    color 0.25s ease,
+    transform 0.25s ease;
+}
+
+
+.documentation-card:hover
+.documentation-card__arrow {
+  color: #00a8ff;
+
+  transform: translateX(5px);
+}
+
+
+/* TAG */
+
+.documentation-card__tag {
+  transition: color 0.25s ease;
+}
+
+
+.documentation-card:hover
+.documentation-card__tag {
+  color: #ff7d21;
+}
+
+
+/* KEYBOARD ACCESSIBILITY */
+
+.documentation-card:focus-visible {
+  outline: 2px solid #00a8ff;
+  outline-offset: 4px;
+}

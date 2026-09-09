@@ -56,33 +56,7 @@ function resolveGalleryImageUrl(item) {
 
   if (!rawUrl) return '';
 
-<<<<<<< HEAD
   return backendAssetUrl(rawUrl);
-=======
-  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(rawUrl)) {
-    try {
-      const localUrl = new URL(rawUrl);
-      const localPath = `${localUrl.pathname}${localUrl.search}`;
-      const normalizedLocalPath = localPath
-        .replace(/^\/+/, '')
-        .replace(/^storage\/uploads\//i, 'uploads/');
-
-      return `${API_BASE_URL}/${normalizedLocalPath}`;
-    } catch {
-      // Fall through to the regular URL handling below.
-    }
-  }
-
-  if (/^(https?:\/\/|data:image\/|blob:)/i.test(rawUrl)) {
-    return rawUrl;
-  }
-
-  const normalizedPath = rawUrl
-    .replace(/^\/+/, '')
-    .replace(/^storage\/uploads\//i, 'uploads/');
-
-  return `${API_BASE_URL}/${normalizedPath}`;
->>>>>>> bd05748 (update faq halaman proyek,gallery dan kontak)
 }
 
 function normalizeGallery(item) {
