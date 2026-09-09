@@ -7220,3 +7220,1013 @@
     min-height: 0;
   }
 }
+
+
+/* =========================================================
+   TUTORIAL DETAIL - BACK BUTTON + DAFTAR MATERI SCROLL
+========================================================= */
+
+/* ---------- TOMBOL KEMBALI ---------- */
+
+.tutorial-material-back-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-bottom: 14px;
+}
+
+.tutorial-material-back-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 40px;
+  gap: 9px;
+  padding: 0 14px;
+
+  border: 1px solid #d8dde6;
+  border-radius: 8px;
+
+  background: #ffffff;
+  color: #334155;
+
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+
+  text-decoration: none;
+
+  box-shadow:
+    0 4px 14px rgba(15, 23, 42, 0.035);
+
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.tutorial-material-back-link > span {
+  font-size: 17px;
+  line-height: 1;
+}
+
+.tutorial-material-back-link:hover {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+  transform: translateX(-2px);
+}
+
+/* ---------- LAYOUT ---------- */
+
+.tutorial-material-layout {
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 18px;
+  align-items: start;
+}
+
+/* ---------- SIDEBAR ---------- */
+
+/*
+  Sidebar kembali sticky.
+  Card Progress tetap terlihat, sedangkan daftar materi
+  memiliki scroll internal sendiri.
+*/
+.tutorial-material-sidebar {
+  position: sticky;
+  top: 18px;
+
+  align-self: start;
+
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+
+  width: 100%;
+  min-width: 0;
+}
+
+/* ---------- CARD DAFTAR MATERI ---------- */
+
+.tutorial-material-outline {
+  width: 100%;
+  min-width: 0;
+
+  overflow: hidden;
+
+  border: 1px solid #dfe5ee;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+/* Header Daftar Materi */
+.tutorial-material-outline-title {
+  padding: 14px 15px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tutorial-material-outline-title h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 13px;
+}
+
+/* Judul materi */
+.tutorial-material-outline-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  width: 100%;
+  min-height: 52px;
+
+  gap: 10px;
+  padding: 10px 14px;
+
+  border: 0;
+  border-bottom: 1px solid #e5e7eb;
+
+  background: #f8fafc;
+  color: #111827;
+
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.4;
+
+  text-align: left;
+  cursor: pointer;
+}
+
+.tutorial-material-outline-toggle > span {
+  min-width: 0;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- LIST YANG BISA DI-SCROLL ---------- */
+
+.tutorial-material-outline-list {
+  width: 100%;
+
+  /*
+    Ubah angka 560px jika ingin area scroll
+    lebih tinggi / lebih pendek.
+  */
+  max-height: 560px;
+
+  padding: 10px 8px 14px;
+
+  overflow-x: hidden;
+  overflow-y: auto;
+
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+
+/* Scrollbar Chrome / Edge */
+.tutorial-material-outline-list::-webkit-scrollbar {
+  width: 7px;
+}
+
+.tutorial-material-outline-list::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 999px;
+}
+
+.tutorial-material-outline-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+.tutorial-material-outline-list::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Firefox */
+.tutorial-material-outline-list {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+/* ---------- BAB ---------- */
+
+.tutorial-material-chapter-group {
+  display: block;
+  width: 100%;
+}
+
+.tutorial-material-chapter-group
+  + .tutorial-material-chapter-group {
+  margin-top: 16px;
+}
+
+.tutorial-material-chapter-title {
+  padding: 10px 8px 7px;
+}
+
+.tutorial-material-chapter-title > span,
+.tutorial-material-chapter-title > strong {
+  display: block;
+}
+
+.tutorial-material-chapter-title > span {
+  margin-bottom: 4px;
+
+  color: #94a3b8;
+
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1.3;
+
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tutorial-material-chapter-title > strong {
+  color: #1f2937;
+
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.45;
+
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- MATERI ---------- */
+
+.tutorial-material-chapter-lessons {
+  display: grid;
+  gap: 5px;
+}
+
+.tutorial-material-outline-item {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: start;
+
+  width: 100%;
+  min-height: 42px;
+
+  gap: 9px;
+  padding: 8px 9px;
+
+  border: 1px solid transparent;
+  border-radius: 6px;
+
+  background: transparent;
+  color: #4b5563;
+
+  font: inherit;
+  font-size: 10px;
+  line-height: 1.45;
+
+  text-align: left;
+  cursor: pointer;
+}
+
+.tutorial-material-outline-item > span:last-child {
+  min-width: 0;
+  padding-top: 1px;
+
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.tutorial-material-status-dot {
+  flex: none;
+  margin-top: 1px;
+}
+
+.tutorial-material-outline-overview {
+  margin-bottom: 10px;
+}
+
+/* ---------- RESPONSIVE ---------- */
+
+@media (max-width: 980px) {
+  .tutorial-material-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .tutorial-material-sidebar {
+    position: static;
+    grid-row: 1;
+
+    grid-template-columns:
+      minmax(0, 0.75fr)
+      minmax(0, 1.25fr);
+  }
+
+  .tutorial-material-outline-list {
+    max-height: 500px;
+  }
+}
+
+@media (max-width: 680px) {
+  .tutorial-material-back-wrap {
+    margin-bottom: 12px;
+  }
+
+  .tutorial-material-back-link {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .tutorial-material-sidebar {
+    grid-template-columns: 1fr;
+  }
+
+  .tutorial-material-outline-list {
+    max-height: 430px;
+  }
+
+  .tutorial-material-outline-toggle {
+    min-height: 50px;
+  }
+
+  .tutorial-material-outline-item {
+    min-height: 44px;
+    padding: 9px 8px;
+  }
+}
+
+/* =========================================================
+   TUTORIAL - PILIH JALUR BELAJARMU
+   Layout lebih rapi, fleksibel, dan responsive.
+   File ini sengaja dibuat sebagai override agar tidak perlu
+   membongkar tutorial.css lama.
+========================================================= */
+
+.tutorial-path-section {
+  position: relative;
+  height: auto !important;
+  min-height: 0 !important;
+
+  padding: 88px 24px 96px !important;
+
+  overflow: hidden;
+
+  color: #f6f9ff;
+
+  background:
+    radial-gradient(
+      70% 100% at 88% 15%,
+      rgba(0, 164, 255, 0.07),
+      transparent 48%
+    ),
+    radial-gradient(
+      65% 100% at 5% 92%,
+      rgba(255, 94, 10, 0.06),
+      transparent 44%
+    ),
+    #030b1e;
+
+  font-family:
+    'Rajdhani',
+    Arial,
+    Helvetica,
+    sans-serif;
+}
+
+.tutorial-path-inner {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+
+  display: flex;
+  flex-direction: column;
+
+  width: min(1240px, 100%) !important;
+  height: auto !important;
+  min-height: 0 !important;
+
+  margin: 0 auto !important;
+}
+
+/* =========================================================
+   HEADING
+========================================================= */
+
+.tutorial-path-heading {
+  position: static !important;
+
+  display: grid;
+  justify-items: center;
+
+  width: min(760px, 100%) !important;
+  height: auto !important;
+
+  margin: 0 auto 46px !important;
+
+  gap: 14px !important;
+
+  text-align: center;
+}
+
+.tutorial-path-heading h2 {
+  margin: 0;
+
+  color: #f6f9ff;
+
+  font-family:
+    'Orbitron',
+    'Rajdhani',
+    Arial,
+    Helvetica,
+    sans-serif;
+
+  font-size: clamp(30px, 3.2vw, 42px) !important;
+  font-weight: 700;
+  line-height: 1.15 !important;
+
+  letter-spacing: -0.02em;
+
+  text-transform: uppercase;
+}
+
+.tutorial-path-heading p {
+  max-width: 720px;
+
+  margin: 0;
+
+  color: #8da4be;
+
+  font-size: 18px !important;
+  font-weight: 500;
+  line-height: 1.55 !important;
+}
+
+/* =========================================================
+   CARD GRID
+========================================================= */
+
+.tutorial-path-cards {
+  position: static !important;
+  inset: auto !important;
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(4, minmax(0, 1fr)) !important;
+
+  align-items: stretch;
+  justify-content: stretch !important;
+
+  width: 100% !important;
+  height: auto !important;
+
+  margin: 0 !important;
+
+  gap: 20px !important;
+}
+
+.tutorial-path-card {
+  position: relative !important;
+
+  display: flex !important;
+  flex-direction: column;
+
+  width: 100% !important;
+  height: auto !important;
+
+  min-width: 0;
+  min-height: 286px !important;
+
+  padding: 26px 24px 22px !important;
+
+  overflow: hidden;
+
+  border:
+    1px solid rgba(0, 164, 255, 0.24) !important;
+
+  border-radius: 12px !important;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(5, 22, 46, 0.94),
+      rgba(2, 14, 33, 0.9)
+    ) !important;
+
+  box-shadow:
+    0 14px 34px rgba(0, 0, 0, 0.12);
+
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.tutorial-path-card:hover {
+  transform: translateY(-4px);
+
+  border-color:
+    rgba(0, 164, 255, 0.55) !important;
+
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.18);
+}
+
+.tutorial-path-card::before {
+  content: '';
+
+  position: absolute;
+
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+
+  height: 3px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #ff5e0a 0%,
+      #ff7a1a 55%,
+      rgba(255, 122, 26, 0.28) 100%
+    );
+}
+
+/* =========================================================
+   ICON
+========================================================= */
+
+.tutorial-path-icon,
+.tutorial-path-icon.book-icon,
+.tutorial-path-icon.code-icon,
+.tutorial-path-card:nth-child(3) .tutorial-path-icon,
+.tutorial-path-card:nth-child(4) .tutorial-path-icon {
+  position: static !important;
+
+  display: grid;
+  place-items: center;
+
+  width: 46px !important;
+  height: 46px !important;
+
+  margin: 0 0 18px !important;
+
+  color: #00a4ff;
+}
+
+.tutorial-path-icon.code-icon {
+  width: 50px !important;
+}
+
+.tutorial-path-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* =========================================================
+   CARD CONTENT
+========================================================= */
+
+.tutorial-path-card h3,
+.tutorial-path-card:nth-child(3) h3,
+.tutorial-path-card:nth-child(4) h3 {
+  position: static !important;
+
+  width: 100% !important;
+  height: auto !important;
+  min-height: 58px;
+
+  margin: 0 !important;
+
+  color: #ff6410;
+
+  font-size: 23px !important;
+  font-weight: 700;
+  line-height: 1.18 !important;
+
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.tutorial-path-card p,
+.tutorial-path-card:nth-child(3) p,
+.tutorial-path-card:nth-child(4) p {
+  position: static !important;
+
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+
+  flex: 1;
+
+  margin: 9px 0 24px !important;
+
+  color: #9bacbf;
+
+  font-size: 15px !important;
+  font-weight: 500;
+  line-height: 1.5 !important;
+
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+/* =========================================================
+   BUTTON CARD
+========================================================= */
+
+.tutorial-path-card a,
+.tutorial-path-card button {
+  position: static !important;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 100% !important;
+  max-width: none !important;
+
+  height: 42px !important;
+  min-height: 42px;
+
+  margin: auto 0 0 !important;
+
+  padding: 0 14px !important;
+
+  border: 1px solid #00a4ff !important;
+  border-radius: 6px !important;
+
+  background:
+    rgba(5, 22, 46, 0.9) !important;
+
+  color: #f6f9ff;
+
+  font-size: 16px !important;
+  font-weight: 700;
+  line-height: 1;
+
+  text-decoration: none;
+
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.tutorial-path-card a:hover,
+.tutorial-path-card button:hover {
+  background: #00a4ff !important;
+
+  color: #021124;
+
+  border-color: #00a4ff !important;
+}
+
+/* =========================================================
+   FLOW HEADING
+========================================================= */
+
+.tutorial-flow-heading {
+  position: static !important;
+
+  display: grid;
+  justify-items: center;
+
+  width: min(820px, 100%) !important;
+  max-width: 820px !important;
+  height: auto !important;
+
+  margin: 88px auto 0 !important;
+
+  gap: 12px !important;
+
+  text-align: center;
+}
+
+.tutorial-flow-heading h2 {
+  margin: 0;
+
+  color: #f6f9ff;
+
+  font-family:
+    'Orbitron',
+    'Rajdhani',
+    Arial,
+    Helvetica,
+    sans-serif;
+
+  font-size: clamp(27px, 2.6vw, 36px) !important;
+  font-weight: 700;
+  line-height: 1.2 !important;
+
+  text-transform: uppercase;
+}
+
+.tutorial-flow-heading p {
+  max-width: 720px;
+
+  margin: 0;
+
+  color: #8da4be;
+
+  font-size: 17px !important;
+  line-height: 1.5 !important;
+}
+
+/* =========================================================
+   FLOW
+========================================================= */
+
+.tutorial-flow {
+  position: relative !important;
+
+  left: auto !important;
+  top: auto !important;
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(5, minmax(0, 1fr));
+
+  width: min(940px, 100%) !important;
+  height: auto !important;
+
+  margin: 42px auto 0 !important;
+}
+
+.tutorial-flow::before {
+  content: '';
+
+  position: absolute;
+
+  top: 19px !important;
+  left: 10% !important;
+  right: 10% !important;
+
+  width: auto !important;
+  height: 2px !important;
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(0, 164, 255, 0.45),
+      #00a4ff,
+      rgba(0, 164, 255, 0.45)
+    );
+}
+
+.tutorial-flow-step,
+.tutorial-flow-step:nth-child(1),
+.tutorial-flow-step:nth-child(2),
+.tutorial-flow-step:nth-child(3),
+.tutorial-flow-step:nth-child(4),
+.tutorial-flow-step:nth-child(5) {
+  position: relative !important;
+
+  left: auto !important;
+  top: auto !important;
+
+  z-index: 1;
+
+  display: grid;
+  justify-items: center;
+
+  width: 100% !important;
+  height: auto !important;
+
+  padding: 0 10px;
+
+  text-align: center;
+}
+
+.tutorial-flow-step span {
+  position: relative !important;
+
+  left: auto !important;
+  top: auto !important;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 40px !important;
+  height: 40px !important;
+
+  color: #f6f9ff;
+
+  background: #020e21;
+
+  border: 1px solid #00a4ff;
+  border-radius: 6px;
+
+  box-shadow:
+    0 0 0 6px #030b1e;
+
+  font-family:
+    'Orbitron',
+    'Rajdhani',
+    Arial,
+    Helvetica,
+    sans-serif;
+
+  font-size: 16px !important;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.tutorial-flow-step p,
+.tutorial-flow-step:nth-child(1) p,
+.tutorial-flow-step:nth-child(2) p,
+.tutorial-flow-step:nth-child(3) p,
+.tutorial-flow-step:nth-child(4) p,
+.tutorial-flow-step:nth-child(5) p {
+  position: static !important;
+
+  width: auto !important;
+
+  margin: 14px 0 0 !important;
+
+  color: #8da4be;
+
+  font-size: 14px !important;
+  font-weight: 700;
+  line-height: 1.35 !important;
+
+  text-align: center;
+}
+
+/* =========================================================
+   FLOW BUTTON
+========================================================= */
+
+.tutorial-flow-button {
+  position: static !important;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 250px !important;
+  height: 44px !important;
+
+  margin: 42px auto 0 !important;
+
+  padding: 0 22px !important;
+
+  border: 1px solid #00a4ff;
+  border-radius: 6px;
+
+  background: #05162e;
+
+  color: #f6f9ff;
+
+  font-size: 15px !important;
+  font-weight: 700;
+  line-height: 1;
+
+  text-decoration: none;
+
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.tutorial-flow-button:hover {
+  background: #00a4ff;
+  color: #021124;
+}
+
+/* =========================================================
+   TABLET
+========================================================= */
+
+@media (max-width: 1050px) {
+  .tutorial-path-section {
+    padding:
+      76px 28px 88px !important;
+  }
+
+  .tutorial-path-cards {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr)) !important;
+
+    gap: 18px !important;
+  }
+
+  .tutorial-path-card {
+    min-height: 260px !important;
+  }
+}
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 680px) {
+  .tutorial-path-section {
+    padding:
+      58px 16px 70px !important;
+  }
+
+  .tutorial-path-heading {
+    margin-bottom: 32px !important;
+  }
+
+  .tutorial-path-heading h2 {
+    font-size:
+      clamp(27px, 9vw, 34px) !important;
+  }
+
+  .tutorial-path-heading p {
+    font-size: 16px !important;
+  }
+
+  .tutorial-path-cards {
+    grid-template-columns: 1fr !important;
+
+    gap: 16px !important;
+  }
+
+  .tutorial-path-card {
+    min-height: 0 !important;
+
+    padding:
+      24px 20px 20px !important;
+  }
+
+  .tutorial-path-card h3,
+  .tutorial-path-card:nth-child(3) h3,
+  .tutorial-path-card:nth-child(4) h3 {
+    min-height: 0;
+
+    font-size: 22px !important;
+  }
+
+  .tutorial-path-card p,
+  .tutorial-path-card:nth-child(3) p,
+  .tutorial-path-card:nth-child(4) p {
+    margin-bottom: 20px !important;
+  }
+
+  .tutorial-flow-heading {
+    margin-top: 66px !important;
+  }
+
+  .tutorial-flow {
+    grid-template-columns: 1fr;
+
+    gap: 18px;
+
+    width: min(420px, 100%) !important;
+
+    margin-top: 32px !important;
+  }
+
+  .tutorial-flow::before {
+    top: 20px !important;
+    bottom: 20px;
+
+    left: 19px !important;
+    right: auto !important;
+
+    width: 2px !important;
+    height: auto !important;
+  }
+
+  .tutorial-flow-step,
+  .tutorial-flow-step:nth-child(1),
+  .tutorial-flow-step:nth-child(2),
+  .tutorial-flow-step:nth-child(3),
+  .tutorial-flow-step:nth-child(4),
+  .tutorial-flow-step:nth-child(5) {
+    grid-template-columns:
+      40px minmax(0, 1fr);
+
+    align-items: center;
+    justify-items: start;
+
+    gap: 14px;
+
+    padding: 0;
+
+    text-align: left;
+  }
+
+  .tutorial-flow-step p,
+  .tutorial-flow-step:nth-child(1) p,
+  .tutorial-flow-step:nth-child(2) p,
+  .tutorial-flow-step:nth-child(3) p,
+  .tutorial-flow-step:nth-child(4) p,
+  .tutorial-flow-step:nth-child(5) p {
+    margin: 0 !important;
+
+    text-align: left;
+  }
+
+  .tutorial-flow-button {
+    width: 100% !important;
+
+    margin-top: 34px !important;
+  }
+}

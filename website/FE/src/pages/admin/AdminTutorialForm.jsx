@@ -1447,13 +1447,27 @@ function AdminTutorialForm({ mode = 'create' }) {
           <div className="admin-tutorial-create-two">
             <label>
               <span className="admin-tutorial-label">
-                Kategori / Jalur<span className="admin-tutorial-required">*</span>
+                Kategori<span className="admin-tutorial-required">*</span>
               </span>
-              <select ref={categoryRef} className={errors.category ? 'is-error' : ''} name="category" value={formData.category} onChange={handleChange} aria-invalid={Boolean(errors.category)}>
-                <option value="" disabled>Pilih jalur materi</option>
-                <option value="panduan-pemula">Panduan Pemula</option>
-                <option value="penggunaan-ide">Penggunaan IDE</option>
-                <option value="dasar-hardware-iot">Dasar Hardware dan IoT</option>
+              <select
+                ref={categoryRef}
+                className={errors.category ? 'is-error' : ''}
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                aria-invalid={Boolean(errors.category)}
+              >
+                <option value="" disabled>
+                  Pilih kategori materi
+                </option>
+                <option value="IoT">IoT</option>
+                <option value="ArduFlow">ArduFlow</option>
+                <option value="Arduino">Arduino</option>
+                <option value="ESP32">ESP32</option>
+                <option value="Sensor">Sensor</option>
+                <option value="Visual Programming">Visual Programming</option>
+                <option value="MQTT">MQTT</option>
+                <option value="Project">Project</option>
               </select>
               {errors.category && <small className="admin-tutorial-error">{errors.category}</small>}
             </label>
@@ -2492,15 +2506,14 @@ function AdminTutorialForm({ mode = 'create' }) {
                   onChange={handleChange}
                 >
                   <option value="">Pilih kategori</option>
-                  <option value="panduan-pemula">
-                    Panduan Pemula
-                  </option>
-                  <option value="penggunaan-ide">
-                    Penggunaan IDE
-                  </option>
-                  <option value="dasar-hardware-iot">
-                    Dasar Hardware dan IoT
-                  </option>
+                 <option value="IoT">IoT</option>
+                <option value="ArduFlow">ArduFlow</option>
+                <option value="Arduino">Arduino</option>
+                <option value="ESP32">ESP32</option>
+                <option value="Sensor">Sensor</option>
+                <option value="Visual Programming">Visual Programming</option>
+                <option value="MQTT">MQTT</option>
+                <option value="Project">Project</option>
                 </select>
 
                 <small>Pilih jalur atau kategori materi.</small>

@@ -6,6 +6,20 @@ import courseImage from '../../assets/images/workshop-experience-student.png';
 import { fetchTutorialArticles, isPublishedTutorial } from '../../services/materiApi.js';
 import { UserDashboardTopbar } from './UserDashboardTopbar.jsx';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
+import {
+  LEARNING_PROGRESS_EVENT,
+  calculateTutorialProgress,
+  readTutorialProgress,
+} from '../../utils/learningProgress.js';
+
+
+const DEPLOY_URL = (
+  import.meta.env.VITE_DEPLOY_URL ||
+  'https://arduflow.indobilliard.com/apk/uploads/web-arduflow-deploy-alfha'
+).replace(/\/+$/, '');
+
+const MATERI_IMAGE_BASE_URL =
+  `${DEPLOY_URL}/uploads/materi`;
 
 const menuItems = [
   { label: 'Profil', icon: 'user', href: '/dashboard' },
@@ -29,15 +43,321 @@ function getStoredUser() {
   }
 }
 
-function getCourseProgress(course) {
-  const progress = Number(course.progress ?? course.completedProgress ?? course.completion ?? 0);
-  return Number.isFinite(progress) ? Math.max(0, Math.min(100, progress)) : 0;
+
+function resolveMateriImage(
+  value,
+  fallbackFileName = ''
+) {
+  const candidate = String(
+    value ||
+    fallbackFileName ||
+    ''
+  ).trim();
+
+  if (!candidate) {
+    return '';
+  }
+
+  if (
+    /^(data:image\/|blob:)/i.test(
+      candidate
+    )
+  ) {
+    return candidate;
+  }
+
+  try {
+    const parsed = new URL(
+      candidate,
+      window.location.origin
+    );
+
+    const queryFile =
+      parsed.searchParams.get('file');
+
+    if (queryFile) {
+      const fileName = String(
+        queryFile
+      )
+        .replace(/\\/g, '/')
+        .split('/')
+        .pop();
+
+      if (fileName) {
+        return `${MATERI_IMAGE_BASE_URL}/${encodeURIComponent(
+          fileName
+        )}`;
+      }
+    }
+
+    if (
+      parsed.pathname.includes(
+        '/uploads/materi/'
+      )
+    ) {
+      /*
+       * URL absolut production boleh langsung dipakai.
+       * Jika path relatif dari localhost, bangun ulang
+       * memakai folder uploads/materi production.
+       */
+      if (
+        /^https?:\/\//i.test(candidate)
+      ) {
+        return candidate;
+      }
+
+      const fileName =
+        decodeURIComponent(
+          parsed.pathname
+        )
+          .split('/')
+          .pop();
+
+      if (fileName) {
+        return `${MATERI_IMAGE_BASE_URL}/${encodeURIComponent(
+          fileName
+        )}`;
+      }
+    }
+
+    const absoluteFileName =
+      decodeURIComponent(
+        parsed.pathname
+      )
+        .split('/')
+        .pop();
+
+    if (
+      absoluteFileName &&
+      /\.(png|jpe?g|webp|gif|svg)$/i.test(
+        absoluteFileName
+      )
+    ) {
+      return `${MATERI_IMAGE_BASE_URL}/${encodeURIComponent(
+        absoluteFileName
+      )}`;
+    }
+  } catch {
+    // Lanjut sebagai nama/path file.
+  }
+
+  const normalized =
+    candidate.replace(/\\/g, '/');
+
+  const fileName =
+    normalized.split('/').pop();
+
+  if (
+    !fileName ||
+    !/\.(png|jpe?g|webp|gif|svg)$/i.test(
+      fileName
+    )
+  ) {
+    return '';
+  }
+
+  return `${MATERI_IMAGE_BASE_URL}/${encodeURIComponent(
+    fileName
+  )}`;
 }
 
-function getCourseMeta(course) {
-  const slideCount = Number(course.totalSlides || course.slides?.length || 0);
-  const duration = course.estimatedTime || 'Durasi belum diatur';
-  const pages = slideCount > 0 ? `${slideCount} halaman` : 'Halaman belum diatur';
+
+function getCourseImage(course) {
+  return (
+    resolveMateriImage(
+      course?.cardImageUrl ||
+      course?.card_image_url ||
+      course?.cardImagePath ||
+      course?.card_image_path ||
+      course?.imageUrl ||
+      course?.image_url ||
+      '',
+      course?.cardImageName ||
+      course?.card_image_name ||
+      course?.imageName ||
+      course?.image_name ||
+      ''
+    ) ||
+    courseImage
+  );
+}
+
+
+function getCourseHref(course) {
+  const slug = String(
+    course?.slug ||
+    course?.urlSlug ||
+    course?.url_slug ||
+    ''
+  ).trim();
+
+  if (slug) {
+    return `/materi/${encodeURIComponent(
+      slug
+    )}`;
+  }
+
+  if (course?.id) {
+    return `/tutorial/detail?id=${encodeURIComponent(
+      course.id
+    )}`;
+  }
+
+  return '/materi';
+}
+
+
+function getCourseStoredProgress(course) {
+  if (!course?.id) {
+    return {
+      completedSlideIds: [],
+      completedCount: 0,
+      totalSlides: 0,
+      progress: 0,
+      updatedAt: '',
+    };
+  }
+
+  return readTutorialProgress(
+    course.id
+  );
+}
+
+
+/*
+ * Materi hanya masuk halaman Progres Belajar
+ * setelah pernah dibuka oleh user.
+ *
+ * TutorialDetail versi terbaru menulis summary
+ * progress saat halaman materi pertama kali dibuka,
+ * walaupun progress masih 0%.
+ */
+function hasCourseHistory(course) {
+  const stored =
+    getCourseStoredProgress(course);
+
+  return Boolean(
+    stored.updatedAt ||
+    stored.completedSlideIds.length > 0 ||
+    stored.progress > 0
+  );
+}
+
+
+function getCourseLastOpenedTime(course) {
+  const stored =
+    getCourseStoredProgress(course);
+
+  const timestamp =
+    new Date(
+      stored.updatedAt || 0
+    ).getTime();
+
+  return Number.isFinite(timestamp)
+    ? timestamp
+    : 0;
+}
+
+function getCourseProgressData(course) {
+  const stored =
+    getCourseStoredProgress(
+      course
+    );
+
+  const apiSlideCount = Number(
+    course?.totalSlides ||
+    course?.total_slides ||
+    course?.slides?.length ||
+    0
+  );
+
+  const totalSlides =
+    stored.totalSlides > 0
+      ? stored.totalSlides
+      : Math.max(
+          0,
+          apiSlideCount
+        );
+
+  if (
+    totalSlides > 0 ||
+    stored.completedSlideIds.length > 0
+  ) {
+    const completedCount =
+      Math.min(
+        totalSlides,
+        stored
+          .completedSlideIds
+          .length
+      );
+
+    return {
+      progress:
+        calculateTutorialProgress(
+          totalSlides,
+          stored
+            .completedSlideIds
+        ),
+      completedCount,
+      totalSlides,
+    };
+  }
+
+  /*
+   * Fallback untuk data lama jika API
+   * pernah mengirim progress langsung.
+   */
+  const apiProgress = Number(
+    course?.progress ??
+    course?.completedProgress ??
+    course?.completion ??
+    0
+  );
+
+  return {
+    progress:
+      Number.isFinite(apiProgress)
+        ? Math.max(
+            0,
+            Math.min(
+              100,
+              apiProgress
+            )
+          )
+        : 0,
+    completedCount: 0,
+    totalSlides,
+  };
+}
+
+function getCourseProgress(course) {
+  return getCourseProgressData(
+    course
+  ).progress;
+}
+
+function getCourseMeta(
+  course,
+  progressData
+) {
+  const slideCount = Number(
+    progressData?.totalSlides ||
+    course?.totalSlides ||
+    course?.total_slides ||
+    course?.slides?.length ||
+    0
+  );
+
+  const duration =
+    course?.estimatedTime ||
+    course?.estimated_time ||
+    'Durasi belum diatur';
+
+  const pages =
+    slideCount > 0
+      ? `${slideCount} materi`
+      : 'Jumlah materi belum diatur';
+
   return `${duration}, ${pages}`;
 }
 
@@ -78,7 +398,8 @@ export function UserLearningProgress() {
   const [isLoadingCourses, setIsLoadingCourses] = useState(true);
   const [coursesError, setCoursesError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortMode, setSortMode] = useState('Relevance');
+  const [sortMode, setSortMode] = useState('Terakhir Dibuka');
+  const [progressVersion, setProgressVersion] = useState(0);
   const user = getStoredUser();
   const fullName = user.name || user.fullName || 'Nama Lengkap';
   const greetingName = user.nickname || fullName;
@@ -116,25 +437,141 @@ export function UserLearningProgress() {
     };
   }, []);
 
-  const displayedCourses = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
-    const filteredCourses = courses.filter((course) => {
-      if (!query) return true;
-      return [course.title, course.category, course.shortDescription, course.difficulty]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(query));
-    });
+  useEffect(() => {
+    const refreshProgress = () => {
+      setProgressVersion(
+        (value) => value + 1
+      );
+    };
 
-    return [...filteredCourses].sort((left, right) => {
+    window.addEventListener(
+      LEARNING_PROGRESS_EVENT,
+      refreshProgress
+    );
+
+    window.addEventListener(
+      'storage',
+      refreshProgress
+    );
+
+    return () => {
+      window.removeEventListener(
+        LEARNING_PROGRESS_EVENT,
+        refreshProgress
+      );
+
+      window.removeEventListener(
+        'storage',
+        refreshProgress
+      );
+    };
+  }, []);
+
+  /*
+   * Halaman Progres Belajar diperlakukan seperti histori.
+   * Materi yang baru dipublish TIDAK langsung muncul.
+   * Materi baru masuk setelah user pernah membuka detailnya.
+   */
+  const historyCourses =
+    useMemo(
+      () =>
+        courses.filter(
+          hasCourseHistory
+        ),
+      [
+        courses,
+        progressVersion,
+      ]
+    );
+
+
+  const displayedCourses = useMemo(() => {
+    const query =
+      searchTerm
+        .trim()
+        .toLowerCase();
+
+    const filteredCourses =
+      historyCourses.filter(
+        (course) => {
+          if (!query) {
+            return true;
+          }
+
+          return [
+            course.title,
+            course.category,
+            course.shortDescription,
+            course.short_description,
+            course.difficulty,
+            course.difficultyLevel,
+            course.difficulty_level,
+          ]
+            .filter(Boolean)
+            .some(
+              (value) =>
+                String(value)
+                  .toLowerCase()
+                  .includes(query)
+            );
+        }
+      );
+
+    return [
+      ...filteredCourses,
+    ].sort((left, right) => {
+      if (
+        sortMode ===
+        'Terakhir Dibuka'
+      ) {
+        return (
+          getCourseLastOpenedTime(
+            right
+          ) -
+          getCourseLastOpenedTime(
+            left
+          )
+        );
+      }
+
       if (sortMode === 'Terbaru') {
-        return new Date(right.updatedAt || right.createdAt || 0) - new Date(left.updatedAt || left.createdAt || 0);
+        return (
+          new Date(
+            right.updatedAt ||
+            right.updated_at ||
+            right.createdAt ||
+            right.created_at ||
+            0
+          ) -
+          new Date(
+            left.updatedAt ||
+            left.updated_at ||
+            left.createdAt ||
+            left.created_at ||
+            0
+          )
+        );
       }
-      if (sortMode === 'Progress') {
-        return getCourseProgress(right) - getCourseProgress(left);
+
+      if (
+        sortMode === 'Progress'
+      ) {
+        return (
+          getCourseProgress(right) -
+          getCourseProgress(left)
+        );
       }
-      return getCourseOrder(left) - getCourseOrder(right);
+
+      return (
+        getCourseOrder(left) -
+        getCourseOrder(right)
+      );
     });
-  }, [courses, searchTerm, sortMode]);
+  }, [
+    historyCourses,
+    searchTerm,
+    sortMode,
+  ]);
 
   function handleLogout() {
     window.localStorage.removeItem('arduflow_user');
@@ -197,7 +634,7 @@ export function UserLearningProgress() {
 
           <section className="user-progress-panel" aria-labelledby="progress-title">
             <div className="user-progress-header">
-              <h2 id="progress-title">Progres Belajar (total course)</h2>
+              <h2 id="progress-title">Progres Belajar ({historyCourses.length} materi)</h2>
               <div className="user-progress-toolbar">
                 <label className="user-progress-search">
                   <span className="sr-only">Cari materi</span>
@@ -209,7 +646,7 @@ export function UserLearningProgress() {
                   <div className="user-progress-sort">
                     <span>Urutkan</span>
                     <select value={sortMode} aria-label="Urutkan materi" onChange={(event) => setSortMode(event.target.value)}>
-                      <option>Relevance</option>
+                      <option>Terakhir Dibuka</option>
                       <option>Terbaru</option>
                       <option>Progress</option>
                     </select>
@@ -228,19 +665,128 @@ export function UserLearningProgress() {
               ) : coursesError ? (
                 <p>{coursesError}</p>
               ) : displayedCourses.length === 0 ? (
-                <p>Belum ada materi yang tersedia.</p>
+                <p>
+                  Belum ada riwayat materi. Buka salah satu materi terlebih dahulu,
+                  lalu materi tersebut akan muncul di halaman ini.
+                </p>
               ) : (
                 displayedCourses.map((course) => {
-                  const progress = getCourseProgress(course);
+                  const progressData =
+                    getCourseProgressData(
+                      course
+                    );
+
+                  const progress =
+                    progressData.progress;
+
+                  const imageUrl =
+                    getCourseImage(
+                      course
+                    );
+
+                  const detailUrl =
+                    getCourseHref(
+                      course
+                    );
+
+                  const openCourse = () => {
+                    window.location.href =
+                      detailUrl;
+                  };
+
                   return (
-                    <article className="user-course-card" key={course.id || course.slug}>
-                      <img src={courseImage} alt="" />
-                      <h3>{course.title || 'Materi tanpa judul'}</h3>
-                      <p>{course.category || 'Tanpa kategori'}</p>
-                      <div className="user-course-card__progress" aria-hidden="true">
-                        <span style={{ width: `${progress}%` }} />
+                    <article
+                      className="user-course-card"
+                      key={
+                        course.id ||
+                        course.slug
+                      }
+                      role="link"
+                      tabIndex={0}
+                      aria-label={`Buka materi ${
+                        course.title ||
+                        'Materi'
+                      }`}
+                      title="Buka materi"
+                      onClick={openCourse}
+                      onKeyDown={(
+                        event
+                      ) => {
+                        if (
+                          event.key ===
+                            'Enter' ||
+                          event.key ===
+                            ' '
+                        ) {
+                          event.preventDefault();
+                          openCourse();
+                        }
+                      }}
+                      style={{
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <img
+                        src={imageUrl}
+                        alt={
+                          course.title ||
+                          'Cover materi'
+                        }
+                        loading="lazy"
+                        onError={(
+                          event
+                        ) => {
+                          event.currentTarget.onerror =
+                            null;
+
+                          event.currentTarget.src =
+                            courseImage;
+                        }}
+                      />
+
+                      <h3>
+                        {course.title ||
+                          'Materi tanpa judul'}
+                      </h3>
+
+                      <p>
+                        {course.category ||
+                          'Tanpa kategori'}
+                      </p>
+
+                      <div
+                        className="user-course-card__progress"
+                        role="progressbar"
+                        aria-label={`Progress ${progress}%`}
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                        aria-valuenow={
+                          progress
+                        }
+                      >
+                        <span
+                          style={{
+                            width:
+                              `${progress}%`,
+                          }}
+                        />
                       </div>
-                      <small>{getCourseMeta(course)}</small>
+
+                      <small>
+                        {progress}% selesai
+
+                        {progressData.totalSlides >
+                        0
+                          ? ` · ${progressData.completedCount}/${progressData.totalSlides} materi`
+                          : ''}
+
+                        {' · '}
+
+                        {getCourseMeta(
+                          course,
+                          progressData
+                        )}
+                      </small>
                     </article>
                   );
                 })

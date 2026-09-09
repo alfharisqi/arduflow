@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import tutorialDevice from '../assets/images/tutorial-device.png';
 import { fetchPublishedArticles } from '../services/articleApi.js';
 
@@ -138,6 +138,39 @@ export function Tutorial() {
   const [articles, setArticles] = useState([]);
   const [articleStatus, setArticleStatus] = useState('loading');
   const [articleError, setArticleError] = useState('');
+
+  // Pastikan URL /tutorial/#artikel-terbaru langsung menuju
+  // section Artikel Terbaru tanpa animasi/delay scroll.
+  useLayoutEffect(() => {
+    if (window.location.hash !== '#artikel-terbaru') {
+      return undefined;
+    }
+
+    const scrollToLatestArticles = () => {
+      const target = document.getElementById('artikel-terbaru');
+
+      if (!target) {
+        return;
+      }
+
+      const root = document.documentElement;
+      const previousScrollBehavior = root.style.scrollBehavior;
+
+      root.style.scrollBehavior = 'auto';
+      target.scrollIntoView({
+        behavior: 'auto',
+        block: 'start',
+      });
+      root.style.scrollBehavior = previousScrollBehavior;
+    };
+
+    scrollToLatestArticles();
+    window.addEventListener('hashchange', scrollToLatestArticles);
+
+    return () => {
+      window.removeEventListener('hashchange', scrollToLatestArticles);
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -288,13 +321,13 @@ export function Tutorial() {
             ))}
           </div>
 
-          <a
-            className="tutorial-flow-button"
-            href="/materi"
-          >
-            Buka Semua Materi
-          </a>
-        </div>
+<a
+  className="tutorial-flow-button"
+  href="/materi#semua-materi"
+>
+  Buka Semua Materi
+</a>
+</div>
       </section>
 
       <section
@@ -319,7 +352,7 @@ export function Tutorial() {
 
             <a href="/artikel">
               Lihat Semua Artikel
-              <span aria-hidden="true"> →</span>
+              <span aria-hidden="true"></span>
             </a>
           </div>
 
@@ -408,7 +441,7 @@ export function Tutorial() {
 
                         <a href={detailUrl}>
                           Baca Artikel
-                          <span aria-hidden="true"> →</span>
+                          <span aria-hidden="true"></span>
                         </a>
                       </div>
                     </div>
