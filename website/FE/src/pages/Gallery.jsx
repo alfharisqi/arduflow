@@ -97,9 +97,14 @@ function Avatar() {
 }
 
 function GalleryCard({ item }) {
-  return (
-    <article className="documentation-card">
+  const detailHref = galleryDetailHref(item);
 
+  return (
+    <a
+      href={detailHref}
+      className="documentation-card"
+      aria-label={`Buka detail galeri ${item.title}`}
+    >
       <img
         className="documentation-card__image"
         src={item.imageUrl || fallbackImage}
@@ -107,42 +112,34 @@ function GalleryCard({ item }) {
       />
 
       <div className="documentation-card__content">
-
         <div className="documentation-card__text">
-
           <span className="documentation-card__tag">
             {item.tag}
           </span>
 
           <div className="documentation-card__title-row">
-
             <h2>
               {item.title}
             </h2>
 
-            <a
-              href={galleryDetailHref(item)}
-              aria-label={`Buka ${item.title}`}
+            <span
+              className="documentation-card__arrow"
+              aria-hidden="true"
             >
               -&gt;
-            </a>
-
+            </span>
           </div>
 
           <p>
             {item.description ||
               'Belum ada deskripsi dokumentasi.'}
           </p>
-
         </div>
 
-
         <div className="documentation-card__author">
-
           <Avatar />
 
           <div>
-
             <strong>
               {item.userName}
             </strong>
@@ -150,14 +147,10 @@ function GalleryCard({ item }) {
             <span>
               {formatGalleryDate(item.eventDate)}
             </span>
-
           </div>
-
         </div>
-
       </div>
-
-    </article>
+    </a>
   );
 }
 
