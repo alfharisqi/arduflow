@@ -1,26 +1,169 @@
-.workshop-detail-page {
-  min-height: 1024px;
-  color: #f2f7ff;
-  background:
-    radial-gradient(94.74% 149.33% at 80% 20%, rgba(0, 162, 255, 0.3) 0%, rgba(0, 162, 255, 0) 40%),
-    radial-gradient(94.74% 149.33% at 20% 80%, rgba(255, 106, 0, 0.4) 0%, rgba(255, 106, 0, 0) 40%),
-    #030b1e;
-  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
+/* =========================================================
+   WORKSHOP DETAIL
+========================================================= */
+
+.workshop-detail-page,
+.workshop-detail-page * {
+  box-sizing: border-box;
 }
 
-.workshop-detail-shell {
-  width: min(100% - 144px, 1296px);
-  margin: 0 auto;
-  padding: 50px 0 60px;
+
+.workshop-detail-page {
+  min-height: 1024px;
+
+  color: #f2f7ff;
+
+  background:
+    radial-gradient(
+      94.74% 149.33% at 80% 20%,
+      rgba(0, 162, 255, 0.3) 0%,
+      rgba(0, 162, 255, 0) 40%
+    ),
+    radial-gradient(
+      94.74% 149.33% at 20% 80%,
+      rgba(255, 106, 0, 0.4) 0%,
+      rgba(255, 106, 0, 0) 40%
+    ),
+    #030b1e;
+
+  font-family:
+    'Rajdhani',
+    Arial,
+    Helvetica,
+    sans-serif;
 }
+
+
+/* =========================================================
+   CONTAINER
+========================================================= */
+
+.workshop-detail-shell {
+  width: min(
+    calc(100% - 144px),
+    1296px
+  );
+
+  margin: 0 auto;
+
+  padding:
+    8px
+    0
+    60px;
+}
+
+
+/* =========================================================
+   TOMBOL KEMBALI
+========================================================= */
+
+.workshop-detail-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  margin: 0 0 18px;
+}
+
+
+.workshop-detail-back-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid #164061;
+  border-radius: 6px;
+  color: #36d7ff;
+  background: rgba(5, 19, 38, 0.88);
+  font-family:
+    'Rajdhani',
+    Arial,
+    Helvetica,
+    sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+
+.workshop-detail-back-button:hover,
+.workshop-detail-back-button:focus-visible {
+  border-color: #ff6a00;
+  color: #ff8a35;
+  background: rgba(255, 106, 0, 0.08);
+  box-shadow: 0 12px 28px -20px rgba(255, 106, 0, 0.9);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+
+.workshop-detail-back-icon {
+  position: relative;
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
+
+
+.workshop-detail-back-icon::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 4px;
+  width: 7px;
+  height: 7px;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+
+
+.workshop-detail-back-icon::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 7px;
+  width: 10px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+
+/* =========================================================
+   HERO
+========================================================= */
 
 .workshop-detail-hero {
   display: grid;
-  grid-template-columns: minmax(0, 540px) minmax(420px, 650px);
+
+  grid-template-columns:
+    minmax(0, 540px)
+    minmax(0, 650px);
+
   align-items: center;
-  justify-content: space-between;
+
+  justify-content:
+    space-between;
+
   gap: 58px;
 }
+
+
+.workshop-detail-copy {
+  min-width: 0;
+}
+
 
 .workshop-detail-copy h1,
 .workshop-detail-copy p,
@@ -33,408 +176,1076 @@
   margin: 0;
 }
 
-.workshop-detail-state {
-  display: grid;
-  gap: 16px;
-  max-width: 720px;
-  padding: 32px;
-  border: 1px solid #0a4f7a;
-  border-radius: 18px;
-  background: #061b2e;
-  color: #94a8bf;
-  font-size: 20px;
-  line-height: 1.4;
-}
 
-.workshop-detail-state strong {
-  color: #f2f7ff;
-  font-size: 26px;
-}
-
-.workshop-detail-state a {
-  color: #ff5708;
-  font-weight: 700;
-}
+/* =========================================================
+   TITLE
+========================================================= */
 
 .workshop-detail-copy h1 {
-  max-width: 390px;
+  max-width: 470px;
+
   color: #f2f7ff;
-  font-size: clamp(42px, 4.25vw, 48px);
+
+  font-size:
+    clamp(
+      42px,
+      4.25vw,
+      48px
+    );
+
   font-weight: 700;
+
   line-height: 1.27;
+
   letter-spacing: 0;
 }
 
+
 .workshop-detail-copy p {
-  max-width: 492px;
+  max-width: 500px;
+
   margin-top: 20px;
+
   color: #94a8bf;
+
   font-size: 22px;
+
   font-weight: 400;
-  line-height: 1.27;
+
+  line-height: 1.4;
 }
+
+
+/* =========================================================
+   HERO SUMMARY CARDS
+========================================================= */
 
 .workshop-detail-chips {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 160px));
-  gap: 20px;
-  margin-top: 37px;
+
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    );
+
+  gap: 14px;
+
+  width: 100%;
+
+  max-width: 540px;
+
+  margin-top: 36px;
 }
 
+
+/* =========================================================
+   CARD
+========================================================= */
+
 .workshop-detail-chip {
-  display: flex;
+  display: grid;
+
+  grid-template-columns:
+    30px
+    minmax(0, 1fr);
+
   align-items: center;
-  gap: 15px;
-  min-height: 74px;
-  padding: 14px 18px;
-  border: 1px solid #0a4f7a;
-  border-radius: 12px;
-  background: #061b2e;
+
+  column-gap: 10px;
+
+  width: 100%;
+
+  min-width: 0;
+
+  /* Lebih compact agar Tingkat, Durasi, dan Platform tidak terlalu tinggi. */
+  min-height: 92px;
+
+  padding:
+    10px
+    12px;
+
+  overflow: hidden;
+
+  border:
+    1px solid
+    #0a5b8d;
+
+  border-radius: 14px;
+
+  background:
+    #061b2e;
 }
+
+
+/* =========================================================
+   CARD ICON
+========================================================= */
 
 .workshop-detail-chip-icon {
   display: grid;
+
   place-items: center;
-  width: 32px;
-  height: 32px;
-  flex: 0 0 auto;
+
+  width: 30px;
+
+  height: 30px;
+
+  min-width: 30px;
+
   color: #fdfdfd;
 }
 
-.workshop-detail-chip-icon svg,
-.workshop-detail-info-icon svg {
-  width: 100%;
-  height: 100%;
+
+.workshop-detail-chip-icon svg {
+  display: block;
+
+  width: 30px;
+
+  height: 30px;
 }
+
 
 .workshop-detail-chip-icon svg *,
 .workshop-detail-info-icon svg * {
   fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+
+  stroke:
+    currentColor;
+
+  stroke-linecap:
+    round;
+
+  stroke-linejoin:
+    round;
+
   stroke-width: 2.5;
 }
 
-.workshop-detail-chip small,
-.workshop-detail-info-item small {
+
+/* =========================================================
+   CARD TEXT WRAPPER
+========================================================= */
+
+.workshop-detail-chip-content {
+  display: flex;
+
+  flex-direction: column;
+
+  justify-content: center;
+
+  min-width: 0;
+
+  width: 100%;
+}
+
+
+/* =========================================================
+   CARD LABEL
+========================================================= */
+
+.workshop-detail-chip-content small {
   display: block;
+
+  width: 100%;
+
+  margin: 0 0 5px;
+
   color: #94a8bf;
-  font-weight: 400;
-}
 
-.workshop-detail-chip small {
   font-size: 15px;
-  line-height: 1.25;
+
+  font-weight: 400;
+
+  line-height: 1.1;
+
+  white-space: nowrap;
 }
 
-.workshop-detail-chip strong {
+
+/* =========================================================
+   CARD VALUE
+========================================================= */
+
+.workshop-detail-chip-content strong {
   display: block;
+
+  width: 100%;
+
+  max-width: 100%;
+
+  margin: 0;
+
   color: #f2f7ff;
+
   font-size: 20px;
+
   font-weight: 600;
-  line-height: 1.2;
+
+  line-height: 1.15;
+
+  letter-spacing: 0;
+
+  white-space: normal;
+
+  word-break: normal;
+
+  overflow-wrap: normal;
 }
+
+
+/*
+   Tingkat:
+   jangan sampai "Menengah"
+   terpotong / turun baris.
+*/
+
+.workshop-detail-chip--level
+.workshop-detail-chip-content strong {
+  white-space: nowrap;
+
+  font-size: 19px;
+}
+
+
+/*
+   Durasi:
+   "6 Jam" idealnya satu baris.
+*/
+
+.workshop-detail-chip--duration
+.workshop-detail-chip-content strong {
+  white-space: nowrap;
+
+  font-size: 20px;
+}
+
+
+/*
+   Platform boleh dua baris apabila
+   isi lebih panjang.
+*/
+
+.workshop-detail-chip--platform
+.workshop-detail-chip-content strong {
+  white-space: normal;
+
+  font-size: 19px;
+
+  line-height: 1.15;
+}
+
+
+/* =========================================================
+   HERO IMAGE
+========================================================= */
 
 .workshop-detail-image {
+  width: 100%;
+
+  min-width: 0;
+
   overflow: hidden;
+
   border-radius: 28px;
-  background: #061b2e;
+
+  background:
+    #061b2e;
 }
+
 
 .workshop-detail-image img {
   display: block;
+
   width: 100%;
+
   height: 360px;
+
   object-fit: cover;
-  object-position: center 44%;
+
+  object-position:
+    center 44%;
 }
+
+
+/* =========================================================
+   STATE
+========================================================= */
+
+.workshop-detail-state {
+  display: grid;
+
+  gap: 16px;
+
+  max-width: 720px;
+
+  padding: 32px;
+
+  border:
+    1px solid
+    #0a4f7a;
+
+  border-radius: 18px;
+
+  background:
+    #061b2e;
+
+  color:
+    #94a8bf;
+
+  font-size: 20px;
+
+  line-height: 1.4;
+}
+
+
+.workshop-detail-state strong {
+  color:
+    #f2f7ff;
+
+  font-size: 26px;
+}
+
+
+.workshop-detail-state a {
+  color:
+    #ff5708;
+
+  font-weight: 700;
+}
+
+
+/* =========================================================
+   INFO BAR
+========================================================= */
 
 .workshop-detail-info {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: clamp(24px, 4vw, 83px);
+
+  grid-template-columns:
+    repeat(
+      4,
+      minmax(0, 1fr)
+    );
+
+  gap:
+    clamp(
+      24px,
+      4vw,
+      83px
+    );
+
   margin-top: 25px;
-  padding: 26px 40px 26px;
-  border: 1px solid #0a4f7a;
+
+  padding:
+    26px
+    40px;
+
+  border:
+    1px solid
+    #0a4f7a;
+
   border-radius: 18px;
-  background: #061b2e;
+
+  background:
+    #061b2e;
 }
+
+
+/* =========================================================
+   INFO ITEM
+========================================================= */
 
 .workshop-detail-info-item {
   display: flex;
-  align-items: flex-start;
+
+  align-items:
+    flex-start;
+
   gap: 15px;
+
   min-width: 0;
 }
 
-.workshop-detail-info-icon {
-  display: grid;
-  place-items: center;
-  width: 50px;
-  height: 50px;
-  flex: 0 0 auto;
-  color: #ff5a00;
+
+.workshop-detail-info-content {
+  min-width: 0;
+
+  width: 100%;
 }
 
+
+.workshop-detail-info-icon {
+  display: grid;
+
+  place-items: center;
+
+  width: 50px;
+
+  height: 50px;
+
+  min-width: 50px;
+
+  color:
+    #ff5a00;
+}
+
+
+.workshop-detail-info-icon svg {
+  width: 100%;
+
+  height: 100%;
+}
+
+
 .workshop-detail-info-item small {
+  display: block;
+
+  color:
+    #94a8bf;
+
   font-size: 20px;
+
   font-weight: 500;
+
   line-height: 1.3;
 }
+
 
 .workshop-detail-info-item strong,
 .workshop-detail-info-item em {
   display: block;
+
   max-width: 100%;
-  overflow-wrap: anywhere;
+
+  overflow-wrap:
+    anywhere;
 }
+
 
 .workshop-detail-info-item strong {
   margin-top: 8px;
-  color: #f2f7ff;
+
+  color:
+    #f2f7ff;
+
   font-size: 24px;
+
   font-style: normal;
+
   font-weight: 600;
+
   line-height: 1.25;
 }
 
-.workshop-detail-info-item strong.accent {
-  color: #ff5708;
+
+.workshop-detail-info-item
+strong.accent {
+  color:
+    #ff5708;
 }
+
 
 .workshop-detail-info-item em {
   margin-top: 10px;
-  color: #94a8bf;
+
+  color:
+    #94a8bf;
+
   font-size: 16px;
+
   font-style: normal;
+
   font-weight: 400;
+
   line-height: 1.25;
 }
 
+
+/* =========================================================
+   BOTTOM
+========================================================= */
+
 .workshop-detail-bottom {
   display: grid;
-  grid-template-columns: minmax(0, 700px) minmax(360px, 564px);
+
+  grid-template-columns:
+    minmax(0, 700px)
+    minmax(360px, 564px);
+
   gap: 32px;
+
   margin-top: 43px;
 }
+
+
+/* =========================================================
+   ABOUT + CTA
+========================================================= */
 
 .workshop-detail-about,
 .workshop-detail-cta {
   border-radius: 18px;
-  background: #061b2e;
+
+  background:
+    #061b2e;
 }
+
 
 .workshop-detail-about {
   min-height: 270px;
-  padding: 40px 36px 31px;
-  border: 1px solid #0a4f7a;
+
+  padding:
+    40px
+    36px
+    31px;
+
+  border:
+    1px solid
+    #0a4f7a;
 }
+
 
 .workshop-detail-side-stack {
   display: grid;
+
   gap: 18px;
 }
 
+
+/* =========================================================
+   HEADINGS
+========================================================= */
+
 .workshop-detail-about h2,
 .workshop-detail-cta h2 {
-  color: #f2f7ff;
-  font-size: clamp(32px, 3vw, 40px);
+  color:
+    #f2f7ff;
+
+  font-size:
+    clamp(
+      32px,
+      3vw,
+      40px
+    );
+
   font-weight: 700;
+
   line-height: 1.28;
+
   letter-spacing: 0;
 }
 
+
 .workshop-detail-about h2 {
-  font-size: clamp(30px, 2.75vw, 36px);
+  font-size:
+    clamp(
+      30px,
+      2.75vw,
+      36px
+    );
 }
+
+
+/* =========================================================
+   ACCENT
+========================================================= */
 
 .workshop-detail-accent {
   display: block;
+
   width: 62px;
+
   height: 4px;
-  margin: 15px 0 14px;
+
+  margin:
+    15px
+    0
+    14px;
+
   border-radius: 2px;
-  background: #ff5708;
+
+  background:
+    #ff5708;
 }
 
+
+/* =========================================================
+   ABOUT TEXT
+========================================================= */
+
 .workshop-detail-about p {
-  color: #94a8bf;
+  color:
+    #94a8bf;
+
   font-size: 19px;
+
   font-weight: 400;
-  line-height: 1.27;
+
+  line-height: 1.4;
 }
+
 
 .workshop-detail-about p + p,
 .workshop-detail-rich-text p + p {
   margin-top: 32px;
 }
 
+
 .workshop-detail-rich-text,
 .workshop-detail-rich-text p,
 .workshop-detail-rich-text li {
-  color: #94a8bf;
+  color:
+    #94a8bf;
+
   font-size: 19px;
+
   font-weight: 400;
-  line-height: 1.35;
+
+  line-height: 1.4;
 }
+
 
 .workshop-detail-rich-text ul,
 .workshop-detail-rich-text ol {
-  margin: 18px 0 0;
+  margin:
+    18px
+    0
+    0;
+
   padding-left: 24px;
 }
 
+
 .workshop-detail-rich-text strong {
-  color: #f2f7ff;
+  color:
+    #f2f7ff;
 }
 
-.workshop-detail-cta {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  padding: 24px 28px 28px;
-  border: 1px solid #a63b08;
-  background: #081c30;
-}
+
+/* =========================================================
+   SIDE SECTION
+========================================================= */
 
 .workshop-detail-side-section {
-  padding: 22px 24px;
-  border: 1px solid #0a4f7a;
+  padding:
+    22px
+    24px;
+
+  border:
+    1px solid
+    #0a4f7a;
+
   border-radius: 14px;
-  background: #061b2e;
+
+  background:
+    #061b2e;
 }
 
+
 .workshop-detail-side-section h2 {
+  margin: 0;
+
+  color:
+    #f2f7ff;
+
   font-size: 26px;
+
+  line-height: 1.25;
 }
+
 
 .workshop-detail-side-section ul {
   display: grid;
+
   gap: 12px;
-  margin-top: 16px;
+
+  margin:
+    16px
+    0
+    0;
+
   padding-left: 20px;
-  color: #94a8bf;
+
+  color:
+    #94a8bf;
 }
 
+
 .workshop-detail-side-section li {
-  color: #94a8bf;
+  color:
+    #94a8bf;
+
   font-size: 18px;
+
   line-height: 1.35;
 }
 
-.workshop-detail-side-section li::marker {
-  color: #ff5708;
+
+.workshop-detail-side-section
+li::marker {
+  color:
+    #ff5708;
 }
+
+
+/* =========================================================
+   CTA
+========================================================= */
+
+.workshop-detail-cta {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 18px;
+
+  padding:
+    24px
+    28px
+    28px;
+
+  border:
+    1px solid
+    #a63b08;
+
+  background:
+    #081c30;
+}
+
 
 .workshop-detail-register {
   display: grid;
+
   gap: 14px;
+
   padding-top: 4px;
 }
 
+
 .workshop-detail-cta p {
   max-width: 450px;
-  color: #94a8bf;
+
+  color:
+    #94a8bf;
+
   font-size: 17px;
+
   font-weight: 600;
+
   line-height: 1.3;
 }
 
-.workshop-detail-cta a {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 18px;
+
+/* =========================================================
+   CTA REGISTER SUMMARY
+   Kategori tetap muted, harga dibuat orange agar lebih jelas.
+   Posisi tetap rata kiri supaya hierarki informasi konsisten
+   dengan layout Detail Workshop.
+========================================================= */
+
+.workshop-detail-register-summary {
+  display: flex;
+
+  align-items: baseline;
+
+  flex-wrap: wrap;
+
+  gap: 6px;
+
   width: 100%;
-  min-height: 64px;
-  padding: 16px 24px;
-  border-radius: 12px;
-  color: #f2f7ff;
-  background: #ff5708;
-  font-size: 24px;
-  font-weight: 600;
-  line-height: 1.25;
-  text-decoration: none;
-  box-shadow: 0 16px 32px -18px rgba(255, 87, 8, 0.75);
+
+  max-width: none !important;
+
+  margin: 0;
+
+  text-align: left;
 }
 
-.workshop-detail-cta a:hover,
+
+.workshop-detail-register-category,
+.workshop-detail-register-separator {
+  color: #94a8bf;
+
+  font-size: 18px;
+
+  font-weight: 600;
+
+  line-height: 1.3;
+}
+
+
+.workshop-detail-register-price {
+  color: #ff5708;
+
+  font-size: 22px;
+
+  font-weight: 700;
+
+  line-height: 1.2;
+
+  letter-spacing: 0;
+}
+
+
+.workshop-detail-cta a {
+  display: inline-flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 18px;
+
+  width: 100%;
+
+  min-height: 64px;
+
+  padding:
+    16px
+    24px;
+
+  border-radius: 12px;
+
+  color:
+    #f2f7ff;
+
+  background:
+    #ff5708;
+
+  font-size: 24px;
+
+  font-weight: 600;
+
+  line-height: 1.25;
+
+  text-decoration: none;
+
+  box-shadow:
+    0
+    16px
+    32px
+    -18px
+    rgba(
+      255,
+      87,
+      8,
+      0.75
+    );
+
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+
+.workshop-detail-cta a:hover {
+  background:
+    #ff6a1f;
+
+  transform:
+    translateY(-1px);
+}
+
+
 .workshop-detail-cta a:focus-visible {
-  background: #ff6a1f;
-  outline: 2px solid rgba(255, 255, 255, 0.14);
+  background:
+    #ff6a1f;
+
+  outline:
+    2px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.14
+    );
+
   outline-offset: 3px;
 }
 
+
+/* =========================================================
+   RESPONSIVE 1180
+========================================================= */
+
 @media (max-width: 1180px) {
+
   .workshop-detail-shell {
-    width: calc(100% - 64px);
+    width:
+      calc(100% - 64px);
   }
 
+
   .workshop-detail-hero {
-    grid-template-columns: 1fr;
+    grid-template-columns:
+      1fr;
+
     gap: 36px;
   }
+
 
   .workshop-detail-copy h1,
   .workshop-detail-copy p {
     max-width: 760px;
   }
 
-  .workshop-detail-image img {
-    height: auto;
-    aspect-ratio: 650 / 360;
+
+  .workshop-detail-chips {
+    max-width: 620px;
   }
 
+
+  .workshop-detail-image img {
+    height: auto;
+
+    aspect-ratio:
+      650 / 360;
+  }
+
+
   .workshop-detail-info {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+
     gap: 34px;
   }
 
+
   .workshop-detail-bottom {
-    grid-template-columns: 1fr;
+    grid-template-columns:
+      1fr;
   }
+
 }
 
+
+/* =========================================================
+   RESPONSIVE 760
+========================================================= */
+
 @media (max-width: 760px) {
+
   .workshop-detail-page {
     min-height: auto;
   }
 
+
   .workshop-detail-shell {
-    width: calc(100% - 40px);
-    padding: 58px 0 70px;
+    width:
+      calc(100% - 40px);
+
+    padding:
+      12px
+      0
+      70px;
   }
 
-  .workshop-detail-copy h1 {
-    font-size: clamp(36px, 10vw, 46px);
+
+  .workshop-detail-topbar {
+    margin-bottom: 16px;
   }
+
+
+  .workshop-detail-back-button {
+    min-height: 38px;
+    padding: 7px 14px;
+    font-size: 14px;
+  }
+
+
+  .workshop-detail-copy h1 {
+    font-size:
+      clamp(
+        36px,
+        10vw,
+        46px
+      );
+  }
+
 
   .workshop-detail-copy p {
     font-size: 19px;
   }
 
-  .workshop-detail-chips,
-  .workshop-detail-info {
-    grid-template-columns: 1fr;
+
+  .workshop-detail-chips {
+    grid-template-columns:
+      1fr;
+
+    gap: 12px;
+
+    max-width: 100%;
   }
+
 
   .workshop-detail-chip {
-    min-height: 68px;
+    grid-template-columns:
+      38px
+      minmax(0, 1fr);
+
+    min-height: 72px;
+
+    padding:
+      10px
+      16px;
   }
 
-  .workshop-detail-info {
-    padding: 30px 24px;
+
+  .workshop-detail-chip-icon {
+    width: 34px;
+
+    height: 34px;
+
+    min-width: 34px;
   }
+
+
+  .workshop-detail-chip-icon svg {
+    width: 34px;
+
+    height: 34px;
+  }
+
+
+  .workshop-detail-chip-content strong,
+  .workshop-detail-chip--level
+  .workshop-detail-chip-content strong,
+  .workshop-detail-chip--duration
+  .workshop-detail-chip-content strong,
+  .workshop-detail-chip--platform
+  .workshop-detail-chip-content strong {
+    font-size: 21px;
+
+    white-space: normal;
+  }
+
+
+  .workshop-detail-info {
+    grid-template-columns:
+      1fr;
+
+    padding:
+      30px
+      24px;
+  }
+
 
   .workshop-detail-info-item strong {
     font-size: 22px;
   }
 
+
   .workshop-detail-about,
   .workshop-detail-cta {
-    padding: 30px 24px;
+    padding:
+      30px
+      24px;
   }
+
 
   .workshop-detail-about p,
   .workshop-detail-cta p,
@@ -442,33 +1253,121 @@
     font-size: 18px;
   }
 
+
   .workshop-detail-cta {
     gap: 24px;
   }
+
 }
 
+
+/* =========================================================
+   RESPONSIVE 480
+========================================================= */
+
 @media (max-width: 480px) {
+
   .workshop-detail-shell {
-    width: calc(100% - 32px);
-    padding-top: 48px;
+    width:
+      calc(100% - 32px);
+
+    padding-top: 10px;
   }
+
+
+  .workshop-detail-topbar {
+    margin-bottom: 14px;
+  }
+
 
   .workshop-detail-image {
     border-radius: 18px;
   }
 
-  .workshop-detail-chip,
+
+  .workshop-detail-chip {
+    gap: 12px;
+  }
+
+
   .workshop-detail-info-item {
     gap: 12px;
   }
 
+
   .workshop-detail-info-icon {
     width: 42px;
+
     height: 42px;
+
+    min-width: 42px;
   }
+
 
   .workshop-detail-cta a {
     min-height: 56px;
+
     font-size: 21px;
+  }
+
+}
+
+/* =========================================================
+   DETAIL WORKSHOP — FINAL NAVBAR SPACING
+   ---------------------------------------------------------
+   Memastikan tidak ada padding/margin global yang membuat
+   jarak Navbar -> tombol Kembali terlalu besar.
+   ========================================================= */
+.workshop-detail-page {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+.workshop-detail-page > .workshop-detail-shell {
+  margin-top: 0 !important;
+  padding-top: 18px !important;
+}
+
+.workshop-detail-page .workshop-detail-topbar {
+  margin-top: 0 !important;
+  margin-bottom: 18px;
+}
+
+@media (max-width: 760px) {
+  .workshop-detail-page > .workshop-detail-shell {
+    padding-top: 14px !important;
+  }
+
+  .workshop-detail-page .workshop-detail-topbar {
+    margin-bottom: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .workshop-detail-page > .workshop-detail-shell {
+    padding-top: 12px !important;
+  }
+
+  .workshop-detail-page .workshop-detail-topbar {
+    margin-bottom: 14px;
+  }
+}
+
+
+/* =========================================================
+   CTA PRICE — RESPONSIVE
+========================================================= */
+@media (max-width: 480px) {
+  .workshop-detail-register-summary {
+    gap: 5px;
+  }
+
+  .workshop-detail-register-category,
+  .workshop-detail-register-separator {
+    font-size: 17px;
+  }
+
+  .workshop-detail-register-price {
+    font-size: 20px;
   }
 }

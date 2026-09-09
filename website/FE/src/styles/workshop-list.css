@@ -11,34 +11,9 @@
 .workshop-list-shell {
   width: min(100%, 1250px);
   margin: 0 auto;
-  padding: 30px 0 60px;
+  padding: 28px 0 60px;
 }
 
-.workshop-list-heading {
-  display: grid;
-  gap: 6px;
-  margin-bottom: 28px;
-}
-
-.workshop-list-heading h1 {
-  max-width: 803px;
-  margin: 0;
-  color: #f7faff;
-  font-family: 'Orbitron', Arial, Helvetica, sans-serif;
-  font-size: clamp(30px, 3.4vw, 34px);
-  font-weight: 700;
-  line-height: 1.24;
-  letter-spacing: 0;
-}
-
-.workshop-list-heading p {
-  max-width: 659px;
-  margin: 0;
-  color: #9fb2c7;
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1.44;
-}
 
 .workshop-list-controls {
   display: grid;
@@ -287,7 +262,24 @@
 }
 
 .workshop-calendar-years {
-  width: 68px;
+  width: 76px;
+  max-height: 430px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #164061 #000000;
+}
+
+.workshop-calendar-years::-webkit-scrollbar {
+  width: 6px;
+}
+
+.workshop-calendar-years::-webkit-scrollbar-track {
+  background: #000000;
+}
+
+.workshop-calendar-years::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #164061;
 }
 
 .workshop-calendar-months {
@@ -471,71 +463,106 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 11px;
+  flex-wrap: wrap;
+  gap: 10px;
   margin-top: 46px;
 }
 
-.workshop-pagination button {
+.workshop-pagination-arrow,
+.workshop-pagination-page {
   position: relative;
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
   padding: 0;
   border: 1px solid #164061;
   border-radius: 8px;
-  color: #ff6a00;
+  color: #f7faff;
   background: #071d33;
+  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
   box-shadow: 0 10px 22px -16px rgba(0, 168, 255, 0.65);
   cursor: pointer;
-  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
 }
 
-.workshop-pagination button.disabled {
-  color: #718096;
-  border-color: rgba(159, 178, 199, 0.36);
-  background: rgba(7, 29, 51, 0.58);
-  box-shadow: none;
-  cursor: default;
+.workshop-pagination-pages {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
-.workshop-pagination button:not(.disabled):hover,
-.workshop-pagination button:not(.disabled):focus-visible {
+.workshop-pagination-page.active {
   border-color: #ff6a00;
+  color: #ffffff;
+  background: #ff6a00;
+  box-shadow: 0 0 0 3px rgba(255, 106, 0, 0.14);
+}
+
+.workshop-pagination-arrow:hover:not(:disabled),
+.workshop-pagination-arrow:focus-visible:not(:disabled),
+.workshop-pagination-page:hover,
+.workshop-pagination-page:focus-visible {
+  border-color: #ff6a00;
+  color: #ff8a1f;
   background: rgba(255, 106, 0, 0.12);
   box-shadow: 0 12px 26px -14px rgba(255, 106, 0, 0.75);
   outline: none;
   transform: translateY(-1px);
 }
 
-.workshop-pagination button span::before {
+.workshop-pagination-page.active:hover,
+.workshop-pagination-page.active:focus-visible {
+  color: #ffffff;
+  background: #ff6a00;
+}
+
+.workshop-pagination-arrow:disabled {
+  color: #65788d;
+  border-color: rgba(159, 178, 199, 0.24);
+  background: rgba(7, 29, 51, 0.5);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.workshop-pagination-arrow span::before {
   content: '';
   position: absolute;
-  left: 13px;
-  top: 11px;
+  left: 14px;
+  top: 12px;
   width: 9px;
   height: 9px;
   border-left: 2px solid currentColor;
   border-bottom: 2px solid currentColor;
+}
+
+.workshop-pagination-arrow.previous span::before {
   transform: rotate(45deg);
 }
 
-.workshop-pagination button:last-child span::before {
-  left: 10px;
+.workshop-pagination-arrow.next span::before {
+  left: 11px;
   transform: rotate(225deg);
 }
 
-.workshop-pagination > span {
-  width: 9px;
-  height: 9px;
-  border-radius: 50px;
-  background: #5b6877;
-}
-
-.workshop-pagination > span.active {
-  width: 24px;
-  background: #ff6a00;
-  box-shadow: 0 0 0 3px rgba(255, 106, 0, 0.16);
+.workshop-pagination-status {
+  flex-basis: 100%;
+  margin-top: 2px;
+  color: #7f9bb5;
+  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
 }
 
 @media (max-width: 1280px) {
@@ -562,11 +589,7 @@
 
   .workshop-list-shell {
     width: calc(100% - 40px);
-    padding: 64px 0 70px;
-  }
-
-  .workshop-list-heading h1 {
-    font-size: clamp(28px, 8vw, 34px);
+    padding: 28px 0 70px;
   }
 
   .workshop-list-controls {
@@ -593,6 +616,17 @@
     aspect-ratio: 378 / 253;
   }
 
+
+  .workshop-pagination {
+    gap: 8px;
+    margin-top: 34px;
+  }
+
+  .workshop-pagination-arrow,
+  .workshop-pagination-page {
+    width: 36px;
+    height: 36px;
+  }
   .workshop-calendar-popover {
     left: 0;
     right: auto;
@@ -617,11 +651,7 @@
 @media (max-width: 460px) {
   .workshop-list-shell {
     width: calc(100% - 32px);
-    padding-top: 52px;
-  }
-
-  .workshop-list-heading p {
-    font-size: 16px;
+    padding-top: 24px;
   }
 
   .workshop-list-card-body {
@@ -653,5 +683,1057 @@
   .workshop-calendar-years,
   .workshop-calendar-months {
     width: 100%;
+  }
+}
+
+/* =========================================================
+   WORKSHOP CARD — ALIGNMENT & CONSISTENT HEIGHT
+   Menjaga judul, meta (Tanggal/Waktu/Lokasi), dan tombol
+   tetap sejajar meskipun isi tiap workshop berbeda panjang.
+   ========================================================= */
+.workshop-card-grid {
+  align-items: stretch;
+}
+
+.workshop-list-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+.workshop-list-card img {
+  flex: 0 0 253px;
+  width: 100%;
+  height: 253px;
+}
+
+.workshop-list-card-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  padding: 14px 22px 20px;
+}
+
+.workshop-list-card h2 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 72px;
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.28;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.workshop-list-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  justify-content: stretch;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+}
+
+.workshop-list-meta > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  min-width: 0;
+  min-height: 112px;
+  height: 100%;
+  padding: 10px 7px 9px;
+  border: 1px solid #164061;
+  border-radius: 5px;
+  background: #071d33;
+  text-align: center;
+}
+
+.workshop-list-meta strong {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  margin: 0 0 7px;
+  color: #f7faff;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.workshop-list-meta span {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  color: #f7faff;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.workshop-detail-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  width: 100%;
+  max-width: 250px;
+  min-height: 42px;
+  margin-top: auto;
+  padding: 9px 20px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+@media (max-width: 1120px) {
+  .workshop-list-card h2 {
+    min-height: 62px;
+  }
+
+  .workshop-list-meta > div {
+    min-height: 106px;
+  }
+}
+
+@media (max-width: 820px) {
+  .workshop-list-card img {
+    flex-basis: auto;
+    height: auto;
+    aspect-ratio: 378 / 253;
+  }
+
+  .workshop-list-card h2 {
+    min-height: 0;
+  }
+
+  .workshop-list-meta > div {
+    min-height: 100px;
+  }
+}
+
+@media (max-width: 460px) {
+  .workshop-list-card-body {
+    gap: 9px;
+    padding: 10px 14px 16px;
+  }
+
+  .workshop-list-meta {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .workshop-list-meta > div {
+    min-height: 76px;
+    padding: 9px 12px;
+  }
+
+  .workshop-list-meta strong {
+    min-height: 0;
+    margin-bottom: 5px;
+  }
+
+  .workshop-list-meta span {
+    flex: 0 1 auto;
+  }
+
+  .workshop-detail-button {
+    max-width: none;
+  }
+}
+
+
+/* =========================================================
+   WORKSHOP CARD — FINAL POLISHED LAYOUT
+   Menjaga seluruh card benar-benar konsisten meskipun judul,
+   tanggal, waktu, atau lokasi memiliki panjang teks berbeda.
+   ========================================================= */
+.workshop-card-grid {
+  align-items: stretch;
+}
+
+.workshop-list-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+.workshop-list-card img {
+  flex: 0 0 253px;
+  width: 100%;
+  height: 253px;
+  object-fit: cover;
+  object-position: center;
+}
+
+.workshop-list-card-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  padding: 14px 22px 20px;
+}
+
+/* Ruang judul dibuat tetap agar semua meta card mulai pada garis yang sama. */
+.workshop-list-title-wrap {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  min-height: 72px;
+  height: 72px;
+  padding-bottom: 1px;
+  overflow: hidden;
+}
+
+.workshop-list-card .workshop-list-title-wrap h2 {
+  display: -webkit-box;
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+  color: #f6f9ff;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.28;
+  text-align: center;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+/* Tiga informasi memiliki kolom, tinggi, dan ritme visual yang sama. */
+.workshop-list-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+}
+
+.workshop-list-meta > .workshop-list-meta-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  min-width: 0;
+  min-height: 116px;
+  height: 116px;
+  padding: 10px 7px 9px;
+  border: 1px solid #164061;
+  border-radius: 5px;
+  background: #071d33;
+  text-align: center;
+  overflow: hidden;
+}
+
+.workshop-list-meta > .workshop-list-meta-item strong {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 22px;
+  margin: 0 0 7px;
+  color: #f7faff;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.workshop-list-meta-value {
+  display: -webkit-box !important;
+  width: 100%;
+  margin: auto 0 !important;
+  overflow: hidden !important;
+  color: #f7faff;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: center;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  text-overflow: clip !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+/* Lokasi panjang maksimal 3 baris. Alamat lengkap tetap tersedia via title/hover. */
+.workshop-list-meta-location {
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+.workshop-detail-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  width: 100%;
+  max-width: 280px;
+  min-height: 44px;
+  height: 44px;
+  margin-top: auto;
+  padding: 9px 20px;
+  border: 1px solid #00a4ff;
+  border-radius: 2px;
+  color: #f6f9ff;
+  background: #05162e;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+}
+
+.workshop-detail-button:hover,
+.workshop-detail-button:focus-visible {
+  border-color: #36d7ff;
+  color: #36d7ff;
+  background: #07203d;
+  outline: none;
+}
+
+@media (max-width: 1120px) {
+  .workshop-list-title-wrap {
+    min-height: 72px;
+    height: 72px;
+  }
+
+  .workshop-list-meta > .workshop-list-meta-item {
+    min-height: 112px;
+    height: 112px;
+  }
+}
+
+@media (max-width: 820px) {
+  .workshop-list-card img {
+    flex-basis: auto;
+    height: auto;
+    aspect-ratio: 378 / 253;
+  }
+
+  .workshop-list-title-wrap {
+    min-height: 68px;
+    height: auto;
+    padding: 4px 0;
+  }
+
+  .workshop-list-meta > .workshop-list-meta-item {
+    min-height: 104px;
+    height: 104px;
+  }
+}
+
+@media (max-width: 460px) {
+  .workshop-list-card-body {
+    gap: 12px;
+    padding: 12px 14px 18px;
+  }
+
+  .workshop-list-title-wrap {
+    min-height: 0;
+    height: auto;
+    padding: 3px 0;
+  }
+
+  .workshop-list-card .workshop-list-title-wrap h2 {
+    font-size: 18px;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+  }
+
+  .workshop-list-meta {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .workshop-list-meta > .workshop-list-meta-item {
+    min-height: 76px;
+    height: auto;
+    padding: 9px 12px;
+  }
+
+  .workshop-list-meta-value {
+    margin: 0 !important;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+  }
+
+  .workshop-detail-button {
+    max-width: none;
+  }
+}
+
+
+/* =========================================================
+   FINAL CARD POLISH — LONG LOCATION SAFE
+   ---------------------------------------------------------
+   - Tanggal, Waktu, dan Lokasi memiliki ukuran yang seragam.
+   - Isi selalu berada di tengah secara vertikal/horizontal.
+   - Lokasi panjang mendapat ruang sampai 4 baris tanpa pola
+     ellipsis yang terputus di tengah lalu lanjut ke baris lain.
+   - Teks sangat panjang diperkecil sedikit secara otomatis.
+   - Tombol dan tinggi card tetap sejajar antar-workshop.
+   ========================================================= */
+.workshop-card-grid {
+  align-items: stretch;
+}
+
+.workshop-list-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+.workshop-list-card-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 11px;
+  min-height: 0;
+  padding: 10px 22px 18px;
+}
+
+.workshop-list-title-wrap {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  min-height: 72px;
+  height: 72px;
+  padding-bottom: 1px;
+  overflow: hidden;
+}
+
+.workshop-list-card .workshop-list-title-wrap h2 {
+  display: -webkit-box;
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+  color: #f6f9ff;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.22;
+  text-align: center;
+  overflow-wrap: normal;
+  word-break: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+.workshop-list-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+}
+
+.workshop-list-meta > .workshop-list-meta-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 108px;
+  height: 108px;
+  padding: 8px 7px;
+  border: 1px solid #164061;
+  border-radius: 5px;
+  background: #071d33;
+  text-align: center;
+  overflow: hidden;
+}
+
+.workshop-list-meta > .workshop-list-meta-item strong {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 20px;
+  margin: 0 0 4px;
+  color: #f7faff;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* Outer value menjadi area centering. */
+.workshop-list-meta-value {
+  display: flex !important;
+  flex: 0 1 auto;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0 !important;
+  overflow: hidden !important;
+  color: #f7faff;
+  text-align: center;
+  white-space: normal !important;
+}
+
+/* Inner text yang mengatur wrapping/clamping. */
+.workshop-list-meta-text {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: none;
+}
+
+/*
+ * Lokasi mendapat maksimal 4 baris. Karena wrapper luarnya yang
+ * melakukan centering, teks tidak lagi menghasilkan pola
+ * "Nege..." lalu masih berlanjut ke baris berikutnya.
+ */
+.workshop-list-meta-location {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+}
+
+/* Sedikit adaptif untuk alamat panjang agar lebih banyak informasi muat. */
+.workshop-list-meta-location.is-long {
+  font-size: 11.5px;
+  line-height: 1.36;
+}
+
+.workshop-list-meta-location.is-very-long {
+  font-size: 11px;
+  line-height: 1.32;
+}
+
+.workshop-detail-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  width: 100%;
+  max-width: 280px;
+  min-height: 44px;
+  height: 44px;
+  margin-top: auto;
+  padding: 9px 20px;
+}
+
+@media (max-width: 1120px) {
+  .workshop-list-title-wrap {
+    min-height: 70px;
+    height: 70px;
+  }
+
+  .workshop-list-meta > .workshop-list-meta-item {
+    min-height: 106px;
+    height: 106px;
+  }
+}
+
+@media (max-width: 820px) {
+  .workshop-list-title-wrap {
+    min-height: 0;
+    height: auto;
+    padding: 2px 0;
+    align-items: center;
+  }
+
+  .workshop-list-meta > .workshop-list-meta-item {
+    min-height: 100px;
+    height: 100px;
+  }
+}
+
+@media (max-width: 460px) {
+  .workshop-list-card-body {
+    gap: 12px;
+    padding: 12px 14px 18px;
+  }
+
+  .workshop-list-title-wrap {
+    min-height: 0;
+    height: auto;
+    padding: 3px 0;
+  }
+
+  .workshop-list-meta {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .workshop-list-meta > .workshop-list-meta-item {
+    min-height: 70px;
+    height: auto;
+    padding: 8px 12px;
+  }
+
+  .workshop-list-meta-location,
+  .workshop-list-meta-location.is-long,
+  .workshop-list-meta-location.is-very-long {
+    display: block;
+    overflow: visible;
+    font-size: 12px;
+    line-height: 1.4;
+    -webkit-line-clamp: unset;
+    line-clamp: unset;
+  }
+
+  .workshop-detail-button {
+    max-width: none;
+  }
+}
+
+
+/* =========================================================
+   FINAL CARD SPACING — COMPACT, ALIGNED, LONG-TEXT SAFE
+   ========================================================= */
+@media (min-width: 821px) {
+  .workshop-list-card-body {
+    gap: 11px;
+    padding: 10px 22px 18px;
+  }
+
+  .workshop-list-title-wrap {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    min-height: 72px;
+    height: 72px;
+    padding: 0 0 1px;
+  }
+
+  .workshop-list-card .workshop-list-title-wrap h2 {
+    line-height: 1.22;
+  }
+
+  .workshop-list-meta {
+    gap: 10px;
+  }
+
+  .workshop-list-meta > .workshop-list-meta-item {
+    justify-content: center;
+    min-height: 108px;
+    height: 108px;
+    padding: 8px 7px;
+  }
+
+  .workshop-list-meta > .workshop-list-meta-item strong {
+    min-height: 20px;
+    margin-bottom: 4px;
+  }
+
+  .workshop-list-meta-value {
+    flex: 0 1 auto;
+    margin: 0 !important;
+  }
+}
+
+@media (min-width: 821px) and (max-width: 1120px) {
+  .workshop-list-title-wrap {
+    min-height: 70px;
+    height: 70px;
+  }
+
+  .workshop-list-meta > .workshop-list-meta-item {
+    min-height: 106px;
+    height: 106px;
+  }
+}
+
+@media (max-width: 820px) {
+  .workshop-list-card-body {
+    gap: 10px;
+  }
+
+  .workshop-list-title-wrap {
+    min-height: 0;
+    height: auto;
+    padding: 2px 0;
+    align-items: center;
+  }
+
+  .workshop-list-meta > .workshop-list-meta-item {
+    justify-content: center;
+    min-height: 100px;
+    height: 100px;
+    padding: 8px 7px;
+  }
+
+  .workshop-list-meta > .workshop-list-meta-item strong {
+    min-height: 20px;
+    margin-bottom: 4px;
+  }
+
+  .workshop-list-meta-value {
+    flex: 0 1 auto;
+  }
+}
+
+@media (max-width: 460px) {
+  .workshop-list-card-body {
+    gap: 9px;
+    padding: 10px 14px 16px;
+  }
+
+  .workshop-list-meta > .workshop-list-meta-item {
+    min-height: 70px;
+    height: auto;
+    padding: 8px 12px;
+  }
+}
+
+/* =========================================================
+   WORKSHOP TERDEKAT — 3 DATA PALING DEKAT + GAMBAR
+   ========================================================= */
+.workshop-upcoming-section {
+  margin: 0 0 48px;
+  padding: 8px 0 42px;
+  border-bottom: 1px solid rgba(22, 64, 97, 0.72);
+}
+
+.workshop-upcoming-heading {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  max-width: 880px;
+  margin: 0 auto 30px;
+  text-align: center;
+}
+
+.workshop-upcoming-eyebrow {
+  margin: 0;
+  color: #ff6a00 !important;
+  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+  letter-spacing: 0.08em;
+}
+
+.workshop-upcoming-heading h2,
+.workshop-all-heading h2 {
+  margin: 0;
+  color: #f7faff;
+  font-family: 'Orbitron', Arial, Helvetica, sans-serif;
+  font-size: clamp(26px, 3vw, 34px);
+  font-weight: 700;
+  line-height: 1.24;
+}
+
+.workshop-upcoming-heading > p:last-child,
+.workshop-all-heading p {
+  max-width: 760px;
+  margin: 0;
+  color: #9fb2c7;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.workshop-upcoming-grid {
+  align-items: stretch;
+}
+
+.workshop-upcoming-grid .workshop-list-card {
+  height: 100%;
+}
+
+.workshop-list-image-wrap {
+  position: relative;
+  overflow: hidden;
+}
+
+.workshop-list-image-wrap img {
+  transition: transform 180ms ease;
+}
+
+.workshop-list-card:hover .workshop-list-image-wrap img {
+  transform: scale(1.015);
+}
+
+.workshop-list-nearest-badge {
+  position: absolute;
+  z-index: 2;
+  top: 14px;
+  right: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 29px;
+  padding: 5px 12px;
+  border: 1px solid #ff6a00;
+  border-radius: 999px;
+  color: #ff8a35;
+  background: rgba(3, 11, 30, 0.92);
+  box-shadow: 0 8px 20px -12px rgba(255, 106, 0, 0.9);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.03em;
+}
+
+.workshop-upcoming-grid .workshop-list-card.is-nearest {
+  border-top-color: #ff6a00;
+  box-shadow:
+    0 0 0 1px rgba(255, 106, 0, 0.32),
+    0 18px 36px -28px rgba(255, 106, 0, 0.9);
+}
+
+.workshop-upcoming-grid .workshop-list-card.is-nearest .workshop-detail-button {
+  border-color: #ff6a00;
+  color: #ffffff;
+  background: #ff6a00;
+}
+
+.workshop-upcoming-grid .workshop-list-card.is-nearest .workshop-detail-button:hover {
+  border-color: #ff8733;
+  color: #ffffff;
+  background: #ff8733;
+}
+
+.workshop-list-divider {
+  width: 100%;
+  height: 1px;
+  margin: 0 0 38px;
+  background: linear-gradient(
+    90deg,
+    rgba(22, 64, 97, 0),
+    rgba(22, 64, 97, 0.9) 18%,
+    rgba(22, 64, 97, 0.9) 82%,
+    rgba(22, 64, 97, 0)
+  );
+}
+
+.workshop-all-heading {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 22px;
+}
+
+@media (max-width: 820px) {
+  .workshop-upcoming-section {
+    margin: 0 0 38px;
+    padding: 6px 0 34px;
+  }
+
+  .workshop-upcoming-heading {
+    margin-bottom: 24px;
+  }
+
+  .workshop-upcoming-heading > p:last-child,
+  .workshop-all-heading p {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 460px) {
+  .workshop-list-nearest-badge {
+    top: 10px;
+    right: 10px;
+    min-height: 26px;
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+}
+
+/* =========================================================
+   FINAL — NAVIGASI, PEMISAH SECTION, DAN STATUS WORKSHOP
+   ========================================================= */
+.workshop-list-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin: 0 0 14px;
+}
+
+.workshop-back-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid #164061;
+  border-radius: 6px;
+  color: #36d7ff;
+  background: rgba(5, 19, 38, 0.88);
+  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.workshop-back-button:hover,
+.workshop-back-button:focus-visible {
+  border-color: #ff6a00;
+  color: #ff8a35;
+  background: rgba(255, 106, 0, 0.08);
+  box-shadow: 0 12px 28px -20px rgba(255, 106, 0, 0.9);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.workshop-back-icon {
+  position: relative;
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
+
+.workshop-back-icon::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 4px;
+  width: 7px;
+  height: 7px;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.workshop-back-icon::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 7px;
+  width: 10px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+/* Heading langsung bertemu card; deskripsi penjelas sudah dihapus. */
+.workshop-upcoming-heading {
+  gap: 8px;
+  margin-bottom: 28px;
+}
+
+/* Hanya satu garis pemisah antara Workshop Terdekat dan Semua Workshop. */
+.workshop-upcoming-section {
+  margin: 0;
+  padding: 0;
+  border-bottom: 0;
+}
+
+.workshop-list-divider {
+  width: 100%;
+  height: 1px;
+  margin: 48px 0 38px;
+  background: linear-gradient(
+    90deg,
+    rgba(22, 64, 97, 0),
+    rgba(22, 64, 97, 0.9) 18%,
+    rgba(22, 64, 97, 0.9) 82%,
+    rgba(22, 64, 97, 0)
+  );
+}
+
+/* Badge status selesai — hijau agar berbeda dari TERDEKAT (orange). */
+.workshop-list-finished-badge {
+  position: absolute;
+  z-index: 2;
+  top: 14px;
+  right: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 29px;
+  padding: 5px 12px;
+  border: 1px solid rgba(74, 222, 128, 0.86);
+  border-radius: 999px;
+  color: #4ade80;
+  background: rgba(4, 34, 23, 0.92);
+  box-shadow: 0 8px 20px -12px rgba(74, 222, 128, 0.8);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.04em;
+}
+
+.workshop-list-card.is-finished {
+  border-top-color: #4ade80;
+}
+
+.workshop-list-card.is-finished .workshop-detail-button {
+  border-color: rgba(74, 222, 128, 0.72);
+}
+
+.workshop-list-card.is-finished .workshop-detail-button:hover,
+.workshop-list-card.is-finished .workshop-detail-button:focus-visible {
+  border-color: #4ade80;
+  color: #4ade80;
+}
+
+@media (max-width: 820px) {
+  .workshop-list-topbar {
+    margin-bottom: 14px;
+  }
+
+  .workshop-upcoming-heading {
+    margin-bottom: 24px;
+  }
+
+  .workshop-list-divider {
+    margin: 38px 0 32px;
+  }
+}
+
+@media (max-width: 460px) {
+  .workshop-back-button {
+    min-height: 38px;
+    padding: 7px 14px;
+    font-size: 14px;
+  }
+
+  .workshop-list-finished-badge {
+    top: 10px;
+    right: 10px;
+    min-height: 26px;
+    padding: 4px 10px;
+    font-size: 11px;
   }
 }
