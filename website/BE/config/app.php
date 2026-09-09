@@ -14,6 +14,7 @@ return [
         'http://localhost:5173',
         'http://127.0.0.1:4173',
         'http://localhost:4173',
+        'https://web.arduflow.com',
     ]),
     'timezone' => Env::get('APP_TIMEZONE', 'Asia/Jakarta'),
 ];

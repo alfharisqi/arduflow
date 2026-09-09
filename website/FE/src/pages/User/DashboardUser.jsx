@@ -890,6 +890,13 @@ export function DashboardUser() {
           .map((result) => result.reason?.message)
           .filter(Boolean);
 
+        if (failed.length > 0) {
+          console.warn(
+            'Sebagian data dashboard user gagal dimuat:',
+            failed
+          );
+        }
+
         setDashboardRows({
           projects,
           galleries,
@@ -898,7 +905,7 @@ export function DashboardUser() {
           testimonials,
         });
 
-        setDashboardRowsError(failed.length ? failed[0] : '');
+        setDashboardRowsError('');
       } catch (error) {
         console.error('Gagal memuat ringkasan dashboard user:', error);
 

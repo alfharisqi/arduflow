@@ -1,4 +1,4 @@
-import { API_BASE_URL, apiEndpoint } from './apiEndpoints.js';
+import { apiEndpoint, backendAssetUrl } from './apiEndpoints.js';
 
 const PROJECT_API_URL = apiEndpoint(
   import.meta.env.VITE_PROJECT_API_URL,
@@ -16,11 +16,7 @@ function resolveFileUrl(file) {
     return '';
   }
 
-  if (/^https?:\/\//i.test(rawUrl) || rawUrl.startsWith('data:') || rawUrl.startsWith('blob:')) {
-    return rawUrl;
-  }
-
-  return `${API_BASE_URL}${rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`}`;
+  return backendAssetUrl(rawUrl);
 }
 
 function normalizeProject(project) {

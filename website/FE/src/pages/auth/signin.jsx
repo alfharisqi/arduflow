@@ -4,6 +4,7 @@ import twitterIcon from "../../assets/icons/sosmed-twitter.png";
 import hideIcon from "../../assets/icons/icon-hide-1.svg";
 import { AuthImageSlider } from "../../components/auth/AuthImageSlider.jsx";
 import { loginUser } from "../../services/authApi.js";
+import { setUserAuthState } from "../../services/authSession.js";
 import {
   showErrorAlert,
   showSuccessAlert,
@@ -67,22 +68,16 @@ export function SignIn() {
         );
       }
 
-      localStorage.setItem(
-        "arduflow_user",
-        JSON.stringify(user)
-      );
+      setUserAuthState(user, token);
 
-      localStorage.setItem(
-        "arduflow_user_token",
-        token
-      );
-
-      await showSuccessAlert(
+      showSuccessAlert(
         "Login berhasil",
         result.message || "Selamat datang kembali."
       );
 
-      window.location.assign("/");
+      window.setTimeout(() => {
+        window.location.replace("/dashboard");
+      }, 250);
     } catch (error) {
       console.error("Login gagal:", error);
 

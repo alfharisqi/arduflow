@@ -43,3 +43,38 @@ export function apiEndpoint(envValue, fallbackPath) {
 
   return apiUrl(value);
 }
+
+export function backendAssetUrl(value) {
+  const rawUrl = String(value || '').trim();
+
+  if (!rawUrl) {
+    return '';
+  }
+
+  if (/^(data:image\/|blob:)/i.test(rawUrl)) {
+    return rawUrl;
+  }
+
+  if (/^https?:\/\//i.test(rawUrl)) {
+    try {
+      const parsedUrl = new URL(rawUrl);
+      const isLocalBackend =
+        ['127.0.0.1', 'localhost'].includes(parsedUrl.hostname) &&
+        ['8000', '8001', ''].includes(parsedUrl.port);
+
+      if (isLocalBackend && parsedUrl.pathname.startsWith('/uploads/')) {
+        return apiUrl(parsedUrl.pathname);
+      }
+
+      return rawUrl;
+    } catch {
+      return rawUrl;
+    }
+  }
+
+  const normalizedPath = rawUrl
+    .replace(/^\/+/, '')
+    .replace(/^storage\/uploads\//i, 'uploads/');
+
+  return apiUrl(normalizedPath);
+}

@@ -1,4 +1,5 @@
 import { apiEndpoint } from './apiEndpoints.js';
+import { getStoredUserToken } from './authSession.js';
 
 const USER_NOTIFICATION_API_URL = apiEndpoint(
   import.meta.env.VITE_USER_NOTIFICATION_API_URL,
@@ -52,9 +53,12 @@ export function persistNotificationReads(keys) {
 }
 
 export async function fetchUserNotifications(params = {}) {
+  const token = getStoredUserToken();
+
   const response = await fetch(`${USER_NOTIFICATION_API_URL}${buildQuery(params)}`, {
     headers: {
       Accept: 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   });
 

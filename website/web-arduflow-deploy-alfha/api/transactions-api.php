@@ -12,6 +12,7 @@ $allowedOrigins = [
     'http://127.0.0.1:5174',
     'http://localhost:5175',
     'http://127.0.0.1:5175',
+    'https://web.arduflow.com',
 ];
 
 if (in_array($origin, $allowedOrigins, true)) {
@@ -131,7 +132,20 @@ function generateInvoiceNumber(): string
 function normalizeStatus(string $status): string
 {
     $value = strtolower(trim($status));
-    $allowed = ['pending', 'proof_uploaded', 'paid', 'rejected', 'failed', 'cancelled', 'refunded', 'expired'];
+    $allowed = [
+        'pending',
+        'proof_uploaded',
+        'paid',
+        'rejected',
+        'failed',
+        'cancelled',
+        'refunded',
+        'expired',
+        'payout_requested',
+        'processing',
+        'proof_sent',
+        'done',
+    ];
     return in_array($value, $allowed, true) ? $value : 'pending';
 }
 
@@ -252,7 +266,7 @@ function transactionBearerToken(): ?string
     return $token !== '' ? $token : null;
 }
 
-function transactionCurrentUser(PDO $pdo): ?array
+function transactionCurrentUser(PDO $pdo, bool $strict = true): ?array
 {
     $token = transactionBearerToken();
     if ($token === null) {
@@ -280,6 +294,10 @@ function transactionCurrentUser(PDO $pdo): ?array
 
     $user = $statement->fetch(PDO::FETCH_ASSOC);
     if (!is_array($user)) {
+        if (!$strict) {
+            return null;
+        }
+
         respond(401, [
             'success' => false,
             'message' => 'Session tidak valid atau sudah kedaluwarsa.',
@@ -301,8 +319,27 @@ function applyUserSessionToTransaction(array $transaction, ?array $sessionUser):
         return $transaction;
     }
 
-    $transaction['user_id'] = null;
+    $transaction['user_id'] = $transaction['user_id'] ?? null;
     return $transaction;
+}
+
+function transactionRequiresOwner(array $transaction): bool
+{
+    $itemType = strtolower(trim((string) ($transaction['item_type'] ?? '')));
+    $payload = $transaction['payload'] ?? [];
+    $source = is_array($payload) ? strtolower(trim((string) ($payload['source'] ?? ''))) : '';
+
+    return in_array($itemType, ['project', 'project_payout'], true)
+        || $source === 'project-detail';
+}
+
+function transactionHasOwner(array $transaction): bool
+{
+    $userId = $transaction['user_id'] ?? null;
+    $email = trim((string) ($transaction['email'] ?? ''));
+
+    return ($userId !== null && $userId !== '' && (int) $userId > 0)
+        || $email !== '';
 }
 
 function storeQrisFile(int $transactionId, string $projectRoot): ?array
@@ -663,12 +700,9 @@ function validateTransaction(array $transaction): array
 
 try {
     $projectRoot = dirname(__DIR__);
-    $autoloadPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
     $configPath = $projectRoot . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'database.php';
 
-    if (is_file($autoloadPath)) {
-        require_once $autoloadPath;
-    }
+    require_once __DIR__ . '/support/autoload-app.php';
 
     if (class_exists(\Arduflow\Api\Support\Env::class)) {
         \Arduflow\Api\Support\Env::load($projectRoot . DIRECTORY_SEPARATOR . '.env');
@@ -1236,11 +1270,19 @@ try {
 
     if ($method === 'POST') {
         $incoming = readTransactionBody();
-        $sessionUser = transactionCurrentUser($pdo);
+        $sessionUser = transactionCurrentUser($pdo, false);
         $transaction = applyUserSessionToTransaction(
             transactionFromBody($incoming),
             $sessionUser
         );
+
+        if (transactionRequiresOwner($transaction) && !transactionHasOwner($transaction)) {
+            respond(401, [
+                'success' => false,
+                'message' => 'Login diperlukan untuk membuat transaksi proyek.',
+            ]);
+        }
+
         $errors = validateTransaction($transaction);
         if ($errors !== []) {
             respond(422, [

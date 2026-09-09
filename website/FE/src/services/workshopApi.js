@@ -1,4 +1,4 @@
-import { apiEndpoint, apiUrl } from './apiEndpoints.js';
+import { apiEndpoint, backendAssetUrl } from './apiEndpoints.js';
 
 const WORKSHOP_API_URL = apiEndpoint(
   import.meta.env.VITE_WORKSHOP_API_URL,
@@ -41,9 +41,7 @@ function normalizeWorkshop(workshop) {
     visibility: publication.visibility || workshop.visibility || 'Publik',
     certificateEnabled: Boolean(workshop.certificateEnabled || workshop.certificate_enabled),
     coverImage,
-    coverImageUrl: coverUrl && !/^https?:\/\//i.test(coverUrl) && !coverUrl.startsWith('data:')
-      ? apiUrl(coverUrl)
-      : coverUrl,
+    coverImageUrl: backendAssetUrl(coverUrl),
     gallery: Array.isArray(media.gallery) ? media.gallery : [],
     raw: payload,
   };

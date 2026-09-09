@@ -1,7 +1,137 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/support/bootstrap.php';
+function afwSendJson(
+    int $status,
+    bool $success,
+    string $message,
+    array $data = [],
+    array $errors = []
+): void {
+    http_response_code($status);
+
+    $response = [
+        'success' => $success,
+        'message' => $message,
+    ];
+
+    if ($data !== []) {
+        $response['data'] = $data;
+    }
+
+    if ($errors !== []) {
+        $response['errors'] = $errors;
+    }
+
+    echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+function afwApplyCors(array $methods): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    $allowedOrigins = [
+        'https://arduflow.indobilliard.com',
+        'https://www.arduflow.indobilliard.com',
+        'https://web.arduflow.com',
+    ];
+
+    $isDevelopmentOrigin = preg_match(
+        '#^http://(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}):[0-9]+$#',
+        $origin
+    ) === 1;
+
+    if ($isDevelopmentOrigin || in_array($origin, $allowedOrigins, true)) {
+        header('Access-Control-Allow-Origin: ' . $origin);
+        header('Vary: Origin');
+    }
+
+    $allowedMethods = array_values(array_unique([...$methods, 'OPTIONS']));
+
+    header('Access-Control-Allow-Credentials: true');
+    header('Access-Control-Allow-Methods: ' . implode(', ', $allowedMethods));
+    header('Access-Control-Allow-Headers: Content-Type, Accept, Authorization, X-Requested-With');
+    header('Access-Control-Max-Age: 86400');
+
+    if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
+        http_response_code(204);
+        exit;
+    }
+}
+
+function afwReadJsonBody(string $emptyMessage = 'Request body tidak boleh kosong.'): array
+{
+    $rawBody = file_get_contents('php://input');
+
+    if ($rawBody === false || trim($rawBody) === '') {
+        afwSendJson(400, false, $emptyMessage);
+    }
+
+    try {
+        $payload = json_decode($rawBody, true, 512, JSON_THROW_ON_ERROR);
+    } catch (JsonException $exception) {
+        afwSendJson(400, false, 'Format JSON tidak valid.', [
+            'detail' => $exception->getMessage(),
+        ]);
+    }
+
+    if (!is_array($payload)) {
+        afwSendJson(400, false, 'Struktur JSON harus berupa object.');
+    }
+
+    return isset($payload['data']) && is_array($payload['data'])
+        ? $payload['data']
+        : $payload;
+}
+
+function afwPdo(): PDO
+{
+    $databasePath = dirname(__DIR__) . '/storage/database/arduflow.sqlite';
+    $databaseDirectory = dirname($databasePath);
+
+    if (!is_dir($databaseDirectory) && !mkdir($databaseDirectory, 0775, true) && !is_dir($databaseDirectory)) {
+        afwSendJson(500, false, 'Folder database gagal dibuat.');
+    }
+
+    try {
+        $pdo = new PDO('sqlite:' . $databasePath, null, null, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+        ]);
+
+        $pdo->exec('PRAGMA busy_timeout = 5000');
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS testimonials (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_type TEXT NOT NULL DEFAULT "general",
+                source_id TEXT NOT NULL DEFAULT "",
+                user_id TEXT NOT NULL DEFAULT "",
+                name TEXT NOT NULL DEFAULT "",
+                email TEXT NOT NULL DEFAULT "",
+                role TEXT NOT NULL DEFAULT "",
+                quote TEXT NOT NULL DEFAULT "",
+                rating INTEGER NOT NULL DEFAULT 5,
+                consent_public INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT "Menunggu",
+                admin_note TEXT NOT NULL DEFAULT "",
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                deleted_at TEXT DEFAULT NULL
+            )'
+        );
+
+        return $pdo;
+    } catch (Throwable $exception) {
+        error_log('Koneksi/testimonials SQLite gagal: ' . $exception->getMessage());
+
+        afwSendJson(500, false, 'Koneksi database testimoni gagal.', [
+            'detail' => $exception->getMessage(),
+        ]);
+    }
+}
 
 afwApplyCors(['GET', 'POST', 'PATCH', 'DELETE']);
 
@@ -21,7 +151,9 @@ if ($method === 'POST' && isset($_GET['_method'])) {
 function testimonialsNow(): string
 {
     return gmdate('Y-m-d\TH:i:s\Z');
-}function testimonialFromRow(array $row): array
+}
+
+function testimonialFromRow(array $row): array
 {
     return [
         'id' => (int) $row['id'],

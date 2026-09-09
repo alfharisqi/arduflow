@@ -1,0 +1,479 @@
+/* Responsive foundation for every user dashboard page.
+   Scope is intentionally limited to .dashboard-user-page so admin and auth pages stay unchanged. */
+
+.dashboard-user-page {
+  min-width: 0;
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.dashboard-user-page *,
+.dashboard-user-page *::before,
+.dashboard-user-page *::after {
+  box-sizing: border-box;
+}
+
+.dashboard-user-page .dashboard-sidebar {
+  min-height: 100vh;
+}
+
+.dashboard-user-page .dashboard-shell {
+  min-height: 100vh;
+}
+
+.dashboard-user-page .dashboard-content,
+.dashboard-user-page .dashboard-main-content,
+.dashboard-user-page .dashboard-user-summary,
+.dashboard-user-page .dashboard-quick-actions,
+.dashboard-user-page .dashboard-user-alert,
+.dashboard-user-page .dashboard-testimonial-notice,
+.dashboard-user-page .dashboard-user-overview,
+.dashboard-user-page .user-progress-content,
+.dashboard-user-page .user-project-content,
+.dashboard-user-page .user-workshop-content,
+.dashboard-user-page .user-lead-content,
+.dashboard-user-page .user-partner-content,
+.dashboard-user-page .user-ide-content,
+.dashboard-user-page .user-transactions-content,
+.dashboard-user-page .user-certificates-content,
+.dashboard-user-page .user-settings-content {
+  width: min(100%, 1217px);
+  max-width: 100%;
+}
+
+.dashboard-user-page .dashboard-content {
+  padding-inline: clamp(18px, 3.4vw, 48px);
+}
+
+.dashboard-user-page .dashboard-main-content,
+.dashboard-user-page .dashboard-user-overview {
+  gap: clamp(18px, 3vw, 84px);
+}
+
+.dashboard-user-page .dashboard-profile-panel,
+.dashboard-user-page .dashboard-profile-header,
+.dashboard-user-page .dashboard-form,
+.dashboard-user-page .dashboard-program-panel,
+.dashboard-user-page .dashboard-calendar,
+.dashboard-user-page .dashboard-calendar__month,
+.dashboard-user-page .dashboard-upcoming,
+.dashboard-user-page .dashboard-upcoming__card {
+  max-width: 100%;
+}
+
+.dashboard-user-page .dashboard-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dashboard-user-page .dashboard-calendar__grid {
+  grid-template-columns: repeat(7, minmax(0, 44px));
+  width: 100%;
+}
+
+.dashboard-user-page img,
+.dashboard-user-page video,
+.dashboard-user-page canvas,
+.dashboard-user-page svg {
+  max-width: 100%;
+}
+
+.dashboard-user-page input,
+.dashboard-user-page select,
+.dashboard-user-page textarea,
+.dashboard-user-page button {
+  max-width: 100%;
+}
+
+.dashboard-user-page [class*='grid'],
+.dashboard-user-page [class*='list'],
+.dashboard-user-page [class*='cards'],
+.dashboard-user-page [class*='panel'],
+.dashboard-user-page [class*='card'],
+.dashboard-user-page [class*='widget'],
+.dashboard-user-page [class*='table'] {
+  min-width: 0;
+}
+
+@media (max-width: 1280px) {
+  .dashboard-user-page {
+    --dashboard-sidebar-width: 210px;
+  }
+
+  .dashboard-user-page--collapsed {
+    --dashboard-sidebar-width: 70px;
+  }
+
+  .dashboard-user-page .dashboard-content {
+    width: 100%;
+    padding: 28px clamp(20px, 3vw, 36px) 64px;
+  }
+
+  .dashboard-user-page .dashboard-main-content {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 393px);
+  }
+
+  .dashboard-user-page .dashboard-profile-panel,
+  .dashboard-user-page .dashboard-profile-header,
+  .dashboard-user-page .dashboard-form {
+    width: 100%;
+  }
+
+  .dashboard-user-page .dashboard-user-summary,
+  .dashboard-user-page .dashboard-quick-actions,
+  .dashboard-user-page .dashboard-user-alert,
+  .dashboard-user-page .dashboard-testimonial-notice,
+  .dashboard-user-page .dashboard-user-overview {
+    width: 100%;
+  }
+}
+
+@media (max-width: 1024px) {
+  .dashboard-user-page .dashboard-main-content,
+  .dashboard-user-page .dashboard-user-overview,
+  .dashboard-user-page .user-settings-layout,
+  .dashboard-user-page .user-project-layout,
+  .dashboard-user-page .user-project-dashboard,
+  .dashboard-user-page .user-partner-layout,
+  .dashboard-user-page .user-workshop-layout,
+  .dashboard-user-page .user-lead-layout,
+  .dashboard-user-page .user-ide-layout,
+  .dashboard-user-page .user-certificates-layout,
+  .dashboard-user-page .user-transactions-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-user-page .dashboard-form,
+  .dashboard-user-page .user-settings-form-grid,
+  .dashboard-user-page .user-project-form-grid,
+  .dashboard-user-page .user-partner-form-grid,
+  .dashboard-user-page .user-workshop-stats,
+  .dashboard-user-page .user-lead-stats,
+  .dashboard-user-page .user-transactions-stats,
+  .dashboard-user-page .user-certificates-stats,
+  .dashboard-user-page .user-progress-stats,
+  .dashboard-user-page .user-ide-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-user-page .dashboard-program-panel {
+    width: 100%;
+  }
+
+  .dashboard-user-page .dashboard-calendar {
+    width: min(100%, 420px);
+  }
+
+  .dashboard-user-page .dashboard-upcoming {
+    width: 100%;
+  }
+
+  .dashboard-user-page .dashboard-upcoming__card {
+    width: 100%;
+  }
+}
+
+@media (max-width: 900px) {
+  .dashboard-user-page,
+  .dashboard-user-page--collapsed {
+    --dashboard-sidebar-width: 0px;
+  }
+
+  .dashboard-user-page .dashboard-sidebar {
+    width: 260px;
+    transform: translateX(0);
+    box-shadow: 18px 0 45px rgba(3, 11, 30, 0.26);
+  }
+
+  .dashboard-user-page.dashboard-user-page--collapsed .dashboard-sidebar {
+    transform: translateX(-100%);
+  }
+
+  .dashboard-user-page .dashboard-sidebar__brand {
+    left: 24px;
+    width: 120px;
+  }
+
+  .dashboard-user-page .dashboard-sidebar__nav {
+    left: 18px;
+    width: calc(100% - 36px);
+  }
+
+  .dashboard-user-page .dashboard-sidebar__item {
+    width: 100%;
+  }
+
+  .dashboard-user-page .dashboard-sidebar__collapse {
+    left: 248px;
+    top: 18px;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+  }
+
+  .dashboard-user-page.dashboard-user-page--collapsed .dashboard-sidebar__collapse {
+    left: 16px;
+    transform: translateX(260px);
+  }
+
+  .dashboard-user-page.dashboard-user-page--collapsed .dashboard-sidebar__brand,
+  .dashboard-user-page.dashboard-user-page--collapsed .dashboard-sidebar__item span {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    color: inherit;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+
+  .dashboard-user-page.dashboard-user-page--collapsed .dashboard-sidebar__brand {
+    display: none;
+  }
+
+  .dashboard-user-page.dashboard-user-page--collapsed .dashboard-sidebar__nav {
+    left: 18px;
+    width: calc(100% - 36px);
+  }
+
+  .dashboard-user-page.dashboard-user-page--collapsed .dashboard-sidebar__item {
+    justify-content: flex-start;
+    gap: 16px;
+    width: 100%;
+    height: 38px;
+    padding: 0 10px;
+  }
+
+  .dashboard-user-page .dashboard-shell {
+    margin-left: 0;
+    padding-top: 64px;
+  }
+
+  .dashboard-user-page .dashboard-topbar {
+    left: 0;
+    height: 64px;
+  }
+
+  .dashboard-user-page .dashboard-topbar__user {
+    right: 16px;
+    top: 13px;
+    gap: 10px;
+  }
+
+  .dashboard-user-page .dashboard-topbar__user strong {
+    max-width: 38vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dashboard-user-page .dashboard-content {
+    gap: 22px;
+    padding: 24px 16px 56px;
+  }
+
+  .dashboard-user-page .dashboard-user-greeting {
+    height: auto;
+    align-items: flex-start;
+  }
+
+  .dashboard-user-page .dashboard-user-greeting h1,
+  .dashboard-user-page .dashboard-content h1 {
+    font-size: clamp(26px, 7vw, 34px);
+    line-height: 1.12;
+  }
+
+  .dashboard-user-page .dashboard-profile-header {
+    height: auto;
+    margin-bottom: 24px;
+    align-items: flex-start;
+  }
+
+  .dashboard-user-page .dashboard-profile-avatar {
+    width: 76px;
+    height: 76px;
+    margin-right: 16px;
+  }
+
+  .dashboard-user-page .dashboard-actions {
+    width: auto;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .dashboard-user-page .dashboard-button {
+    width: auto;
+    min-width: 88px;
+    height: 40px;
+    padding: 0 14px;
+    font-size: 16px;
+  }
+
+  .dashboard-user-page .dashboard-user-widget header,
+  .dashboard-user-page .user-settings-card__head,
+  .dashboard-user-page .user-project-card__head,
+  .dashboard-user-page .user-workshop-card__head,
+  .dashboard-user-page .user-lead-card__head,
+  .dashboard-user-page .user-partner-card__head,
+  .dashboard-user-page .user-transactions-card__head,
+  .dashboard-user-page .user-certificates-card__head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dashboard-user-page .dashboard-quick-actions {
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .dashboard-user-page .dashboard-quick-actions a,
+  .dashboard-user-page .dashboard-quick-actions button {
+    flex: 1 1 180px;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-user-page .dashboard-content {
+    padding: 20px 14px 48px;
+  }
+
+  .dashboard-user-page .dashboard-form,
+  .dashboard-user-page .user-settings-form-grid,
+  .dashboard-user-page .user-project-form-grid,
+  .dashboard-user-page .user-partner-form-grid,
+  .dashboard-user-page .user-workshop-stats,
+  .dashboard-user-page .user-lead-stats,
+  .dashboard-user-page .user-transactions-stats,
+  .dashboard-user-page .user-certificates-stats,
+  .dashboard-user-page .user-progress-stats,
+  .dashboard-user-page .user-ide-stats,
+  .dashboard-user-page .dashboard-user-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-user-page .dashboard-profile-header {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .dashboard-user-page .dashboard-profile-avatar {
+    margin-right: 0;
+  }
+
+  .dashboard-user-page .dashboard-actions {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .dashboard-user-page .dashboard-actions .dashboard-button,
+  .dashboard-user-page .dashboard-button {
+    flex: 1 1 120px;
+  }
+
+  .dashboard-user-page .dashboard-field {
+    gap: 8px;
+    font-size: 15px;
+    line-height: 1.35;
+  }
+
+  .dashboard-user-page .dashboard-field input,
+  .dashboard-user-page .dashboard-field select,
+  .dashboard-user-page input,
+  .dashboard-user-page select,
+  .dashboard-user-page textarea {
+    min-height: 44px;
+    font-size: 14px;
+  }
+
+  .dashboard-user-page .dashboard-calendar__grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-auto-rows: 38px;
+    gap: 5px;
+  }
+
+  .dashboard-user-page .dashboard-user-row,
+  .dashboard-user-page .dashboard-user-timeline a {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .dashboard-user-page .dashboard-user-timeline a {
+    grid-template-columns: 10px minmax(0, 1fr);
+  }
+
+  .dashboard-user-page .dashboard-user-row b,
+  .dashboard-user-page .dashboard-user-timeline time {
+    white-space: normal;
+  }
+
+  .dashboard-user-page .dashboard-topbar__user strong {
+    display: none;
+  }
+
+  .dashboard-user-page .dashboard-mini-avatar {
+    width: 34px;
+    height: 34px;
+  }
+
+  .dashboard-user-page .user-settings-tabs,
+  .dashboard-user-page .user-project-tabs,
+  .dashboard-user-page .user-workshop-filters,
+  .dashboard-user-page .user-transactions-filters,
+  .dashboard-user-page .user-certificates-filters,
+  .dashboard-user-page .user-lead-filters,
+  .dashboard-user-page .user-partner-filters {
+    display: flex;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .dashboard-user-page .user-settings-tabs > *,
+  .dashboard-user-page .user-project-tabs > *,
+  .dashboard-user-page .user-workshop-filters > *,
+  .dashboard-user-page .user-transactions-filters > *,
+  .dashboard-user-page .user-certificates-filters > *,
+  .dashboard-user-page .user-lead-filters > *,
+  .dashboard-user-page .user-partner-filters > * {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-user-page .dashboard-content {
+    padding-inline: 12px;
+  }
+
+  .dashboard-user-page .dashboard-sidebar {
+    width: min(84vw, 260px);
+  }
+
+  .dashboard-user-page .dashboard-sidebar__collapse {
+    left: calc(min(84vw, 260px) - 12px);
+  }
+
+  .dashboard-user-page.dashboard-user-page--collapsed .dashboard-sidebar__collapse {
+    transform: translateX(min(84vw, 260px));
+  }
+
+  .dashboard-user-page .dashboard-topbar .user-dashboard-notif {
+    width: 34px;
+    height: 34px;
+  }
+
+  .dashboard-user-page .dashboard-user-widget,
+  .dashboard-user-page [class*='card'],
+  .dashboard-user-page [class*='panel'] {
+    padding: 14px;
+  }
+
+  .dashboard-user-page .dashboard-user-greeting h1,
+  .dashboard-user-page .dashboard-content h1 {
+    font-size: 24px;
+  }
+}

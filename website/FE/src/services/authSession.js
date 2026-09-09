@@ -48,6 +48,23 @@ export function setStoredUser(user) {
   dispatchAuthChange();
 }
 
+export function setUserAuthState(user, token) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const normalizedToken = String(token || '').trim();
+
+  if (!user || typeof user !== 'object' || !normalizedToken) {
+    clearUserAuthState();
+    return;
+  }
+
+  window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+  window.localStorage.setItem(USER_TOKEN_STORAGE_KEY, normalizedToken);
+  dispatchAuthChange();
+}
+
 export function dispatchAuthChange() {
   if (typeof window === 'undefined') {
     return;

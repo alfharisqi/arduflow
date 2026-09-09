@@ -1,5 +1,5 @@
 import { apiEndpoint, apiUrl } from './apiEndpoints.js';
-import { clearUserAuthState, getStoredUserToken } from './authSession.js';
+import { getStoredUserToken } from './authSession.js';
 
 const TRANSACTION_API_URL = apiEndpoint(
   import.meta.env.VITE_TRANSACTION_API_URL,
@@ -29,10 +29,6 @@ async function requestTransactions(url, options = {}) {
     payload = await response.json();
   } catch {
     payload = null;
-  }
-
-  if (response.status === 401 && token) {
-    clearUserAuthState();
   }
 
   if (!response.ok || payload?.success === false) {
@@ -164,7 +160,16 @@ function paymentMethodBody(data = {}) {
 }
 
 export async function fetchTransactions(params = {}, options = {}) {
-  const payload = await requestTransactions(`${TRANSACTION_API_URL}${buildQuery(params)}`, options);
+  const hasUserFilter = Boolean(
+    params?.userId ||
+      params?.user_id ||
+      params?.email
+  );
+  const requestOptions = {
+    ...(hasUserFilter ? { skipUserAuth: true } : {}),
+    ...options,
+  };
+  const payload = await requestTransactions(`${TRANSACTION_API_URL}${buildQuery(params)}`, requestOptions);
   const records = payload?.data?.transactions || payload?.transactions || payload?.data || [];
   return Array.isArray(records) ? records.map(normalizeTransaction).filter(Boolean) : [];
 }

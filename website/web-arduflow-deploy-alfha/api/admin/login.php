@@ -34,6 +34,7 @@ $allowedOrigins = [
 
     'https://arduflow.indobilliard.com',
     'https://www.arduflow.indobilliard.com',
+        'https://web.arduflow.com',
 ];
 
 $isLocalOrigin = preg_match(
