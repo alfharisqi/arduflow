@@ -131,16 +131,3 @@ function normalizeStoredImage(?array $image, array $storage, string $prefix): ?a
         'file_url' => $url,
     ];
 }
-
-function addColumnIfMissing(PDO $pdo, string $table, string $column, string $definition): void
-{
-    $statement = $pdo->query('PRAGMA table_info(' . $table . ')');
-    $columns = array_map(
-        static fn (array $row): string => (string) ($row['name'] ?? ''),
-        $statement ? $statement->fetchAll(PDO::FETCH_ASSOC) : []
-    );
-
-    if (!in_array($column, $columns, true)) {
-        $pdo->exec('ALTER TABLE ' . $table . ' ADD COLUMN ' . $column . ' ' . $definition);
-    }
-}

@@ -1,4 +1,5 @@
 import { apiEndpoint } from '../../services/apiEndpoints.js';
+import { getStoredUserToken } from '../../services/authSession.js';
 
 const FORMHANDLE_API_URL = apiEndpoint(
   import.meta.env.VITE_FORMHANDLE_API_URL,
@@ -15,6 +16,7 @@ async function postJson(
   console.log("Payload request:", payload);
 
   const isFormData = payload instanceof FormData;
+  const token = getStoredUserToken();
   let response;
 
   try {
@@ -25,6 +27,7 @@ async function postJson(
         ...(isFormData
           ? {}
           : { "Content-Type": "application/json" }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: isFormData ? payload : JSON.stringify(payload),
     });
@@ -146,6 +149,7 @@ export async function fetchUserLeadHistory(email) {
     method: "GET",
     headers: {
       Accept: "application/json",
+      ...(getStoredUserToken() ? { Authorization: `Bearer ${getStoredUserToken()}` } : {}),
     },
   });
 

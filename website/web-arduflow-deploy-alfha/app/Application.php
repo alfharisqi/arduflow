@@ -131,6 +131,8 @@ final class Application
         $this->router->post('/api/admin/database-sync/retry-failed', [$adminSync, 'retryFailed']);
         $this->router->post('/api/admin/database-sync/backup', [$adminSync, 'backup']);
         $this->router->get('/api/admin/database-sync/backups', [$adminSync, 'backups']);
+        $this->router->delete('/api/admin/database-sync/logs', [$adminSync, 'clearLogs']);
+        $this->router->delete('/api/admin/database-sync/logs/{id}', [$adminSync, 'deleteLog']);
         $this->router->post('/api/internal/sync/sqlite-to-mysql', [$internalSync, 'receive']);
         $this->router->get('/api/workshops', [$workshopController, 'index']);
         $this->router->get('/api/workshops/{id}', [$workshopController, 'show']);

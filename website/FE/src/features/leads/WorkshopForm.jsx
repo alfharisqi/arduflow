@@ -5,6 +5,7 @@ import {
   isPublicWorkshop,
 } from "../../services/workshopApi.js";
 import { showSuccessAlert } from "../../utils/alerts.js";
+import { AUTH_CHANGE_EVENT, getStoredUser } from "../../services/authSession.js";
 
 const MAX_PARTICIPANTS = 200;
 
@@ -117,13 +118,18 @@ function WorkshopForm() {
     type: "",
     message: "",
   });
-  const storedUser = useMemo(() => {
-    try {
-      const rawUser = window.localStorage.getItem("arduflow_user");
-      return rawUser ? JSON.parse(rawUser) : {};
-    } catch {
-      return {};
-    }
+  const [storedUser, setStoredUser] = useState(() => getStoredUser() || {});
+
+  useEffect(() => {
+    const syncUser = () => setStoredUser(getStoredUser() || {});
+
+    window.addEventListener("storage", syncUser);
+    window.addEventListener(AUTH_CHANGE_EVENT, syncUser);
+
+    return () => {
+      window.removeEventListener("storage", syncUser);
+      window.removeEventListener(AUTH_CHANGE_EVENT, syncUser);
+    };
   }, []);
 
   useEffect(() => {
@@ -367,6 +373,7 @@ function WorkshopForm() {
       aria-labelledby="contact-workshop-title"
     >
       <form
+        key={storedUser.id || storedUser.userId || storedUser.email || "guest"}
         className="lead-form-card"
         onSubmit={handleSubmit}
       >

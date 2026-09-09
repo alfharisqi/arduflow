@@ -5,10 +5,14 @@ import { ProfileAvatar } from '../../features/profile-image-crop/ProfileAvatar.j
 import { DashboardUserSidebarIcon } from './userSidebarIcons.jsx';
 import {
   getUserSession,
-  logoutUser,
   requestPasswordReset,
   updateUserProfile,
 } from '../../services/authApi.js';
+import {
+  clearUserAuthState,
+  getStoredUserToken,
+  logoutCurrentUser,
+} from '../../services/authSession.js';
 import { UserDashboardTopbar } from './UserDashboardTopbar.jsx';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 
@@ -154,7 +158,7 @@ export function UserSettings() {
   }, [profile]);
 
   useEffect(() => {
-    const token = window.localStorage.getItem('arduflow_user_token');
+    const token = getStoredUserToken();
     if (!token) return undefined;
 
     let isMounted = true;
@@ -169,8 +173,10 @@ export function UserSettings() {
         setStoredUser(nextUser);
         setProfile(buildProfile(nextUser));
       })
-      .catch(() => {
-        // Local cached user remains usable if session refresh fails.
+      .catch((sessionError) => {
+        if (sessionError?.status === 401) {
+          clearUserAuthState();
+        }
       });
 
     return () => {
@@ -187,14 +193,7 @@ export function UserSettings() {
   }
 
   function handleLogout() {
-    const token = window.localStorage.getItem('arduflow_user_token');
-    if (token) {
-      logoutUser(token).catch(() => {});
-    }
-    window.localStorage.removeItem('arduflow_user_token');
-    window.localStorage.removeItem('arduflow_user');
-    window.dispatchEvent(new Event('arduflow-auth-change'));
-    window.location.href = '/signin';
+    logoutCurrentUser({ redirectTo: '/signin' });
   }
 
   function updateProfileField(key, value) {
@@ -369,7 +368,7 @@ export function UserSettings() {
                 </div>
                 <div className="user-settings-security">
                   <article><span>Email Login</span><strong>{profile.email || '-'}</strong></article>
-                  <article><span>Status Sesi</span><strong>{window.localStorage.getItem('arduflow_user_token') ? 'Aktif' : 'Tidak aktif'}</strong></article>
+                  <article><span>Status Sesi</span><strong>{getStoredUserToken() ? 'Aktif' : 'Tidak aktif'}</strong></article>
                 </div>
                 <div className="user-settings-actions">
                   <button type="button" onClick={sendPasswordReset} disabled={isResettingPassword}>{isResettingPassword ? 'Mengirim...' : 'Kirim Link Reset Password'}</button>

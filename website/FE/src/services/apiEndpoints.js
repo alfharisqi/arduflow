@@ -1,6 +1,11 @@
 function resolveApiBaseUrl() {
-  const apiUrl = String(import.meta.env.VITE_API_URL || '').trim();
-  const deployUrl = String(import.meta.env.VITE_DEPLOY_URL || '').trim();
+  const apiUrl = String(
+    import.meta.env.VITE_API_URL || ''
+  ).trim();
+
+  const deployUrl = String(
+    import.meta.env.VITE_DEPLOY_URL || ''
+  ).trim();
 
   return (
     apiUrl ||

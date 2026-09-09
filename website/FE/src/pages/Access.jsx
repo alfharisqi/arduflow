@@ -1,15 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchIdeConfig } from '../services/ideApi.js';
 import { createTransaction, fetchPaymentMethods } from '../services/transactionApi.js';
-
-function getStoredUser() {
-  try {
-    const raw = window.localStorage.getItem('arduflow_user');
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
+import { getStoredUser, getStoredUserToken } from '../services/authSession.js';
 
 function formatCurrency(value, currency = 'IDR') {
   return new Intl.NumberFormat('id-ID', {
@@ -40,7 +32,7 @@ export function Access() {
   const [isCreating, setIsCreating] = useState(false);
   const [message, setMessage] = useState('');
 
-  const user = getStoredUser();
+  const user = getStoredUser() || {};
   const activePaymentMethods = useMemo(
     () => paymentMethods.filter((method) => method.isActive),
     [paymentMethods]
@@ -86,9 +78,10 @@ export function Access() {
   }, []);
 
   async function handleBuyAccess() {
-    const token = window.localStorage.getItem('arduflow_user_token');
+    const token = getStoredUserToken();
+    const activeUser = getStoredUser() || {};
 
-    if (!token || !user.email) {
+    if (!token || !activeUser.email) {
       window.location.assign('/signin');
       return;
     }
@@ -103,9 +96,6 @@ export function Access() {
 
     try {
       await createTransaction({
-        userId: user.id || user.userId || null,
-        userName: user.name || user.fullName || user.full_name || user.username || '',
-        email: user.email,
         itemType: 'ide',
         itemTitle: config.title || 'Akses ArduFlow IDE',
         amount: Number(config.price || 0),

@@ -100,6 +100,33 @@ function projectImage(project) {
 }
 
 
+function projectTimestamp(project) {
+  return new Date(
+    project.updatedAt ||
+    project.createdAt ||
+    0
+  ).getTime() || 0;
+}
+
+
+function sortByMostViewed(projects) {
+  return [...projects].sort(
+    (first, second) => {
+      const viewDifference =
+        (Number(second.viewer) || 0) -
+        (Number(first.viewer) || 0);
+
+      if (viewDifference !== 0) {
+        return viewDifference;
+      }
+
+      return projectTimestamp(second) -
+        projectTimestamp(first);
+    }
+  );
+}
+
+
 function toolLabel(tool) {
   return String(
     tool?.name ||
@@ -625,29 +652,26 @@ function ProjectLibrary({
 
 
 /* =========================================================
-   CONTENT COLLECTIONS
+   POPULAR PROJECTS
 ========================================================= */
 
-function ContentCollections({
+function PopularProjects({
   projects,
 }) {
 
   const collections =
-    projects
+    sortByMostViewed(projects)
       .slice(0, 3)
       .map(
         (project) => ({
           eyebrow:
-            "Karya Pengguna",
+            "Proyek Paling Populer",
 
           title:
             project.title,
 
           metadata:
-            `oleh ${
-              project.ownerName ||
-              "Pengguna ArduFlow"
-            }`,
+            `${formatNumber(project.viewer)} kali dilihat oleh user`,
 
           href:
             projectDetailHref(
@@ -666,7 +690,7 @@ function ContentCollections({
     <section
       id="dokumentasi"
       className="content-collections"
-      aria-label="Koleksi konten"
+      aria-label="Proyek paling populer"
     >
 
       <div className="content-collections__inner">
@@ -900,9 +924,9 @@ function FinalCta() {
 
         <a
           className="final-cta__button"
-          href="/signup"
+          href="/ide"
         >
-          Daftar Akses
+          Daftar IDE
         </a>
 
       </div>
@@ -1026,7 +1050,7 @@ export function Project() {
       />
 
 
-      <ContentCollections
+      <PopularProjects
         projects={
           projects
         }

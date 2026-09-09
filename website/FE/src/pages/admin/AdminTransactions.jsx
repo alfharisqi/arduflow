@@ -330,7 +330,7 @@ export function AdminTransactions() {
   async function loadTransactions() {
     setIsLoading(true);
     try {
-      const records = await fetchTransactions();
+      const records = await fetchTransactions({}, { skipUserAuth: true });
       setTransactions(records);
       setMessage('');
     } catch (error) {
@@ -664,7 +664,7 @@ export function AdminTransactions() {
       await createTransaction({
         ...formData,
         amount: Number(formData.amount || 0),
-      });
+      }, { skipUserAuth: true });
       setFormData(initialForm);
       setIsCreateOpen(false);
       await loadTransactions();

@@ -294,7 +294,7 @@ final class UserRepository
         $total = $this->countAdminUsers($where, $params);
         $statement = $this->pdo->prepare(
             'SELECT users.id, users.name, users.username, users.email, users.whatsapp, users.occupation, ' .
-            'users.institution_name, users.avatar_path, users.is_active, users.email_verified_at, users.verification_token, users.verification_sent_at, ' .
+            'users.institution_name, users.profile_image, users.avatar_path, users.is_active, users.email_verified_at, users.verification_token, users.verification_sent_at, ' .
             'users.created_at, latest_session.last_login_at, active_session.user_id AS active_user_id ' .
             'FROM users ' .
             'LEFT JOIN (SELECT user_id, MAX(COALESCE(last_used_at, created_at)) AS last_login_at FROM user_sessions GROUP BY user_id) latest_session ' .
@@ -539,6 +539,7 @@ final class UserRepository
             'isActive' => ((int) ($row['is_active'] ?? 1)) === 1,
             'registeredAt' => $row['created_at'],
             'lastLoginAt' => $row['last_login_at'] ?: null,
+            'profileImage' => $row['profile_image'] ?? null,
             'avatarPath' => $row['avatar_path'] ?? null,
         ];
     }

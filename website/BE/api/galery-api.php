@@ -2,7 +2,13 @@
 
 declare(strict_types=1);
 
+<<<<<<< HEAD
 use Arduflow\Api\Support\Env;
+=======
+const JSON_FLAGS = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
+const MAX_COVER_SIZE = 5 * 1024 * 1024;
+const GALLERY_SELECT = 'id, title, tag, description, user_name, event_date, detail_link, note, cover_path, cover_url, cover_original_name, cover_mime, cover_size, status, payload_json, created_at, updated_at';
+>>>>>>> e4fa39c96b387c8a79fdc1c215c7385af01e8817
 
 ini_set('display_errors', '0');
 error_reporting(E_ALL);
@@ -29,7 +35,7 @@ $isLocalOrigin = preg_match(
 ) === 1;
 
 if (in_array($origin, $allowedOrigins, true) || $isLocalOrigin) {
-    header("Access-Control-Allow-Origin: {$origin}");
+    header('Access-Control-Allow-Origin: ' . $origin);
     header('Vary: Origin');
 }
 
@@ -45,76 +51,91 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 function respond(int $statusCode, array $body): never
 {
     http_response_code($statusCode);
-
-    echo json_encode(
-        $body,
-        JSON_UNESCAPED_UNICODE |
-        JSON_UNESCAPED_SLASHES |
-        JSON_PRETTY_PRINT
-    );
-
+    echo json_encode($body, JSON_FLAGS);
     exit;
 }
 
-function cleanText(?string $value): string
+function cleanText(mixed $value): string
 {
     return trim((string) $value);
 }
 
 function stripDangerousHtml(string $html): string
 {
-    $html = preg_replace('#<(script|style)\b[^>]*>.*?</\1>#is', '', $html) ?? '';
-    $html = preg_replace('/\son\w+\s*=\s*(["\']).*?\1/i', '', $html) ?? '';
-    $html = preg_replace('/\son\w+\s*=\s*[^\s>]+/i', '', $html) ?? '';
+    $html = preg_replace(
+        '#<(script|style)\b[^>]*>.*?</\1>#is',
+        '',
+        $html
+    ) ?? '';
+
+    $html = preg_replace(
+        '/\son\w+\s*=\s*(["\']).*?\1/i',
+        '',
+        $html
+    ) ?? '';
+
+    $html = preg_replace(
+        '/\son\w+\s*=\s*[^\s>]+/i',
+        '',
+        $html
+    ) ?? '';
 
     return trim($html);
 }
 
 function htmlToText(string $html): string
 {
-    return trim(html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    return trim(
+        html_entity_decode(
+            strip_tags($html),
+            ENT_QUOTES | ENT_HTML5,
+            'UTF-8'
+        )
+    );
 }
 
 function readJsonBody(): array
 {
-    $rawBody = file_get_contents('php://input');
+    $raw = file_get_contents('php://input');
 
-    if ($rawBody === false || trim($rawBody) === '') {
+    if ($raw === false || trim($raw) === '') {
         return [];
     }
 
-    $data = json_decode($rawBody, true);
-
-    if (!is_array($data) || json_last_error() !== JSON_ERROR_NONE) {
+    try {
+        $data = json_decode(
+            $raw,
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+    } catch (JsonException $error) {
         respond(400, [
             'success' => false,
             'message' => 'JSON tidak valid.',
-            'error' => json_last_error_msg(),
+            'error' => $error->getMessage(),
         ]);
     }
 
-    return isset($data['data']) && is_array($data['data']) ? $data['data'] : $data;
-}
-
-function fileToPayload(?array $file, ?string $coverPath, ?string $coverUrl): ?array
-{
-    if (!$file || !$coverPath) {
-        return null;
+    if (!is_array($data)) {
+        respond(400, [
+            'success' => false,
+            'message' => 'JSON tidak valid.',
+        ]);
     }
 
-    return [
-        'name' => $file['name'] ?? null,
-        'size' => isset($file['size']) ? (int) $file['size'] : 0,
-        'type' => $file['type'] ?? 'application/octet-stream',
-        'path' => $coverPath,
-        'url' => $coverUrl,
-    ];
+    return isset($data['data']) && is_array($data['data'])
+        ? $data['data']
+        : $data;
 }
 
 function getRequestId(): int
 {
-    $rawId = $_GET['id'] ?? $_POST['id'] ?? 0;
-    $id = (int) $rawId;
+    $id = (int) (
+        $_GET['id']
+        ?? $_POST['id']
+        ?? 0
+    );
 
     if ($id <= 0) {
         respond(400, [
@@ -128,7 +149,26 @@ function getRequestId(): int
 
 function galleryRowToPayload(array $row): array
 {
-    $payload = json_decode((string) ($row['payload_json'] ?? ''), true) ?: [];
+    $payload = json_decode(
+        (string) ($row['payload_json'] ?? ''),
+        true
+    );
+
+    $payload = is_array($payload)
+        ? $payload
+        : [];
+
+    $coverImage = $payload['coverImage'] ?? null;
+
+    if (!is_array($coverImage)) {
+        $coverImage = [
+            'name' => $row['cover_original_name'] ?? null,
+            'size' => (int) ($row['cover_size'] ?? 0),
+            'type' => $row['cover_mime'] ?? null,
+            'path' => $row['cover_path'] ?? null,
+            'url' => $row['cover_url'] ?? null,
+        ];
+    }
 
     return [
         'id' => (int) $row['id'],
@@ -139,13 +179,7 @@ function galleryRowToPayload(array $row): array
         'eventDate' => $row['event_date'],
         'detailLink' => $row['detail_link'],
         'note' => $row['note'],
-        'coverImage' => $payload['coverImage'] ?? [
-            'name' => $row['cover_original_name'],
-            'size' => isset($row['cover_size']) ? (int) $row['cover_size'] : 0,
-            'type' => $row['cover_mime'],
-            'path' => $row['cover_path'],
-            'url' => $row['cover_url'] ?? null,
-        ],
+        'coverImage' => $coverImage,
         'coverPath' => $row['cover_path'],
         'coverUrl' => $row['cover_url'] ?? null,
         'status' => $row['status'],
@@ -155,149 +189,353 @@ function galleryRowToPayload(array $row): array
     ];
 }
 
-function resolveDatabasePath(string $projectRoot, array $databaseConfig): string
-{
-    $sqliteConfig = $databaseConfig['sqlite'] ?? null;
+function resolveDatabasePath(
+    string $projectRoot,
+    array $databaseConfig
+): string {
+    $sqlite = $databaseConfig['sqlite'] ?? null;
 
-    if (!is_array($sqliteConfig)) {
-        throw new RuntimeException('Konfigurasi SQLite tidak ditemukan.');
-    }
-
-    $databasePath = trim((string) ($sqliteConfig['path'] ?? ''));
-
-    if ($databasePath === '') {
-        throw new RuntimeException('Path database SQLite belum dikonfigurasi.');
-    }
-
-    $isWindowsAbsolutePath = preg_match('/^[A-Za-z]:[\\\\\/]/', $databasePath) === 1;
-    $isUnixAbsolutePath = str_starts_with($databasePath, '/');
-
-    if (!$isWindowsAbsolutePath && !$isUnixAbsolutePath) {
-        $databasePath = $projectRoot . DIRECTORY_SEPARATOR . str_replace(
-            ['/', '\\'],
-            DIRECTORY_SEPARATOR,
-            $databasePath
+    if (!is_array($sqlite)) {
+        throw new RuntimeException(
+            'Konfigurasi SQLite tidak ditemukan.'
         );
     }
 
-    return $databasePath;
-}
-
-function ensureGalleryTables(PDO $pdo): void
-{
-    $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS gallery_submissions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            tag TEXT NOT NULL,
-            description TEXT NOT NULL,
-            user_name TEXT NOT NULL,
-            event_date TEXT NOT NULL,
-            detail_link TEXT NULL,
-            note TEXT NULL,
-            cover_path TEXT NULL,
-            cover_url TEXT NULL,
-            cover_original_name TEXT NULL,
-            cover_mime TEXT NULL,
-            cover_size INTEGER NULL,
-            status TEXT NOT NULL DEFAULT "draft",
-            payload_json TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        )'
+    $path = trim(
+        (string) ($sqlite['path'] ?? '')
     );
 
-    if (function_exists('addColumnIfMissing')) {
-        addColumnIfMissing($pdo, 'gallery_submissions', 'cover_url', 'TEXT');
-        addColumnIfMissing($pdo, 'gallery_submissions', 'cover_path', 'TEXT');
-        addColumnIfMissing($pdo, 'gallery_submissions', 'cover_original_name', 'TEXT');
-        addColumnIfMissing($pdo, 'gallery_submissions', 'cover_mime', 'TEXT');
-        addColumnIfMissing($pdo, 'gallery_submissions', 'cover_size', 'INTEGER');
+    if ($path === '') {
+        throw new RuntimeException(
+            'Path database SQLite belum dikonfigurasi.'
+        );
     }
+
+    $absolute =
+        preg_match(
+            '/^[A-Za-z]:[\\\\\/]/',
+            $path
+        ) === 1
+        || str_starts_with($path, '/');
+
+    if (!$absolute) {
+        $path =
+            $projectRoot
+            . DIRECTORY_SEPARATOR
+            . str_replace(
+                ['/', '\\'],
+                DIRECTORY_SEPARATOR,
+                $path
+            );
+    }
+
+    return $path;
 }
 
-function uploadedCover(array $uploadDirectory): array
-{
-    $coverFile = $_FILES['cover_image'] ?? null;
-    $errors = [];
-    $coverPath = null;
-    $coverUrl = null;
-    $coverOriginalName = null;
-    $coverMime = null;
-    $coverSize = null;
-    $targetFile = null;
+function ensureGalleryStorage(
+    string $projectRoot
+): array {
+    if (function_exists('ensureUploadStorage')) {
+        return ensureUploadStorage(
+            $projectRoot,
+            'gallery'
+        );
+    }
+
+    $path =
+        $projectRoot
+        . DIRECTORY_SEPARATOR
+        . 'storage'
+        . DIRECTORY_SEPARATOR
+        . 'uploads'
+        . DIRECTORY_SEPARATOR
+        . 'gallery';
 
     if (
-        $coverFile &&
-        isset($coverFile['error']) &&
-        $coverFile['error'] !== UPLOAD_ERR_NO_FILE
+        !is_dir($path)
+        && !mkdir($path, 0775, true)
+        && !is_dir($path)
     ) {
-        if ($coverFile['error'] !== UPLOAD_ERR_OK) {
-            $errors['cover_image'] = 'Upload cover gagal.';
-        } else {
-            $coverSize = (int) ($coverFile['size'] ?? 0);
+        throw new RuntimeException(
+            'Folder upload galeri tidak dapat dibuat.'
+        );
+    }
 
-            if ($coverSize <= 0) {
-                $errors['cover_image'] = 'File cover tidak valid.';
-            }
-
-            if ($coverSize > 5 * 1024 * 1024) {
-                $errors['cover_image'] = 'Ukuran cover maksimal 5 MB.';
-            }
-
-            $temporaryFile = (string) ($coverFile['tmp_name'] ?? '');
-
-            if ($temporaryFile === '' || !is_uploaded_file($temporaryFile)) {
-                $errors['cover_image'] = 'File upload tidak valid.';
-            } else {
-                $fileInfo = new finfo(FILEINFO_MIME_TYPE);
-                $detectedMime = $fileInfo->file($temporaryFile) ?: '';
-
-                $allowedMimeTypes = [
-                    'image/jpeg' => 'jpg',
-                    'image/png' => 'png',
-                    'image/webp' => 'webp',
-                ];
-
-                if (!array_key_exists($detectedMime, $allowedMimeTypes)) {
-                    $errors['cover_image'] = 'Cover hanya boleh JPG, JPEG, PNG, atau WEBP.';
-                } else {
-                    $coverMime = $detectedMime;
-                    $coverOriginalName = basename((string) ($coverFile['name'] ?? 'cover'));
-                    $fileName = 'gallery_' . date('Ymd_His') . '_' . bin2hex(random_bytes(8)) . '.' . $allowedMimeTypes[$detectedMime];
-                    $targetFile = $uploadDirectory['path'] . DIRECTORY_SEPARATOR . $fileName;
-                    $coverPath = 'storage/uploads/gallery/' . $fileName;
-                    $coverUrl = rtrim((string) $uploadDirectory['url'], '/') . '/' . $fileName;
-                }
-            }
-        }
+    if (!is_writable($path)) {
+        throw new RuntimeException(
+            'Folder upload galeri tidak memiliki izin tulis.'
+        );
     }
 
     return [
-        'file' => $coverFile,
-        'errors' => $errors,
-        'targetFile' => $targetFile,
-        'coverPath' => $coverPath,
-        'coverUrl' => $coverUrl,
-        'coverOriginalName' => $coverOriginalName,
-        'coverMime' => $coverMime,
-        'coverSize' => $coverSize,
+        'path' => $path,
+        'url' => '/uploads/gallery',
+    ];
+}
+
+function prepareCoverUpload(
+    array $storage
+): array {
+    $file =
+        $_FILES['cover_image']
+        ?? null;
+
+    $result = [
+        'file' => $file,
+        'error' => null,
+        'targetFile' => null,
+        'coverPath' => null,
+        'coverUrl' => null,
+        'coverOriginalName' => null,
+        'coverMime' => null,
+        'coverSize' => null,
+    ];
+
+    if (
+        !is_array($file)
+        || (int) (
+            $file['error']
+            ?? UPLOAD_ERR_NO_FILE
+        ) === UPLOAD_ERR_NO_FILE
+    ) {
+        return $result;
+    }
+
+    if (
+        (int) $file['error']
+        !== UPLOAD_ERR_OK
+    ) {
+        $result['error'] =
+            'Upload cover gagal.';
+
+        return $result;
+    }
+
+    $size =
+        (int) (
+            $file['size']
+            ?? 0
+        );
+
+    if ($size <= 0) {
+        $result['error'] =
+            'File cover tidak valid.';
+
+        return $result;
+    }
+
+    if ($size > MAX_COVER_SIZE) {
+        $result['error'] =
+            'Ukuran cover maksimal 5 MB.';
+
+        return $result;
+    }
+
+    $tmp =
+        (string) (
+            $file['tmp_name']
+            ?? ''
+        );
+
+    if (
+        $tmp === ''
+        || !is_uploaded_file($tmp)
+    ) {
+        $result['error'] =
+            'File upload tidak valid.';
+
+        return $result;
+    }
+
+    $mime =
+        (string) (
+            (new finfo(
+                FILEINFO_MIME_TYPE
+            ))->file($tmp)
+            ?: ''
+        );
+
+    $allowed = [
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/webp' => 'webp',
+    ];
+
+    if (!isset($allowed[$mime])) {
+        $result['error'] =
+            'Cover hanya boleh JPG, JPEG, PNG, atau WEBP.';
+
+        return $result;
+    }
+
+    $fileName = sprintf(
+        'gallery_%s_%s.%s',
+        date('Ymd_His'),
+        bin2hex(random_bytes(8)),
+        $allowed[$mime]
+    );
+
+    $result['targetFile'] =
+        $storage['path']
+        . DIRECTORY_SEPARATOR
+        . $fileName;
+
+    $result['coverPath'] =
+        'storage/uploads/gallery/'
+        . $fileName;
+
+    $result['coverUrl'] =
+        rtrim(
+            (string) $storage['url'],
+            '/'
+        )
+        . '/'
+        . $fileName;
+
+    $result['coverOriginalName'] =
+        basename(
+            (string) (
+                $file['name']
+                ?? 'cover'
+            )
+        );
+
+    $result['coverMime'] =
+        $mime;
+
+    $result['coverSize'] =
+        $size;
+
+    return $result;
+}
+
+function coverPayload(array $cover): ?array
+{
+    if (!$cover['coverPath']) {
+        return null;
+    }
+
+    return [
+        'name' =>
+            $cover['coverOriginalName'],
+
+        'size' =>
+            (int) (
+                $cover['coverSize']
+                ?? 0
+            ),
+
+        'type' =>
+            $cover['coverMime']
+            ?? 'application/octet-stream',
+
+        'path' =>
+            $cover['coverPath'],
+
+        'url' =>
+            $cover['coverUrl'],
+    ];
+}
+
+function existingCover(array $row): array
+{
+    return [
+        'name' =>
+            $row['cover_original_name']
+            ?? null,
+
+        'size' =>
+            (int) (
+                $row['cover_size']
+                ?? 0
+            ),
+
+        'type' =>
+            $row['cover_mime']
+            ?? null,
+
+        'path' =>
+            $row['cover_path']
+            ?? null,
+
+        'url' =>
+            $row['cover_url']
+            ?? null,
+    ];
+}
+
+function galleryDbParams(
+    string $title,
+    string $tag,
+    string $description,
+    string $userName,
+    string $eventDate,
+    ?string $detailLink,
+    ?string $note,
+    array $cover,
+    string $status,
+    string $payloadJson,
+    string $now
+): array {
+    return [
+        ':title' => $title,
+        ':tag' => $tag,
+        ':description' => $description,
+        ':user_name' => $userName,
+        ':event_date' => $eventDate,
+        ':detail_link' => $detailLink,
+        ':note' => $note,
+        ':cover_path' => $cover['coverPath'],
+        ':cover_url' => $cover['coverUrl'],
+        ':cover_original_name' => $cover['coverOriginalName'],
+        ':cover_mime' => $cover['coverMime'],
+        ':cover_size' => $cover['coverSize'],
+        ':status' => $status,
+        ':payload_json' => $payloadJson,
+        ':updated_at' => $now,
     ];
 }
 
 try {
-    $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+    $method =
+        $_SERVER['REQUEST_METHOD']
+        ?? 'GET';
 
-    if ($method === 'POST' && isset($_POST['_method'])) {
-        $methodOverride = strtoupper((string) $_POST['_method']);
+    if (
+        $method === 'POST'
+        && isset($_POST['_method'])
+    ) {
+        $override =
+            strtoupper(
+                (string) $_POST['_method']
+            );
 
-        if (in_array($methodOverride, ['PUT', 'DELETE'], true)) {
-            $method = $methodOverride;
+        if (
+            in_array(
+                $override,
+                ['PUT', 'DELETE'],
+                true
+            )
+        ) {
+            $method = $override;
         }
     }
 
-    if (!in_array($method, ['GET', 'POST', 'PUT', 'DELETE'], true)) {
-        header('Allow: GET, POST, PUT, DELETE, OPTIONS');
+    if (
+        !in_array(
+            $method,
+            [
+                'GET',
+                'POST',
+                'PUT',
+                'DELETE',
+            ],
+            true
+        )
+    ) {
+        header(
+            'Allow: GET, POST, PUT, DELETE, OPTIONS'
+        );
 
         respond(405, [
             'success' => false,
@@ -305,6 +543,7 @@ try {
         ]);
     }
 
+<<<<<<< HEAD
     $projectRoot = dirname(__DIR__);
     $autoloadPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
     $envSupportPath = $projectRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'Support' . DIRECTORY_SEPARATOR . 'Env.php';
@@ -322,243 +561,526 @@ try {
     }
 
     if (file_exists($imageStoragePath)) {
+=======
+    $projectRoot =
+        dirname(__DIR__);
+
+    $configPath =
+        $projectRoot
+        . '/config/database.php';
+
+    $imageStoragePath =
+        $projectRoot
+        . '/api/support/image-storage.php';
+
+    if (is_file($imageStoragePath)) {
+>>>>>>> e4fa39c96b387c8a79fdc1c215c7385af01e8817
         require_once $imageStoragePath;
     }
 
-    if (!file_exists($configPath)) {
+    if (!is_file($configPath)) {
         respond(500, [
             'success' => false,
-            'message' => 'Konfigurasi database tidak ditemukan.',
-            'data' => ['path' => $configPath],
+            'message' =>
+                'Konfigurasi database tidak ditemukan.',
+            'data' => [
+                'path' => $configPath,
+            ],
         ]);
     }
 
-    $databaseConfig = require $configPath;
-    $databasePath = resolveDatabasePath($projectRoot, $databaseConfig);
-    $databaseDirectory = dirname($databasePath);
+    $databaseConfig =
+        require $configPath;
 
-    if (!is_dir($databaseDirectory) && !mkdir($databaseDirectory, 0775, true) && !is_dir($databaseDirectory)) {
-        throw new RuntimeException('Folder database tidak dapat dibuat: ' . $databaseDirectory);
+    $databasePath =
+        resolveDatabasePath(
+            $projectRoot,
+            $databaseConfig
+        );
+
+    $databaseDirectory =
+        dirname($databasePath);
+
+    if (
+        !is_dir($databaseDirectory)
+        && !mkdir(
+            $databaseDirectory,
+            0775,
+            true
+        )
+        && !is_dir($databaseDirectory)
+    ) {
+        throw new RuntimeException(
+            'Folder database tidak dapat dibuat: '
+            . $databaseDirectory
+        );
     }
 
     if (!is_writable($databaseDirectory)) {
-        throw new RuntimeException('Folder database tidak memiliki izin tulis: ' . $databaseDirectory);
+        throw new RuntimeException(
+            'Folder database tidak memiliki izin tulis: '
+            . $databaseDirectory
+        );
     }
-
-    $galleryStorage = function_exists('ensureUploadStorage')
-        ? ensureUploadStorage($projectRoot, 'gallery')
-        : [
-            'path' => $projectRoot . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'gallery',
-            'url' => '/uploads/gallery',
-        ];
 
     $pdo = new PDO(
         'sqlite:' . $databasePath,
         null,
         null,
         [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
+            PDO::ATTR_ERRMODE =>
+                PDO::ERRMODE_EXCEPTION,
+
+            PDO::ATTR_DEFAULT_FETCH_MODE =>
+                PDO::FETCH_ASSOC,
+
+            PDO::ATTR_EMULATE_PREPARES =>
+                false,
         ]
     );
 
-    $busyTimeout = (int) (($databaseConfig['sqlite']['busy_timeout_ms'] ?? 5000));
+    $pdo->exec(
+        'PRAGMA foreign_keys = ON'
+    );
 
-    $pdo->exec('PRAGMA foreign_keys = ON');
-    $pdo->exec('PRAGMA busy_timeout = ' . max(5000, $busyTimeout));
-    ensureGalleryTables($pdo);
+    $pdo->exec(
+        'PRAGMA busy_timeout = '
+        . max(
+            5000,
+            (int) (
+                $databaseConfig['sqlite']['busy_timeout_ms']
+                ?? 5000
+            )
+        )
+    );
 
     if ($method === 'GET') {
-        $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+        $id =
+            (int) (
+                $_GET['id']
+                ?? 0
+            );
 
         if ($id > 0) {
             $statement = $pdo->prepare(
-                'SELECT * FROM gallery_submissions
+                'SELECT '
+                . GALLERY_SELECT
+                . '
+                 FROM gallery_submissions
                  WHERE id = :id
                  LIMIT 1'
             );
-            $statement->execute([':id' => $id]);
-            $row = $statement->fetch();
+
+            $statement->execute([
+                ':id' => $id,
+            ]);
+
+            $row =
+                $statement->fetch();
 
             if (!$row) {
                 respond(404, [
                     'success' => false,
-                    'message' => 'Galeri tidak ditemukan.',
+                    'message' =>
+                        'Galeri tidak ditemukan.',
                 ]);
             }
 
             respond(200, [
                 'success' => true,
-                'message' => 'Detail galeri berhasil diambil.',
-                'database' => $databasePath,
-                'data' => galleryRowToPayload($row),
+                'message' =>
+                    'Detail galeri berhasil diambil.',
+                'database' =>
+                    $databasePath,
+                'data' =>
+                    galleryRowToPayload($row),
             ]);
         }
 
-        $statement = $pdo->query(
-            'SELECT * FROM gallery_submissions
-             ORDER BY id DESC'
-        );
+        $statement =
+            $pdo->query(
+                'SELECT '
+                . GALLERY_SELECT
+                . '
+                 FROM gallery_submissions
+                 ORDER BY id DESC'
+            );
 
-        $galleries = array_map('galleryRowToPayload', $statement->fetchAll());
+        $galleries = [];
+
+        while (
+            $row =
+                $statement->fetch()
+        ) {
+            $galleries[] =
+                galleryRowToPayload(
+                    $row
+                );
+        }
 
         respond(200, [
             'success' => true,
-            'message' => 'Data galeri berhasil diambil.',
-            'database' => $databasePath,
-            'total' => count($galleries),
-            'data' => $galleries,
+            'message' =>
+                'Data galeri berhasil diambil.',
+            'database' =>
+                $databasePath,
+            'total' =>
+                count($galleries),
+            'data' =>
+                $galleries,
         ]);
     }
 
     if ($method === 'DELETE') {
-        $id = getRequestId();
-        $statement = $pdo->prepare('DELETE FROM gallery_submissions WHERE id = :id');
-        $statement->execute([':id' => $id]);
+        $id =
+            getRequestId();
+
+        $statement =
+            $pdo->prepare(
+                'DELETE FROM gallery_submissions
+                 WHERE id = :id'
+            );
+
+        $statement->execute([
+            ':id' => $id,
+        ]);
+
+        if (
+            $statement->rowCount()
+            === 0
+        ) {
+            respond(404, [
+                'success' => false,
+                'message' =>
+                    'Galeri tidak ditemukan.',
+            ]);
+        }
 
         respond(200, [
             'success' => true,
-            'message' => 'Galeri berhasil dihapus.',
-            'data' => ['id' => $id],
+            'message' =>
+                'Galeri berhasil dihapus.',
+            'data' => [
+                'id' => $id,
+            ],
         ]);
     }
 
-    $input = stripos($_SERVER['CONTENT_TYPE'] ?? '', 'application/json') !== false
-        ? readJsonBody()
-        : $_POST;
-
-    $title = cleanText($input['title'] ?? '');
-    $tag = cleanText($input['tag'] ?? '');
-    $description = stripDangerousHtml((string) ($input['description'] ?? ''));
-    $userName = cleanText($input['user_name'] ?? $input['userName'] ?? '');
-    $eventDate = cleanText($input['event_date'] ?? $input['eventDate'] ?? '');
-    $detailLink = cleanText($input['detail_link'] ?? $input['detailLink'] ?? '');
-    $note = cleanText($input['note'] ?? '');
-    $status = cleanText($input['status'] ?? 'draft');
-
-    $allowedStatuses = ['draft', 'published'];
-    $allowedTags = ['Workshop', 'Program', 'Komunitas', 'Partner', 'Event', 'Dokumentasi'];
-    $isDraft = $status === 'draft';
-    $errors = [];
-
-    if (!in_array($status, $allowedStatuses, true)) {
-        $errors['status'] = 'Status hanya boleh draft atau published.';
-    }
-
-    if (!$isDraft && $title === '') {
-        $errors['title'] = 'Judul kegiatan wajib diisi.';
-    }
-
-    if (!$isDraft && $tag === '') {
-        $errors['tag'] = 'Tag kegiatan wajib dipilih.';
-    }
-
-    if ($tag !== '' && !in_array($tag, $allowedTags, true)) {
-        $errors['tag'] = 'Tag kegiatan tidak valid.';
-    }
-
-    if (!$isDraft && htmlToText($description) === '') {
-        $errors['description'] = 'Deskripsi kegiatan wajib diisi.';
-    }
-
-    if (!$isDraft && $userName === '') {
-        $errors['user_name'] = 'Nama user wajib diisi.';
-    }
-
-    if (!$isDraft && $eventDate === '') {
-        $errors['event_date'] = 'Tanggal kegiatan wajib dipilih.';
-    }
-
-    if ($eventDate !== '') {
-        $date = DateTimeImmutable::createFromFormat('Y-m-d', $eventDate);
-        $isValidDate = $date !== false && $date->format('Y-m-d') === $eventDate;
-
-        if (!$isValidDate) {
-            $errors['event_date'] = 'Format tanggal kegiatan harus YYYY-MM-DD.';
-        }
-    }
-
-    if ($detailLink !== '' && filter_var($detailLink, FILTER_VALIDATE_URL) === false) {
-        $errors['detail_link'] = 'Link detail harus berupa URL yang valid.';
-    }
-
-    $uploadedCover = uploadedCover($galleryStorage);
-
-    if (
-        !$isDraft &&
-        !$uploadedCover['coverPath'] &&
-        $method === 'POST'
-    ) {
-        $errors['cover_image'] = 'Cover kegiatan wajib diupload.';
-    }
-
-    $errors = array_merge($errors, $uploadedCover['errors']);
-
-    if ($errors !== []) {
-        respond(422, [
-            'success' => false,
-            'message' => 'Validasi data galeri gagal.',
-            'errors' => $errors,
-        ]);
-    }
-
-    if ($isDraft) {
-        $title = $title !== '' ? $title : 'Draft Galeri';
-        $tag = $tag !== '' ? $tag : 'Dokumentasi';
-        $description = $description !== '' ? $description : 'Draft galeri belum memiliki deskripsi.';
-        $userName = $userName !== '' ? $userName : 'Admin';
-        $eventDate = $eventDate !== '' ? $eventDate : date('Y-m-d');
-    }
-
-    if ($uploadedCover['targetFile'] !== null) {
-        if (!move_uploaded_file((string) $uploadedCover['file']['tmp_name'], (string) $uploadedCover['targetFile'])) {
-            throw new RuntimeException('File cover gagal dipindahkan ke folder upload.');
-        }
-    }
-
-    $now = (new DateTimeImmutable('now', new DateTimeZone('Asia/Jakarta')))
-        ->format(DateTimeInterface::ATOM);
-
-    $coverPayload = fileToPayload(
-        $uploadedCover['file'],
-        $uploadedCover['coverPath'],
-        $uploadedCover['coverUrl']
-    );
+    $existing = null;
+    $id = 0;
 
     if ($method === 'PUT') {
-        $id = getRequestId();
-        $check = $pdo->prepare(
-            'SELECT cover_path, cover_url, cover_original_name, cover_mime, cover_size, created_at
-             FROM gallery_submissions
-             WHERE id = :id
-             LIMIT 1'
-        );
-        $check->execute([':id' => $id]);
-        $existing = $check->fetch();
+        $id =
+            getRequestId();
+
+        $statement =
+            $pdo->prepare(
+                'SELECT
+                    cover_path,
+                    cover_url,
+                    cover_original_name,
+                    cover_mime,
+                    cover_size,
+                    created_at
+                 FROM gallery_submissions
+                 WHERE id = :id
+                 LIMIT 1'
+            );
+
+        $statement->execute([
+            ':id' => $id,
+        ]);
+
+        $existing =
+            $statement->fetch();
 
         if (!$existing) {
             respond(404, [
                 'success' => false,
-                'message' => 'Galeri yang akan diedit tidak ditemukan.',
+                'message' =>
+                    'Galeri yang akan diedit tidak ditemukan.',
             ]);
         }
+    }
 
-        if ($coverPayload === null) {
-            $coverPayload = [
-                'name' => $existing['cover_original_name'],
-                'size' => isset($existing['cover_size']) ? (int) $existing['cover_size'] : 0,
-                'type' => $existing['cover_mime'],
-                'path' => $existing['cover_path'],
-                'url' => $existing['cover_url'],
-            ];
-            $uploadedCover['coverPath'] = $existing['cover_path'];
-            $uploadedCover['coverUrl'] = $existing['cover_url'];
-            $uploadedCover['coverOriginalName'] = $existing['cover_original_name'];
-            $uploadedCover['coverMime'] = $existing['cover_mime'];
-            $uploadedCover['coverSize'] = $existing['cover_size'];
+    $input =
+        stripos(
+            $_SERVER['CONTENT_TYPE']
+            ?? '',
+            'application/json'
+        ) !== false
+            ? readJsonBody()
+            : $_POST;
+
+    $title =
+        cleanText(
+            $input['title']
+            ?? ''
+        );
+
+    $tag =
+        cleanText(
+            $input['tag']
+            ?? ''
+        );
+
+    $description =
+        stripDangerousHtml(
+            (string) (
+                $input['description']
+                ?? ''
+            )
+        );
+
+    $userName =
+        cleanText(
+            $input['user_name']
+            ?? $input['userName']
+            ?? ''
+        );
+
+    $eventDate =
+        cleanText(
+            $input['event_date']
+            ?? $input['eventDate']
+            ?? ''
+        );
+
+    $detailLink =
+        cleanText(
+            $input['detail_link']
+            ?? $input['detailLink']
+            ?? ''
+        );
+
+    $note =
+        cleanText(
+            $input['note']
+            ?? ''
+        );
+
+    $status =
+        cleanText(
+            $input['status']
+            ?? 'draft'
+        );
+
+    $isDraft =
+        $status === 'draft';
+
+    $errors = [];
+
+    if (
+        !in_array(
+            $status,
+            [
+                'draft',
+                'published',
+            ],
+            true
+        )
+    ) {
+        $errors['status'] =
+            'Status hanya boleh draft atau published.';
+    }
+
+    if (!$isDraft && $title === '') {
+        $errors['title'] =
+            'Judul kegiatan wajib diisi.';
+    }
+
+    if (!$isDraft && $tag === '') {
+        $errors['tag'] =
+            'Tag kegiatan wajib dipilih.';
+    }
+
+    if (
+        $tag !== ''
+        && !in_array(
+            $tag,
+            [
+                'Workshop',
+                'Program',
+                'Komunitas',
+                'Partner',
+                'Event',
+                'Dokumentasi',
+            ],
+            true
+        )
+    ) {
+        $errors['tag'] =
+            'Tag kegiatan tidak valid.';
+    }
+
+    if (
+        !$isDraft
+        && htmlToText($description) === ''
+    ) {
+        $errors['description'] =
+            'Deskripsi kegiatan wajib diisi.';
+    }
+
+    if (
+        !$isDraft
+        && $userName === ''
+    ) {
+        $errors['user_name'] =
+            'Nama user wajib diisi.';
+    }
+
+    if (
+        !$isDraft
+        && $eventDate === ''
+    ) {
+        $errors['event_date'] =
+            'Tanggal kegiatan wajib dipilih.';
+    }
+
+    if ($eventDate !== '') {
+        $date =
+            DateTimeImmutable::createFromFormat(
+                'Y-m-d',
+                $eventDate
+            );
+
+        if (
+            $date === false
+            || $date->format('Y-m-d')
+                !== $eventDate
+        ) {
+            $errors['event_date'] =
+                'Format tanggal kegiatan harus YYYY-MM-DD.';
         }
     }
+
+    if (
+        $detailLink !== ''
+        && !filter_var(
+            $detailLink,
+            FILTER_VALIDATE_URL
+        )
+    ) {
+        $errors['detail_link'] =
+            'Link detail harus berupa URL yang valid.';
+    }
+
+    $galleryStorage =
+        ensureGalleryStorage(
+            $projectRoot
+        );
+
+    $cover =
+        prepareCoverUpload(
+            $galleryStorage
+        );
+
+    if ($cover['error'] !== null) {
+        $errors['cover_image'] =
+            $cover['error'];
+    }
+
+    if (
+        !$isDraft
+        && $method === 'POST'
+        && !$cover['coverPath']
+    ) {
+        $errors['cover_image'] =
+            'Cover kegiatan wajib diupload.';
+    }
+
+    if ($errors !== []) {
+        respond(422, [
+            'success' => false,
+            'message' =>
+                'Validasi data galeri gagal.',
+            'errors' =>
+                $errors,
+        ]);
+    }
+
+    if ($isDraft) {
+        $title =
+            $title ?: 'Draft Galeri';
+
+        $tag =
+            $tag ?: 'Dokumentasi';
+
+        $description =
+            $description
+            ?: 'Draft galeri belum memiliki deskripsi.';
+
+        $userName =
+            $userName ?: 'Admin';
+
+        $eventDate =
+            $eventDate
+            ?: date('Y-m-d');
+    }
+
+    $coverImage =
+        coverPayload($cover);
+
+    if (
+        $method === 'PUT'
+        && $coverImage === null
+        && is_array($existing)
+    ) {
+        $coverImage =
+            existingCover(
+                $existing
+            );
+
+        $cover['coverPath'] =
+            $existing['cover_path'];
+
+        $cover['coverUrl'] =
+            $existing['cover_url'];
+
+        $cover['coverOriginalName'] =
+            $existing[
+                'cover_original_name'
+            ];
+
+        $cover['coverMime'] =
+            $existing['cover_mime'];
+
+        $cover['coverSize'] =
+            $existing['cover_size'];
+    }
+
+    if (
+        $cover['targetFile']
+        !== null
+    ) {
+        if (
+            !move_uploaded_file(
+                (string)
+                    $cover['file']['tmp_name'],
+                (string)
+                    $cover['targetFile']
+            )
+        ) {
+            throw new RuntimeException(
+                'File cover gagal dipindahkan ke folder upload.'
+            );
+        }
+    }
+
+    $now =
+        date(
+            DateTimeInterface::ATOM
+        );
+
+    $detailLinkValue =
+        $detailLink !== ''
+            ? $detailLink
+            : null;
+
+    $noteValue =
+        $note !== ''
+            ? $note
+            : null;
 
     $galleryPayload = [
         'title' => $title,
@@ -566,159 +1088,198 @@ try {
         'description' => $description,
         'userName' => $userName,
         'eventDate' => $eventDate,
-        'detailLink' => $detailLink !== '' ? $detailLink : null,
-        'note' => $note !== '' ? $note : null,
-        'coverImage' => $coverPayload,
-        'status' => $status !== '' ? $status : 'draft',
+        'detailLink' => $detailLinkValue,
+        'note' => $noteValue,
+        'coverImage' => $coverImage,
+        'status' => $status,
         'updatedAt' => $now,
     ];
 
     if ($method === 'POST') {
-        $galleryPayload['createdAt'] = $now;
+        $galleryPayload['createdAt'] =
+            $now;
     }
 
-    $payloadJson = json_encode(
-        $galleryPayload,
-        JSON_UNESCAPED_UNICODE |
-        JSON_UNESCAPED_SLASHES |
-        JSON_THROW_ON_ERROR
-    );
-
-    if ($method === 'POST') {
-        $statement = $pdo->prepare(
-            'INSERT INTO gallery_submissions (
-                title,
-                tag,
-                description,
-                user_name,
-                event_date,
-                detail_link,
-                note,
-                cover_path,
-                cover_url,
-                cover_original_name,
-                cover_mime,
-                cover_size,
-                status,
-                payload_json,
-                created_at,
-                updated_at
-            ) VALUES (
-                :title,
-                :tag,
-                :description,
-                :user_name,
-                :event_date,
-                :detail_link,
-                :note,
-                :cover_path,
-                :cover_url,
-                :cover_original_name,
-                :cover_mime,
-                :cover_size,
-                :status,
-                :payload_json,
-                :created_at,
-                :updated_at
-            )'
+    $payloadJson =
+        json_encode(
+            $galleryPayload,
+            JSON_FLAGS
+            | JSON_THROW_ON_ERROR
         );
 
-        $statement->execute([
-            ':title' => $title,
-            ':tag' => $tag,
-            ':description' => $description,
-            ':user_name' => $userName,
-            ':event_date' => $eventDate,
-            ':detail_link' => $detailLink !== '' ? $detailLink : null,
-            ':note' => $note !== '' ? $note : null,
-            ':cover_path' => $uploadedCover['coverPath'],
-            ':cover_url' => $uploadedCover['coverUrl'],
-            ':cover_original_name' => $uploadedCover['coverOriginalName'],
-            ':cover_mime' => $uploadedCover['coverMime'],
-            ':cover_size' => $uploadedCover['coverSize'],
-            ':status' => $status !== '' ? $status : 'draft',
-            ':payload_json' => $payloadJson,
-            ':created_at' => $now,
-            ':updated_at' => $now,
-        ]);
+    $params =
+        galleryDbParams(
+            $title,
+            $tag,
+            $description,
+            $userName,
+            $eventDate,
+            $detailLinkValue,
+            $noteValue,
+            $cover,
+            $status,
+            $payloadJson,
+            $now
+        );
 
-        $galleryId = (int) $pdo->lastInsertId();
+    if ($method === 'POST') {
+        $statement =
+            $pdo->prepare(
+                'INSERT INTO gallery_submissions (
+                    title,
+                    tag,
+                    description,
+                    user_name,
+                    event_date,
+                    detail_link,
+                    note,
+                    cover_path,
+                    cover_url,
+                    cover_original_name,
+                    cover_mime,
+                    cover_size,
+                    status,
+                    payload_json,
+                    created_at,
+                    updated_at
+                ) VALUES (
+                    :title,
+                    :tag,
+                    :description,
+                    :user_name,
+                    :event_date,
+                    :detail_link,
+                    :note,
+                    :cover_path,
+                    :cover_url,
+                    :cover_original_name,
+                    :cover_mime,
+                    :cover_size,
+                    :status,
+                    :payload_json,
+                    :created_at,
+                    :updated_at
+                )'
+            );
+
+        $params[':created_at'] =
+            $now;
+
+        $statement->execute(
+            $params
+        );
+
+        $galleryId =
+            (int)
+                $pdo->lastInsertId();
 
         respond(201, [
             'success' => true,
-            'message' => $status === 'published'
-                ? 'Galeri berhasil disimpan ke SQLite.'
-                : 'Draft galeri berhasil disimpan ke SQLite.',
-            'database' => $databasePath,
+
+            'message' =>
+                $status === 'published'
+                    ? 'Galeri berhasil disimpan ke SQLite.'
+                    : 'Draft galeri berhasil disimpan ke SQLite.',
+
+            'database' =>
+                $databasePath,
+
             'data' => [
-                'id' => $galleryId,
-                'title' => $title,
-                'tag' => $tag,
-                'description' => $description,
-                'userName' => $userName,
-                'eventDate' => $eventDate,
-                'detailLink' => $detailLink !== '' ? $detailLink : null,
-                'note' => $note !== '' ? $note : null,
-                'coverPath' => $uploadedCover['coverPath'],
-                'coverUrl' => $uploadedCover['coverUrl'],
-                'coverImage' => $coverPayload,
-                'status' => $status !== '' ? $status : 'draft',
-                'createdAt' => $now,
-                'payload' => $galleryPayload,
+                'id' =>
+                    $galleryId,
+
+                'title' =>
+                    $title,
+
+                'tag' =>
+                    $tag,
+
+                'description' =>
+                    $description,
+
+                'userName' =>
+                    $userName,
+
+                'eventDate' =>
+                    $eventDate,
+
+                'detailLink' =>
+                    $detailLinkValue,
+
+                'note' =>
+                    $noteValue,
+
+                'coverPath' =>
+                    $cover['coverPath'],
+
+                'coverUrl' =>
+                    $cover['coverUrl'],
+
+                'coverImage' =>
+                    $coverImage,
+
+                'status' =>
+                    $status,
+
+                'createdAt' =>
+                    $now,
+
+                'payload' =>
+                    $galleryPayload,
             ],
         ]);
     }
 
-    $statement = $pdo->prepare(
-        'UPDATE gallery_submissions
-         SET
-            title = :title,
-            tag = :tag,
-            description = :description,
-            user_name = :user_name,
-            event_date = :event_date,
-            detail_link = :detail_link,
-            note = :note,
-            cover_path = :cover_path,
-            cover_url = :cover_url,
-            cover_original_name = :cover_original_name,
-            cover_mime = :cover_mime,
-            cover_size = :cover_size,
-            status = :status,
-            payload_json = :payload_json,
-            updated_at = :updated_at
-         WHERE id = :id'
-    );
+    $statement =
+        $pdo->prepare(
+            'UPDATE gallery_submissions
+             SET
+                title = :title,
+                tag = :tag,
+                description = :description,
+                user_name = :user_name,
+                event_date = :event_date,
+                detail_link = :detail_link,
+                note = :note,
+                cover_path = :cover_path,
+                cover_url = :cover_url,
+                cover_original_name = :cover_original_name,
+                cover_mime = :cover_mime,
+                cover_size = :cover_size,
+                status = :status,
+                payload_json = :payload_json,
+                updated_at = :updated_at
+             WHERE id = :id'
+        );
 
-    $statement->execute([
-        ':title' => $title,
-        ':tag' => $tag,
-        ':description' => $description,
-        ':user_name' => $userName,
-        ':event_date' => $eventDate,
-        ':detail_link' => $detailLink !== '' ? $detailLink : null,
-        ':note' => $note !== '' ? $note : null,
-        ':cover_path' => $uploadedCover['coverPath'],
-        ':cover_url' => $uploadedCover['coverUrl'],
-        ':cover_original_name' => $uploadedCover['coverOriginalName'],
-        ':cover_mime' => $uploadedCover['coverMime'],
-        ':cover_size' => $uploadedCover['coverSize'],
-        ':status' => $status !== '' ? $status : 'draft',
-        ':payload_json' => $payloadJson,
-        ':updated_at' => $now,
-        ':id' => $id,
-    ]);
+    $params[':id'] =
+        $id;
+
+    $statement->execute(
+        $params
+    );
 
     respond(200, [
         'success' => true,
-        'message' => 'Galeri berhasil diperbarui.',
-        'database' => $databasePath,
+        'message' =>
+            'Galeri berhasil diperbarui.',
+        'database' =>
+            $databasePath,
         'data' => [
-            'id' => $id,
-            'coverPath' => $uploadedCover['coverPath'],
-            'coverUrl' => $uploadedCover['coverUrl'],
-            'coverImage' => $coverPayload,
-            'payload' => $galleryPayload,
+            'id' =>
+                $id,
+
+            'coverPath' =>
+                $cover['coverPath'],
+
+            'coverUrl' =>
+                $cover['coverUrl'],
+
+            'coverImage' =>
+                $coverImage,
+
+            'payload' =>
+                $galleryPayload,
         ],
     ]);
 } catch (JsonException $error) {

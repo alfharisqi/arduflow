@@ -1,22 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { navigation } from '../features/content/arduflowContent.js';
 import { ProfileAvatar } from '../features/profile-image-crop/ProfileAvatar.jsx';
-import { logoutUser } from '../services/authApi.js';
+import { AUTH_CHANGE_EVENT, getStoredUser, logoutCurrentUser } from '../services/authSession.js';
 import { fetchTransactions } from '../services/transactionApi.js';
 
 const IDE_APP_URL = 'https://ide.arduflow.com/';
-
-function getStoredUser() {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  try {
-    return JSON.parse(window.localStorage.getItem('arduflow_user'));
-  } catch {
-    return null;
-  }
-}
 
 export function Navbar() {
   const current = window.location.pathname.replace(/\/$/, '') || '/';
@@ -32,11 +20,11 @@ export function Navbar() {
     };
 
     window.addEventListener('storage', syncUser);
-    window.addEventListener('arduflow-auth-change', syncUser);
+    window.addEventListener(AUTH_CHANGE_EVENT, syncUser);
 
     return () => {
       window.removeEventListener('storage', syncUser);
-      window.removeEventListener('arduflow-auth-change', syncUser);
+      window.removeEventListener(AUTH_CHANGE_EVENT, syncUser);
     };
   }, []);
 
@@ -117,16 +105,7 @@ export function Navbar() {
   }, [storedUser]);
 
   const handleLogout = async () => {
-    const token = window.localStorage.getItem('arduflow_user_token');
-    try {
-      if (token) await logoutUser(token);
-    } catch {
-      // Local cleanup still prevents reuse in the browser.
-    }
-    window.localStorage.removeItem('arduflow_user');
-    window.localStorage.removeItem('arduflow_user_token');
-    window.dispatchEvent(new Event('arduflow-auth-change'));
-    window.location.assign('/signin');
+    await logoutCurrentUser({ redirectTo: '/signin' });
   };
 
   const dashboardLinks = [
