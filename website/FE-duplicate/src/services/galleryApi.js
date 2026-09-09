@@ -1,4 +1,4 @@
-import { apiEndpoint, backendAssetUrl } from './apiEndpoints.js';
+import { API_BASE_URL, apiEndpoint } from './apiEndpoints.js';
 
 const GALLERY_API_URL = apiEndpoint(
   import.meta.env.VITE_GALLERY_API_URL,
@@ -56,9 +56,6 @@ function resolveGalleryImageUrl(item) {
 
   if (!rawUrl) return '';
 
-<<<<<<< HEAD
-  return backendAssetUrl(rawUrl);
-=======
   if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(rawUrl)) {
     try {
       const localUrl = new URL(rawUrl);
@@ -82,7 +79,6 @@ function resolveGalleryImageUrl(item) {
     .replace(/^storage\/uploads\//i, 'uploads/');
 
   return `${API_BASE_URL}/${normalizedPath}`;
->>>>>>> bd05748 (update faq halaman proyek,gallery dan kontak)
 }
 
 function normalizeGallery(item) {
@@ -136,7 +132,7 @@ export async function fetchGallerySubmission(id) {
     throw new Error('ID galeri tidak tersedia.');
   }
 
-  const url = new URL(GALLERY_API_URL, window.location.origin);
+  const url = new URL(GALLERY_API_URL);
   url.searchParams.set('id', galleryId);
 
   const response = await fetch(url.toString(), {
