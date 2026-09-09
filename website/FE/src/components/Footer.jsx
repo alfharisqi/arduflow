@@ -48,7 +48,7 @@ const socials = [
 
 const contacts = [
   ['phone', '0812-3456-7890'],
-  ['mail', 'admin@arduflow.id'],
+  ['mail', 'admin@arduflow.com'],
   ['pin', 'Indonesia'],
 ];
 

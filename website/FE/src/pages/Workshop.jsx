@@ -873,7 +873,7 @@ export function Workshop() {
             praktik langsung, pendampingan mentor, dan akses Arduflow IDE berbasis token.
           </p>
           <div className="final-cta-actions">
-            <a className="final-cta-button primary" href="/daftar-workshop">Daftar Program Workshop</a>
+            <a className="final-cta-button primary" href="/daftar-workshop">Lihat Jadwal Workshop</a>
             <a className="final-cta-button secondary" href="/kontak">Hubungi Tim</a>
           </div>
         </div>
