@@ -80,7 +80,7 @@ function ArticleCard({ article }) {
           <span>{article.author || 'Admin ArduFlow'}</span>
 
           <a href={detailUrl}>
-            Baca Artikel <span aria-hidden="true">→</span>
+            Baca Artikel <span aria-hidden="true"></span>
           </a>
         </div>
       </div>
@@ -312,7 +312,7 @@ export function Article() {
                     className="article-primary-link"
                     href={featuredUrl}
                   >
-                    Baca Selengkapnya →
+                    Baca Selengkapnya
                   </a>
                 </div>
               </section>

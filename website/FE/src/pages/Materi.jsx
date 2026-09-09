@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { MaterialCard, MaterialEmptyState } from '../components/materials/MaterialCard.jsx';
 import { fetchMaterial, fetchMaterials, isPublishedMaterial } from '../services/materialApi.js';
 import { fetchProjectSubmissions, isPublicProject } from '../services/projectApi.js';
@@ -28,7 +28,47 @@ function hasMaterialIdentifier() {
 }
 
 function stripHtml(value) {
-  return String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  const source = String(value || '').trim();
+
+  if (!source) return '';
+
+  // Decode HTML dari database agar tag seperti <p>, <strong>, dll.
+  // tidak tampil sebagai teks mentah pada card.
+  if (typeof document !== 'undefined') {
+    const element = document.createElement('div');
+    element.innerHTML = source;
+
+    return String(element.textContent || element.innerText || '')
+      .replace(/\u00a0/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  // Fallback jika document belum tersedia.
+  return source
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function projectDescriptionText(value, maxLength = 155) {
+  const text = stripHtml(value);
+
+  if (!text) {
+    return 'Deskripsi project belum tersedia.';
+  }
+
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  return `${text.slice(0, maxLength).trimEnd()}...`;
 }
 
 function sanitizeHtml(value) {
@@ -303,6 +343,28 @@ function MateriCatalog() {
   const [activeLevel, setActiveLevel] = useState('all');
   const [sortMode, setSortMode] = useState('newest');
 
+  useLayoutEffect(() => {
+    if (window.location.hash !== '#semua-materi') {
+      return;
+    }
+
+    const section = document.getElementById('semua-materi');
+
+    if (!section) {
+      return;
+    }
+
+    // Paksa perpindahan ke hash secara instan, termasuk jika CSS global
+    // menggunakan scroll-behavior: smooth. useLayoutEffect berjalan
+    // sebelum browser menampilkan frame sehingga tidak terasa delay.
+    const root = document.documentElement;
+    const previousScrollBehavior = root.style.scrollBehavior;
+
+    root.style.scrollBehavior = 'auto';
+    section.scrollIntoView({ block: 'start' });
+    root.style.scrollBehavior = previousScrollBehavior;
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -450,20 +512,6 @@ function MateriCatalog() {
             ))}
           </div>
         </section>
-
-        <section className="materials-section materials-starter" aria-labelledby="materials-starter-title">
-          <div className="materials-section__head">
-            <span className="materials-eyebrow">Mulai dari Sini</span>
-            <h2 id="materials-starter-title">Baru Mulai Belajar IoT?</h2>
-            <p>Mulai dari materi dasar berikut dan pelajari IoT secara bertahap.</p>
-          </div>
-          <div className="materials-starter-grid">
-            {starterMaterials.map((material) => (
-              <MaterialCard className="materials-card--featured" href={materialHref(material)} material={material} key={material.id} />
-            ))}
-          </div>
-        </section>
-
         <section className="materials-section materials-learning-path" aria-labelledby="materials-path-title">
           <div className="materials-section__head">
             <span className="materials-eyebrow">Roadmap</span>
@@ -593,9 +641,15 @@ function MateriCatalog() {
                   <span>{projectMetaText(project.difficulty, 'Pemula')}</span>
                   <h3>{project.title}</h3>
                   <small>{projectMetaText(project.category || project.tools?.[0], 'IoT')} • {projectComponentsLabel(project)}</small>
-                  <p>{project.description}</p>
+                  <p>
+                    {projectDescriptionText(
+                      project.description ||
+                        project.shortDescription ||
+                        project.fullDescription
+                    )}
+                  </p>
                   <a href={String(project.id).startsWith('fallback-project') ? '/project' : `/project/detail?id=${encodeURIComponent(project.id)}`}>
-                    Lihat Project <span aria-hidden="true">-&gt;</span>
+                    Lihat Project <span aria-hidden="true"></span>
                   </a>
                 </div>
               </article>
