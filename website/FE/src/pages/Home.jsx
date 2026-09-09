@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Hero } from '../components/Hero.jsx';
-import { API_BASE_URL } from '../services/apiEndpoints.js';
+import { backendAssetUrl } from '../services/apiEndpoints.js';
 import { fetchGallerySubmissions, isPublishedGallery } from '../services/galleryApi.js';
 import { fetchPartners } from '../services/partnerApi.js';
 import { fetchProjectSubmissions, isPublicProject } from '../services/projectApi.js';
@@ -313,16 +313,11 @@ function isApprovedPartner(partner) {
   return ['aktif', 'active', 'approved', 'published'].includes(normalizeText(partner?.status));
 }
 
-function resolveAssetUrl(value) {
-  const rawUrl = String(value || '').trim();
-  if (!rawUrl) return '';
-  if (/^(https?:\/\/|data:|blob:)/i.test(rawUrl)) return rawUrl;
-
-  return `${API_BASE_URL}${rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`}`;
-}
-
 function partnerLogoUrl(partner) {
-  return resolveAssetUrl(partner?.logoUrl || partner?.logo_url || partner?.image || '');
+  const logoUrl = partner?.logoUrl || partner?.logo_url || '';
+  if (logoUrl) return backendAssetUrl(logoUrl);
+
+  return partner?.image || '';
 }
 
 function partnerInitial(partner) {
@@ -339,6 +334,14 @@ function HomeTestimonials({ partners, testimonials, activeIndex }) {
   const visiblePartners = partners.length ? partners : fallbackPartners;
   const visibleTestimonials = testimonials.length ? testimonials : fallbackTestimonials;
   const featuredTestimonial = visibleTestimonials[activeIndex % visibleTestimonials.length];
+  const partnerPageSize = 5;
+  const partnerPageCount = Math.max(1, Math.ceil(visiblePartners.length / partnerPageSize));
+  const partnerPageIndex = activeIndex % partnerPageCount;
+  const featuredPartners = visiblePartners.slice(
+    partnerPageIndex * partnerPageSize,
+    partnerPageIndex * partnerPageSize + partnerPageSize,
+  );
+  const rotatingPartners = featuredPartners.length ? featuredPartners : visiblePartners.slice(0, partnerPageSize);
 
   return (
     <section className="community-partners" aria-labelledby="community-title">
@@ -356,8 +359,8 @@ function HomeTestimonials({ partners, testimonials, activeIndex }) {
         </div>
         <div className="partner-panel" aria-labelledby="partners-title">
           <h2 id="partners-title">Partner &amp; Kolaborator</h2>
-          <div className="partner-list">
-            {visiblePartners.map((partner) => {
+          <div className="partner-list" key={`partner-slide-${partnerPageIndex}`}>
+            {rotatingPartners.map((partner) => {
               const logoUrl = partnerLogoUrl(partner);
               const partnerName = partner.name || partner.label || 'Partner';
 
