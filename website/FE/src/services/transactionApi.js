@@ -160,7 +160,16 @@ function paymentMethodBody(data = {}) {
 }
 
 export async function fetchTransactions(params = {}, options = {}) {
-  const payload = await requestTransactions(`${TRANSACTION_API_URL}${buildQuery(params)}`, options);
+  const hasUserFilter = Boolean(
+    params?.userId ||
+      params?.user_id ||
+      params?.email
+  );
+  const requestOptions = {
+    ...(hasUserFilter ? { skipUserAuth: true } : {}),
+    ...options,
+  };
+  const payload = await requestTransactions(`${TRANSACTION_API_URL}${buildQuery(params)}`, requestOptions);
   const records = payload?.data?.transactions || payload?.transactions || payload?.data || [];
   return Array.isArray(records) ? records.map(normalizeTransaction).filter(Boolean) : [];
 }

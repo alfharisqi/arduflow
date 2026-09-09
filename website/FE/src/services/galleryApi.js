@@ -1,4 +1,4 @@
-import { API_BASE_URL, apiEndpoint } from './apiEndpoints.js';
+import { apiEndpoint, backendAssetUrl } from './apiEndpoints.js';
 
 const GALLERY_API_URL = apiEndpoint(
   import.meta.env.VITE_GALLERY_API_URL,
@@ -56,15 +56,7 @@ function resolveGalleryImageUrl(item) {
 
   if (!rawUrl) return '';
 
-  if (/^(https?:\/\/|data:image\/|blob:)/i.test(rawUrl)) {
-    return rawUrl;
-  }
-
-  const normalizedPath = rawUrl
-    .replace(/^\/+/, '')
-    .replace(/^storage\/uploads\//i, 'uploads/');
-
-  return `${API_BASE_URL}/${normalizedPath}`;
+  return backendAssetUrl(rawUrl);
 }
 
 function normalizeGallery(item) {

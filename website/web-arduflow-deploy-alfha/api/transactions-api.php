@@ -266,7 +266,7 @@ function transactionBearerToken(): ?string
     return $token !== '' ? $token : null;
 }
 
-function transactionCurrentUser(PDO $pdo): ?array
+function transactionCurrentUser(PDO $pdo, bool $strict = true): ?array
 {
     $token = transactionBearerToken();
     if ($token === null) {
@@ -294,6 +294,10 @@ function transactionCurrentUser(PDO $pdo): ?array
 
     $user = $statement->fetch(PDO::FETCH_ASSOC);
     if (!is_array($user)) {
+        if (!$strict) {
+            return null;
+        }
+
         respond(401, [
             'success' => false,
             'message' => 'Session tidak valid atau sudah kedaluwarsa.',
@@ -1266,7 +1270,7 @@ try {
 
     if ($method === 'POST') {
         $incoming = readTransactionBody();
-        $sessionUser = transactionCurrentUser($pdo);
+        $sessionUser = transactionCurrentUser($pdo, false);
         $transaction = applyUserSessionToTransaction(
             transactionFromBody($incoming),
             $sessionUser
