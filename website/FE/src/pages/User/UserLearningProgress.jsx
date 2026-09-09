@@ -6,6 +6,7 @@ import courseImage from '../../assets/images/workshop-experience-student.png';
 import { fetchTutorialArticles, isPublishedTutorial } from '../../services/materiApi.js';
 import { UserDashboardTopbar } from './UserDashboardTopbar.jsx';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
+import { getStoredUser, logoutCurrentUser } from '../../services/authSession.js';
 
 const menuItems = [
   { label: 'Profil', icon: 'user', href: '/dashboard' },
@@ -19,15 +20,6 @@ const menuItems = [
   { label: 'IDE', icon: 'cpu', href: '/ide-saya' },
   { label: 'Settings', icon: 'settings', href: '/settings' },
 ];
-
-function getStoredUser() {
-  try {
-    const raw = window.localStorage.getItem('arduflow_user');
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
 
 function getCourseProgress(course) {
   const progress = Number(course.progress ?? course.completedProgress ?? course.completion ?? 0);
@@ -79,7 +71,7 @@ export function UserLearningProgress() {
   const [coursesError, setCoursesError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortMode, setSortMode] = useState('Relevance');
-  const user = getStoredUser();
+  const user = getStoredUser() || {};
   const fullName = user.name || user.fullName || 'Nama Lengkap';
   const greetingName = user.nickname || fullName;
   const profileImage = user.profileImage || user.avatar || '';
@@ -137,10 +129,7 @@ export function UserLearningProgress() {
   }, [courses, searchTerm, sortMode]);
 
   function handleLogout() {
-    window.localStorage.removeItem('arduflow_user');
-    window.localStorage.removeItem('arduflow_user_token');
-    window.dispatchEvent(new Event('arduflow-auth-change'));
-    window.location.assign('/signin');
+    logoutCurrentUser({ redirectTo: '/signin' });
   }
 
   function handleSidebarToggle() {

@@ -17,6 +17,7 @@ import { completeProjectPayout, createTransaction, fetchFinanceConfig, fetchTran
 import { showConfirmAlert, showSuccessAlert } from '../../utils/alerts.js';
 import { UserDashboardTopbar } from './UserDashboardTopbar.jsx';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
+import { getStoredUser, logoutCurrentUser } from '../../services/authSession.js';
 
 const menuItems = [
   { label: 'Profil', icon: 'user', href: '/dashboard' },
@@ -178,15 +179,6 @@ function normalizeProjectSteps(steps = []) {
       )),
     ]),
   }));
-}
-
-function getStoredUser() {
-  try {
-    const raw = window.localStorage.getItem('arduflow_user');
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
 }
 
 function getInitials(name) {
@@ -609,7 +601,7 @@ function EmptyUploadTable({ title, description }) {
 }
 
 export function ProjectUploadForm({ onCancel, onSuccess, mode = 'create', projectId = '', initialProject = null }) {
-  const currentUser = getStoredUser();
+  const currentUser = getStoredUser() || {};
   const ownerName = currentUser.name || currentUser.fullName || 'Nama Lengkap';
   const ownerUsername =
     currentUser.username ||
@@ -2145,7 +2137,7 @@ export function UserProjectGallery() {
   const shouldOpenProjectForm = searchParams.get('mode') === 'edit' || searchParams.get('mode') === 'upload';
   const isAdminProjectEditRoute = window.location.pathname.startsWith('/admin/projects/edit');
   const [isUploadFormOpen, setUploadFormOpen] = useState(shouldOpenProjectForm);
-  const user = getStoredUser();
+  const user = getStoredUser() || {};
   const fullName = user.name || user.fullName || 'Nama Lengkap';
   const greetingName = user.nickname || fullName;
   const profileImage = user.profileImage || user.avatar || '';
@@ -2399,10 +2391,7 @@ export function UserProjectGallery() {
   }, [editProjectId, projectFormMode, projects]);
 
   function handleLogout() {
-    window.localStorage.removeItem('arduflow_user');
-    window.localStorage.removeItem('arduflow_user_token');
-    window.dispatchEvent(new Event('arduflow-auth-change'));
-    window.location.assign('/signin');
+    logoutCurrentUser({ redirectTo: '/signin' });
   }
 
   function handleSidebarToggle() {

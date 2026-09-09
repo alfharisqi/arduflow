@@ -1,8 +1,6 @@
 <?php
 declare(strict_types=1);
 
-use Arduflow\Api\Support\Env;
-
 /**
  * Arduflow Workshop API
  *
@@ -18,22 +16,6 @@ use Arduflow\Api\Support\Env;
  */
 
 date_default_timezone_set('Asia/Jakarta');
-
-$projectRoot = dirname(__DIR__);
-$autoloadPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
-
-if (!is_file($autoloadPath)) {
-    http_response_code(500);
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode([
-        'success' => false,
-        'message' => 'Composer autoload tidak ditemukan.',
-    ]);
-    exit;
-}
-
-require_once $autoloadPath;
-Env::load($projectRoot . DIRECTORY_SEPARATOR . '.env');
 
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
@@ -53,7 +35,8 @@ if (file_exists($imageStoragePath)) {
     require_once $imageStoragePath;
 }
 
-$workshopImageStorage = function_exists('ensureUploadStorage')
+$workshopImageStorage = in_array($_SERVER['REQUEST_METHOD'], ['POST', 'PUT'], true)
+    && function_exists('ensureUploadStorage')
     ? ensureUploadStorage($projectRoot, 'workshops')
     : null;
 
@@ -64,8 +47,7 @@ function respond(int $statusCode, array $body): never
     echo json_encode(
         $body,
         JSON_UNESCAPED_UNICODE |
-        JSON_UNESCAPED_SLASHES |
-        JSON_PRETTY_PRINT
+        JSON_UNESCAPED_SLASHES
     );
 
     exit;
@@ -559,6 +541,12 @@ if ($action !== '') {
  */
 
 $projectRoot = dirname(__DIR__);
+require_once __DIR__ . '/support/autoload-app.php';
+
+if (class_exists(\Arduflow\Api\Support\Env::class)) {
+    \Arduflow\Api\Support\Env::load($projectRoot . DIRECTORY_SEPARATOR . '.env');
+}
+
 $configPath = $projectRoot . '/config/database.php';
 
 if (!file_exists($configPath)) {
@@ -660,41 +648,6 @@ try {
         max(15000, $busyTimeout)
     );
 
-    $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS workshops (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            slug TEXT NOT NULL UNIQUE,
-            status TEXT,
-            category TEXT,
-            cover_image_name TEXT,
-            cover_image_type TEXT,
-            cover_image_size INTEGER,
-            cover_image_path TEXT,
-            cover_image_url TEXT,
-            payload_json TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        )'
-    );
-
-    if (function_exists('addColumnIfMissing')) {
-        addColumnIfMissing($pdo, 'workshops', 'cover_image_name', 'TEXT');
-        addColumnIfMissing($pdo, 'workshops', 'cover_image_type', 'TEXT');
-        addColumnIfMissing($pdo, 'workshops', 'cover_image_size', 'INTEGER');
-        addColumnIfMissing($pdo, 'workshops', 'cover_image_path', 'TEXT');
-        addColumnIfMissing($pdo, 'workshops', 'cover_image_url', 'TEXT');
-    }
-
-    $pdo->exec(
-        'CREATE INDEX IF NOT EXISTS idx_workshops_status
-         ON workshops(status)'
-    );
-
-    $pdo->exec(
-        'CREATE INDEX IF NOT EXISTS idx_workshops_category
-         ON workshops(category)'
-    );
 } catch (Throwable $exception) {
     error_log(
         '[Workshop API SQLite Connection] ' .
@@ -784,12 +737,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
              ORDER BY id DESC'
         );
 
-        $rows = $statement->fetchAll();
-
-        $workshops = array_map(
-            'decodeWorkshopRow',
-            $rows
-        );
+        $workshops = [];
+        while ($row = $statement->fetch()) {
+            $workshops[] = decodeWorkshopRow($row);
+        }
 
         respond(200, [
             'success' => true,

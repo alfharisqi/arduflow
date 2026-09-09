@@ -5,6 +5,7 @@ import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import { completeProjectPayout, fetchTransactions, uploadPaymentProof } from '../../services/transactionApi.js';
 import { UserDashboardTopbar } from './UserDashboardTopbar.jsx';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
+import { getStoredUser, logoutCurrentUser } from '../../services/authSession.js';
 
 const menuItems = [
   { label: 'Profil', icon: 'user', href: '/dashboard' },
@@ -18,15 +19,6 @@ const menuItems = [
   { label: 'IDE', icon: 'cpu', href: '/ide-saya' },
   { label: 'Settings', icon: 'settings', href: '/settings' },
 ];
-
-function getStoredUser() {
-  try {
-    const raw = window.localStorage.getItem('arduflow_user');
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
 
 function formatCurrency(value, currency = 'IDR') {
   return new Intl.NumberFormat('id-ID', {
@@ -110,7 +102,7 @@ export function UserTransactions() {
   const [openPaymentFormId, setOpenPaymentFormId] = useState(null);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [message, setMessage] = useState('');
-  const user = getStoredUser();
+  const user = getStoredUser() || {};
   const fullName = user.name || user.fullName || 'Nama Lengkap';
   const greetingName = user.nickname || fullName;
   const profileImage = user.profileImage || user.avatar || '';
@@ -254,10 +246,7 @@ export function UserTransactions() {
   );
 
   function handleLogout() {
-    window.localStorage.removeItem('arduflow_user');
-    window.localStorage.removeItem('arduflow_user_token');
-    window.dispatchEvent(new Event('arduflow-auth-change'));
-    window.location.assign('/signin');
+    logoutCurrentUser({ redirectTo: '/signin' });
   }
 
   function resetTransactionFilters() {

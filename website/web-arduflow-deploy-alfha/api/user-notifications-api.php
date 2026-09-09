@@ -5,13 +5,10 @@ declare(strict_types=1);
 use Arduflow\Api\Support\Env;
 use PHPMailer\PHPMailer\PHPMailer;
 
-$autoload = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
+require_once __DIR__ . '/support/autoload-app.php';
 
-if (is_file($autoload)) {
-    require_once $autoload;
-    if (class_exists(Env::class)) {
-        Env::load(dirname(__DIR__) . DIRECTORY_SEPARATOR . '.env');
-    }
+if (class_exists(Env::class)) {
+    Env::load(dirname(__DIR__) . DIRECTORY_SEPARATOR . '.env');
 }
 
 date_default_timezone_set('Asia/Jakarta');
@@ -53,7 +50,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
 function notificationRespond(int $status, array $payload): never
 {
     http_response_code($status);
-    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
 
@@ -126,22 +123,7 @@ function notificationTableExists(PDO $pdo, string $table): bool
     $statement = $pdo->prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = :table LIMIT 1");
     $statement->execute([':table' => $table]);
     return (bool) $statement->fetchColumn();
-}
-
-function ensureNotificationEmailLog(PDO $pdo): void
-{
-    $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS user_notification_email_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            notification_key TEXT NOT NULL,
-            email TEXT NOT NULL,
-            sent_at TEXT NOT NULL,
-            UNIQUE(notification_key, email)
-        )'
-    );
-}
-
-function normalizeNotificationStatus(string $status): string
+}function normalizeNotificationStatus(string $status): string
 {
     return strtolower(trim($status));
 }
@@ -203,14 +185,15 @@ function buildTransactionNotifications(PDO $pdo, ?int $userId, string $email): a
         $params[':email'] = $email;
     }
 
-    $sql = 'SELECT * FROM transactions WHERE ' . implode(' AND ', $where) . ' ORDER BY updated_at DESC, created_at DESC LIMIT 50';
+    $sql = 'SELECT id, status, item_title, invoice_number, due_at, updated_at, created_at, rejection_reason
+            FROM transactions WHERE ' . implode(' AND ', $where) . ' ORDER BY updated_at DESC, created_at DESC LIMIT 50';
     $statement = $pdo->prepare($sql);
     $statement->execute($params);
 
     $now = new DateTimeImmutable('now');
     $notifications = [];
 
-    foreach ($statement->fetchAll() as $transaction) {
+    while ($transaction = $statement->fetch()) {
         $id = (string) ($transaction['id'] ?? '');
         $status = normalizeNotificationStatus((string) ($transaction['status'] ?? 'pending'));
         $title = (string) ($transaction['item_title'] ?? 'Transaksi Arduflow');
@@ -323,7 +306,7 @@ function buildWorkshopNotifications(PDO $pdo, ?int $userId, string $email): arra
     $limit = $now->modify('+7 days');
     $notifications = [];
 
-    foreach ($statement->fetchAll() as $row) {
+    while ($row = $statement->fetch()) {
         $payload = [];
         if (!empty($row['payload_json'])) {
             try {
@@ -363,6 +346,29 @@ function notificationEmailWasSent(PDO $pdo, string $key, string $email): bool
     $statement = $pdo->prepare('SELECT id FROM user_notification_email_logs WHERE notification_key = :key AND LOWER(email) = LOWER(:email) LIMIT 1');
     $statement->execute([':key' => $key, ':email' => $email]);
     return (bool) $statement->fetchColumn();
+}
+
+/** Fetch delivery flags together; dashboard polling must not query once per item. */
+function notificationSentEmailKeys(PDO $pdo, array $notifications, string $email): array
+{
+    if ($email === '' || $notifications === []) {
+        return [];
+    }
+
+    $keys = array_values(array_unique(array_column($notifications, 'key')));
+    $sent = [];
+    foreach (array_chunk($keys, 400) as $chunk) {
+        $placeholders = implode(', ', array_fill(0, count($chunk), '?'));
+        $statement = $pdo->prepare(
+            'SELECT notification_key FROM user_notification_email_logs
+             WHERE notification_key IN (' . $placeholders . ') AND LOWER(email) = LOWER(?)'
+        );
+        $statement->execute([...$chunk, $email]);
+        while (($key = $statement->fetchColumn()) !== false) {
+            $sent[(string) $key] = true;
+        }
+    }
+    return $sent;
 }
 
 function markNotificationEmailSent(PDO $pdo, string $key, string $email): void
@@ -455,7 +461,6 @@ try {
     }
 
     $pdo = notificationPdo();
-    ensureNotificationEmailLog($pdo);
 
     $notifications = [
         ...buildTransactionNotifications($pdo, $userId, $email),
@@ -483,10 +488,11 @@ try {
         return strtotime((string) ($right['createdAt'] ?? 'now')) <=> strtotime((string) ($left['createdAt'] ?? 'now'));
     });
 
+    $sentEmailKeys = notificationSentEmailKeys($pdo, $notifications, $email);
     foreach ($notifications as &$notification) {
         $key = (string) $notification['key'];
         $notification['id'] = $key;
-        $notification['emailSent'] = $email !== '' && notificationEmailWasSent($pdo, $key, $email);
+        $notification['emailSent'] = isset($sentEmailKeys[$key]);
 
         if ($sendEmail && $email !== '' && !$notification['emailSent']) {
             try {

@@ -57,7 +57,7 @@ if (!in_array($method, ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], true)) {
 function respond(int $status, array $payload): never
 {
     http_response_code($status);
-    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
 
@@ -103,158 +103,6 @@ function jakartaNow(): string
     return (new DateTimeImmutable('now', new DateTimeZone('Asia/Jakarta')))->format(DateTimeInterface::ATOM);
 }
 
-function ensureTransactionTables(PDO $pdo): void
-{
-    $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS transactions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NULL,
-            user_name TEXT,
-            email TEXT,
-            item_type TEXT NOT NULL DEFAULT "workshop",
-            item_id INTEGER NULL,
-            item_title TEXT NOT NULL,
-            amount REAL NOT NULL DEFAULT 0,
-            currency TEXT NOT NULL DEFAULT "IDR",
-            payment_method TEXT,
-            payment_channel TEXT,
-            payment_code TEXT,
-            recipient_name TEXT,
-            qris_file_name TEXT,
-            qris_file_type TEXT,
-            qris_file_size INTEGER,
-            qris_file_path TEXT,
-            qris_file_url TEXT,
-            invoice_number TEXT NOT NULL UNIQUE,
-            reference_number TEXT,
-            status TEXT NOT NULL DEFAULT "pending",
-            paid_at TEXT,
-            due_at TEXT,
-            notes TEXT,
-            proof_file_name TEXT,
-            proof_file_type TEXT,
-            proof_file_size INTEGER,
-            proof_file_path TEXT,
-            proof_file_url TEXT,
-            proof_uploaded_at TEXT,
-            reviewed_at TEXT,
-            reviewed_by TEXT,
-            rejection_reason TEXT,
-            payload_json TEXT NOT NULL DEFAULT "{}",
-            deleted_at TEXT,
-            version INTEGER NOT NULL DEFAULT 1,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        )'
-    );
-    addColumnIfMissing($pdo, 'transactions', 'proof_file_name', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'payment_code', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'recipient_name', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'qris_file_name', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'qris_file_type', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'qris_file_size', 'INTEGER');
-    addColumnIfMissing($pdo, 'transactions', 'qris_file_path', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'qris_file_url', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'proof_file_type', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'proof_file_size', 'INTEGER');
-    addColumnIfMissing($pdo, 'transactions', 'proof_file_path', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'proof_file_url', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'proof_uploaded_at', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'reviewed_at', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'reviewed_by', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'rejection_reason', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'deleted_at', 'TEXT');
-    addColumnIfMissing($pdo, 'transactions', 'version', 'INTEGER NOT NULL DEFAULT 1');
-    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id)');
-    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_transactions_email ON transactions(email)');
-    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status)');
-    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at)');
-
-    $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS user_entitlements (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            transaction_id INTEGER NOT NULL,
-            user_id INTEGER NULL,
-            email TEXT,
-            product_type TEXT NOT NULL,
-            product_id INTEGER NULL,
-            product_title TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT "active",
-            granted_at TEXT NOT NULL,
-            deleted_at TEXT,
-            version INTEGER NOT NULL DEFAULT 1,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        )'
-    );
-    $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_user_entitlements_transaction ON user_entitlements(transaction_id)');
-    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_user_entitlements_user_id ON user_entitlements(user_id)');
-    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_user_entitlements_email ON user_entitlements(email)');
-    addColumnIfMissing($pdo, 'user_entitlements', 'deleted_at', 'TEXT');
-    addColumnIfMissing($pdo, 'user_entitlements', 'version', 'INTEGER NOT NULL DEFAULT 1');
-
-    $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS payment_methods (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            method_type TEXT NOT NULL DEFAULT "Transfer Bank",
-            channel TEXT,
-            recipient_name TEXT,
-            payment_code TEXT,
-            qris_file_name TEXT,
-            qris_file_type TEXT,
-            qris_file_size INTEGER,
-            qris_file_path TEXT,
-            qris_file_url TEXT,
-            is_active INTEGER NOT NULL DEFAULT 1,
-            deleted_at TEXT,
-            version INTEGER NOT NULL DEFAULT 1,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        )'
-    );
-    addColumnIfMissing($pdo, 'payment_methods', 'method_type', 'TEXT NOT NULL DEFAULT "Transfer Bank"');
-    addColumnIfMissing($pdo, 'payment_methods', 'channel', 'TEXT');
-    addColumnIfMissing($pdo, 'payment_methods', 'recipient_name', 'TEXT');
-    addColumnIfMissing($pdo, 'payment_methods', 'payment_code', 'TEXT');
-    addColumnIfMissing($pdo, 'payment_methods', 'qris_file_name', 'TEXT');
-    addColumnIfMissing($pdo, 'payment_methods', 'qris_file_type', 'TEXT');
-    addColumnIfMissing($pdo, 'payment_methods', 'qris_file_size', 'INTEGER');
-    addColumnIfMissing($pdo, 'payment_methods', 'qris_file_path', 'TEXT');
-    addColumnIfMissing($pdo, 'payment_methods', 'qris_file_url', 'TEXT');
-    addColumnIfMissing($pdo, 'payment_methods', 'is_active', 'INTEGER NOT NULL DEFAULT 1');
-    addColumnIfMissing($pdo, 'payment_methods', 'deleted_at', 'TEXT');
-    addColumnIfMissing($pdo, 'payment_methods', 'version', 'INTEGER NOT NULL DEFAULT 1');
-    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_payment_methods_active ON payment_methods(is_active)');
-
-    $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS platform_finance_settings (
-            id INTEGER PRIMARY KEY CHECK (id = 1),
-            commission_rate REAL NOT NULL DEFAULT 10,
-            updated_at TEXT NOT NULL
-        )'
-    );
-    $pdo->exec('INSERT OR IGNORE INTO platform_finance_settings (id, commission_rate, updated_at) VALUES (1, 10, ' . $pdo->quote(jakartaNow()) . ')');
-
-    $workshopRegistrationTable = $pdo->query(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'workshop_registrations' LIMIT 1"
-    )->fetchColumn();
-    if ($workshopRegistrationTable !== false) {
-        addColumnIfMissing($pdo, 'workshop_registrations', 'transaction_id', 'INTEGER NULL');
-    }
-}
-
-function addColumnIfMissing(PDO $pdo, string $table, string $column, string $definition): void
-{
-    $columns = $pdo->query('PRAGMA table_info(' . $table . ')')->fetchAll(PDO::FETCH_ASSOC);
-    foreach ($columns as $existingColumn) {
-        if (($existingColumn['name'] ?? '') === $column) {
-            return;
-        }
-    }
-    $pdo->exec('ALTER TABLE ' . $table . ' ADD COLUMN ' . $column . ' ' . $definition);
-}
-
 function getTransactionId(): ?int
 {
     if (!isset($_GET['id']) || $_GET['id'] === '') {
@@ -283,7 +131,7 @@ function generateInvoiceNumber(): string
 function normalizeStatus(string $status): string
 {
     $value = strtolower(trim($status));
-    $allowed = ['pending', 'proof_uploaded', 'paid', 'rejected', 'failed', 'cancelled', 'refunded', 'expired', 'payout_requested', 'processing', 'proof_sent', 'done'];
+    $allowed = ['pending', 'proof_uploaded', 'paid', 'rejected', 'failed', 'cancelled', 'refunded', 'expired'];
     return in_array($value, $allowed, true) ? $value : 'pending';
 }
 
@@ -387,6 +235,74 @@ function readTransactionBody(): array
     }
 
     return readJsonBody();
+}
+
+function transactionBearerToken(): ?string
+{
+    $authorizationHeader =
+        $_SERVER['HTTP_AUTHORIZATION']
+        ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
+        ?? '';
+
+    if (!preg_match('/Bearer\s+(.+)/i', $authorizationHeader, $matches)) {
+        return null;
+    }
+
+    $token = trim($matches[1]);
+    return $token !== '' ? $token : null;
+}
+
+function transactionCurrentUser(PDO $pdo): ?array
+{
+    $token = transactionBearerToken();
+    if ($token === null) {
+        return null;
+    }
+
+    $statement = $pdo->prepare(
+        'SELECT
+            u.id,
+            u.name,
+            u.username,
+            u.email
+         FROM auth_tokens AS t
+         INNER JOIN users AS u ON u.id = t.user_id
+         WHERE t.token_hash = :token_hash
+           AND t.expires_at > :now
+           AND u.deleted_at IS NULL
+         LIMIT 1'
+    );
+
+    $statement->execute([
+        ':token_hash' => hash('sha256', $token),
+        ':now' => gmdate('Y-m-d\TH:i:s\Z'),
+    ]);
+
+    $user = $statement->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($user)) {
+        respond(401, [
+            'success' => false,
+            'message' => 'Session tidak valid atau sudah kedaluwarsa.',
+        ]);
+    }
+
+    return $user;
+}
+
+function applyUserSessionToTransaction(array $transaction, ?array $sessionUser): array
+{
+    if ($sessionUser !== null) {
+        $transaction['user_id'] = (int) $sessionUser['id'];
+        $transaction['user_name'] = trim(
+            (string) ($sessionUser['name'] ?: $sessionUser['username'] ?: '')
+        );
+        $transaction['email'] = trim((string) ($sessionUser['email'] ?? ''));
+
+        return $transaction;
+    }
+
+    $transaction['user_id'] = null;
+    return $transaction;
 }
 
 function storeQrisFile(int $transactionId, string $projectRoot): ?array
@@ -774,80 +690,9 @@ try {
     $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
     $pdo->exec('PRAGMA busy_timeout = ' . max(1000, $busyTimeout));
     $pdo->exec('PRAGMA foreign_keys = ON');
-    ensureTransactionTables($pdo);
-    if (function_exists('afwSyncEnsureInfrastructure')) {
-        afwSyncEnsureInfrastructure($pdo);
-        foreach (['transactions', 'payment_methods', 'user_entitlements'] as $syncTable) {
-            afwSyncEnsureTable($pdo, $syncTable);
-        }
-    }
 
     $transactionId = getTransactionId();
     $action = strtolower(trim((string) ($_GET['action'] ?? '')));
-
-    if ($action === 'finance-config') {
-        if ($method === 'GET') {
-            $row = $pdo->query('SELECT commission_rate, updated_at FROM platform_finance_settings WHERE id = 1')->fetch(PDO::FETCH_ASSOC) ?: [];
-            respond(200, [
-                'success' => true,
-                'data' => [
-                    'commissionRate' => (float) ($row['commission_rate'] ?? 10),
-                    'updatedAt' => $row['updated_at'] ?? '',
-                ],
-            ]);
-        }
-
-        if ($method === 'PUT' || $method === 'PATCH') {
-            $incoming = readJsonBody();
-            $rate = (float) ($incoming['commissionRate'] ?? $incoming['commission_rate'] ?? 10);
-            if (!is_finite($rate) || $rate < 0 || $rate > 100) {
-                throw new InvalidArgumentException('Komisi harus berada di antara 0 sampai 100 persen.');
-            }
-            $now = jakartaNow();
-            $statement = $pdo->prepare('INSERT INTO platform_finance_settings (id, commission_rate, updated_at) VALUES (1, :rate, :updated_at) ON CONFLICT(id) DO UPDATE SET commission_rate = excluded.commission_rate, updated_at = excluded.updated_at');
-            $statement->execute([':rate' => $rate, ':updated_at' => $now]);
-            respond(200, ['success' => true, 'message' => 'Pengaturan komisi berhasil disimpan.', 'data' => ['commissionRate' => $rate, 'updatedAt' => $now]]);
-        }
-    }
-
-    if ($action === 'upload-payout-proof' && $method === 'POST') {
-        if ($transactionId === null) {
-            throw new InvalidArgumentException('Parameter id wajib diisi untuk bukti pencairan.');
-        }
-        $existingRow = findTransaction($pdo, $transactionId);
-        if ($existingRow === null || ($existingRow['item_type'] ?? '') !== 'project_payout') {
-            respond(404, ['success' => false, 'message' => 'Pengajuan pencairan tidak ditemukan.']);
-        }
-        $proof = storePaymentProof($transactionId, $projectRoot);
-        $now = jakartaNow();
-        $statement = $pdo->prepare('UPDATE transactions SET proof_file_name = :name, proof_file_type = :type, proof_file_size = :size, proof_file_path = :path, proof_file_url = :url, proof_uploaded_at = :uploaded_at, status = "proof_sent", reviewed_at = :reviewed_at, reviewed_by = :reviewed_by, updated_at = :updated_at WHERE id = :id');
-        $statement->execute([
-            ':name' => $proof['name'], ':type' => $proof['type'], ':size' => $proof['size'], ':path' => $proof['path'], ':url' => $proof['url'],
-            ':uploaded_at' => $now, ':reviewed_at' => $now, ':reviewed_by' => 'Admin', ':updated_at' => $now, ':id' => $transactionId,
-        ]);
-        $updatedTransaction = findTransaction($pdo, $transactionId) ?? [];
-        publishTransactionEvent($projectRoot, 'payout_proof_sent', $updatedTransaction);
-        respond(200, ['success' => true, 'message' => 'Bukti pencairan berhasil dikirim ke user.', 'data' => ['transaction' => rowToTransaction($updatedTransaction)]]);
-    }
-
-    if ($action === 'complete-payout' && $method === 'POST') {
-        if ($transactionId === null) {
-            throw new InvalidArgumentException('Parameter id wajib diisi untuk menyelesaikan pencairan.');
-        }
-        $existingRow = findTransaction($pdo, $transactionId);
-        if ($existingRow === null || ($existingRow['item_type'] ?? '') !== 'project_payout') {
-            respond(404, ['success' => false, 'message' => 'Pengajuan pencairan tidak ditemukan.']);
-        }
-        if (($existingRow['status'] ?? '') !== 'proof_sent') {
-            throw new InvalidArgumentException('Pencairan hanya dapat diselesaikan setelah bukti dikirim admin.');
-        }
-        $now = jakartaNow();
-        $statement = $pdo->prepare('UPDATE transactions SET status = "done", updated_at = :updated_at WHERE id = :id');
-        $statement->execute([':updated_at' => $now, ':id' => $transactionId]);
-        $updatedTransaction = findTransaction($pdo, $transactionId) ?? [];
-        publishTransactionEvent($projectRoot, 'payout_completed', $updatedTransaction);
-        respond(200, ['success' => true, 'message' => 'Pencairan ditandai selesai.', 'data' => ['transaction' => rowToTransaction($updatedTransaction)]]);
-    }
 
     if ($action === 'payment-methods') {
         if ($method === 'GET') {
@@ -1074,6 +919,96 @@ try {
         }
     }
 
+    if ($method === 'POST' && $action === 'upload-payout-proof') {
+        if ($transactionId === null) {
+            throw new InvalidArgumentException('Parameter id wajib diisi untuk bukti pencairan.');
+        }
+
+        $existingRow = findTransaction($pdo, $transactionId);
+        if ($existingRow === null || ($existingRow['item_type'] ?? '') !== 'project_payout') {
+            respond(404, [
+                'success' => false,
+                'message' => 'Pengajuan pencairan tidak ditemukan.',
+            ]);
+        }
+
+        $proof = storePaymentProof($transactionId, $projectRoot);
+        $now = jakartaNow();
+        $statement = $pdo->prepare(
+            'UPDATE transactions SET
+                proof_file_name = :proof_file_name,
+                proof_file_type = :proof_file_type,
+                proof_file_size = :proof_file_size,
+                proof_file_path = :proof_file_path,
+                proof_file_url = :proof_file_url,
+                proof_uploaded_at = :proof_uploaded_at,
+                status = "proof_sent",
+                reviewed_at = :reviewed_at,
+                reviewed_by = :reviewed_by,
+                updated_at = :updated_at
+             WHERE id = :id'
+        );
+        $statement->execute([
+            ':proof_file_name' => $proof['name'],
+            ':proof_file_type' => $proof['type'],
+            ':proof_file_size' => $proof['size'],
+            ':proof_file_path' => $proof['path'],
+            ':proof_file_url' => $proof['url'],
+            ':proof_uploaded_at' => $now,
+            ':reviewed_at' => $now,
+            ':reviewed_by' => 'Admin',
+            ':updated_at' => $now,
+            ':id' => $transactionId,
+        ]);
+        if (function_exists('afwSyncEnqueue')) {
+            afwSyncEnqueue($pdo, 'transactions', $transactionId, 'update');
+        }
+        $updatedTransaction = findTransaction($pdo, $transactionId) ?? [];
+        publishTransactionEvent($projectRoot, 'payout_proof_sent', $updatedTransaction);
+
+        respond(200, [
+            'success' => true,
+            'message' => 'Bukti pencairan berhasil dikirim ke user.',
+            'data' => [
+                'transaction' => rowToTransaction($updatedTransaction),
+            ],
+        ]);
+    }
+
+    if ($method === 'POST' && $action === 'complete-payout') {
+        if ($transactionId === null) {
+            throw new InvalidArgumentException('Parameter id wajib diisi untuk menyelesaikan pencairan.');
+        }
+
+        $existingRow = findTransaction($pdo, $transactionId);
+        if ($existingRow === null || ($existingRow['item_type'] ?? '') !== 'project_payout') {
+            respond(404, [
+                'success' => false,
+                'message' => 'Pengajuan pencairan tidak ditemukan.',
+            ]);
+        }
+        if (($existingRow['status'] ?? '') !== 'proof_sent') {
+            throw new InvalidArgumentException('Pencairan hanya dapat diselesaikan setelah bukti dikirim admin.');
+        }
+
+        $now = jakartaNow();
+        $statement = $pdo->prepare('UPDATE transactions SET status = "done", updated_at = :updated_at WHERE id = :id');
+        $statement->execute([':updated_at' => $now, ':id' => $transactionId]);
+        if (function_exists('afwSyncEnqueue')) {
+            afwSyncEnqueue($pdo, 'transactions', $transactionId, 'update');
+        }
+        $updatedTransaction = findTransaction($pdo, $transactionId) ?? [];
+        publishTransactionEvent($projectRoot, 'payout_completed', $updatedTransaction);
+
+        respond(200, [
+            'success' => true,
+            'message' => 'Pencairan ditandai selesai.',
+            'data' => [
+                'transaction' => rowToTransaction($updatedTransaction),
+            ],
+        ]);
+    }
+
     if ($method === 'POST' && $action === 'upload-proof') {
         if ($transactionId === null) {
             throw new InvalidArgumentException('Parameter id wajib diisi untuk upload bukti pembayaran.');
@@ -1221,9 +1156,22 @@ try {
     }
 
     if ($method === 'GET') {
+        $sessionUser = transactionCurrentUser($pdo);
+
         if ($transactionId !== null) {
             $row = findTransaction($pdo, $transactionId);
             if ($row === null) {
+                respond(404, [
+                    'success' => false,
+                    'message' => 'Transaksi tidak ditemukan.',
+                ]);
+            }
+
+            if (
+                $sessionUser !== null
+                && (int) ($row['user_id'] ?? 0) !== (int) $sessionUser['id']
+                && strcasecmp((string) ($row['email'] ?? ''), (string) ($sessionUser['email'] ?? '')) !== 0
+            ) {
                 respond(404, [
                     'success' => false,
                     'message' => 'Transaksi tidak ditemukan.',
@@ -1243,7 +1191,11 @@ try {
         $hasUserId = isset($_GET['userId']) && $_GET['userId'] !== '';
         $hasEmail = isset($_GET['email']) && trim((string) $_GET['email']) !== '';
 
-        if ($hasUserId && $hasEmail) {
+        if ($sessionUser !== null) {
+            $where[] = '(user_id = :session_user_id OR LOWER(email) = LOWER(:session_email))';
+            $params[':session_user_id'] = (int) $sessionUser['id'];
+            $params[':session_email'] = trim((string) ($sessionUser['email'] ?? ''));
+        } elseif ($hasUserId && $hasEmail) {
             $where[] = '(user_id = :user_id OR LOWER(email) = LOWER(:email))';
             $params[':user_id'] = (int) $_GET['userId'];
             $params[':email'] = trim((string) $_GET['email']);
@@ -1267,7 +1219,10 @@ try {
 
         $statement = $pdo->prepare($sql);
         $statement->execute($params);
-        $transactions = array_map('rowToTransaction', $statement->fetchAll());
+        $transactions = [];
+        while ($row = $statement->fetch()) {
+            $transactions[] = rowToTransaction($row);
+        }
 
         respond(200, [
             'success' => true,
@@ -1281,7 +1236,11 @@ try {
 
     if ($method === 'POST') {
         $incoming = readTransactionBody();
-        $transaction = transactionFromBody($incoming);
+        $sessionUser = transactionCurrentUser($pdo);
+        $transaction = applyUserSessionToTransaction(
+            transactionFromBody($incoming),
+            $sessionUser
+        );
         $errors = validateTransaction($transaction);
         if ($errors !== []) {
             respond(422, [

@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 use Arduflow\Api\Support\Env;
@@ -22,6 +21,7 @@ $autoload = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARA
 
 if (is_file($autoload)) {
     require_once $autoload;
+
     if (class_exists(Env::class)) {
         Env::load(dirname(__DIR__) . DIRECTORY_SEPARATOR . '.env');
     }
@@ -43,10 +43,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 function respond(int $statusCode, array $body): never
 {
     http_response_code($statusCode);
+
     echo json_encode(
         $body,
-        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT
+        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
     );
+
     exit;
 }
 
@@ -99,28 +101,51 @@ function getRequestId(): int
 
 function tableExists(PDO $pdo, string $table): bool
 {
-    $statement = $pdo->prepare(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = :table LIMIT 1"
-    );
-    $statement->execute([':table' => $table]);
+    static $cache = [];
 
-    return (bool) $statement->fetchColumn();
+    $key = spl_object_id($pdo) . ':' . $table;
+
+    if (array_key_exists($key, $cache)) {
+        return $cache[$key];
+    }
+
+    $statement = $pdo->prepare(
+        "SELECT 1
+         FROM sqlite_master
+         WHERE type = 'table'
+           AND name = :table
+         LIMIT 1"
+    );
+
+    $statement->execute([
+        ':table' => $table,
+    ]);
+
+    return $cache[$key] = (bool) $statement->fetchColumn();
 }
 
 function getColumnNames(PDO $pdo, string $table): array
 {
+    static $cache = [];
+
+    $key = spl_object_id($pdo) . ':' . $table;
+
+    if (isset($cache[$key])) {
+        return $cache[$key];
+    }
+
     if (!tableExists($pdo, $table)) {
-        return [];
+        return $cache[$key] = [];
     }
 
-    $columns = [];
-    $statement = $pdo->query('PRAGMA table_info(' . $table . ')');
+    $statement = $pdo->query(
+        'PRAGMA table_info("' . str_replace('"', '""', $table) . '")'
+    );
 
-    foreach ($statement->fetchAll() as $column) {
-        $columns[] = (string) $column['name'];
-    }
-
-    return $columns;
+    return $cache[$key] = array_map(
+        static fn(array $column): string => (string) $column['name'],
+        $statement->fetchAll()
+    );
 }
 
 function firstFilled(array $data, array $keys, string $fallback = ''): string
@@ -167,9 +192,16 @@ function validDateOrNull(mixed $value): ?string
     }
 
     $date = trim((string) $value);
-    $parsed = DateTime::createFromFormat('Y-m-d', $date);
 
-    if ($parsed === false || $parsed->format('Y-m-d') !== $date) {
+    $parsed = DateTime::createFromFormat(
+        'Y-m-d',
+        $date
+    );
+
+    if (
+        $parsed === false ||
+        $parsed->format('Y-m-d') !== $date
+    ) {
         respond(422, [
             'success' => false,
             'message' => 'Format tanggal harus YYYY-MM-DD.',
@@ -182,9 +214,22 @@ function validDateOrNull(mixed $value): ?string
 function generateCertificateNumber(): string
 {
     try {
-        $suffix = strtoupper(bin2hex(random_bytes(3)));
+        $suffix = strtoupper(
+            bin2hex(
+                random_bytes(3)
+            )
+        );
     } catch (Throwable $exception) {
-        $suffix = strtoupper(substr(str_replace('.', '', uniqid('', true)), -6));
+        $suffix = strtoupper(
+            substr(
+                str_replace(
+                    '.',
+                    '',
+                    uniqid('', true)
+                ),
+                -6
+            )
+        );
     }
 
     return 'AFW-CERT-' . date('Y') . '-' . $suffix;
@@ -202,13 +247,20 @@ function decodeJsonArray(mixed $value): array
 
     $decoded = json_decode($value, true);
 
-    return is_array($decoded) ? $decoded : [];
+    return is_array($decoded)
+        ? $decoded
+        : [];
 }
 
 function decodeCertificateRow(array $row): array
 {
-    $payload = decodeJsonArray($row['payload_json'] ?? '');
-    $file = decodeJsonArray($row['file_json'] ?? '');
+    $payload = decodeJsonArray(
+        $row['payload_json'] ?? ''
+    );
+
+    $file = decodeJsonArray(
+        $row['file_json'] ?? ''
+    );
 
     if ($file === []) {
         $file = null;
@@ -216,148 +268,327 @@ function decodeCertificateRow(array $row): array
 
     return [
         'id' => (int) $row['id'],
-        'registrationId' => isset($row['registration_id']) && $row['registration_id'] !== null
-            ? (int) $row['registration_id']
-            : null,
-        'memberKey' => $row['member_key'] ?? ($payload['memberKey'] ?? null),
-        'memberName' => $payload['memberName'] ?? $payload['member_name'] ?? null,
-        'userId' => isset($row['user_id']) && $row['user_id'] !== null
-            ? (int) $row['user_id']
-            : null,
-        'userName' => $row['user_name'],
-        'email' => $row['email'],
-        'workshopId' => $row['workshop_id'] !== null
-            ? (int) $row['workshop_id']
-            : null,
-        'workshopTitle' => $row['workshop_title'],
-        'certificateTitle' => $row['certificate_title'],
-        'type' => $row['certificate_type'],
-        'completedAt' => $row['completed_at'],
-        'issuedAt' => $row['issued_at'],
-        'certificateNumber' => $row['certificate_number'],
-        'status' => $row['status'],
-        'downloads' => (int) $row['downloads'],
-        'file' => $file,
-        'payload' => $payload,
-        'createdAt' => $row['created_at'],
-        'updatedAt' => $row['updated_at'],
+
+        'registrationId' =>
+            isset($row['registration_id']) &&
+            $row['registration_id'] !== null
+                ? (int) $row['registration_id']
+                : null,
+
+        'memberKey' =>
+            $row['member_key']
+            ?? ($payload['memberKey'] ?? null),
+
+        'memberName' =>
+            $payload['memberName']
+            ?? $payload['member_name']
+            ?? null,
+
+        'userId' =>
+            isset($row['user_id']) &&
+            $row['user_id'] !== null
+                ? (int) $row['user_id']
+                : null,
+
+        'userName' =>
+            $row['user_name'],
+
+        'email' =>
+            $row['email'],
+
+        'workshopId' =>
+            $row['workshop_id'] !== null
+                ? (int) $row['workshop_id']
+                : null,
+
+        'workshopTitle' =>
+            $row['workshop_title'],
+
+        'certificateTitle' =>
+            $row['certificate_title'],
+
+        'type' =>
+            $row['certificate_type'],
+
+        'completedAt' =>
+            $row['completed_at'],
+
+        'issuedAt' =>
+            $row['issued_at'],
+
+        'certificateNumber' =>
+            $row['certificate_number'],
+
+        'status' =>
+            $row['status'],
+
+        'downloads' =>
+            (int) $row['downloads'],
+
+        'file' =>
+            $file,
+
+        'payload' =>
+            $payload,
+
+        'createdAt' =>
+            $row['created_at'],
+
+        'updatedAt' =>
+            $row['updated_at'],
     ];
 }
 
 function decodeWorkshopOption(array $row): array
 {
-    $payload = decodeJsonArray($row['payload_json'] ?? '');
+    $payload = decodeJsonArray(
+        $row['payload_json'] ?? ''
+    );
 
     return [
-        'id' => (int) $row['id'],
-        'title' => $row['title'] ?: ($payload['title'] ?? 'Workshop tanpa judul'),
-        'category' => $row['category'] ?: ($payload['category'] ?? 'Workshop'),
-        'status' => $row['status'] ?: ($payload['publication']['status'] ?? null),
-        'date' => $payload['schedule']['date'] ?? null,
+        'id' =>
+            (int) $row['id'],
+
+        'title' =>
+            $row['title']
+            ?: ($payload['title'] ?? 'Workshop tanpa judul'),
+
+        'category' =>
+            $row['category']
+            ?: ($payload['category'] ?? 'Workshop'),
+
+        'status' =>
+            $row['status']
+            ?: ($payload['publication']['status'] ?? null),
+
+        'date' =>
+            $payload['schedule']['date'] ?? null,
     ];
 }
 
-function getWorkshopTitleById(PDO $pdo, ?int $workshopId): ?string
-{
-    if (!$workshopId || !tableExists($pdo, 'workshops')) {
+function getWorkshopTitleById(
+    PDO $pdo,
+    ?int $workshopId
+): ?string {
+    if (
+        !$workshopId ||
+        !tableExists($pdo, 'workshops')
+    ) {
         return null;
     }
 
     $statement = $pdo->prepare(
-        'SELECT title, payload_json FROM workshops WHERE id = :id LIMIT 1'
+        'SELECT title, payload_json
+         FROM workshops
+         WHERE id = :id
+         LIMIT 1'
     );
-    $statement->execute([':id' => $workshopId]);
+
+    $statement->execute([
+        ':id' => $workshopId,
+    ]);
+
     $row = $statement->fetch();
 
     if (!$row) {
         return null;
     }
 
-    $payload = decodeJsonArray($row['payload_json'] ?? '');
+    $payload = decodeJsonArray(
+        $row['payload_json'] ?? ''
+    );
 
-    return (string) ($row['title'] ?: ($payload['title'] ?? ''));
+    return (string) (
+        $row['title']
+        ?: ($payload['title'] ?? '')
+    );
 }
 
 function getWorkshopIdByTitle(PDO $pdo, string $title): ?int
 {
+    static $cache = [];
+    static $payloadTitles;
+    $payloadTitles ??= new WeakMap();
+
     $title = trim($title);
 
-    if ($title === '' || !tableExists($pdo, 'workshops')) {
+    if (
+        $title === '' ||
+        !tableExists($pdo, 'workshops')
+    ) {
         return null;
     }
 
-    $statement = $pdo->prepare(
-        'SELECT id, title, payload_json FROM workshops ORDER BY id DESC'
-    );
-    $statement->execute();
+    $cacheKey =
+        spl_object_id($pdo)
+        . ':'
+        . strtolower($title);
 
-    foreach ($statement->fetchAll() as $row) {
-        $payload = decodeJsonArray($row['payload_json'] ?? '');
-        $workshopTitle = trim((string) ($row['title'] ?: ($payload['title'] ?? '')));
-
-        if ($workshopTitle !== '' && strcasecmp($workshopTitle, $title) === 0) {
-            return (int) $row['id'];
-        }
+    if (array_key_exists($cacheKey, $cache)) {
+        return $cache[$cacheKey];
     }
 
-    return null;
+    /*
+     * Fast path.
+     * Tidak membaca semua workshop.
+     */
+    $statement = $pdo->prepare(
+        'SELECT id
+         FROM workshops
+         WHERE title = :title COLLATE NOCASE
+         ORDER BY id DESC
+         LIMIT 1'
+    );
+
+    $statement->execute([
+        ':title' => $title,
+    ]);
+
+    $id = $statement->fetchColumn();
+
+    if ($id !== false) {
+        return $cache[$cacheKey] = (int) $id;
+    }
+
+    /*
+     * Fallback untuk data lama
+     * yang menyimpan title hanya dalam payload_json.
+     */
+    if (!isset($payloadTitles[$pdo])) {
+        $statement = $pdo->query(
+            'SELECT id, payload_json
+             FROM workshops
+             WHERE payload_json IS NOT NULL
+             ORDER BY id DESC'
+        );
+        $titles = [];
+        while ($row = $statement->fetch()) {
+            $payload = decodeJsonArray($row['payload_json'] ?? '');
+            $payloadTitle = strtolower(trim((string) ($payload['title'] ?? '')));
+            if ($payloadTitle !== '' && !isset($titles[$payloadTitle])) {
+                $titles[$payloadTitle] = (int) $row['id'];
+            }
+        }
+        $payloadTitles[$pdo] = $titles;
+    }
+
+    return $cache[$cacheKey] = $payloadTitles[$pdo][strtolower($title)] ?? null;
 }
 
 function resolveUserIdByEmail(PDO $pdo, string $email): ?int
 {
+    static $cache = [];
+
     $email = trim($email);
 
-    if ($email === '' || !tableExists($pdo, 'users')) {
+    if (
+        $email === '' ||
+        !tableExists($pdo, 'users')
+    ) {
         return null;
     }
 
-    $columns = getColumnNames($pdo, 'users');
+    $cacheKey =
+        spl_object_id($pdo)
+        . ':'
+        . strtolower($email);
 
-    if (!in_array('id', $columns, true) || !in_array('email', $columns, true)) {
-        return null;
+    if (array_key_exists($cacheKey, $cache)) {
+        return $cache[$cacheKey];
     }
 
-    $statement = $pdo->prepare(
-        'SELECT id FROM users WHERE LOWER(email) = LOWER(:email) LIMIT 1'
+    $columns = getColumnNames(
+        $pdo,
+        'users'
     );
-    $statement->execute([':email' => $email]);
+
+    if (
+        !in_array('id', $columns, true) ||
+        !in_array('email', $columns, true)
+    ) {
+        return $cache[$cacheKey] = null;
+    }
+
+    /*
+     * COLLATE NOCASE lebih ringan daripada:
+     * LOWER(email) = LOWER(:email)
+     */
+    $statement = $pdo->prepare(
+        'SELECT id
+         FROM users
+         WHERE email = :email COLLATE NOCASE
+         LIMIT 1'
+    );
+
+    $statement->execute([
+        ':email' => $email,
+    ]);
+
     $id = $statement->fetchColumn();
 
-    return $id !== false ? positiveIntOrNull($id) : null;
+    return $cache[$cacheKey] =
+        $id !== false
+            ? positiveIntOrNull($id)
+            : null;
 }
 
 function extractRegistrationMeta(array $row): array
 {
     $meta = [];
 
-    foreach (['meta_json', 'meta', 'metadata_json', 'payload_json', 'payload'] as $key) {
+    foreach (
+        [
+            'meta_json',
+            'meta',
+            'metadata_json',
+            'payload_json',
+            'payload',
+        ] as $key
+    ) {
         if (!array_key_exists($key, $row)) {
             continue;
         }
 
-        $decoded = decodeJsonArray($row[$key]);
+        $decoded = decodeJsonArray(
+            $row[$key]
+        );
 
-        if (isset($decoded['meta']) && is_array($decoded['meta'])) {
-            $decoded = array_merge($decoded, $decoded['meta']);
+        if (
+            isset($decoded['meta']) &&
+            is_array($decoded['meta'])
+        ) {
+            $decoded = array_merge(
+                $decoded,
+                $decoded['meta']
+            );
         }
 
-        $meta = array_merge($meta, $decoded);
+        $meta = array_merge(
+            $meta,
+            $decoded
+        );
     }
 
     $directMappings = [
-        'workshop_id' => ['workshop_id', 'workshopId'],
+        'workshop_id' => [
+            'workshop_id',
+            'workshopId',
+        ],
+
         'workshop_choice' => [
             'workshop_choice',
             'workshopChoice',
             'pilihan_workshop',
             'pilihanWorkshop',
         ],
+
         'participant_estimate' => [
             'participant_estimate',
             'participantEstimate',
             'jumlah_peserta_workshop',
             'jumlahPesertaWorkshop',
         ],
+
         'member_names' => [
             'member_names',
             'memberNames',
@@ -367,13 +598,23 @@ function extractRegistrationMeta(array $row): array
     ];
 
     foreach ($directMappings as $target => $sourceKeys) {
-        if (isset($meta[$target]) && $meta[$target] !== '') {
+        if (
+            isset($meta[$target]) &&
+            $meta[$target] !== ''
+        ) {
             continue;
         }
 
-        $value = firstValue($row, $sourceKeys, null);
+        $value = firstValue(
+            $row,
+            $sourceKeys,
+            null
+        );
 
-        if ($value !== null && $value !== '') {
+        if (
+            $value !== null &&
+            $value !== ''
+        ) {
             $meta[$target] = $value;
         }
     }
@@ -381,23 +622,44 @@ function extractRegistrationMeta(array $row): array
     return $meta;
 }
 
-function normalizeWorkshopParticipantRow(PDO $registrationPdo, PDO $workshopPdo, array $row): ?array
-{
+function normalizeWorkshopParticipantRow(
+    PDO $registrationPdo,
+    PDO $workshopPdo,
+    array $row
+): ?array {
     $registrationId = positiveIntOrNull(
-        firstValue($row, ['id', 'numeric_id', 'registration_id'], null)
+        firstValue(
+            $row,
+            [
+                'id',
+                'numeric_id',
+                'registration_id',
+            ],
+            null
+        )
     );
 
     if (!$registrationId) {
         return null;
     }
 
-    $formType = strtolower(trim((string) firstValue(
-        $row,
-        ['form_type', 'formType'],
-        ''
-    )));
+    $formType = strtolower(
+        trim(
+            (string) firstValue(
+                $row,
+                [
+                    'form_type',
+                    'formType',
+                ],
+                ''
+            )
+        )
+    );
 
-    if ($formType !== '' && $formType !== 'workshop') {
+    if (
+        $formType !== '' &&
+        $formType !== 'workshop'
+    ) {
         return null;
     }
 
@@ -406,110 +668,253 @@ function normalizeWorkshopParticipantRow(PDO $registrationPdo, PDO $workshopPdo,
     $workshopId = positiveIntOrNull(
         firstValue(
             $meta,
-            ['workshop_id', 'workshopId'],
-            firstValue($row, ['workshop_id', 'workshopId'], null)
+            [
+                'workshop_id',
+                'workshopId',
+            ],
+            firstValue(
+                $row,
+                [
+                    'workshop_id',
+                    'workshopId',
+                ],
+                null
+            )
         )
     );
 
     $workshopChoice = firstFilled(
         $meta,
-        ['workshop_choice', 'workshopChoice', 'pilihan_workshop'],
+        [
+            'workshop_choice',
+            'workshopChoice',
+            'pilihan_workshop',
+        ],
         firstFilled(
             $row,
-            ['workshop_choice', 'workshopChoice', 'pilihan_workshop'],
+            [
+                'workshop_choice',
+                'workshopChoice',
+                'pilihan_workshop',
+            ],
             ''
         )
     );
 
-    if ($workshopChoice === '' && $formType === 'workshop') {
-        $workshopChoice = firstFilled($row, ['message'], '');
+    if (
+        $workshopChoice === '' &&
+        $formType === 'workshop'
+    ) {
+        $workshopChoice = firstFilled(
+            $row,
+            ['message'],
+            ''
+        );
     }
 
-    if (!$workshopId && $workshopChoice !== '') {
-        $workshopId = getWorkshopIdByTitle($workshopPdo, $workshopChoice);
+    if (
+        !$workshopId &&
+        $workshopChoice !== ''
+    ) {
+        $workshopId = getWorkshopIdByTitle(
+            $workshopPdo,
+            $workshopChoice
+        );
     }
 
-    // Jika tidak ada indikator workshop sama sekali, jangan masukkan sebagai peserta workshop.
-    if ($formType === '' && !$workshopId && $workshopChoice === '') {
+    if (
+        $formType === '' &&
+        !$workshopId &&
+        $workshopChoice === ''
+    ) {
         return null;
     }
 
     $participantName = firstFilled(
         $row,
-        ['name', 'nama', 'participant_name', 'participantName', 'nama_workshop'],
+        [
+            'name',
+            'nama',
+            'participant_name',
+            'participantName',
+            'nama_workshop',
+        ],
         ''
     );
+
     $participantEmail = firstFilled(
         $row,
-        ['email', 'participant_email', 'participantEmail', 'email_workshop'],
+        [
+            'email',
+            'participant_email',
+            'participantEmail',
+            'email_workshop',
+        ],
         ''
     );
-    $status = firstFilled($row, ['status'], 'Baru');
-    $createdAt = firstFilled($row, ['created_at', 'createdAt'], '');
+
+    $status = firstFilled(
+        $row,
+        ['status'],
+        'Baru'
+    );
+
+    $createdAt = firstFilled(
+        $row,
+        [
+            'created_at',
+            'createdAt',
+        ],
+        ''
+    );
+
     $createdAtLabel = firstFilled(
         $row,
-        ['created_at_label', 'createdAtLabel'],
+        [
+            'created_at_label',
+            'createdAtLabel',
+        ],
         $createdAt
     );
+
     $participantEstimate = firstFilled(
         $meta,
-        ['participant_estimate', 'participantEstimate'],
+        [
+            'participant_estimate',
+            'participantEstimate',
+        ],
         ''
     );
+
     $memberNames = firstFilled(
         $meta,
-        ['member_names', 'memberNames'],
+        [
+            'member_names',
+            'memberNames',
+        ],
         ''
     );
 
     $userId = positiveIntOrNull(
-        firstValue($row, ['user_id', 'userId'], null)
+        firstValue(
+            $row,
+            [
+                'user_id',
+                'userId',
+            ],
+            null
+        )
     );
 
-    if (!$userId && $participantEmail !== '') {
-        $userId = resolveUserIdByEmail($registrationPdo, $participantEmail);
+    if (
+        !$userId &&
+        $participantEmail !== ''
+    ) {
+        $userId = resolveUserIdByEmail(
+            $registrationPdo,
+            $participantEmail
+        );
     }
 
     return [
-        'id' => $registrationId,
-        'registrationId' => $registrationId,
-        'userId' => $userId,
-        'workshopId' => $workshopId,
-        'workshopChoice' => $workshopChoice,
-        'participantName' => $participantName,
-        'participantEmail' => $participantEmail,
-        'participantEstimate' => $participantEstimate,
-        'memberNames' => $memberNames,
-        'status' => $status,
-        'createdAt' => $createdAt,
-        'createdAtLabel' => $createdAtLabel,
-        'formType' => 'workshop',
+        'id' =>
+            $registrationId,
+
+        'registrationId' =>
+            $registrationId,
+
+        'userId' =>
+            $userId,
+
+        'workshopId' =>
+            $workshopId,
+
+        'workshopChoice' =>
+            $workshopChoice,
+
+        'participantName' =>
+            $participantName,
+
+        'participantEmail' =>
+            $participantEmail,
+
+        'participantEstimate' =>
+            $participantEstimate,
+
+        'memberNames' =>
+            $memberNames,
+
+        'status' =>
+            $status,
+
+        'createdAt' =>
+            $createdAt,
+
+        'createdAtLabel' =>
+            $createdAtLabel,
+
+        'formType' =>
+            'workshop',
     ];
 }
 
-function getWorkshopParticipants(PDO $registrationPdo, PDO $workshopPdo): array
+function getWorkshopRegistrationSourceTable(PDO $pdo): ?string
 {
-    $sourceTable = null;
+    static $cache = [];
 
-    foreach (['workshop_registrations', 'workshop_participants', 'leads'] as $table) {
-        if (tableExists($registrationPdo, $table)) {
-            $sourceTable = $table;
-            break;
+    $key = spl_object_id($pdo);
+
+    if (array_key_exists($key, $cache)) {
+        return $cache[$key];
+    }
+
+    foreach (
+        [
+            'workshop_registrations',
+            'workshop_participants',
+            'leads',
+        ] as $table
+    ) {
+        if (tableExists($pdo, $table)) {
+            return $cache[$key] = $table;
         }
     }
+
+    return $cache[$key] = null;
+}
+
+function getWorkshopParticipants(
+    PDO $registrationPdo,
+    PDO $workshopPdo
+): array {
+    $sourceTable =
+        getWorkshopRegistrationSourceTable(
+            $registrationPdo
+        );
 
     if ($sourceTable === null) {
         return [];
     }
 
-    $rows = $registrationPdo
-        ->query('SELECT * FROM ' . $sourceTable . ' ORDER BY id DESC')
-        ->fetchAll();
+    /*
+     * Streaming menggunakan fetch().
+     * Tidak lagi membuat array mentah tambahan dari fetchAll().
+     */
+    $statement = $registrationPdo->query(
+        'SELECT *
+         FROM ' . $sourceTable . '
+         ORDER BY id DESC'
+    );
 
     $participants = [];
 
-    foreach ($rows as $row) {
-        $participant = normalizeWorkshopParticipantRow($registrationPdo, $workshopPdo, $row);
+    while ($row = $statement->fetch()) {
+        $participant =
+            normalizeWorkshopParticipantRow(
+                $registrationPdo,
+                $workshopPdo,
+                $row
+            );
 
         if ($participant !== null) {
             $participants[] = $participant;
@@ -528,13 +933,81 @@ function getWorkshopParticipantById(
         return null;
     }
 
-    foreach (getWorkshopParticipants($registrationPdo, $workshopPdo) as $participant) {
-        if ((int) $participant['registrationId'] === $registrationId) {
-            return $participant;
-        }
+    $sourceTable =
+        getWorkshopRegistrationSourceTable(
+            $registrationPdo
+        );
+
+    if ($sourceTable === null) {
+        return null;
     }
 
-    return null;
+    /*
+     * Optimasi utama:
+     * jangan panggil getWorkshopParticipants()
+     * karena itu membaca seluruh tabel.
+     */
+
+    $columns = getColumnNames(
+        $registrationPdo,
+        $sourceTable
+    );
+
+    $idColumns = array_values(
+        array_intersect(
+            [
+                'id',
+                'numeric_id',
+                'registration_id',
+            ],
+            $columns
+        )
+    );
+
+    if ($idColumns === []) {
+        return null;
+    }
+
+    $conditions = [];
+    $params = [];
+
+    foreach ($idColumns as $index => $column) {
+        $placeholder = ':id_' . $index;
+
+        $conditions[] =
+            '"'
+            . str_replace(
+                '"',
+                '""',
+                $column
+            )
+            . '" = '
+            . $placeholder;
+
+        $params[$placeholder] =
+            $registrationId;
+    }
+
+    $statement = $registrationPdo->prepare(
+        'SELECT *
+         FROM ' . $sourceTable . '
+         WHERE ' . implode(' OR ', $conditions) . '
+         LIMIT 1'
+    );
+
+    $statement->execute($params);
+
+    $row = $statement->fetch();
+
+    if (!$row) {
+        return null;
+    }
+
+    return normalizeWorkshopParticipantRow(
+        $registrationPdo,
+        $workshopPdo,
+        $row
+    );
 }
 
 function validateCertificatePayload(
@@ -546,58 +1019,148 @@ function validateCertificatePayload(
     $errors = [];
 
     $registrationId = positiveIntOrNull(
-        firstValue($data, ['registrationId', 'registration_id'], null)
+        firstValue(
+            $data,
+            [
+                'registrationId',
+                'registration_id',
+            ],
+            null
+        )
     );
+
     $providedWorkshopId = positiveIntOrNull(
-        firstValue($data, ['workshopId', 'workshop_id'], null)
+        firstValue(
+            $data,
+            [
+                'workshopId',
+                'workshop_id',
+            ],
+            null
+        )
     );
 
     $participant = null;
 
     if ($registrationId) {
-        $participant = getWorkshopParticipantById(
-            $registrationPdo,
-            $pdo,
-            $registrationId
-        );
+        $participant =
+            getWorkshopParticipantById(
+                $registrationPdo,
+                $pdo,
+                $registrationId
+            );
 
         if ($participant === null) {
-            $errors['registrationId'] = 'Data pendaftaran workshop tidak ditemukan.';
+            $errors['registrationId'] =
+                'Data pendaftaran workshop tidak ditemukan.';
         }
     } elseif ($requireRegistration) {
-        $errors['registrationId'] = 'Peserta wajib dipilih dari data pendaftaran workshop.';
+        $errors['registrationId'] =
+            'Peserta wajib dipilih dari data pendaftaran workshop.';
     }
 
-    $userName = firstFilled($data, ['userName', 'user_name']);
-    $memberName = firstFilled($data, ['memberName', 'member_name'], '');
-    $memberKey = firstFilled($data, ['memberKey', 'member_key'], '');
-    $userId = positiveIntOrNull(firstValue($data, ['userId', 'user_id'], null));
-    $email = firstFilled($data, ['email']);
-    $workshopId = $providedWorkshopId;
+    $userName = firstFilled(
+        $data,
+        [
+            'userName',
+            'user_name',
+        ]
+    );
+
+    $memberName = firstFilled(
+        $data,
+        [
+            'memberName',
+            'member_name',
+        ],
+        ''
+    );
+
+    $memberKey = firstFilled(
+        $data,
+        [
+            'memberKey',
+            'member_key',
+        ],
+        ''
+    );
+
+    $userId = positiveIntOrNull(
+        firstValue(
+            $data,
+            [
+                'userId',
+                'user_id',
+            ],
+            null
+        )
+    );
+
+    $email = firstFilled(
+        $data,
+        ['email']
+    );
+
+    $workshopId =
+        $providedWorkshopId;
+
     $workshopTitle = firstFilled(
         $data,
-        ['workshopTitle', 'workshop_title', 'programTitle'],
+        [
+            'workshopTitle',
+            'workshop_title',
+            'programTitle',
+        ],
         ''
     );
 
     if ($participant !== null) {
-        $participantWorkshopId = positiveIntOrNull($participant['workshopId'] ?? null);
+        $participantWorkshopId =
+            positiveIntOrNull(
+                $participant['workshopId']
+                ?? null
+            );
 
         if (
             $providedWorkshopId &&
             $participantWorkshopId &&
-            $providedWorkshopId !== $participantWorkshopId
+            $providedWorkshopId !==
+            $participantWorkshopId
         ) {
-            $errors['workshopId'] = 'Peserta tersebut tidak terdaftar pada workshop yang dipilih.';
+            $errors['workshopId'] =
+                'Peserta tersebut tidak terdaftar pada workshop yang dipilih.';
         }
 
-        $userName = trim((string) ($participant['participantName'] ?? ''));
-        $email = trim((string) ($participant['participantEmail'] ?? ''));
-        $userId = positiveIntOrNull($participant['userId'] ?? null);
-        $workshopId = $participantWorkshopId ?: $providedWorkshopId;
+        $userName = trim(
+            (string) (
+                $participant['participantName']
+                ?? ''
+            )
+        );
+
+        $email = trim(
+            (string) (
+                $participant['participantEmail']
+                ?? ''
+            )
+        );
+
+        $userId = positiveIntOrNull(
+            $participant['userId']
+            ?? null
+        );
+
+        $workshopId =
+            $participantWorkshopId
+            ?: $providedWorkshopId;
 
         if ($workshopTitle === '') {
-            $workshopTitle = trim((string) ($participant['workshopChoice'] ?? ''));
+            $workshopTitle = trim(
+                (string) (
+                    $participant['workshopChoice']
+                    ?? ''
+                )
+            );
         }
     }
 
@@ -605,61 +1168,121 @@ function validateCertificatePayload(
         $userName = $memberName;
     }
 
-    $databaseWorkshopTitle = getWorkshopTitleById($pdo, $workshopId);
+    $databaseWorkshopTitle =
+        getWorkshopTitleById(
+            $pdo,
+            $workshopId
+        );
 
-    if ($databaseWorkshopTitle !== null && trim($databaseWorkshopTitle) !== '') {
-        $workshopTitle = trim($databaseWorkshopTitle);
+    if (
+        $databaseWorkshopTitle !== null &&
+        trim($databaseWorkshopTitle) !== ''
+    ) {
+        $workshopTitle =
+            trim($databaseWorkshopTitle);
     }
 
     $certificateTitle = firstFilled(
         $data,
-        ['certificateTitle', 'certificate_title'],
+        [
+            'certificateTitle',
+            'certificate_title',
+        ],
         ''
     );
 
-    if ($certificateTitle === '' && $workshopTitle !== '') {
-        $certificateTitle = 'Sertifikat ' . $workshopTitle;
+    if (
+        $certificateTitle === '' &&
+        $workshopTitle !== ''
+    ) {
+        $certificateTitle =
+            'Sertifikat ' . $workshopTitle;
     }
 
-    $type = firstFilled($data, ['type', 'certificate_type'], 'Workshop');
-    $status = firstFilled($data, ['status'], 'Menunggu');
+    $type = firstFilled(
+        $data,
+        [
+            'type',
+            'certificate_type',
+        ],
+        'Workshop'
+    );
+
+    $status = firstFilled(
+        $data,
+        ['status'],
+        'Menunggu'
+    );
+
     $certificateNumber = firstFilled(
         $data,
-        ['certificateNumber', 'certificate_number'],
+        [
+            'certificateNumber',
+            'certificate_number',
+        ],
         generateCertificateNumber()
     );
+
     $completedAt = validDateOrNull(
-        $data['completedAt'] ?? $data['completed_at'] ?? null
+        $data['completedAt']
+        ?? $data['completed_at']
+        ?? null
     );
+
     $issuedAt = validDateOrNull(
-        $data['issuedAt'] ?? $data['issued_at'] ?? null
+        $data['issuedAt']
+        ?? $data['issued_at']
+        ?? null
     );
 
     if ($userName === '') {
-        $errors['userName'] = 'Nama peserta pada data pendaftaran kosong.';
+        $errors['userName'] =
+            'Nama peserta pada data pendaftaran kosong.';
     }
 
     if ($email === '') {
-        $errors['email'] = 'Email peserta pada data pendaftaran kosong.';
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $errors['email'] = 'Email peserta pada data pendaftaran tidak valid.';
+        $errors['email'] =
+            'Email peserta pada data pendaftaran kosong.';
+    } elseif (
+        !filter_var(
+            $email,
+            FILTER_VALIDATE_EMAIL
+        )
+    ) {
+        $errors['email'] =
+            'Email peserta pada data pendaftaran tidak valid.';
     }
 
     if (!$workshopId) {
-        $errors['workshopId'] = 'Workshop peserta tidak ditemukan.';
+        $errors['workshopId'] =
+            'Workshop peserta tidak ditemukan.';
     }
 
     if ($workshopTitle === '') {
-        $errors['workshopTitle'] = 'Workshop / program wajib tersedia.';
+        $errors['workshopTitle'] =
+            'Workshop / program wajib tersedia.';
     }
 
     if ($certificateTitle === '') {
-        $errors['certificateTitle'] = 'Nama sertifikat wajib diisi.';
+        $errors['certificateTitle'] =
+            'Nama sertifikat wajib diisi.';
     }
 
-    $allowedTypes = ['Workshop', 'Program', 'Course'];
-    if (!in_array($type, $allowedTypes, true)) {
-        $errors['type'] = 'Jenis sertifikat tidak valid.';
+    $allowedTypes = [
+        'Workshop',
+        'Program',
+        'Course',
+    ];
+
+    if (
+        !in_array(
+            $type,
+            $allowedTypes,
+            true
+        )
+    ) {
+        $errors['type'] =
+            'Jenis sertifikat tidak valid.';
     }
 
     $allowedStatuses = [
@@ -669,8 +1292,16 @@ function validateCertificatePayload(
         'Error',
         'Expired',
     ];
-    if (!in_array($status, $allowedStatuses, true)) {
-        $errors['status'] = 'Status sertifikat tidak valid.';
+
+    if (
+        !in_array(
+            $status,
+            $allowedStatuses,
+            true
+        )
+    ) {
+        $errors['status'] =
+            'Status sertifikat tidak valid.';
     }
 
     if ($errors !== []) {
@@ -681,42 +1312,105 @@ function validateCertificatePayload(
         ]);
     }
 
-    // Simpan payload yang sudah dipaksa sesuai data pendaftaran,
-    // bukan nama/email yang mungkin dimanipulasi dari frontend.
+    /*
+     * Data utama tetap dipaksa mengikuti
+     * database pendaftaran workshop.
+     */
+
     $normalizedPayload = $data;
-    $normalizedPayload['registrationId'] = $registrationId;
-    $normalizedPayload['memberKey'] = $memberKey;
-    $normalizedPayload['memberName'] = $memberName !== '' ? $memberName : $userName;
-    $normalizedPayload['userId'] = $userId;
-    $normalizedPayload['userName'] = $userName;
-    $normalizedPayload['email'] = $email;
-    $normalizedPayload['workshopId'] = $workshopId;
-    $normalizedPayload['workshopTitle'] = $workshopTitle;
-    $normalizedPayload['certificateTitle'] = $certificateTitle;
-    $normalizedPayload['type'] = $type;
-    $normalizedPayload['completedAt'] = $completedAt;
-    $normalizedPayload['issuedAt'] = $issuedAt;
-    $normalizedPayload['certificateNumber'] = $certificateNumber;
-    $normalizedPayload['status'] = $status;
+
+    $normalizedPayload['registrationId'] =
+        $registrationId;
+
+    $normalizedPayload['memberKey'] =
+        $memberKey;
+
+    $normalizedPayload['memberName'] =
+        $memberName !== ''
+            ? $memberName
+            : $userName;
+
+    $normalizedPayload['userId'] =
+        $userId;
+
+    $normalizedPayload['userName'] =
+        $userName;
+
+    $normalizedPayload['email'] =
+        $email;
+
+    $normalizedPayload['workshopId'] =
+        $workshopId;
+
+    $normalizedPayload['workshopTitle'] =
+        $workshopTitle;
+
+    $normalizedPayload['certificateTitle'] =
+        $certificateTitle;
+
+    $normalizedPayload['type'] =
+        $type;
+
+    $normalizedPayload['completedAt'] =
+        $completedAt;
+
+    $normalizedPayload['issuedAt'] =
+        $issuedAt;
+
+    $normalizedPayload['certificateNumber'] =
+        $certificateNumber;
+
+    $normalizedPayload['status'] =
+        $status;
 
     return [
-        'registration_id' => $registrationId,
-        'member_key' => $memberKey !== '' ? $memberKey : null,
-        'user_name' => $userName,
-        'user_id' => $userId,
-        'email' => $email,
-        'workshop_id' => $workshopId,
-        'workshop_title' => $workshopTitle,
-        'certificate_title' => $certificateTitle,
-        'certificate_type' => $type,
-        'completed_at' => $completedAt,
-        'issued_at' => $issuedAt,
-        'certificate_number' => $certificateNumber,
-        'status' => $status,
-        'payload_json' => json_encode(
-            $normalizedPayload,
-            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-        ),
+        'registration_id' =>
+            $registrationId,
+
+        'member_key' =>
+            $memberKey !== ''
+                ? $memberKey
+                : null,
+
+        'user_name' =>
+            $userName,
+
+        'user_id' =>
+            $userId,
+
+        'email' =>
+            $email,
+
+        'workshop_id' =>
+            $workshopId,
+
+        'workshop_title' =>
+            $workshopTitle,
+
+        'certificate_title' =>
+            $certificateTitle,
+
+        'certificate_type' =>
+            $type,
+
+        'completed_at' =>
+            $completedAt,
+
+        'issued_at' =>
+            $issuedAt,
+
+        'certificate_number' =>
+            $certificateNumber,
+
+        'status' =>
+            $status,
+
+        'payload_json' =>
+            json_encode(
+                $normalizedPayload,
+                JSON_UNESCAPED_UNICODE
+                | JSON_UNESCAPED_SLASHES
+            ),
     ];
 }
 
@@ -731,32 +1425,58 @@ function findCertificateByRegistration(
         return null;
     }
 
-    $sql = 'SELECT * FROM certificates WHERE registration_id = :registration_id';
-    $params = [':registration_id' => $registrationId];
+    $sql =
+        'SELECT *
+         FROM certificates
+         WHERE registration_id = :registration_id';
+
+    $params = [
+        ':registration_id' =>
+            $registrationId,
+    ];
 
     if ($workshopId) {
-        $sql .= ' AND workshop_id = :workshop_id';
-        $params[':workshop_id'] = $workshopId;
+        $sql .=
+            ' AND workshop_id = :workshop_id';
+
+        $params[':workshop_id'] =
+            $workshopId;
     }
 
-    $cleanMemberKey = trim((string) $memberKey);
+    $cleanMemberKey = trim(
+        (string) $memberKey
+    );
 
     if ($cleanMemberKey !== '') {
-        $sql .= ' AND member_key = :member_key';
-        $params[':member_key'] = $cleanMemberKey;
+        $sql .=
+            ' AND member_key = :member_key';
+
+        $params[':member_key'] =
+            $cleanMemberKey;
     } else {
-        $sql .= ' AND (member_key IS NULL OR member_key = "")';
+        $sql .=
+            ' AND (
+                member_key IS NULL
+                OR member_key = ""
+            )';
     }
 
     if ($excludeCertificateId) {
-        $sql .= ' AND id <> :exclude_id';
-        $params[':exclude_id'] = $excludeCertificateId;
+        $sql .=
+            ' AND id <> :exclude_id';
+
+        $params[':exclude_id'] =
+            $excludeCertificateId;
     }
 
-    $sql .= ' ORDER BY id DESC LIMIT 1';
+    $sql .=
+        ' ORDER BY id DESC
+          LIMIT 1';
 
     $statement = $pdo->prepare($sql);
+
     $statement->execute($params);
+
     $row = $statement->fetch();
 
     return $row ?: null;
@@ -765,82 +1485,169 @@ function findCertificateByRegistration(
 function envString(string $key, string $fallback = ''): string
 {
     if (class_exists(Env::class)) {
-        return (string) Env::get($key, $fallback);
-    }
-
-    $value = getenv($key);
-
-    return $value === false ? $fallback : (string) $value;
-}
-
-function envBool(string $key, bool $fallback = false): bool
-{
-    if (class_exists(Env::class)) {
-        return Env::bool($key, $fallback);
+        return (string) Env::get(
+            $key,
+            $fallback
+        );
     }
 
     $value = getenv($key);
 
     return $value === false
         ? $fallback
-        : (filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? $fallback);
+        : (string) $value;
+}
+
+function envBool(string $key, bool $fallback = false): bool
+{
+    if (class_exists(Env::class)) {
+        return Env::bool(
+            $key,
+            $fallback
+        );
+    }
+
+    $value = getenv($key);
+
+    return $value === false
+        ? $fallback
+        : (
+            filter_var(
+                $value,
+                FILTER_VALIDATE_BOOL,
+                FILTER_NULL_ON_FAILURE
+            )
+            ?? $fallback
+        );
 }
 
 function envInt(string $key, int $fallback): int
 {
     if (class_exists(Env::class)) {
-        return Env::int($key, $fallback);
+        return Env::int(
+            $key,
+            $fallback
+        );
     }
 
     $value = getenv($key);
 
-    return $value !== false && is_numeric($value) ? (int) $value : $fallback;
+    return $value !== false &&
+        is_numeric($value)
+            ? (int) $value
+            : $fallback;
 }
 
 function parseMailFrom(string $from): array
 {
-    if (preg_match('/^\s*(.*?)\s*<([^>]+)>\s*$/', $from, $match) === 1) {
-        return [trim($match[1]) ?: 'Arduflow', trim($match[2])];
+    if (
+        preg_match(
+            '/^\s*(.*?)\s*<([^>]+)>\s*$/',
+            $from,
+            $match
+        ) === 1
+    ) {
+        return [
+            trim($match[1]) ?: 'Arduflow',
+            trim($match[2]),
+        ];
     }
 
-    return ['Arduflow', trim($from)];
+    return [
+        'Arduflow',
+        trim($from),
+    ];
 }
 
 function certificateFilePath(array $file): string
 {
     $apiRoot = dirname(__DIR__);
+
     $candidate = '';
 
-    if (isset($file['relativeUrl']) && is_string($file['relativeUrl'])) {
-        $candidate = $file['relativeUrl'];
-    } elseif (isset($file['relative_url']) && is_string($file['relative_url'])) {
-        $candidate = $file['relative_url'];
-    } elseif (isset($file['name']) && is_string($file['name'])) {
-        $candidate = '/uploads/certificates/' . basename($file['name']);
-    } elseif (isset($file['url']) && is_string($file['url'])) {
-        $path = parse_url($file['url'], PHP_URL_PATH);
-        $candidate = is_string($path) ? $path : '';
+    if (
+        isset($file['relativeUrl']) &&
+        is_string($file['relativeUrl'])
+    ) {
+        $candidate =
+            $file['relativeUrl'];
+
+    } elseif (
+        isset($file['relative_url']) &&
+        is_string($file['relative_url'])
+    ) {
+        $candidate =
+            $file['relative_url'];
+
+    } elseif (
+        isset($file['name']) &&
+        is_string($file['name'])
+    ) {
+        $candidate =
+            '/uploads/certificates/'
+            . basename($file['name']);
+
+    } elseif (
+        isset($file['url']) &&
+        is_string($file['url'])
+    ) {
+        $path = parse_url(
+            $file['url'],
+            PHP_URL_PATH
+        );
+
+        $candidate =
+            is_string($path)
+                ? $path
+                : '';
     }
 
     if ($candidate === '') {
         return '';
     }
 
-    $candidate = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $candidate);
-    $candidate = ltrim($candidate, DIRECTORY_SEPARATOR);
+    $candidate = str_replace(
+        [
+            '/',
+            '\\',
+        ],
+        DIRECTORY_SEPARATOR,
+        $candidate
+    );
+
+    $candidate = ltrim(
+        $candidate,
+        DIRECTORY_SEPARATOR
+    );
+
     $realRoot = realpath($apiRoot);
+
     $paths = [
-        $apiRoot . DIRECTORY_SEPARATOR . $candidate,
-        $apiRoot . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . $candidate,
+        $apiRoot
+            . DIRECTORY_SEPARATOR
+            . $candidate,
+
+        $apiRoot
+            . DIRECTORY_SEPARATOR
+            . 'storage'
+            . DIRECTORY_SEPARATOR
+            . $candidate,
     ];
 
-    foreach (array_unique($paths) as $path) {
+    foreach (
+        array_unique($paths)
+        as $path
+    ) {
         $realPath = realpath($path);
 
         if (
             $realPath !== false &&
             $realRoot !== false &&
-            str_starts_with($realPath, $realRoot . DIRECTORY_SEPARATOR) &&
+            str_starts_with(
+                $realPath,
+                $realRoot
+                . DIRECTORY_SEPARATOR
+            ) &&
             is_file($realPath)
         ) {
             return $realPath;
@@ -850,15 +1657,42 @@ function certificateFilePath(array $file): string
     return '';
 }
 
-function certificateEmailHtml(array $certificate, string $fileUrl): string
-{
-    $name = htmlspecialchars((string) $certificate['userName'], ENT_QUOTES, 'UTF-8');
-    $title = htmlspecialchars((string) $certificate['certificateTitle'], ENT_QUOTES, 'UTF-8');
-    $workshop = htmlspecialchars((string) $certificate['workshopTitle'], ENT_QUOTES, 'UTF-8');
-    $number = htmlspecialchars((string) $certificate['certificateNumber'], ENT_QUOTES, 'UTF-8');
-    $safeUrl = htmlspecialchars($fileUrl, ENT_QUOTES, 'UTF-8');
+function certificateEmailHtml(
+    array $certificate,
+    string $fileUrl
+): string {
+    $name = htmlspecialchars(
+        (string) $certificate['userName'],
+        ENT_QUOTES,
+        'UTF-8'
+    );
 
-    return '<div style="font-family:Arial,sans-serif;background:#f6f8fb;color:#172b45;padding:28px">' .
+    $title = htmlspecialchars(
+        (string) $certificate['certificateTitle'],
+        ENT_QUOTES,
+        'UTF-8'
+    );
+
+    $workshop = htmlspecialchars(
+        (string) $certificate['workshopTitle'],
+        ENT_QUOTES,
+        'UTF-8'
+    );
+
+    $number = htmlspecialchars(
+        (string) $certificate['certificateNumber'],
+        ENT_QUOTES,
+        'UTF-8'
+    );
+
+    $safeUrl = htmlspecialchars(
+        $fileUrl,
+        ENT_QUOTES,
+        'UTF-8'
+    );
+
+    return
+        '<div style="font-family:Arial,sans-serif;background:#f6f8fb;color:#172b45;padding:28px">' .
         '<div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;padding:28px">' .
         '<h2 style="margin:0 0 16px;color:#0b1b30">ArduFlow</h2>' .
         '<p>Halo ' . $name . ',</p>' .
@@ -874,89 +1708,209 @@ function sendCertificateEmail(array $certificate): void
     if (!class_exists(PHPMailer::class)) {
         respond(500, [
             'success' => false,
-            'message' => 'PHPMailer belum tersedia. Jalankan composer install pada folder website/BE.',
+            'message' =>
+                'PHPMailer belum tersedia. Jalankan composer install pada folder website/BE.',
         ]);
     }
 
     if (!envBool('MAIL_ENABLED', true)) {
         respond(503, [
             'success' => false,
-            'message' => 'SMTP sedang nonaktif. Aktifkan MAIL_ENABLED pada konfigurasi.',
+            'message' =>
+                'SMTP sedang nonaktif. Aktifkan MAIL_ENABLED pada konfigurasi.',
         ]);
     }
 
-    $email = trim((string) ($certificate['email'] ?? ''));
+    $email = trim(
+        (string) (
+            $certificate['email']
+            ?? ''
+        )
+    );
 
-    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    if (
+        $email === '' ||
+        !filter_var(
+            $email,
+            FILTER_VALIDATE_EMAIL
+        )
+    ) {
         respond(422, [
             'success' => false,
             'message' => 'Email member tidak valid.',
         ]);
     }
 
-    $file = is_array($certificate['file'] ?? null) ? $certificate['file'] : [];
-    $filePath = certificateFilePath($file);
-    $fileUrl = getCertificateFileUrlForEmail($file);
+    $file =
+        is_array(
+            $certificate['file']
+            ?? null
+        )
+            ? $certificate['file']
+            : [];
 
-    if ($filePath === '' || !is_file($filePath)) {
+    $filePath =
+        certificateFilePath($file);
+
+    $fileUrl =
+        getCertificateFileUrlForEmail($file);
+
+    if (
+        $filePath === '' ||
+        !is_file($filePath)
+    ) {
         respond(422, [
             'success' => false,
-            'message' => 'File sertifikat belum tersedia. Generate atau upload sertifikat terlebih dahulu.',
+            'message' =>
+                'File sertifikat belum tersedia. Generate atau upload sertifikat terlebih dahulu.',
         ]);
     }
 
     $mail = new PHPMailer(true);
+
     $mail->isSMTP();
-    $mail->Host = envString('MAIL_HOST', '127.0.0.1');
-    $mail->Port = envInt('MAIL_PORT', 1025);
-    $username = envString('MAIL_USERNAME', '');
+
+    $mail->Host =
+        envString(
+            'MAIL_HOST',
+            '127.0.0.1'
+        );
+
+    $mail->Port =
+        envInt(
+            'MAIL_PORT',
+            1025
+        );
+
+    $username =
+        envString(
+            'MAIL_USERNAME',
+            ''
+        );
 
     if ($username !== '') {
         $mail->SMTPAuth = true;
         $mail->Username = $username;
-        $mail->Password = envString('MAIL_PASSWORD', '');
+        $mail->Password =
+            envString(
+                'MAIL_PASSWORD',
+                ''
+            );
     }
 
-    if (envBool('MAIL_SECURE', false)) {
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+    if (
+        envBool(
+            'MAIL_SECURE',
+            false
+        )
+    ) {
+        $mail->SMTPSecure =
+            PHPMailer::ENCRYPTION_STARTTLS;
     }
 
     $mail->Timeout = 10;
     $mail->CharSet = 'UTF-8';
 
-    [$fromName, $fromAddress] = parseMailFrom(envString('MAIL_FROM', 'Arduflow <no-reply@arduflow.local>'));
-    $mail->setFrom($fromAddress, $fromName);
-    $mail->addAddress($email, (string) ($certificate['userName'] ?? 'Member'));
+    [
+        $fromName,
+        $fromAddress,
+    ] = parseMailFrom(
+        envString(
+            'MAIL_FROM',
+            'Arduflow <no-reply@arduflow.local>'
+        )
+    );
+
+    $mail->setFrom(
+        $fromAddress,
+        $fromName
+    );
+
+    $mail->addAddress(
+        $email,
+        (string) (
+            $certificate['userName']
+            ?? 'Member'
+        )
+    );
+
     $mail->isHTML(true);
-    $mail->Subject = 'Sertifikat ArduFlow - ' . (string) ($certificate['workshopTitle'] ?? 'Workshop');
-    $mail->Body = certificateEmailHtml($certificate, $fileUrl);
+
+    $mail->Subject =
+        'Sertifikat ArduFlow - '
+        . (string) (
+            $certificate['workshopTitle']
+            ?? 'Workshop'
+        );
+
+    $mail->Body =
+        certificateEmailHtml(
+            $certificate,
+            $fileUrl
+        );
+
     $mail->AltBody = sprintf(
         "Halo %s,\n\nSertifikat Anda untuk %s sudah tersedia.\nNo. Sertifikat: %s\n\nFile sertifikat terlampir.",
-        (string) ($certificate['userName'] ?? 'Member'),
-        (string) ($certificate['workshopTitle'] ?? 'Workshop'),
-        (string) ($certificate['certificateNumber'] ?? '-')
+        (string) (
+            $certificate['userName']
+            ?? 'Member'
+        ),
+        (string) (
+            $certificate['workshopTitle']
+            ?? 'Workshop'
+        ),
+        (string) (
+            $certificate['certificateNumber']
+            ?? '-'
+        )
     );
+
     $mail->addAttachment(
         $filePath,
-        basename((string) ($file['originalName'] ?? $file['name'] ?? 'sertifikat.pdf'))
+        basename(
+            (string) (
+                $file['originalName']
+                ?? $file['name']
+                ?? 'sertifikat.pdf'
+            )
+        )
     );
+
     $mail->send();
 }
 
 function getCertificateFileUrlForEmail(array $file): string
 {
-    if (isset($file['url']) && is_string($file['url']) && trim($file['url']) !== '') {
+    if (
+        isset($file['url']) &&
+        is_string($file['url']) &&
+        trim($file['url']) !== ''
+    ) {
         return trim($file['url']);
     }
 
-    if (isset($file['relativeUrl']) && is_string($file['relativeUrl'])) {
+    if (
+        isset($file['relativeUrl']) &&
+        is_string($file['relativeUrl'])
+    ) {
         $scheme = (
             !empty($_SERVER['HTTPS']) &&
-            strtolower((string) $_SERVER['HTTPS']) !== 'off'
-        ) ? 'https' : 'http';
-        $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
+            strtolower(
+                (string) $_SERVER['HTTPS']
+            ) !== 'off'
+        )
+            ? 'https'
+            : 'http';
 
-        return $scheme . '://' . $host . $file['relativeUrl'];
+        $host = (string) (
+            $_SERVER['HTTP_HOST']
+            ?? 'localhost'
+        );
+
+        return $scheme
+            . '://'
+            . $host
+            . $file['relativeUrl'];
     }
 
     return '';
@@ -967,56 +1921,96 @@ function handleCertificateEmail(PDO $pdo): void
     $id = getRequestId();
 
     $statement = $pdo->prepare(
-        'SELECT * FROM certificates WHERE id = :id LIMIT 1'
+        'SELECT *
+         FROM certificates
+         WHERE id = :id
+         LIMIT 1'
     );
-    $statement->execute([':id' => $id]);
+
+    $statement->execute([
+        ':id' => $id,
+    ]);
+
     $row = $statement->fetch();
 
     if (!$row) {
         respond(404, [
             'success' => false,
-            'message' => 'Sertifikat tidak ditemukan.',
+            'message' =>
+                'Sertifikat tidak ditemukan.',
         ]);
     }
 
-    $certificate = decodeCertificateRow($row);
+    $certificate =
+        decodeCertificateRow($row);
 
     try {
-        sendCertificateEmail($certificate);
+        sendCertificateEmail(
+            $certificate
+        );
 
-        $payload = is_array($certificate['payload'] ?? null) ? $certificate['payload'] : [];
-        $payload['emailSentAt'] = date('Y-m-d H:i:s');
+        $payload =
+            is_array(
+                $certificate['payload']
+                ?? null
+            )
+                ? $certificate['payload']
+                : [];
+
+        $payload['emailSentAt'] =
+            date('Y-m-d H:i:s');
 
         $update = $pdo->prepare(
             'UPDATE certificates
-             SET payload_json = :payload_json,
-                 updated_at = :updated_at
+             SET
+                payload_json = :payload_json,
+                updated_at = :updated_at
              WHERE id = :id'
         );
+
         $update->execute([
-            ':payload_json' => json_encode(
-                $payload,
-                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-            ),
-            ':updated_at' => date('Y-m-d H:i:s'),
-            ':id' => $id,
+            ':payload_json' =>
+                json_encode(
+                    $payload,
+                    JSON_UNESCAPED_UNICODE
+                    | JSON_UNESCAPED_SLASHES
+                ),
+
+            ':updated_at' =>
+                date('Y-m-d H:i:s'),
+
+            ':id' =>
+                $id,
         ]);
 
         respond(200, [
             'success' => true,
-            'message' => 'Sertifikat berhasil dikirim melalui email.',
+
+            'message' =>
+                'Sertifikat berhasil dikirim melalui email.',
+
             'data' => [
-                'certificateId' => $id,
-                'email' => $certificate['email'],
-                'sentAt' => $payload['emailSentAt'],
+                'certificateId' =>
+                    $id,
+
+                'email' =>
+                    $certificate['email'],
+
+                'sentAt' =>
+                    $payload['emailSentAt'],
             ],
         ]);
+
     } catch (Throwable $exception) {
         respond(503, [
             'success' => false,
-            'message' => 'Sertifikat gagal dikirim melalui email. Pastikan SMTP berjalan dan konfigurasi benar.',
+
+            'message' =>
+                'Sertifikat gagal dikirim melalui email. Pastikan SMTP berjalan dan konfigurasi benar.',
+
             'debug' => [
-                'error' => $exception->getMessage(),
+                'error' =>
+                    $exception->getMessage(),
             ],
         ]);
     }
@@ -1024,37 +2018,76 @@ function handleCertificateEmail(PDO $pdo): void
 
 function handleCertificateUpload(PDO $pdo): void
 {
-    $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
-    $file = $_FILES['certificate'] ?? $_FILES['certificateFile'] ?? null;
+    $id =
+        isset($_GET['id'])
+            ? (int) $_GET['id']
+            : 0;
+
+    $file =
+        $_FILES['certificate']
+        ?? $_FILES['certificateFile']
+        ?? null;
 
     if (!is_array($file)) {
         respond(400, [
             'success' => false,
-            'message' => 'File sertifikat wajib dikirim dengan field certificate.',
+            'message' =>
+                'File sertifikat wajib dikirim dengan field certificate.',
         ]);
     }
 
-    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+    if (
+        ($file['error']
+            ?? UPLOAD_ERR_NO_FILE)
+        !== UPLOAD_ERR_OK
+    ) {
         respond(400, [
             'success' => false,
-            'message' => 'Upload sertifikat gagal.',
-            'uploadError' => $file['error'] ?? null,
+            'message' =>
+                'Upload sertifikat gagal.',
+            'uploadError' =>
+                $file['error'] ?? null,
         ]);
     }
 
-    $tmpName = (string) $file['tmp_name'];
-    $originalName = basename((string) ($file['name'] ?? 'sertifikat'));
-    $fileSize = (int) ($file['size'] ?? 0);
+    $tmpName =
+        (string) $file['tmp_name'];
 
-    if ($fileSize <= 0 || $fileSize > 10 * 1024 * 1024) {
+    $originalName =
+        basename(
+            (string) (
+                $file['name']
+                ?? 'sertifikat'
+            )
+        );
+
+    $fileSize =
+        (int) (
+            $file['size']
+            ?? 0
+        );
+
+    if (
+        $fileSize <= 0 ||
+        $fileSize > 10 * 1024 * 1024
+    ) {
         respond(413, [
             'success' => false,
-            'message' => 'Ukuran file sertifikat maksimal 10 MB.',
+            'message' =>
+                'Ukuran file sertifikat maksimal 10 MB.',
         ]);
     }
 
-    $finfo = new finfo(FILEINFO_MIME_TYPE);
-    $mimeType = (string) $finfo->file($tmpName);
+    $finfo =
+        new finfo(
+            FILEINFO_MIME_TYPE
+        );
+
+    $mimeType =
+        (string) $finfo->file(
+            $tmpName
+        );
+
     $allowedTypes = [
         'application/pdf' => 'pdf',
         'image/jpeg' => 'jpg',
@@ -1065,30 +2098,54 @@ function handleCertificateUpload(PDO $pdo): void
     if (!isset($allowedTypes[$mimeType])) {
         respond(422, [
             'success' => false,
-            'message' => 'Format sertifikat harus PDF, JPG, PNG, atau WEBP.',
-            'detectedType' => $mimeType,
+            'message' =>
+                'Format sertifikat harus PDF, JPG, PNG, atau WEBP.',
+            'detectedType' =>
+                $mimeType,
         ]);
     }
 
-    $uploadDirectory = dirname(__DIR__)
-        . DIRECTORY_SEPARATOR . 'storage'
-        . DIRECTORY_SEPARATOR . 'uploads'
-        . DIRECTORY_SEPARATOR . 'certificates';
+    $uploadDirectory =
+        dirname(__DIR__)
+        . DIRECTORY_SEPARATOR
+        . 'storage'
+        . DIRECTORY_SEPARATOR
+        . 'uploads'
+        . DIRECTORY_SEPARATOR
+        . 'certificates';
 
     if (!is_dir($uploadDirectory)) {
-        if (!mkdir($uploadDirectory, 0775, true) && !is_dir($uploadDirectory)) {
+        if (
+            !mkdir(
+                $uploadDirectory,
+                0775,
+                true
+            ) &&
+            !is_dir($uploadDirectory)
+        ) {
             respond(500, [
                 'success' => false,
-                'message' => 'Folder uploads/certificates gagal dibuat.',
-                'directory' => $uploadDirectory,
+                'message' =>
+                    'Folder uploads/certificates gagal dibuat.',
+                'directory' =>
+                    $uploadDirectory,
             ]);
         }
     }
 
     try {
-        $randomPart = bin2hex(random_bytes(6));
+        $randomPart =
+            bin2hex(
+                random_bytes(6)
+            );
+
     } catch (Throwable $exception) {
-        $randomPart = str_replace('.', '', uniqid('', true));
+        $randomPart =
+            str_replace(
+                '.',
+                '',
+                uniqid('', true)
+            );
     }
 
     $storedName = sprintf(
@@ -1097,111 +2154,237 @@ function handleCertificateUpload(PDO $pdo): void
         $randomPart,
         $allowedTypes[$mimeType]
     );
-    $destination = $uploadDirectory . DIRECTORY_SEPARATOR . $storedName;
 
-    if (!move_uploaded_file($tmpName, $destination)) {
+    $destination =
+        $uploadDirectory
+        . DIRECTORY_SEPARATOR
+        . $storedName;
+
+    if (
+        !move_uploaded_file(
+            $tmpName,
+            $destination
+        )
+    ) {
         respond(500, [
             'success' => false,
-            'message' => 'File sertifikat gagal disimpan ke folder uploads/certificates.',
-            'destination' => $destination,
+            'message' =>
+                'File sertifikat gagal disimpan ke folder uploads/certificates.',
+            'destination' =>
+                $destination,
         ]);
     }
 
     $scheme = (
         !empty($_SERVER['HTTPS']) &&
-        strtolower((string) $_SERVER['HTTPS']) !== 'off'
-    ) ? 'https' : 'http';
-    $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
-    $scriptName = (string) ($_SERVER['SCRIPT_NAME'] ?? '');
-    $basePath = preg_replace('#/api/[^/]+$#', '', $scriptName) ?: '';
-    $relativeUrl = $basePath
+        strtolower(
+            (string) $_SERVER['HTTPS']
+        ) !== 'off'
+    )
+        ? 'https'
+        : 'http';
+
+    $host =
+        (string) (
+            $_SERVER['HTTP_HOST']
+            ?? 'localhost'
+        );
+
+    $scriptName =
+        (string) (
+            $_SERVER['SCRIPT_NAME']
+            ?? ''
+        );
+
+    $basePath =
+        preg_replace(
+            '#/api/[^/]+$#',
+            '',
+            $scriptName
+        )
+        ?: '';
+
+    $relativeUrl =
+        $basePath
         . '/uploads/certificates/'
         . rawurlencode($storedName);
-    $fileUrl = sprintf('%s://%s%s', $scheme, $host, $relativeUrl);
+
+    $fileUrl =
+        sprintf(
+            '%s://%s%s',
+            $scheme,
+            $host,
+            $relativeUrl
+        );
 
     $metadata = [
-        'name' => $storedName,
-        'originalName' => $originalName,
-        'type' => $mimeType,
-        'size' => $fileSize,
-        'sizeKB' => round($fileSize / 1024, 2),
-        'url' => $fileUrl,
-        'relativeUrl' => $relativeUrl,
-        'uploadedAt' => date('Y-m-d H:i:s'),
+        'name' =>
+            $storedName,
+
+        'originalName' =>
+            $originalName,
+
+        'type' =>
+            $mimeType,
+
+        'size' =>
+            $fileSize,
+
+        'sizeKB' =>
+            round(
+                $fileSize / 1024,
+                2
+            ),
+
+        'url' =>
+            $fileUrl,
+
+        'relativeUrl' =>
+            $relativeUrl,
+
+        'uploadedAt' =>
+            date('Y-m-d H:i:s'),
     ];
 
     if ($id > 0) {
         $statement = $pdo->prepare(
             'UPDATE certificates
-             SET file_json = :file_json,
-                 status = CASE
-                     WHEN status IN ("Menunggu", "Error") THEN "Tersedia"
-                     ELSE status
-                 END,
-                 issued_at = COALESCE(issued_at, :issued_at),
-                 updated_at = :updated_at
+             SET
+                file_json = :file_json,
+
+                status = CASE
+                    WHEN status IN (
+                        "Menunggu",
+                        "Error"
+                    )
+                    THEN "Tersedia"
+                    ELSE status
+                END,
+
+                issued_at =
+                    COALESCE(
+                        issued_at,
+                        :issued_at
+                    ),
+
+                updated_at =
+                    :updated_at
+
              WHERE id = :id'
         );
+
         $statement->execute([
-            ':file_json' => json_encode(
-                $metadata,
-                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-            ),
-            ':issued_at' => date('Y-m-d'),
-            ':updated_at' => date('Y-m-d H:i:s'),
-            ':id' => $id,
+            ':file_json' =>
+                json_encode(
+                    $metadata,
+                    JSON_UNESCAPED_UNICODE
+                    | JSON_UNESCAPED_SLASHES
+                ),
+
+            ':issued_at' =>
+                date('Y-m-d'),
+
+            ':updated_at' =>
+                date('Y-m-d H:i:s'),
+
+            ':id' =>
+                $id,
         ]);
     }
 
     respond(201, [
         'success' => true,
-        'message' => 'File sertifikat berhasil diupload.',
+
+        'message' =>
+            'File sertifikat berhasil diupload.',
+
         'data' => [
-            'file' => $metadata,
-            'certificateId' => $id > 0 ? $id : null,
+            'file' =>
+                $metadata,
+
+            'certificateId' =>
+                $id > 0
+                    ? $id
+                    : null,
         ],
     ]);
 }
 
-function sqliteHasTable(string $databaseFile, string $table): bool
+function sqliteHasRegistrationTable(string $databaseFile): bool
 {
     if (!is_file($databaseFile)) {
         return false;
     }
 
     try {
-        $checkPdo = new PDO('sqlite:' . $databaseFile, null, null, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        ]);
-        $statement = $checkPdo->prepare(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = :table LIMIT 1"
-        );
-        $statement->execute([':table' => $table]);
+        /*
+         * Satu koneksi + satu query
+         * untuk memeriksa 3 kemungkinan tabel.
+         */
+        $checkPdo = new PDO(
+            'sqlite:' . $databaseFile,
+            null,
+            null,
+            [
+                PDO::ATTR_ERRMODE =>
+                    PDO::ERRMODE_EXCEPTION,
 
-        return (bool) $statement->fetchColumn();
+                PDO::ATTR_DEFAULT_FETCH_MODE =>
+                    PDO::FETCH_ASSOC,
+            ]
+        );
+
+        $statement = $checkPdo->query(
+            "SELECT 1
+             FROM sqlite_master
+             WHERE type = 'table'
+               AND name IN (
+                    'workshop_registrations',
+                    'workshop_participants',
+                    'leads'
+               )
+             LIMIT 1"
+        );
+
+        return (bool)
+            $statement->fetchColumn();
+
     } catch (Throwable $exception) {
         return false;
     }
 }
 
-function resolveRegistrationDatabaseFile(string $certificateDatabaseFile): string
-{
+function resolveRegistrationDatabaseFile(
+    string $certificateDatabaseFile
+): string {
     $apiRoot = dirname(__DIR__);
+
     $candidates = [
-        $apiRoot . DIRECTORY_SEPARATOR . 'storage'
-            . DIRECTORY_SEPARATOR . 'database'
-            . DIRECTORY_SEPARATOR . 'arduflow.sqlite',
-        $apiRoot . DIRECTORY_SEPARATOR . 'storage'
-            . DIRECTORY_SEPARATOR . 'arduflow.sqlite',
+        $apiRoot
+            . DIRECTORY_SEPARATOR
+            . 'storage'
+            . DIRECTORY_SEPARATOR
+            . 'database'
+            . DIRECTORY_SEPARATOR
+            . 'arduflow.sqlite',
+
+        $apiRoot
+            . DIRECTORY_SEPARATOR
+            . 'storage'
+            . DIRECTORY_SEPARATOR
+            . 'arduflow.sqlite',
+
         $certificateDatabaseFile,
     ];
 
-    foreach (array_unique($candidates) as $candidate) {
+    foreach (
+        array_unique($candidates)
+        as $candidate
+    ) {
         if (
-            sqliteHasTable($candidate, 'workshop_registrations') ||
-            sqliteHasTable($candidate, 'workshop_participants') ||
-            sqliteHasTable($candidate, 'leads')
+            sqliteHasRegistrationTable(
+                $candidate
+            )
         ) {
             return $candidate;
         }
@@ -1210,235 +2393,393 @@ function resolveRegistrationDatabaseFile(string $certificateDatabaseFile): strin
     return $certificateDatabaseFile;
 }
 
-$method = $_SERVER['REQUEST_METHOD'];
-$action = isset($_GET['action']) ? trim((string) $_GET['action']) : '';
-$databaseFile = dirname(__DIR__)
-    . DIRECTORY_SEPARATOR . 'database'
-    . DIRECTORY_SEPARATOR . 'arduflow.sqlite';
+/* =========================================================
+ * DATABASE
+ * ========================================================= */
+
+$method =
+    $_SERVER['REQUEST_METHOD'];
+
+$action =
+    isset($_GET['action'])
+        ? trim(
+            (string) $_GET['action']
+        )
+        : '';
+
+$databaseFile =
+    dirname(__DIR__)
+    . DIRECTORY_SEPARATOR
+    . 'database'
+    . DIRECTORY_SEPARATOR
+    . 'arduflow.sqlite';
 
 try {
-    $pdo = new PDO('sqlite:' . $databaseFile, null, null, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    ]);
+    $pdo = new PDO(
+        'sqlite:' . $databaseFile,
+        null,
+        null,
+        [
+            PDO::ATTR_ERRMODE =>
+                PDO::ERRMODE_EXCEPTION,
 
-    $pdo->exec('PRAGMA foreign_keys = ON');
-    $pdo->exec('PRAGMA busy_timeout = 15000');
-
-    $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS certificates (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            registration_id INTEGER NULL,
-            member_key TEXT NULL,
-            user_id INTEGER NULL,
-            user_name TEXT NOT NULL,
-            email TEXT NOT NULL,
-            workshop_id INTEGER NULL,
-            workshop_title TEXT NOT NULL,
-            certificate_title TEXT NOT NULL,
-            certificate_type TEXT NOT NULL,
-            completed_at TEXT NULL,
-            issued_at TEXT NULL,
-            certificate_number TEXT NOT NULL UNIQUE,
-            status TEXT NOT NULL,
-            downloads INTEGER NOT NULL DEFAULT 0,
-            file_json TEXT NULL,
-            payload_json TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        )'
+            PDO::ATTR_DEFAULT_FETCH_MODE =>
+                PDO::FETCH_ASSOC,
+        ]
     );
 
-    $certificateColumns = getColumnNames($pdo, 'certificates');
+    $pdo->exec(
+        'PRAGMA foreign_keys = ON'
+    );
 
-    if (!in_array('registration_id', $certificateColumns, true)) {
-        $pdo->exec(
-            'ALTER TABLE certificates ADD COLUMN registration_id INTEGER NULL'
+    $pdo->exec(
+        'PRAGMA busy_timeout = 15000'
+    );
+
+} catch (Throwable $exception) {
+    respond(500, [
+        'success' => false,
+
+        'message' =>
+            'Gagal terhubung ke database SQLite.',
+
+        'debug' => [
+            'error' =>
+                $exception->getMessage(),
+
+            'databaseFile' =>
+                $databaseFile,
+        ],
+    ]);
+}
+
+$registrationDatabaseFile =
+    resolveRegistrationDatabaseFile(
+        $databaseFile
+    );
+
+try {
+    if (
+        $registrationDatabaseFile
+        === $databaseFile
+    ) {
+        $registrationPdo = $pdo;
+
+    } else {
+        $registrationPdo = new PDO(
+            'sqlite:'
+            . $registrationDatabaseFile,
+            null,
+            null,
+            [
+                PDO::ATTR_ERRMODE =>
+                    PDO::ERRMODE_EXCEPTION,
+
+                PDO::ATTR_DEFAULT_FETCH_MODE =>
+                    PDO::FETCH_ASSOC,
+            ]
+        );
+
+        $registrationPdo->exec(
+            'PRAGMA busy_timeout = 15000'
         );
     }
 
-    if (!in_array('member_key', $certificateColumns, true)) {
-        $pdo->exec('ALTER TABLE certificates ADD COLUMN member_key TEXT NULL');
-    }
-
-    if (!in_array('user_id', $certificateColumns, true)) {
-        $pdo->exec('ALTER TABLE certificates ADD COLUMN user_id INTEGER NULL');
-    }
-
-    $pdo->exec(
-        'CREATE INDEX IF NOT EXISTS idx_certificates_registration ON certificates(registration_id)'
-    );
-    $pdo->exec(
-        'CREATE INDEX IF NOT EXISTS idx_certificates_registration_member ON certificates(registration_id, workshop_id, member_key)'
-    );
-    $pdo->exec(
-        'CREATE INDEX IF NOT EXISTS idx_certificates_email ON certificates(email)'
-    );
-    $pdo->exec(
-        'CREATE INDEX IF NOT EXISTS idx_certificates_user ON certificates(user_id)'
-    );
-    $pdo->exec(
-        'CREATE INDEX IF NOT EXISTS idx_certificates_status ON certificates(status)'
-    );
-    $pdo->exec(
-        'CREATE INDEX IF NOT EXISTS idx_certificates_workshop ON certificates(workshop_id)'
-    );
 } catch (Throwable $exception) {
     respond(500, [
         'success' => false,
-        'message' => 'Gagal terhubung ke database SQLite.',
+
+        'message' =>
+            'Gagal terhubung ke database pendaftaran workshop.',
+
         'debug' => [
-            'error' => $exception->getMessage(),
-            'databaseFile' => $databaseFile,
+            'error' =>
+                $exception->getMessage(),
+
+            'registrationDatabaseFile' =>
+                $registrationDatabaseFile,
         ],
     ]);
 }
 
-$registrationDatabaseFile = resolveRegistrationDatabaseFile($databaseFile);
+$contentPdo =
+    tableExists(
+        $registrationPdo,
+        'workshops'
+    )
+        ? $registrationPdo
+        : $pdo;
 
-try {
-    if ($registrationDatabaseFile === $databaseFile) {
-        $registrationPdo = $pdo;
-    } else {
-        $registrationPdo = new PDO('sqlite:' . $registrationDatabaseFile, null, null, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        ]);
-        $registrationPdo->exec('PRAGMA busy_timeout = 15000');
-    }
-} catch (Throwable $exception) {
-    respond(500, [
-        'success' => false,
-        'message' => 'Gagal terhubung ke database pendaftaran workshop.',
-        'debug' => [
-            'error' => $exception->getMessage(),
-            'registrationDatabaseFile' => $registrationDatabaseFile,
-        ],
-    ]);
-}
-
-$contentPdo = tableExists($registrationPdo, 'workshops')
-    ? $registrationPdo
-    : $pdo;
+/* =========================================================
+ * ACTION UPLOAD
+ * ========================================================= */
 
 if ($action === 'upload-certificate') {
     if ($method !== 'POST') {
-        header('Allow: POST, OPTIONS');
+        header(
+            'Allow: POST, OPTIONS'
+        );
+
         respond(405, [
             'success' => false,
-            'message' => 'Upload sertifikat hanya menerima method POST.',
+            'message' =>
+                'Upload sertifikat hanya menerima method POST.',
         ]);
     }
 
     handleCertificateUpload($pdo);
 }
 
+/* =========================================================
+ * ACTION SEND EMAIL
+ * ========================================================= */
+
 if ($action === 'send-certificate') {
     if ($method !== 'POST') {
-        header('Allow: POST, OPTIONS');
+        header(
+            'Allow: POST, OPTIONS'
+        );
+
         respond(405, [
             'success' => false,
-            'message' => 'Kirim sertifikat hanya menerima method POST.',
+            'message' =>
+                'Kirim sertifikat hanya menerima method POST.',
         ]);
     }
 
     handleCertificateEmail($pdo);
 }
 
+/* =========================================================
+ * GET
+ * ========================================================= */
+
 if ($method === 'GET') {
     try {
-        $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+        $id =
+            isset($_GET['id'])
+                ? (int) $_GET['id']
+                : 0;
 
+        /*
+         * Detail certificate.
+         */
         if ($id > 0) {
             $statement = $pdo->prepare(
-                'SELECT * FROM certificates WHERE id = :id LIMIT 1'
+                'SELECT *
+                 FROM certificates
+                 WHERE id = :id
+                 LIMIT 1'
             );
-            $statement->execute([':id' => $id]);
+
+            $statement->execute([
+                ':id' => $id,
+            ]);
+
             $row = $statement->fetch();
 
             if (!$row) {
                 respond(404, [
                     'success' => false,
-                    'message' => 'Sertifikat tidak ditemukan.',
+                    'message' =>
+                        'Sertifikat tidak ditemukan.',
                 ]);
             }
 
             respond(200, [
                 'success' => true,
-                'message' => 'Detail sertifikat berhasil diambil.',
+
+                'message' =>
+                    'Detail sertifikat berhasil diambil.',
+
                 'data' => [
-                    'certificate' => decodeCertificateRow($row),
+                    'certificate' =>
+                        decodeCertificateRow(
+                            $row
+                        ),
                 ],
             ]);
         }
 
-        $certificateRows = $pdo
-            ->query('SELECT * FROM certificates ORDER BY id DESC')
-            ->fetchAll();
-        $certificates = array_map('decodeCertificateRow', $certificateRows);
+        /*
+         * Certificates.
+         */
+        $certificateStatement = $pdo
+            ->query(
+                'SELECT *
+                 FROM certificates
+                 ORDER BY id DESC'
+            );
 
-        $workshops = [];
-        if (tableExists($contentPdo, 'workshops')) {
-            $workshopRows = $contentPdo
-                ->query(
-                    'SELECT id, title, status, category, payload_json
-                     FROM workshops
-                     ORDER BY id DESC'
-                )
-                ->fetchAll();
-            $workshops = array_map('decodeWorkshopOption', $workshopRows);
+        $certificates = [];
+        while ($row = $certificateStatement->fetch()) {
+            $certificates[] = decodeCertificateRow($row);
         }
 
-        $participants = getWorkshopParticipants($registrationPdo, $contentPdo);
+        /*
+         * Workshops.
+         */
+        $workshops = [];
 
+        if (
+            tableExists(
+                $contentPdo,
+                'workshops'
+            )
+        ) {
+            $workshopStatement = $contentPdo
+                ->query(
+                    'SELECT
+                        id,
+                        title,
+                        status,
+                        category,
+                        payload_json
+                     FROM workshops
+                     ORDER BY id DESC'
+                );
+
+            while ($row = $workshopStatement->fetch()) {
+                $workshops[] = decodeWorkshopOption($row);
+            }
+        }
+
+        /*
+         * Participants.
+         */
+        $participants =
+            getWorkshopParticipants(
+                $registrationPdo,
+                $contentPdo
+            );
+
+        /*
+         * Struktur response dipertahankan
+         * agar frontend lama tidak rusak.
+         */
         respond(200, [
             'success' => true,
-            'message' => 'Data sertifikat dan peserta workshop berhasil diambil dari SQLite.',
+
+            'message' =>
+                'Data sertifikat dan peserta workshop berhasil diambil dari SQLite.',
+
             'data' => [
-                'certificates' => $certificates,
-                'workshops' => $workshops,
-                'participants' => $participants,
+                'certificates' =>
+                    $certificates,
+
+                'workshops' =>
+                    $workshops,
+
+                'participants' =>
+                    $participants,
+
                 'options' => [
-                    'workshops' => $workshops,
-                    'participants' => $participants,
+                    'workshops' =>
+                        $workshops,
+
+                    'participants' =>
+                        $participants,
                 ],
-                'total' => count($certificates),
-                'totalParticipants' => count($participants),
-                'registrationDatabase' => basename(dirname($registrationDatabaseFile)) . '/' . basename($registrationDatabaseFile),
-                'contentDatabase' => $contentPdo === $registrationPdo
-                    ? basename(dirname($registrationDatabaseFile)) . '/' . basename($registrationDatabaseFile)
-                    : basename(dirname($databaseFile)) . '/' . basename($databaseFile),
+
+                'total' =>
+                    count($certificates),
+
+                'totalParticipants' =>
+                    count($participants),
+
+                'registrationDatabase' =>
+                    basename(
+                        dirname(
+                            $registrationDatabaseFile
+                        )
+                    )
+                    . '/'
+                    . basename(
+                        $registrationDatabaseFile
+                    ),
+
+                'contentDatabase' =>
+                    $contentPdo === $registrationPdo
+
+                        ? basename(
+                            dirname(
+                                $registrationDatabaseFile
+                            )
+                        )
+                        . '/'
+                        . basename(
+                            $registrationDatabaseFile
+                        )
+
+                        : basename(
+                            dirname(
+                                $databaseFile
+                            )
+                        )
+                        . '/'
+                        . basename(
+                            $databaseFile
+                        ),
             ],
         ]);
+
     } catch (Throwable $exception) {
         respond(500, [
             'success' => false,
-            'message' => 'Gagal mengambil data sertifikat.',
+
+            'message' =>
+                'Gagal mengambil data sertifikat.',
+
             'debug' => [
-                'error' => $exception->getMessage(),
+                'error' =>
+                    $exception->getMessage(),
             ],
         ]);
     }
 }
 
+/* =========================================================
+ * POST
+ * ========================================================= */
+
 if ($method === 'POST') {
     $data = readJsonBody();
-    $payload = validateCertificatePayload($data, $contentPdo, $registrationPdo, true);
-    $now = date('Y-m-d H:i:s');
 
-    $existing = findCertificateByRegistration(
-        $pdo,
-        $payload['registration_id'],
-        $payload['workshop_id'],
-        $payload['member_key']
-    );
+    $payload =
+        validateCertificatePayload(
+            $data,
+            $contentPdo,
+            $registrationPdo,
+            true
+        );
+
+    $now =
+        date('Y-m-d H:i:s');
+
+    /*
+     * Cek duplicate menggunakan index:
+     * registration_id + workshop_id + member_key.
+     */
+    $existing =
+        findCertificateByRegistration(
+            $pdo,
+            $payload['registration_id'],
+            $payload['workshop_id'],
+            $payload['member_key']
+        );
 
     if ($existing !== null) {
         respond(409, [
             'success' => false,
-            'message' => 'Peserta ini sudah memiliki sertifikat untuk workshop tersebut.',
+
+            'message' =>
+                'Peserta ini sudah memiliki sertifikat untuk workshop tersebut.',
+
             'data' => [
-                'certificate' => decodeCertificateRow($existing),
+                'certificate' =>
+                    decodeCertificateRow(
+                        $existing
+                    ),
             ],
         ]);
     }
@@ -1463,7 +2804,8 @@ if ($method === 'POST') {
                 payload_json,
                 created_at,
                 updated_at
-            ) VALUES (
+            )
+            VALUES (
                 :registration_id,
                 :member_key,
                 :user_id,
@@ -1485,96 +2827,210 @@ if ($method === 'POST') {
         );
 
         $statement->execute([
-            ':registration_id' => $payload['registration_id'],
-            ':member_key' => $payload['member_key'],
-            ':user_id' => $payload['user_id'],
-            ':user_name' => $payload['user_name'],
-            ':email' => $payload['email'],
-            ':workshop_id' => $payload['workshop_id'],
-            ':workshop_title' => $payload['workshop_title'],
-            ':certificate_title' => $payload['certificate_title'],
-            ':certificate_type' => $payload['certificate_type'],
-            ':completed_at' => $payload['completed_at'],
-            ':issued_at' => $payload['issued_at'],
-            ':certificate_number' => $payload['certificate_number'],
-            ':status' => $payload['status'],
-            ':payload_json' => $payload['payload_json'],
-            ':created_at' => $now,
-            ':updated_at' => $now,
+            ':registration_id' =>
+                $payload['registration_id'],
+
+            ':member_key' =>
+                $payload['member_key'],
+
+            ':user_id' =>
+                $payload['user_id'],
+
+            ':user_name' =>
+                $payload['user_name'],
+
+            ':email' =>
+                $payload['email'],
+
+            ':workshop_id' =>
+                $payload['workshop_id'],
+
+            ':workshop_title' =>
+                $payload['workshop_title'],
+
+            ':certificate_title' =>
+                $payload['certificate_title'],
+
+            ':certificate_type' =>
+                $payload['certificate_type'],
+
+            ':completed_at' =>
+                $payload['completed_at'],
+
+            ':issued_at' =>
+                $payload['issued_at'],
+
+            ':certificate_number' =>
+                $payload['certificate_number'],
+
+            ':status' =>
+                $payload['status'],
+
+            ':payload_json' =>
+                $payload['payload_json'],
+
+            ':created_at' =>
+                $now,
+
+            ':updated_at' =>
+                $now,
         ]);
 
-        $id = (int) $pdo->lastInsertId();
+        $id =
+            (int) $pdo->lastInsertId();
+
         $rowStatement = $pdo->prepare(
-            'SELECT * FROM certificates WHERE id = :id LIMIT 1'
+            'SELECT *
+             FROM certificates
+             WHERE id = :id
+             LIMIT 1'
         );
-        $rowStatement->execute([':id' => $id]);
-        $row = $rowStatement->fetch();
+
+        $rowStatement->execute([
+            ':id' => $id,
+        ]);
+
+        $row =
+            $rowStatement->fetch();
 
         respond(201, [
             'success' => true,
-            'message' => 'Sertifikat peserta workshop berhasil dibuat.',
+
+            'message' =>
+                'Sertifikat peserta workshop berhasil dibuat.',
+
             'data' => [
-                'certificate' => decodeCertificateRow($row),
+                'certificate' =>
+                    decodeCertificateRow(
+                        $row
+                    ),
             ],
         ]);
+
     } catch (Throwable $exception) {
         respond(500, [
             'success' => false,
-            'message' => 'Sertifikat gagal dibuat.',
+
+            'message' =>
+                'Sertifikat gagal dibuat.',
+
             'debug' => [
-                'error' => $exception->getMessage(),
+                'error' =>
+                    $exception->getMessage(),
             ],
         ]);
     }
 }
 
+/* =========================================================
+ * PUT
+ * ========================================================= */
+
 if ($method === 'PUT') {
     $id = getRequestId();
+
     $data = readJsonBody();
 
     $existingStatement = $pdo->prepare(
-        'SELECT * FROM certificates WHERE id = :id LIMIT 1'
+        'SELECT *
+         FROM certificates
+         WHERE id = :id
+         LIMIT 1'
     );
-    $existingStatement->execute([':id' => $id]);
-    $existingRow = $existingStatement->fetch();
+
+    $existingStatement->execute([
+        ':id' => $id,
+    ]);
+
+    $existingRow =
+        $existingStatement->fetch();
 
     if (!$existingRow) {
         respond(404, [
             'success' => false,
-            'message' => 'Sertifikat tidak ditemukan.',
+            'message' =>
+                'Sertifikat tidak ditemukan.',
         ]);
     }
 
-    $existingPayload = decodeJsonArray($existingRow['payload_json'] ?? '');
-    $mergedData = array_merge($existingPayload, $data);
+    $existingPayload =
+        decodeJsonArray(
+            $existingRow['payload_json']
+            ?? ''
+        );
 
-    if (!isset($mergedData['registrationId']) && $existingRow['registration_id'] !== null) {
-        $mergedData['registrationId'] = (int) $existingRow['registration_id'];
-    }
-    if (!isset($mergedData['workshopId']) && $existingRow['workshop_id'] !== null) {
-        $mergedData['workshopId'] = (int) $existingRow['workshop_id'];
-    }
-    if (!isset($mergedData['certificateNumber'])) {
-        $mergedData['certificateNumber'] = $existingRow['certificate_number'];
-    }
-
-    $payload = validateCertificatePayload($mergedData, $contentPdo, $registrationPdo, true);
-    $now = date('Y-m-d H:i:s');
-
-    $duplicate = findCertificateByRegistration(
-        $pdo,
-        $payload['registration_id'],
-        $payload['workshop_id'],
-        $payload['member_key'],
-        $id
+    /*
+     * Field request terbaru menang
+     * dibanding payload lama.
+     */
+    $mergedData = array_merge(
+        $existingPayload,
+        $data
     );
+
+    if (
+        !isset(
+            $mergedData['registrationId']
+        ) &&
+        $existingRow['registration_id'] !== null
+    ) {
+        $mergedData['registrationId'] =
+            (int)
+                $existingRow['registration_id'];
+    }
+
+    if (
+        !isset(
+            $mergedData['workshopId']
+        ) &&
+        $existingRow['workshop_id'] !== null
+    ) {
+        $mergedData['workshopId'] =
+            (int)
+                $existingRow['workshop_id'];
+    }
+
+    if (
+        !isset(
+            $mergedData['certificateNumber']
+        )
+    ) {
+        $mergedData['certificateNumber'] =
+            $existingRow['certificate_number'];
+    }
+
+    $payload =
+        validateCertificatePayload(
+            $mergedData,
+            $contentPdo,
+            $registrationPdo,
+            true
+        );
+
+    $now =
+        date('Y-m-d H:i:s');
+
+    $duplicate =
+        findCertificateByRegistration(
+            $pdo,
+            $payload['registration_id'],
+            $payload['workshop_id'],
+            $payload['member_key'],
+            $id
+        );
 
     if ($duplicate !== null) {
         respond(409, [
             'success' => false,
-            'message' => 'Peserta ini sudah memiliki sertifikat lain untuk workshop tersebut.',
+
+            'message' =>
+                'Peserta ini sudah memiliki sertifikat lain untuk workshop tersebut.',
+
             'data' => [
-                'certificate' => decodeCertificateRow($duplicate),
+                'certificate' =>
+                    decodeCertificateRow(
+                        $duplicate
+                    ),
             ],
         ]);
     }
@@ -1582,99 +3038,197 @@ if ($method === 'PUT') {
     try {
         $statement = $pdo->prepare(
             'UPDATE certificates
-             SET registration_id = :registration_id,
-                 member_key = :member_key,
-                 user_id = :user_id,
-                 user_name = :user_name,
-                 email = :email,
-                 workshop_id = :workshop_id,
-                 workshop_title = :workshop_title,
-                 certificate_title = :certificate_title,
-                 certificate_type = :certificate_type,
-                 completed_at = :completed_at,
-                 issued_at = :issued_at,
-                 certificate_number = :certificate_number,
-                 status = :status,
-                 payload_json = :payload_json,
-                 updated_at = :updated_at
+             SET
+                registration_id =
+                    :registration_id,
+
+                member_key =
+                    :member_key,
+
+                user_id =
+                    :user_id,
+
+                user_name =
+                    :user_name,
+
+                email =
+                    :email,
+
+                workshop_id =
+                    :workshop_id,
+
+                workshop_title =
+                    :workshop_title,
+
+                certificate_title =
+                    :certificate_title,
+
+                certificate_type =
+                    :certificate_type,
+
+                completed_at =
+                    :completed_at,
+
+                issued_at =
+                    :issued_at,
+
+                certificate_number =
+                    :certificate_number,
+
+                status =
+                    :status,
+
+                payload_json =
+                    :payload_json,
+
+                updated_at =
+                    :updated_at
+
              WHERE id = :id'
         );
 
         $statement->execute([
-            ':registration_id' => $payload['registration_id'],
-            ':member_key' => $payload['member_key'],
-            ':user_id' => $payload['user_id'],
-            ':user_name' => $payload['user_name'],
-            ':email' => $payload['email'],
-            ':workshop_id' => $payload['workshop_id'],
-            ':workshop_title' => $payload['workshop_title'],
-            ':certificate_title' => $payload['certificate_title'],
-            ':certificate_type' => $payload['certificate_type'],
-            ':completed_at' => $payload['completed_at'],
-            ':issued_at' => $payload['issued_at'],
-            ':certificate_number' => $payload['certificate_number'],
-            ':status' => $payload['status'],
-            ':payload_json' => $payload['payload_json'],
-            ':updated_at' => $now,
-            ':id' => $id,
+            ':registration_id' =>
+                $payload['registration_id'],
+
+            ':member_key' =>
+                $payload['member_key'],
+
+            ':user_id' =>
+                $payload['user_id'],
+
+            ':user_name' =>
+                $payload['user_name'],
+
+            ':email' =>
+                $payload['email'],
+
+            ':workshop_id' =>
+                $payload['workshop_id'],
+
+            ':workshop_title' =>
+                $payload['workshop_title'],
+
+            ':certificate_title' =>
+                $payload['certificate_title'],
+
+            ':certificate_type' =>
+                $payload['certificate_type'],
+
+            ':completed_at' =>
+                $payload['completed_at'],
+
+            ':issued_at' =>
+                $payload['issued_at'],
+
+            ':certificate_number' =>
+                $payload['certificate_number'],
+
+            ':status' =>
+                $payload['status'],
+
+            ':payload_json' =>
+                $payload['payload_json'],
+
+            ':updated_at' =>
+                $now,
+
+            ':id' =>
+                $id,
         ]);
 
         $rowStatement = $pdo->prepare(
-            'SELECT * FROM certificates WHERE id = :id LIMIT 1'
+            'SELECT *
+             FROM certificates
+             WHERE id = :id
+             LIMIT 1'
         );
-        $rowStatement->execute([':id' => $id]);
+
+        $rowStatement->execute([
+            ':id' => $id,
+        ]);
 
         respond(200, [
             'success' => true,
-            'message' => 'Sertifikat berhasil diperbarui.',
+
+            'message' =>
+                'Sertifikat berhasil diperbarui.',
+
             'data' => [
-                'certificate' => decodeCertificateRow($rowStatement->fetch()),
+                'certificate' =>
+                    decodeCertificateRow(
+                        $rowStatement->fetch()
+                    ),
             ],
         ]);
+
     } catch (Throwable $exception) {
         respond(500, [
             'success' => false,
-            'message' => 'Sertifikat gagal diperbarui.',
+
+            'message' =>
+                'Sertifikat gagal diperbarui.',
+
             'debug' => [
-                'error' => $exception->getMessage(),
+                'error' =>
+                    $exception->getMessage(),
             ],
         ]);
     }
 }
+
+/* =========================================================
+ * DELETE
+ * ========================================================= */
 
 if ($method === 'DELETE') {
     $id = getRequestId();
 
     try {
         $statement = $pdo->prepare(
-            'DELETE FROM certificates WHERE id = :id'
+            'DELETE FROM certificates
+             WHERE id = :id'
         );
-        $statement->execute([':id' => $id]);
+
+        $statement->execute([
+            ':id' => $id,
+        ]);
 
         if ($statement->rowCount() === 0) {
             respond(404, [
                 'success' => false,
-                'message' => 'Sertifikat tidak ditemukan.',
+                'message' =>
+                    'Sertifikat tidak ditemukan.',
             ]);
         }
 
         respond(200, [
             'success' => true,
-            'message' => 'Sertifikat berhasil dihapus.',
+            'message' =>
+                'Sertifikat berhasil dihapus.',
         ]);
+
     } catch (Throwable $exception) {
         respond(500, [
             'success' => false,
-            'message' => 'Sertifikat gagal dihapus.',
+
+            'message' =>
+                'Sertifikat gagal dihapus.',
+
             'debug' => [
-                'error' => $exception->getMessage(),
+                'error' =>
+                    $exception->getMessage(),
             ],
         ]);
     }
 }
 
-header('Allow: GET, POST, PUT, DELETE, OPTIONS');
+header(
+    'Allow: GET, POST, PUT, DELETE, OPTIONS'
+);
+
 respond(405, [
     'success' => false,
-    'message' => 'Method tidak didukung.',
+    'message' =>
+        'Method tidak didukung.',
 ]);

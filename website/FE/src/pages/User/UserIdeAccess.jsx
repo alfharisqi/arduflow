@@ -6,6 +6,7 @@ import { fetchIdeConfig } from '../../services/ideApi.js';
 import { fetchTransactions } from '../../services/transactionApi.js';
 import { UserDashboardTopbar } from './UserDashboardTopbar.jsx';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
+import { getStoredUser, logoutCurrentUser } from '../../services/authSession.js';
 
 const IDE_URL = 'https://ide.arduflow.com/';
 
@@ -21,15 +22,6 @@ const menuItems = [
   { label: 'IDE', icon: 'cpu', href: '/ide-saya', active: true },
   { label: 'Settings', icon: 'settings', href: '/settings' },
 ];
-
-function getStoredUser() {
-  try {
-    const raw = window.localStorage.getItem('arduflow_user');
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
 
 function formatCurrency(value, currency = 'IDR') {
   return new Intl.NumberFormat('id-ID', {
@@ -69,7 +61,7 @@ export function UserIdeAccess() {
   const [tokenToCheck, setTokenToCheck] = useState('');
   const [tokenCheckResult, setTokenCheckResult] = useState(null);
 
-  const user = getStoredUser();
+  const user = getStoredUser() || {};
   const fullName = user.name || user.fullName || user.full_name || 'Nama Lengkap';
   const greetingName = user.nickname || user.username || fullName;
   const profileImage = user.profileImage || user.profile_image || user.avatar || '';
@@ -119,10 +111,7 @@ export function UserIdeAccess() {
   }, [user.email, user.id, user.userId]);
 
   function handleLogout() {
-    window.localStorage.removeItem('arduflow_user');
-    window.localStorage.removeItem('arduflow_user_token');
-    window.dispatchEvent(new Event('arduflow-auth-change'));
-    window.location.assign('/signin');
+    logoutCurrentUser({ redirectTo: '/signin' });
   }
 
   function handleSidebarToggle() {
