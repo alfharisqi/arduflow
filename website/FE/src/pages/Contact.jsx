@@ -69,10 +69,36 @@ const directContacts = [
 ];
 
 const contactFaqs = [
-  "Berapa lama tim ArduFlow merespon form?",
-  "Apakah demo / workshop berbayar?",
-  "Apakah workshop bisa diadakan di sekolah kami?",
-  "Bagaimana cara mendapatkan akses ArduFlow IDE?",
+  {
+    question: "Berapa lama tim ArduFlow merespon form?",
+    answer:
+      "Tim ArduFlow akan berusaha merespon setiap pertanyaan atau permintaan yang masuk maksimal dalam 1x24 jam kerja. Waktu respon dapat berbeda pada akhir pekan atau hari libur.",
+  },
+  {
+    question: "Form kontak mana yang harus saya pilih?",
+    answer:
+      "Pilih Saya Tertarik dengan ArduFlow untuk pertanyaan umum mengenai platform. Pilih Kontak dan Kolaborasi untuk kerja sama, demo, sekolah, kampus, komunitas, atau institusi. Pilih Daftar Workshop jika Anda ingin mengikuti workshop ArduFlow.",
+  },
+  {
+    question: "Apakah ArduFlow menerima kerja sama dengan sekolah atau kampus?",
+    answer:
+      "Ya. ArduFlow terbuka untuk kerja sama dengan sekolah, perguruan tinggi, komunitas, perusahaan, maupun institusi lainnya dalam bentuk workshop, pelatihan, demo, kegiatan edukasi IoT, maupun program kolaborasi lainnya.",
+  },
+  {
+    question: "Bagaimana cara mendaftar workshop ArduFlow?",
+    answer:
+      "Pilih kategori Daftar Workshop pada halaman kontak, kemudian lengkapi formulir pendaftaran. Pastikan data peserta dan workshop yang dipilih sudah benar sebelum mengirim formulir.",
+  },
+  {
+    question: "Bagaimana jika ingin mendaftarkan banyak peserta sekaligus?",
+    answer:
+      "Untuk pendaftaran dalam jumlah banyak seperti sekolah, kampus, perusahaan, atau komunitas, Anda dapat menghubungi tim ArduFlow dan menyiapkan file CSV yang berisi data peserta seperti nama dan email agar proses pendaftaran lebih mudah.",
+  },
+  {
+    question: "Bagaimana cara mendapatkan akses ArduFlow IDE?",
+    answer:
+      "Akses ArduFlow IDE diberikan sesuai program atau paket yang digunakan. Setelah proses pendaftaran dan aktivasi selesai, pengguna akan mendapatkan informasi akun atau token akses yang dapat digunakan untuk masuk ke ArduFlow IDE.",
+  },
 ];
 
 function ContactHero() {
@@ -143,7 +169,9 @@ function ContactCategories({ activeCategory, onSelectCategory }) {
               <h3>{category.title}</h3>
               <p>{category.copy}</p>
             </div>
-            <span aria-hidden="true">-&gt;</span>
+            <span aria-hidden="true" className="contact-category__arrow">
+              →
+            </span>
           </button>
         ))}
       </div>
@@ -173,50 +201,155 @@ function DirectContact() {
   );
 }
 
-function OfficeFaq() {
+function OfficeLocation() {
   return (
-    <section className="office-faq" aria-labelledby="office-heading">
-      <div className="office-faq__inner">
-        <div className="office-faq__office">
-          <h2 id="office-heading">Kantor ArduFlow</h2>
+    <section className="office-location" aria-labelledby="office-heading">
+      <div className="office-location__inner">
+        <h2 id="office-heading">Kantor ArduFlow</h2>
 
-          <article className="office-card">
-            <div className="office-card__copy">
-              <h3>
-                Malang, Jawa Timur
-                <br />
-                Indonesia
-              </h3>
-              <p>
-                Detail alamat akan diberikan saat konfirmasi meeting atau
-                pendaftaran workshop.
-              </p>
-              <a href="https://www.google.com/maps/search/Malang%2C%20Jawa%20Timur%2C%20Indonesia">
-                LIHAT DI GOOGLE MAPS
-              </a>
+        <article className="office-card">
+          <div className="office-card__copy">
+            <h3>
+              Malang, Jawa Timur
+              <br />
+              Indonesia
+            </h3>
+
+            <p>
+              Detail alamat akan diberikan saat konfirmasi meeting atau
+              pendaftaran workshop.
+            </p>
+
+            <a href="https://www.google.com/maps/search/Malang%2C%20Jawa%20Timur%2C%20Indonesia">
+              LIHAT DI GOOGLE MAPS
+            </a>
+          </div>
+
+          <img
+            className="office-card__image"
+            src={officeMapImage}
+            alt=""
+            width="259"
+            height="228"
+          />
+        </article>
+      </div>
+    </section>
+  );
+}
+
+function ContactFaq() {
+  const [activeFaq, setActiveFaq] = useState(0);
+
+  return (
+    <section
+      className="contact-faq"
+      aria-labelledby="contact-faq-title"
+    >
+      <div className="contact-faq__inner">
+        <div className="contact-faq__card">
+
+          <header className="contact-faq__header">
+            <div className="contact-faq__heading-row">
+
+              <span
+                className="contact-faq__star"
+                aria-hidden="true"
+              />
+
+              <div>
+                <p className="contact-faq__eyebrow">
+                  FAQ KONTAK
+                </p>
+
+                <h2
+                  className="contact-faq__title"
+                  id="contact-faq-title"
+                >
+                  Pertanyaan Umum
+                </h2>
+              </div>
             </div>
 
-            <img
-              className="office-card__image"
-              src={officeMapImage}
-              alt=""
-              width="259"
-              height="228"
-            />
-          </article>
-        </div>
+            <p className="contact-faq__desc">
+              Temukan jawaban untuk pertanyaan yang sering ditanyakan
+              mengenai ArduFlow, workshop, kolaborasi, dan akses
+              ArduFlow IDE.
+            </p>
+          </header>
 
-        <div className="office-faq__faq" aria-labelledby="faq-heading">
-          <h2 id="faq-heading">Pertanyaan yang Sering Diajukan</h2>
+          <div
+            className="contact-faq__list"
+            aria-label="Daftar pertanyaan umum ArduFlow"
+          >
+            {contactFaqs.map((item, index) => {
+              const isOpen = activeFaq === index;
 
-          <div className="faq-list">
-            {contactFaqs.map((question) => (
-              <button className="faq-row" type="button" key={question}>
-                <span>{question}</span>
-                <i className="faq-icon" aria-hidden="true" />
-              </button>
-            ))}
+              const answerId =
+                `contact-faq-answer-${index}`;
+
+              const questionId =
+                `contact-faq-question-${index}`;
+
+              return (
+                <article
+                  className={
+                    `contact-faq__item${isOpen ? " is-open" : ""}`
+                  }
+                  key={item.question}
+                >
+                  <button
+                    aria-controls={answerId}
+                    aria-expanded={isOpen}
+                    className="contact-faq__question"
+                    id={questionId}
+                    type="button"
+                    onClick={() =>
+                      setActiveFaq(isOpen ? -1 : index)
+                    }
+                  >
+                    <span className="contact-faq__question-text">
+                      {item.question}
+                    </span>
+
+                    <span
+                      className="contact-faq__toggle-icon"
+                      aria-hidden="true"
+                    />
+                  </button>
+
+                  <div
+                    aria-hidden={!isOpen}
+                    aria-labelledby={questionId}
+                    className="contact-faq__answer-wrap"
+                    id={answerId}
+                    role="region"
+                  >
+                    <div className="contact-faq__answer-inner">
+                      <p className="contact-faq__answer">
+                        {item.answer}
+                      </p>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
           </div>
+
+          <div className="contact-faq__help">
+            <span>
+              Masih ada yang ingin ditanyakan?
+            </span>
+
+            <a
+              href="https://wa.me/6281234567890"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Hubungi Tim ArduFlow
+            </a>
+          </div>
+
         </div>
       </div>
     </section>
@@ -254,8 +387,12 @@ export function Contact() {
         onSelectCategory={setActiveContactCategory}
       />
       <ContactSelectedForm activeCategory={activeContactCategory} />
+
       <DirectContact />
-      <OfficeFaq />
+
+      <OfficeLocation />
+
+      <ContactFaq />
     </>
   );
 }

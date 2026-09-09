@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Arduflow\Api\Support\Env;
+
 ini_set('display_errors', '0');
 error_reporting(E_ALL);
 date_default_timezone_set('Asia/Jakarta');
@@ -17,6 +19,8 @@ $allowedOrigins = [
     'http://127.0.0.1:5174',
     'http://localhost:5175',
     'http://127.0.0.1:5175',
+    'https://arduflow.indobilliard.com',
+    'https://www.arduflow.indobilliard.com',
 ];
 
 $isLocalOrigin = preg_match(
@@ -302,8 +306,20 @@ try {
     }
 
     $projectRoot = dirname(__DIR__);
+    $autoloadPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
+    $envSupportPath = $projectRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'Support' . DIRECTORY_SEPARATOR . 'Env.php';
     $configPath = $projectRoot . '/config/database.php';
     $imageStoragePath = $projectRoot . '/api/support/image-storage.php';
+
+    if (is_file($autoloadPath)) {
+        require_once $autoloadPath;
+    } elseif (is_file($envSupportPath)) {
+        require_once $envSupportPath;
+    }
+
+    if (class_exists(Env::class)) {
+        Env::load($projectRoot . DIRECTORY_SEPARATOR . '.env');
+    }
 
     if (file_exists($imageStoragePath)) {
         require_once $imageStoragePath;
