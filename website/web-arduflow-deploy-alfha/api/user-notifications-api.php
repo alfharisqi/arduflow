@@ -2,15 +2,6 @@
 
 declare(strict_types=1);
 
-use Arduflow\Api\Support\Env;
-use PHPMailer\PHPMailer\PHPMailer;
-
-require_once __DIR__ . '/support/autoload-app.php';
-
-if (class_exists(Env::class)) {
-    Env::load(dirname(__DIR__) . DIRECTORY_SEPARATOR . '.env');
-}
-
 date_default_timezone_set('Asia/Jakarta');
 
 header('Content-Type: application/json; charset=utf-8');
@@ -26,18 +17,26 @@ $allowedOrigins = [
     'https://web.arduflow.com',
 ];
 
-if (in_array($origin, $allowedOrigins, true)) {
-    header("Access-Control-Allow-Origin: {$origin}");
+if ($origin !== '' && in_array($origin, $allowedOrigins, true)) {
+    header('Access-Control-Allow-Origin: ' . $origin);
     header('Vary: Origin');
 } else {
     header('Access-Control-Allow-Origin: *');
 }
 
 header('Access-Control-Allow-Methods: GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+header('Access-Control-Allow-Headers: Content-Type, Accept, Authorization, X-Requested-With');
+header('Access-Control-Max-Age: 86400');
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
     http_response_code(204);
+    exit;
+}
+
+function notificationRespond(int $status, array $payload): void
+{
+    http_response_code($status);
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
 
@@ -48,69 +47,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
     ]);
 }
 
-function notificationRespond(int $status, array $payload): never
-{
-    http_response_code($status);
-    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    exit;
-}
-
-function notificationEnv(string $key, ?string $default = null): ?string
-{
-    if (class_exists(Env::class)) {
-        return Env::get($key, $default);
-    }
-
-    $value = getenv($key);
-    return $value === false ? $default : $value;
-}
-
-function notificationEnvBool(string $key, bool $default = false): bool
-{
-    if (class_exists(Env::class)) {
-        return Env::bool($key, $default);
-    }
-
-    $value = getenv($key);
-    return $value === false
-        ? $default
-        : (filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? $default);
-}
-
-function notificationEnvInt(string $key, int $default): int
-{
-    if (class_exists(Env::class)) {
-        return Env::int($key, $default);
-    }
-
-    $value = getenv($key);
-    return $value !== false && is_numeric($value) ? (int) $value : $default;
-}
-
-function notificationSqlitePath(): string
-{
-    $configuredPath = trim((string) notificationEnv('SQLITE_DATABASE_PATH', ''));
-    if ($configuredPath !== '') {
-        if (preg_match('/^(?:[A-Za-z]:[\\\\\\/]|[\\\\\\/])/', $configuredPath) === 1) {
-            return $configuredPath;
-        }
-
-        return dirname(__DIR__) . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $configuredPath);
-    }
-
-    return dirname(__DIR__) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . 'arduflow.sqlite';
-}
-
 function notificationPdo(): PDO
 {
-    $path = notificationSqlitePath();
-    $directory = dirname($path);
+    $databasePath = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . 'arduflow.sqlite';
+    $databaseDirectory = dirname($databasePath);
 
-    if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
-        throw new RuntimeException('Folder database tidak dapat dibuat.');
+    if (!is_dir($databaseDirectory) && !mkdir($databaseDirectory, 0775, true) && !is_dir($databaseDirectory)) {
+        notificationRespond(500, [
+            'success' => false,
+            'message' => 'Folder database tidak dapat dibuat.',
+        ]);
     }
 
-    $pdo = new PDO('sqlite:' . $path, null, null, [
+    $pdo = new PDO('sqlite:' . $databasePath, null, null, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
@@ -123,46 +72,17 @@ function notificationTableExists(PDO $pdo, string $table): bool
 {
     $statement = $pdo->prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = :table LIMIT 1");
     $statement->execute([':table' => $table]);
+
     return (bool) $statement->fetchColumn();
-}function normalizeNotificationStatus(string $status): string
-{
-    return strtolower(trim($status));
 }
 
-function parseNotificationDate(mixed $value): ?DateTimeImmutable
+function notificationDate(string $value): string
 {
-    $raw = trim((string) $value);
-    if ($raw === '') {
-        return null;
+    if ($value === '') {
+        return (new DateTimeImmutable('now'))->format(DateTimeInterface::ATOM);
     }
 
-    try {
-        return new DateTimeImmutable($raw);
-    } catch (Throwable) {
-        return null;
-    }
-}
-
-function formatNotificationDate(?DateTimeImmutable $date): string
-{
-    return $date ? $date->format('d M Y H:i') : 'jadwal belum ditentukan';
-}
-
-function workshopStartDateFromPayload(array $payload): ?DateTimeImmutable
-{
-    $schedule = $payload['schedule'] ?? [];
-    $rawDate = (string) ($payload['startsAt'] ?? $payload['starts_at'] ?? $payload['start_at'] ?? ($schedule['date'] ?? ''));
-    $rawTime = (string) ($payload['timeText'] ?? ($schedule['time'] ?? ''));
-
-    if ($rawDate === '') {
-        return null;
-    }
-
-    if ($rawTime !== '' && preg_match('/(\d{1,2})[.:](\d{2})/', $rawTime, $match) === 1) {
-        $rawDate .= ' ' . str_pad($match[1], 2, '0', STR_PAD_LEFT) . ':' . $match[2] . ':00';
-    }
-
-    return parseNotificationDate($rawDate);
+    return $value;
 }
 
 function buildTransactionNotifications(PDO $pdo, ?int $userId, string $email): array
@@ -187,80 +107,73 @@ function buildTransactionNotifications(PDO $pdo, ?int $userId, string $email): a
     }
 
     $sql = 'SELECT id, status, item_title, invoice_number, due_at, updated_at, created_at, rejection_reason
-            FROM transactions WHERE ' . implode(' AND ', $where) . ' ORDER BY updated_at DESC, created_at DESC LIMIT 50';
+            FROM transactions
+            WHERE ' . implode(' AND ', $where) . '
+            ORDER BY updated_at DESC, created_at DESC
+            LIMIT 50';
     $statement = $pdo->prepare($sql);
     $statement->execute($params);
 
-    $now = new DateTimeImmutable('now');
     $notifications = [];
-
     while ($transaction = $statement->fetch()) {
         $id = (string) ($transaction['id'] ?? '');
-        $status = normalizeNotificationStatus((string) ($transaction['status'] ?? 'pending'));
-        $title = (string) ($transaction['item_title'] ?? 'Transaksi Arduflow');
-        $invoice = (string) ($transaction['invoice_number'] ?? '');
-        $dueAt = parseNotificationDate($transaction['due_at'] ?? null);
-        $updatedAt = (string) ($transaction['updated_at'] ?? $transaction['created_at'] ?? $now->format(DateTimeInterface::ATOM));
+        $status = strtolower(trim((string) ($transaction['status'] ?? 'pending')));
+        $title = trim((string) ($transaction['item_title'] ?? 'Transaksi Arduflow'));
+        $invoice = trim((string) ($transaction['invoice_number'] ?? ''));
+        $createdAt = notificationDate((string) ($transaction['updated_at'] ?? $transaction['created_at'] ?? ''));
 
         if (in_array($status, ['pending', 'waiting', 'unpaid'], true)) {
-            $daysLeft = $dueAt ? (int) floor(($dueAt->getTimestamp() - $now->getTimestamp()) / 86400) : null;
-            $isUrgent = $dueAt && $dueAt->getTimestamp() <= $now->modify('+2 days')->getTimestamp();
             $notifications[] = [
-                'key' => $isUrgent ? "transaction_due:{$id}" : "transaction_pending:{$id}",
+                'id' => 'transaction_pending:' . $id,
+                'key' => 'transaction_pending:' . $id,
                 'type' => 'transaction',
-                'title' => $isUrgent ? 'Pengingat pembayaran transaksi' : 'Transaksi menunggu pembayaran',
-                'message' => $isUrgent
-                    ? "{$title} jatuh tempo " . formatNotificationDate($dueAt) . ($daysLeft !== null && $daysLeft < 0 ? '. Segera hubungi admin.' : '.')
-                    : "{$title} masih menunggu pembayaran" . ($invoice !== '' ? " untuk invoice {$invoice}." : '.'),
+                'title' => 'Transaksi menunggu pembayaran',
+                'message' => $title . ($invoice !== '' ? ' menunggu pembayaran untuk invoice ' . $invoice . '.' : ' masih menunggu pembayaran.'),
                 'href' => '/transaksi',
                 'actionLabel' => 'Buka Transaksi',
-                'priority' => $isUrgent ? 'urgent' : 'high',
-                'createdAt' => $updatedAt,
+                'priority' => 'high',
+                'createdAt' => $createdAt,
+                'emailSent' => false,
             ];
         } elseif ($status === 'proof_uploaded') {
             $notifications[] = [
-                'key' => "transaction_review:{$id}",
+                'id' => 'transaction_review:' . $id,
+                'key' => 'transaction_review:' . $id,
                 'type' => 'transaction',
                 'title' => 'Bukti pembayaran sedang direview',
-                'message' => "{$title} sudah menerima bukti pembayaran dan menunggu review admin.",
+                'message' => $title . ' sedang menunggu verifikasi admin.',
                 'href' => '/transaksi',
-                'actionLabel' => 'Lihat Status',
+                'actionLabel' => 'Buka Transaksi',
                 'priority' => 'normal',
-                'createdAt' => $updatedAt,
+                'createdAt' => $createdAt,
+                'emailSent' => false,
             ];
-        } elseif (in_array($status, ['paid', 'approved', 'lunas'], true)) {
+        } elseif ($status === 'paid') {
             $notifications[] = [
-                'key' => "transaction_paid:{$id}",
+                'id' => 'transaction_paid:' . $id,
+                'key' => 'transaction_paid:' . $id,
                 'type' => 'transaction',
-                'title' => 'Pembayaran disetujui',
-                'message' => "Akses {$title} sudah aktif.",
-                'href' => '/workshop-program',
-                'actionLabel' => 'Buka Akses',
+                'title' => 'Transaksi berhasil',
+                'message' => $title . ' sudah lunas dan aktif.',
+                'href' => '/transaksi',
+                'actionLabel' => 'Buka Transaksi',
                 'priority' => 'normal',
-                'createdAt' => $updatedAt,
+                'createdAt' => $createdAt,
+                'emailSent' => false,
             ];
         } elseif ($status === 'rejected') {
-            $reason = trim((string) ($transaction['rejection_reason'] ?? ''));
+            $reason = trim((string) ($transaction['rejection_reason'] ?? 'Bukti pembayaran belum valid.'));
             $notifications[] = [
-                'key' => "transaction_rejected:{$id}",
+                'id' => 'transaction_rejected:' . $id,
+                'key' => 'transaction_rejected:' . $id,
                 'type' => 'transaction',
-                'title' => 'Bukti pembayaran ditolak',
-                'message' => "{$title} perlu upload bukti baru." . ($reason !== '' ? " Alasan: {$reason}" : ''),
+                'title' => 'Transaksi ditolak',
+                'message' => $title . ' ditolak. ' . $reason,
                 'href' => '/transaksi',
-                'actionLabel' => 'Upload Ulang',
+                'actionLabel' => 'Upload Ulang Bukti',
                 'priority' => 'urgent',
-                'createdAt' => $updatedAt,
-            ];
-        } elseif ($status === 'expired') {
-            $notifications[] = [
-                'key' => "transaction_expired:{$id}",
-                'type' => 'transaction',
-                'title' => 'Transaksi kedaluwarsa',
-                'message' => "{$title} sudah melewati batas pembayaran.",
-                'href' => '/transaksi',
-                'actionLabel' => 'Cek Transaksi',
-                'priority' => 'high',
-                'createdAt' => $updatedAt,
+                'createdAt' => $createdAt,
+                'emailSent' => false,
             ];
         }
     }
@@ -274,7 +187,11 @@ function buildWorkshopNotifications(PDO $pdo, ?int $userId, string $email): arra
         return [];
     }
 
-    $where = ["t.deleted_at IS NULL", "LOWER(t.status) IN ('paid', 'approved', 'lunas')", "LOWER(t.item_type) IN ('workshop', 'program', 'course')"];
+    $where = [
+        't.deleted_at IS NULL',
+        "LOWER(t.status) IN ('paid', 'approved', 'lunas')",
+        "LOWER(t.item_type) IN ('workshop', 'program', 'course')",
+    ];
     $params = [];
 
     if ($userId !== null && $email !== '') {
@@ -289,12 +206,7 @@ function buildWorkshopNotifications(PDO $pdo, ?int $userId, string $email): arra
         $params[':email'] = $email;
     }
 
-    $sql = 'SELECT
-                t.id AS transaction_id,
-                t.updated_at AS transaction_updated_at,
-                w.id AS workshop_id,
-                w.title,
-                w.payload_json
+    $sql = 'SELECT t.id AS transaction_id, t.updated_at AS transaction_updated_at, w.id AS workshop_id, w.title, w.payload_json
             FROM transactions t
             INNER JOIN workshops w ON CAST(w.id AS TEXT) = CAST(t.item_id AS TEXT)
             WHERE ' . implode(' AND ', $where) . '
@@ -309,150 +221,62 @@ function buildWorkshopNotifications(PDO $pdo, ?int $userId, string $email): arra
 
     while ($row = $statement->fetch()) {
         $payload = [];
-        if (!empty($row['payload_json'])) {
+        $rawPayload = trim((string) ($row['payload_json'] ?? ''));
+        if ($rawPayload !== '') {
             try {
-                $decoded = json_decode((string) $row['payload_json'], true, 512, JSON_THROW_ON_ERROR);
-                $payload = is_array($decoded) ? $decoded : [];
+                $decodedPayload = json_decode($rawPayload, true, 512, JSON_THROW_ON_ERROR);
+                $payload = is_array($decodedPayload) ? $decodedPayload : [];
             } catch (Throwable) {
                 $payload = [];
             }
         }
 
-        $startsAt = workshopStartDateFromPayload($payload);
-        if (!$startsAt || $startsAt->getTimestamp() < $now->getTimestamp() || $startsAt->getTimestamp() > $limit->getTimestamp()) {
+        $schedule = isset($payload['schedule']) && is_array($payload['schedule'])
+            ? $payload['schedule']
+            : [];
+        $rawStart = trim((string) (
+            $payload['startsAt']
+            ?? $payload['starts_at']
+            ?? $payload['start_at']
+            ?? $schedule['date']
+            ?? ''
+        ));
+        if ($rawStart === '') {
             continue;
         }
 
-        $daysLeft = (int) ceil(($startsAt->getTimestamp() - $now->getTimestamp()) / 86400);
-        $isUrgent = $daysLeft <= 1;
-        $location = trim((string) (($payload['location'] ?? '') ?: ($payload['platform'] ?? '')));
+        try {
+            $startsAt = new DateTimeImmutable($rawStart);
+        } catch (Throwable) {
+            continue;
+        }
 
+        if ($startsAt < $now || $startsAt > $limit) {
+            continue;
+        }
+
+        $id = (string) ($row['workshop_id'] ?? $row['transaction_id'] ?? '');
         $notifications[] = [
-            'key' => 'workshop_reminder:' . (string) ($row['workshop_id'] ?? $row['transaction_id']),
+            'id' => 'workshop_reminder:' . $id,
+            'key' => 'workshop_reminder:' . $id,
             'type' => 'workshop_reminder',
-            'title' => $isUrgent ? 'Workshop dimulai segera' : 'Pengingat jadwal workshop',
-            'message' => (string) ($row['title'] ?? 'Workshop Arduflow') . ' dimulai ' . formatNotificationDate($startsAt) . ($location !== '' ? " di {$location}." : '.'),
+            'title' => 'Pengingat jadwal workshop',
+            'message' => (string) ($row['title'] ?? 'Workshop Arduflow') . ' dimulai ' . $startsAt->format('d M Y H:i') . '.',
             'href' => '/workshop-program',
             'actionLabel' => 'Buka Jadwal',
-            'priority' => $isUrgent ? 'urgent' : 'high',
-            'createdAt' => (string) ($row['transaction_updated_at'] ?? $now->format(DateTimeInterface::ATOM)),
+            'priority' => 'high',
+            'createdAt' => notificationDate((string) ($row['transaction_updated_at'] ?? '')),
+            'emailSent' => false,
         ];
     }
 
     return $notifications;
 }
 
-function notificationEmailWasSent(PDO $pdo, string $key, string $email): bool
-{
-    $statement = $pdo->prepare('SELECT id FROM user_notification_email_logs WHERE notification_key = :key AND LOWER(email) = LOWER(:email) LIMIT 1');
-    $statement->execute([':key' => $key, ':email' => $email]);
-    return (bool) $statement->fetchColumn();
-}
-
-/** Fetch delivery flags together; dashboard polling must not query once per item. */
-function notificationSentEmailKeys(PDO $pdo, array $notifications, string $email): array
-{
-    if ($email === '' || $notifications === []) {
-        return [];
-    }
-
-    $keys = array_values(array_unique(array_column($notifications, 'key')));
-    $sent = [];
-    foreach (array_chunk($keys, 400) as $chunk) {
-        $placeholders = implode(', ', array_fill(0, count($chunk), '?'));
-        $statement = $pdo->prepare(
-            'SELECT notification_key FROM user_notification_email_logs
-             WHERE notification_key IN (' . $placeholders . ') AND LOWER(email) = LOWER(?)'
-        );
-        $statement->execute([...$chunk, $email]);
-        while (($key = $statement->fetchColumn()) !== false) {
-            $sent[(string) $key] = true;
-        }
-    }
-    return $sent;
-}
-
-function markNotificationEmailSent(PDO $pdo, string $key, string $email): void
-{
-    $statement = $pdo->prepare(
-        'INSERT OR IGNORE INTO user_notification_email_logs (notification_key, email, sent_at)
-         VALUES (:key, :email, :sent_at)'
-    );
-    $statement->execute([
-        ':key' => $key,
-        ':email' => $email,
-        ':sent_at' => (new DateTimeImmutable('now'))->format(DateTimeInterface::ATOM),
-    ]);
-}
-
-function sendNotificationEmail(array $notification, string $email, string $name): bool
-{
-    if (!class_exists(PHPMailer::class) || !notificationEnvBool('MAIL_ENABLED', true) || $email === '') {
-        return false;
-    }
-
-    $mail = new PHPMailer(true);
-    $mail->isSMTP();
-    $mail->Host = (string) notificationEnv('MAIL_HOST', '127.0.0.1');
-    $mail->Port = notificationEnvInt('MAIL_PORT', 1025);
-
-    $username = (string) notificationEnv('MAIL_USERNAME', '');
-    if ($username !== '') {
-        $mail->SMTPAuth = true;
-        $mail->Username = $username;
-        $mail->Password = (string) notificationEnv('MAIL_PASSWORD', '');
-    }
-
-    if (notificationEnvBool('MAIL_SECURE', false)) {
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-    }
-
-    $from = (string) notificationEnv('MAIL_FROM', 'Arduflow <no-reply@arduflow.local>');
-    if (preg_match('/^\s*(.*?)\s*<([^>]+)>\s*$/', $from, $match) === 1) {
-        $fromName = trim($match[1]);
-        $fromAddress = trim($match[2]);
-    } else {
-        $fromName = 'Arduflow';
-        $fromAddress = trim($from);
-    }
-
-    $frontendUrl = rtrim((string) notificationEnv('FRONTEND_URL', 'http://127.0.0.1:5173'), '/');
-    $href = (string) ($notification['href'] ?? '/dashboard');
-    $url = str_starts_with($href, 'http') ? $href : $frontendUrl . '/' . ltrim($href, '/');
-    $safeTitle = htmlspecialchars((string) ($notification['title'] ?? 'Notifikasi Arduflow'), ENT_QUOTES, 'UTF-8');
-    $safeMessage = htmlspecialchars((string) ($notification['message'] ?? ''), ENT_QUOTES, 'UTF-8');
-    $safeName = htmlspecialchars($name !== '' ? $name : 'Pengguna Arduflow', ENT_QUOTES, 'UTF-8');
-    $safeUrl = htmlspecialchars($url, ENT_QUOTES, 'UTF-8');
-    $safeAction = htmlspecialchars((string) ($notification['actionLabel'] ?? 'Buka Dashboard'), ENT_QUOTES, 'UTF-8');
-
-    $mail->Timeout = 10;
-    $mail->CharSet = 'UTF-8';
-    $mail->setFrom($fromAddress, $fromName);
-    $mail->addAddress($email, $name ?: $email);
-    $mail->isHTML(true);
-    $mail->Subject = '[Arduflow] ' . (string) ($notification['title'] ?? 'Notifikasi');
-    $mail->Body =
-        '<div style="font-family:Arial,sans-serif;background:#030B1E;color:#fff;padding:32px">' .
-        '<h2 style="margin-top:0;color:#00A2FF">ArduFlow</h2>' .
-        '<p>Halo ' . $safeName . ',</p>' .
-        '<h3 style="color:#fff;margin-bottom:8px">' . $safeTitle . '</h3>' .
-        '<p style="color:#dbe4f0;line-height:1.6">' . $safeMessage . '</p>' .
-        '<p style="margin:28px 0"><a href="' . $safeUrl . '" style="background:#FF6A00;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold">' . $safeAction . '</a></p>' .
-        '<p style="color:#b8c2d8;font-size:13px">Email ini dikirim otomatis karena ada notifikasi aktif di dashboard Arduflow Anda.</p>' .
-        '</div>';
-    $mail->AltBody = strip_tags(str_replace(['</p>', '</h3>', '</a>'], [PHP_EOL, PHP_EOL, PHP_EOL], $mail->Body));
-    $mail->send();
-
-    return true;
-}
-
 try {
     $email = strtolower(trim((string) ($_GET['email'] ?? '')));
     $userIdRaw = trim((string) ($_GET['userId'] ?? $_GET['user_id'] ?? ''));
     $userId = ctype_digit($userIdRaw) ? (int) $userIdRaw : null;
-    $name = trim((string) ($_GET['name'] ?? ''));
-    $sendEmail = filter_var((string) ($_GET['sendEmail'] ?? '1'), FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
-    $sendEmail = $sendEmail ?? true;
 
     if ($email === '' && $userId === null) {
         notificationRespond(400, [
@@ -462,23 +286,23 @@ try {
     }
 
     $pdo = notificationPdo();
-
-    $notifications = [
-        ...buildTransactionNotifications($pdo, $userId, $email),
-        ...buildWorkshopNotifications($pdo, $userId, $email),
-    ];
+    $notifications = array_merge(
+        buildTransactionNotifications($pdo, $userId, $email),
+        buildWorkshopNotifications($pdo, $userId, $email)
+    );
 
     $seen = [];
-    $notifications = array_values(array_filter($notifications, static function (array $notification) use (&$seen): bool {
+    $unique = [];
+    foreach ($notifications as $notification) {
         $key = (string) ($notification['key'] ?? '');
         if ($key === '' || isset($seen[$key])) {
-            return false;
+            continue;
         }
         $seen[$key] = true;
-        return true;
-    }));
+        $unique[] = $notification;
+    }
 
-    usort($notifications, static function (array $left, array $right): int {
+    usort($unique, static function (array $left, array $right): int {
         $priorityOrder = ['urgent' => 0, 'high' => 1, 'normal' => 2, 'low' => 3];
         $leftPriority = $priorityOrder[(string) ($left['priority'] ?? 'normal')] ?? 2;
         $rightPriority = $priorityOrder[(string) ($right['priority'] ?? 'normal')] ?? 2;
@@ -489,32 +313,13 @@ try {
         return strtotime((string) ($right['createdAt'] ?? 'now')) <=> strtotime((string) ($left['createdAt'] ?? 'now'));
     });
 
-    $sentEmailKeys = notificationSentEmailKeys($pdo, $notifications, $email);
-    foreach ($notifications as &$notification) {
-        $key = (string) $notification['key'];
-        $notification['id'] = $key;
-        $notification['emailSent'] = isset($sentEmailKeys[$key]);
-
-        if ($sendEmail && $email !== '' && !$notification['emailSent']) {
-            try {
-                if (sendNotificationEmail($notification, $email, $name)) {
-                    markNotificationEmailSent($pdo, $key, $email);
-                    $notification['emailSent'] = true;
-                }
-            } catch (Throwable $mailError) {
-                $notification['emailError'] = $mailError->getMessage();
-            }
-        }
-    }
-    unset($notification);
-
     notificationRespond(200, [
         'success' => true,
         'message' => 'Notifikasi user berhasil dimuat.',
         'data' => [
-            'notifications' => $notifications,
-            'total' => count($notifications),
-            'emailEnabled' => notificationEnvBool('MAIL_ENABLED', true),
+            'notifications' => $unique,
+            'total' => count($unique),
+            'emailEnabled' => false,
         ],
     ]);
 } catch (Throwable $exception) {
