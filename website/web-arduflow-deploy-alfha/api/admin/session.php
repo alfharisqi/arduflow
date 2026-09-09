@@ -19,6 +19,7 @@ $allowedOrigins = [
     'http://127.0.0.1:5175',
     'https://arduflow.indobilliard.com',
     'https://www.arduflow.indobilliard.com',
+        'https://web.arduflow.com',
 ];
 
 $isLocalOrigin = preg_match(

@@ -1,5 +1,5 @@
 import { apiEndpoint, apiUrl } from './apiEndpoints.js';
-import { clearUserAuthState, getStoredUserToken } from './authSession.js';
+import { getStoredUserToken } from './authSession.js';
 
 const TRANSACTION_API_URL = apiEndpoint(
   import.meta.env.VITE_TRANSACTION_API_URL,
@@ -29,10 +29,6 @@ async function requestTransactions(url, options = {}) {
     payload = await response.json();
   } catch {
     payload = null;
-  }
-
-  if (response.status === 401 && token) {
-    clearUserAuthState();
   }
 
   if (!response.ok || payload?.success === false) {

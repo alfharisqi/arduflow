@@ -44,6 +44,7 @@ function afwApplyCors(array $methods): void
     $allowedOrigins = [
         'https://arduflow.indobilliard.com',
         'https://www.arduflow.indobilliard.com',
+        'https://web.arduflow.com',
     ];
 
     $isDevelopmentOrigin = preg_match(

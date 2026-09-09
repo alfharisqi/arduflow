@@ -1344,6 +1344,9 @@ function ProjectHero({
 
     try {
       const transaction = await createTransaction({
+        userId,
+        userName: user.name || user.fullName || user.username || "",
+        email,
         itemType: "project",
         itemId: project.id,
         itemTitle: project.title,
