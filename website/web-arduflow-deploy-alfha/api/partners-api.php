@@ -83,6 +83,62 @@ function partnersTableExists(PDO $pdo, string $table): bool
         $statement->fetchColumn() !== false;
 }
 
+function partnersColumnExists(PDO $pdo, string $table, string $column): bool
+{
+    $statement =
+        $pdo->query(
+            'PRAGMA table_info(' . $table . ')'
+        );
+
+    foreach ($statement->fetchAll() as $row) {
+        if (
+            isset($row['name'])
+            && strcasecmp(
+                (string) $row['name'],
+                $column
+            ) === 0
+        ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function partnersEnsureRuntimeSchema(PDO $pdo): void
+{
+    if (!partnersTableExists($pdo, 'partners')) {
+        return;
+    }
+
+    $columns = [
+        'logo_url' =>
+            'TEXT NOT NULL DEFAULT ""',
+
+        'version' =>
+            'INTEGER NOT NULL DEFAULT 1',
+    ];
+
+    foreach ($columns as $column => $definition) {
+        if (!partnersColumnExists($pdo, 'partners', $column)) {
+            $pdo->exec(
+                'ALTER TABLE partners ADD COLUMN '
+                . $column
+                . ' '
+                . $definition
+            );
+        }
+    }
+
+    $pdo->exec(
+        'CREATE INDEX IF NOT EXISTS idx_partners_status ON partners(status)'
+    );
+
+    $pdo->exec(
+        'CREATE INDEX IF NOT EXISTS idx_partners_homepage ON partners(show_homepage, featured)'
+    );
+}
+
 function partnersSeed(PDO $pdo): void
 {
     $seed = [
@@ -1547,6 +1603,8 @@ function publishPartnerEvent(
 
 try {
     $pdo = afwPdo();
+
+    partnersEnsureRuntimeSchema($pdo);
 
     $id =
         isset($_GET['id'])

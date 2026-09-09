@@ -2,12 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { Hero } from '../components/Hero.jsx';
 import { API_BASE_URL } from '../services/apiEndpoints.js';
-
-import {
-  fetchGallerySubmissions,
-  isPublishedGallery,
-} from '../services/galleryApi.js';
-
+import { fetchGallerySubmissions, isPublishedGallery } from '../services/galleryApi.js';
 import { fetchPartners } from '../services/partnerApi.js';
 
 import {
@@ -452,31 +447,14 @@ function isApprovedPartner(partner) {
 
 function resolveAssetUrl(value) {
   const rawUrl = String(value || '').trim();
+  if (!rawUrl) return '';
+  if (/^(https?:\/\/|data:|blob:)/i.test(rawUrl)) return rawUrl;
 
-  if (!rawUrl) {
-    return '';
-  }
-
-  if (
-    /^(https?:\/\/|data:|blob:)/i.test(rawUrl)
-  ) {
-    return rawUrl;
-  }
-
-  return `${API_BASE_URL}${
-    rawUrl.startsWith('/')
-      ? rawUrl
-      : `/${rawUrl}`
-  }`;
+  return `${API_BASE_URL}${rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`}`;
 }
 
 function partnerLogoUrl(partner) {
-  return resolveAssetUrl(
-    partner?.logoUrl ||
-      partner?.logo_url ||
-      partner?.image ||
-      '',
-  );
+  return resolveAssetUrl(partner?.logoUrl || partner?.logo_url || partner?.image || '');
 }
 
 function partnerInitial(partner) {
@@ -506,93 +484,214 @@ function sourceLabel(sourceType) {
    TESTIMONIAL
 ========================================================= */
 
-function HomeTestimonials({
-  partners,
-  testimonials,
-  activeIndex,
-}) {
-  const visiblePartners =
-    partners.length
-      ? partners
-      : fallbackPartners;
-
-  const visibleTestimonials =
-    testimonials.length
-      ? testimonials
-      : fallbackTestimonials;
-
-  const featuredTestimonial =
-    visibleTestimonials[
-      activeIndex %
-        visibleTestimonials.length
-    ];
+function HomeTestimonials({ partners, testimonials, activeIndex }) {
+  const visiblePartners = partners.length ? partners : fallbackPartners;
+  const visibleTestimonials = testimonials.length ? testimonials : fallbackTestimonials;
+  const featuredTestimonial = visibleTestimonials[activeIndex % visibleTestimonials.length];
 
   return (
-    <section
-      className="community-partners"
-      aria-labelledby="community-title"
-    >
+    <section className="community-partners" aria-labelledby="community-title">
       <div className="community-partners__inner">
         <div className="community-story">
           <div className="community-story__heading">
-            <p className="section-eyebrow">
-              COMMUNITY
-            </p>
-
-            <h2 id="community-title">
-              Testimoni Pengguna
-            </h2>
+            <p className="section-eyebrow">COMMUNITY</p>
+            <h2 id="community-title">Testimoni Pengguna</h2>
           </div>
-
-          <article
-            className="testimonial-card"
-            key={
-              featuredTestimonial.id ||
-              `${featuredTestimonial.name}-${activeIndex}`
-            }
-          >
-            <blockquote>
-              "
-              {
-                featuredTestimonial.quote
-              }
-              "
-            </blockquote>
-
-            <strong>
-              {String(
-                featuredTestimonial.name ||
-                  'Pengguna Arduflow',
-              ).toUpperCase()}
-            </strong>
-
-            <span>
-              {featuredTestimonial.role ||
-                sourceLabel(
-                  featuredTestimonial.sourceType,
-                )}
-            </span>
+          <article className="testimonial-card" key={featuredTestimonial.id || `${featuredTestimonial.name}-${activeIndex}`}>
+            <blockquote>"{featuredTestimonial.quote}"</blockquote>
+            <strong>{String(featuredTestimonial.name || 'Pengguna Arduflow').toUpperCase()}</strong>
+            <span>{featuredTestimonial.role || sourceLabel(featuredTestimonial.sourceType)}</span>
           </article>
         </div>
-
-        <div
-          className="partner-panel"
-          aria-labelledby="partners-title"
-        >
-          <h2 id="partners-title">
-            Partner &amp; Kolaborator
-          </h2>
-
+        <div className="partner-panel" aria-labelledby="partners-title">
+          <h2 id="partners-title">Partner &amp; Kolaborator</h2>
           <div className="partner-list">
-            {visiblePartners.map(
-              (partner) => {
-                const logoUrl =
-                  partnerLogoUrl(partner);
+            {visiblePartners.map((partner) => {
+              const logoUrl = partnerLogoUrl(partner);
+              const partnerName = partner.name || partner.label || 'Partner';
 
-                const partnerName =
-                  partner.name ||
-                  partner.label ||
-                  'Partner';
+              return (
+                <div className="community-partner-item" key={partner.id || partnerName}>
+                  <span className={partner.featured ? 'partner-logo featured' : 'partner-logo'} aria-hidden="true">
+                    {logoUrl ? <img src={logoUrl} alt="" /> : partnerInitial(partner)}
+                  </span>
+                  <p>{partnerName}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function WhatIsIcon({ type }) {
+  const common = {
+    width: '24',
+    height: '24',
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    xmlns: 'http://www.w3.org/2000/svg',
+  };
+
+  if (type === 'layers') {
+    return (
+      <svg {...common}>
+        <path d="M12 3L3 8L12 13L21 8L12 3Z" />
+        <path d="M3 12L12 17L21 12" />
+        <path d="M3 16L12 21L21 16" />
+      </svg>
+    );
+  }
+
+  if (type === 'settings') {
+    return (
+      <svg {...common}>
+        <path d="M12 8.5A3.5 3.5 0 1 0 12 15.5A3.5 3.5 0 0 0 12 8.5Z" />
+        <path d="M19.4 15A1.65 1.65 0 0 0 19.73 16.82L19.79 16.88A2 2 0 1 1 16.96 19.71L16.9 19.65A1.65 1.65 0 0 0 15.08 19.32A1.65 1.65 0 0 0 14.08 20.83V21A2 2 0 1 1 10.08 21V20.91A1.65 1.65 0 0 0 9 19.4A1.65 1.65 0 0 0 7.18 19.73L7.12 19.79A2 2 0 1 1 4.29 16.96L4.35 16.9A1.65 1.65 0 0 0 4.68 15.08A1.65 1.65 0 0 0 3.17 14.08H3A2 2 0 1 1 3 10.08H3.09A1.65 1.65 0 0 0 4.6 9A1.65 1.65 0 0 0 4.27 7.18L4.21 7.12A2 2 0 1 1 7.04 4.29L7.1 4.35A1.65 1.65 0 0 0 8.92 4.68H9A1.65 1.65 0 0 0 10 3.17V3A2 2 0 1 1 14 3V3.09A1.65 1.65 0 0 0 15 4.6A1.65 1.65 0 0 0 16.82 4.27L16.88 4.21A2 2 0 1 1 19.71 7.04L19.65 7.1A1.65 1.65 0 0 0 19.32 8.92V9A1.65 1.65 0 0 0 20.83 10H21A2 2 0 1 1 21 14H20.91A1.65 1.65 0 0 0 19.4 15Z" />
+      </svg>
+    );
+  }
+
+  if (type === 'users') {
+    return (
+      <svg {...common}>
+        <path d="M17 21V19A4 4 0 0 0 13 15H5A4 4 0 0 0 1 19V21" />
+        <path d="M9 11A4 4 0 1 0 9 3A4 4 0 0 0 9 11Z" />
+        <path d="M23 21V19A4 4 0 0 0 20 15.13" />
+        <path d="M16 3.13A4 4 0 0 1 16 10.87" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg {...common}>
+      <path d="M2 4.5A3.5 3.5 0 0 1 5.5 3H11V21H5.5A3.5 3.5 0 0 0 2 22.5V4.5Z" />
+      <path d="M22 4.5A3.5 3.5 0 0 0 18.5 3H13V21H18.5A3.5 3.5 0 0 1 22 22.5V4.5Z" />
+    </svg>
+  );
+}
+
+function ProblemIcon({ type }) {
+  const common = {
+    width: '24',
+    height: '24',
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    xmlns: 'http://www.w3.org/2000/svg',
+  };
+
+  if (type === 'help') {
+    return (
+      <svg {...common}>
+        <path d="M12 22A10 10 0 1 0 12 2A10 10 0 0 0 12 22Z" />
+        <path d="M9.1 9A3 3 0 1 1 14.9 10.2C14.1 11.4 12 11.8 12 14" />
+        <path d="M12 17H12.01" />
+      </svg>
+    );
+  }
+
+  if (type === 'graduation') {
+    return (
+      <svg {...common}>
+        <path d="M22 10L12 5L2 10L12 15L22 10Z" />
+        <path d="M6 12.5V17C9.8 19 14.2 19 18 17V12.5" />
+        <path d="M22 10V16" />
+      </svg>
+    );
+  }
+
+  if (type === 'workflow') {
+    return (
+      <svg {...common}>
+        <path d="M6 6H10V10H6V6Z" />
+        <path d="M14 14H18V18H14V14Z" />
+        <path d="M10 8H12A4 4 0 0 1 16 12V14" />
+        <path d="M6 10V12A4 4 0 0 0 10 16H14" />
+      </svg>
+    );
+  }
+
+  if (type === 'check') {
+    return (
+      <svg {...common}>
+        <path d="M12 22A10 10 0 1 0 12 2A10 10 0 0 0 12 22Z" />
+        <path d="M8 12L11 15L16 9" />
+      </svg>
+    );
+  }
+
+  if (type === 'layers') {
+    return (
+      <svg {...common}>
+        <path d="M12 3L3 8L12 13L21 8L12 3Z" />
+        <path d="M3 12L12 17L21 12" />
+        <path d="M3 16L12 21L21 16" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg {...common}>
+      <path d="M13 2L4 14H11L10 22L20 9H13L13 2Z" />
+    </svg>
+  );
+}
+
+function BenefitCheckIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 14.5A6.5 6.5 0 1 0 8 1.5A6.5 6.5 0 0 0 8 14.5Z" />
+      <path d="M5.35 8.1L7.2 9.95L10.8 6.35" />
+    </svg>
+  );
+}
+
+function IdeAccessIcon({ type }) {
+  const common = {
+    width: '32',
+    height: '32',
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    xmlns: 'http://www.w3.org/2000/svg',
+  };
+
+  if (type === 'layers') {
+    return (
+      <svg {...common}>
+        <path d="M12 3L3 8L12 13L21 8L12 3Z" />
+        <path d="M3 12L12 17L21 12" />
+        <path d="M3 16L12 21L21 16" />
+      </svg>
+    );
+  }
+
+  if (type === 'zap') {
+    return (
+      <svg {...common}>
+        <path d="M13 2L4 14H11L10 22L20 9H13L13 2Z" />
+      </svg>
+    );
+  }
+
+  if (type === 'message') {
+    return (
+      <svg {...common}>
+        <path d="M21 15A4 4 0 0 1 17 19H7L3 23V7A4 4 0 0 1 7 3H17A4 4 0 0 1 21 7V15Z" />
+      </svg>
+    );
+  }
+
+  if (type === 'monitor') {
+    return (
+      <svg {...common}>
+        <path d="M3 4H21V16H3V4Z" />
+        <path d="M8 21H16" />
+        <path d="M12 16V21" />
+      </svg>
+    );
+  }
 
                 return (
                   <div
