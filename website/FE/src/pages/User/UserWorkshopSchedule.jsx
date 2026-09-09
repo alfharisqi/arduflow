@@ -582,20 +582,20 @@ export function UserWorkshopSchedule() {
                   const isNotificationActive = enabledNotificationIds.has(notificationKey);
                   return (
                     <div className="user-workshop-table__row" role="row" key={schedule.id}>
-                      <span>{schedule.title || 'Workshop tanpa judul'}</span>
-                      <span>
+                      <span data-label="Nama Workshop">{schedule.title || 'Workshop tanpa judul'}</span>
+                      <span data-label="Metode">
                         <b className={`user-workshop-pill user-workshop-pill--${getWorkshopMethodClass(method)}`}>
                           {method}
                         </b>
                       </span>
-                      <span>{schedule.meetingUrl || schedule.location || '-'}</span>
-                      <time>{formatWorkshopDateTime(schedule)}</time>
-                      <span>
+                      <span data-label="Lokasi Kegiatan">{schedule.meetingUrl || schedule.location || '-'}</span>
+                      <time data-label="Waktu">{formatWorkshopDateTime(schedule)}</time>
+                      <span data-label="Status">
                         <b className={`user-workshop-pill user-workshop-pill--${getWorkshopStatusClass(status)}`}>
                           {status}
                         </b>
                       </span>
-                      <span className="user-workshop-table__action-cell">
+                      <span className="user-workshop-table__action-cell" data-label="Notif">
                         <button
                           className={`user-workshop-notif${isNotificationActive ? ' user-workshop-notif--active' : ''}`}
                           type="button"
@@ -606,7 +606,7 @@ export function UserWorkshopSchedule() {
                           <img src={bellIcon} alt="" aria-hidden="true" />
                         </button>
                       </span>
-                      <span className="user-workshop-table__action-cell">
+                      <span className="user-workshop-table__action-cell" data-label="Aksi">
                         <span className="user-workshop-row-actions">
                           <button
                             className="user-workshop-detail-button"
