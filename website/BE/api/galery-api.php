@@ -2,9 +2,7 @@
 
 declare(strict_types=1);
 
-const JSON_FLAGS = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
-const MAX_COVER_SIZE = 5 * 1024 * 1024;
-const GALLERY_SELECT = 'id, title, tag, description, user_name, event_date, detail_link, note, cover_path, cover_url, cover_original_name, cover_mime, cover_size, status, payload_json, created_at, updated_at';
+use Arduflow\Api\Support\Env;
 
 ini_set('display_errors', '0');
 error_reporting(E_ALL);
@@ -538,18 +536,23 @@ try {
         ]);
     }
 
-    $projectRoot =
-        dirname(__DIR__);
+    $projectRoot = dirname(__DIR__);
+    $autoloadPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
+    $envSupportPath = $projectRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'Support' . DIRECTORY_SEPARATOR . 'Env.php';
+    $configPath = $projectRoot . '/config/database.php';
+    $imageStoragePath = $projectRoot . '/api/support/image-storage.php';
 
-    $configPath =
-        $projectRoot
-        . '/config/database.php';
+    if (is_file($autoloadPath)) {
+        require_once $autoloadPath;
+    } elseif (is_file($envSupportPath)) {
+        require_once $envSupportPath;
+    }
 
-    $imageStoragePath =
-        $projectRoot
-        . '/api/support/image-storage.php';
+    if (class_exists(Env::class)) {
+        Env::load($projectRoot . DIRECTORY_SEPARATOR . '.env');
+    }
 
-    if (is_file($imageStoragePath)) {
+    if (file_exists($imageStoragePath)) {
         require_once $imageStoragePath;
     }
 

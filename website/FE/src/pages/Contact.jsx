@@ -169,7 +169,9 @@ function ContactCategories({ activeCategory, onSelectCategory }) {
               <h3>{category.title}</h3>
               <p>{category.copy}</p>
             </div>
-            <span aria-hidden="true">↓</span>
+            <span aria-hidden="true" className="contact-category__arrow">
+              →
+            </span>
           </button>
         ))}
       </div>

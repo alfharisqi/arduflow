@@ -100,6 +100,7 @@ function projectImage(project) {
 }
 
 
+<<<<<<< HEAD
 function toolLabel(tool) {
   return String(
     tool?.name ||
@@ -110,6 +111,45 @@ function toolLabel(tool) {
 }
 
 
+=======
+function projectTimestamp(project) {
+  return new Date(
+    project.updatedAt ||
+    project.createdAt ||
+    0
+  ).getTime() || 0;
+}
+
+
+function sortByMostViewed(projects) {
+  return [...projects].sort(
+    (first, second) => {
+      const viewDifference =
+        (Number(second.viewer) || 0) -
+        (Number(first.viewer) || 0);
+
+      if (viewDifference !== 0) {
+        return viewDifference;
+      }
+
+      return projectTimestamp(second) -
+        projectTimestamp(first);
+    }
+  );
+}
+
+
+function toolLabel(tool) {
+  return String(
+    tool?.name ||
+    tool?.title ||
+    tool ||
+    ""
+  ).trim();
+}
+
+
+>>>>>>> update-proyek-galeri
 /* =========================================================
    PROJECT LINK ARROW
    Memperbaiki error:
@@ -625,29 +665,48 @@ function ProjectLibrary({
 
 
 /* =========================================================
+<<<<<<< HEAD
    CONTENT COLLECTIONS
 ========================================================= */
 
 function ContentCollections({
+=======
+   POPULAR PROJECTS
+========================================================= */
+
+function PopularProjects({
+>>>>>>> update-proyek-galeri
   projects,
 }) {
 
   const collections =
+<<<<<<< HEAD
     projects
+=======
+    sortByMostViewed(projects)
+>>>>>>> update-proyek-galeri
       .slice(0, 3)
       .map(
         (project) => ({
           eyebrow:
+<<<<<<< HEAD
             "Karya Pengguna",
+=======
+            "Proyek Paling Populer",
+>>>>>>> update-proyek-galeri
 
           title:
             project.title,
 
           metadata:
+<<<<<<< HEAD
             `oleh ${
               project.ownerName ||
               "Pengguna ArduFlow"
             }`,
+=======
+            `${formatNumber(project.viewer)} kali dilihat oleh user`,
+>>>>>>> update-proyek-galeri
 
           href:
             projectDetailHref(
@@ -666,7 +725,11 @@ function ContentCollections({
     <section
       id="dokumentasi"
       className="content-collections"
+<<<<<<< HEAD
       aria-label="Koleksi konten"
+=======
+      aria-label="Proyek paling populer"
+>>>>>>> update-proyek-galeri
     >
 
       <div className="content-collections__inner">
@@ -900,9 +963,15 @@ function FinalCta() {
 
         <a
           className="final-cta__button"
+<<<<<<< HEAD
           href="/signup"
         >
           Daftar Akses
+=======
+          href="/ide"
+        >
+          Daftar IDE
+>>>>>>> update-proyek-galeri
         </a>
 
       </div>
@@ -1026,7 +1095,11 @@ export function Project() {
       />
 
 
+<<<<<<< HEAD
       <ContentCollections
+=======
+      <PopularProjects
+>>>>>>> update-proyek-galeri
         projects={
           projects
         }
@@ -1043,4 +1116,8 @@ export function Project() {
 }
 
 
+<<<<<<< HEAD
 export default Project;
+=======
+export default Project;
+>>>>>>> update-proyek-galeri
