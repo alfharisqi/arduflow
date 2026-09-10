@@ -84,8 +84,26 @@ final class UserAuthController
         $sent = false;
         try {
             $sent = $this->mail->sendVerification($user, $rawVerificationToken);
-        } catch (\Throwable) {
+        } catch (\Throwable $exception) {
+            error_log(sprintf(
+                '[%s] Mail verification failed for user_id=%d email=%s: %s: %s%s',
+                gmdate('c'),
+                (int) $user['id'],
+                (string) $user['email'],
+                $exception::class,
+                $exception->getMessage(),
+                PHP_EOL
+            ), 3, dirname(__DIR__, 2) . '/storage/logs/app.log');
             $sent = false;
+        }
+        if (!$sent) {
+            error_log(sprintf(
+                '[%s] Mail verification not sent for user_id=%d email=%s. Check SMTP credentials, sender, TLS and mailbox spam/quarantine.%s',
+                gmdate('c'),
+                (int) $user['id'],
+                (string) $user['email'],
+                PHP_EOL
+            ), 3, dirname(__DIR__, 2) . '/storage/logs/app.log');
         }
         $this->mqtt->publish('admin/notifications', [
             'type' => 'user.registered', 'userId' => (int) $user['id'], 'createdAt' => Clock::now(),
