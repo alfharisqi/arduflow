@@ -45,6 +45,14 @@ final class MailService
         return $this->send((string) $user['email'], (string) $user['name'], 'Reset Password ArduFlow', $body);
     }
 
+    public function sendPayoutCode(array $user, string $code, string $description): bool
+    {
+        $body = '<h2>Verifikasi pencairan ArduFlow</h2><p>' . htmlspecialchars($description, ENT_QUOTES, 'UTF-8') .
+            '</p><p>Kode verifikasi: <strong>' . htmlspecialchars($code, ENT_QUOTES, 'UTF-8') .
+            '</strong></p><p>Berlaku 10 menit. Jangan bagikan kode kepada siapa pun, termasuk admin. Jika bukan Anda, jangan konfirmasi dan amankan akun Anda.</p>';
+        return $this->send((string) $user['email'], (string) $user['name'], 'Kode keamanan pencairan ArduFlow', $body);
+    }
+
     private function send(string $address, string $name, string $subject, string $html): bool
     {
         if (!(bool) $this->config->get('mail.enabled', true)) {

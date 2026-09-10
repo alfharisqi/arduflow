@@ -700,7 +700,7 @@ export function AdminTransactions() {
     try {
       await approveTransaction(transaction.id);
       await loadTransactions();
-      setMessage('Transaksi disetujui. Produk sudah aktif untuk user.');
+      setMessage(transaction.itemType === 'project_payout' ? 'Pencairan masuk proses. Periksa rekening dan lakukan transfer satu kali, lalu unggah bukti.' : 'Transaksi disetujui. Produk sudah aktif untuk user.');
     } catch (error) {
       setMessage(error.message || 'Transaksi gagal disetujui.');
     }
@@ -708,13 +708,13 @@ export function AdminTransactions() {
 
   async function handleReject(transaction) {
     setOpenActionTransactionId(null);
-    const reason = window.prompt('Alasan penolakan bukti pembayaran:', transaction.rejectionReason || '');
+    const reason = window.prompt(transaction.itemType === 'project_payout' ? 'Alasan penolakan pencairan:' : 'Alasan penolakan bukti pembayaran:', transaction.rejectionReason || '');
     if (reason === null) return;
     setMessage('Menolak transaksi...');
     try {
       await rejectTransaction(transaction.id, reason || 'Bukti pembayaran belum valid.');
       await loadTransactions();
-      setMessage('Transaksi ditolak. User dapat upload ulang bukti.');
+      setMessage(transaction.itemType === 'project_payout' ? 'Pencairan ditolak. Saldo kembali tersedia.' : 'Transaksi ditolak. User dapat upload ulang bukti.');
     } catch (error) {
       setMessage(error.message || 'Transaksi gagal ditolak.');
     }
@@ -822,10 +822,16 @@ export function AdminTransactions() {
                   <strong>{transaction.itemTitle || 'Pencairan proyek'}</strong>
                   <span>{transaction.userName || transaction.email || '-'} • {formatCurrency(transaction.amount)}</span>
                   <p>{transaction.notes || transaction.payload?.purpose || 'Tujuan pencairan belum diisi.'}</p>
+                  <p>{transaction.paymentChannel} · {transaction.paymentCode} · a.n. {transaction.recipientName}</p>
+                  <small>{transaction.invoiceNumber} · Periksa nama pemilik rekening sebelum transfer.</small>
                 </div>
                 <div className="admin-transactions-payout-actions">
                   {transaction.proofFile?.url ? <a href={transaction.proofFile.url} target="_blank" rel="noreferrer">Lihat bukti</a> : null}
-                  {transaction.status !== 'done' ? (
+                  {transaction.status === 'payout_requested' && <>
+                    <button type="button" onClick={() => handleApprove(transaction)}>Setujui & proses</button>
+                    <button type="button" onClick={() => handleReject(transaction)}>Tolak pengajuan</button>
+                  </>}
+                  {transaction.status === 'processing' ? (
                     <>
                       <label className="admin-transactions-payout-upload">
                         {payoutProofFiles[transaction.id]?.name || 'Upload bukti'}
@@ -837,7 +843,7 @@ export function AdminTransactions() {
                     </>
                   ) : null}
                   <b className={`admin-transactions-payout-status is-${transaction.status}`}>
-                    {transaction.status === 'done' ? 'Selesai' : transaction.status === 'proof_sent' ? 'Bukti terkirim' : transaction.status === 'processing' ? 'Diproses' : 'Menunggu'}
+                    {transaction.status === 'done' ? 'Selesai' : transaction.status === 'proof_sent' ? 'Bukti terkirim' : transaction.status === 'processing' ? 'Diproses' : transaction.status === 'rejected' ? 'Ditolak' : 'Menunggu'}
                   </b>
                 </div>
               </article>

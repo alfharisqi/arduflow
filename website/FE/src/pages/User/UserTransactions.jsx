@@ -314,6 +314,7 @@ export function UserTransactions() {
               <div>
                 <h2 id="payment-instructions-title">Butuh Aksi Kamu</h2>
                 <p>Selesaikan pembayaran atau konfirmasi pencairan dana yang sudah dikirim admin.</p>
+                <a className="user-transactions-proof-link" href="/proyek-saya?tab=selling">Ajukan pencairan / kelola PIN & rekening</a>
               </div>
             </div>
 

@@ -15,6 +15,7 @@ use Arduflow\Api\Controllers\ProgramController;
 use Arduflow\Api\Controllers\UserAuthController;
 use Arduflow\Api\Controllers\WorkshopController;
 use Arduflow\Api\Database\ConnectionFactory;
+use Arduflow\Api\Database\LegacyApiMigrator;
 use Arduflow\Api\Database\SqliteMigrator;
 use Arduflow\Api\Http\Request;
 use Arduflow\Api\Http\Response;
@@ -54,6 +55,7 @@ final class Application
     ) {
         $sqlite = $connections->sqlite();
         (new SqliteMigrator($root . '/migrations/sqlite'))->migrate($sqlite);
+        (new LegacyApiMigrator())->migrate($sqlite);
 
         $syncStatus = new SyncStatusRepository($sqlite);
         $health = new HealthController($syncStatus, new DatabaseHealthService($connections, $syncStatus));
