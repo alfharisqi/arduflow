@@ -100,33 +100,6 @@ function projectImage(project) {
 }
 
 
-function projectTimestamp(project) {
-  return new Date(
-    project.updatedAt ||
-    project.createdAt ||
-    0
-  ).getTime() || 0;
-}
-
-
-function sortByMostViewed(projects) {
-  return [...projects].sort(
-    (first, second) => {
-      const viewDifference =
-        (Number(second.viewer) || 0) -
-        (Number(first.viewer) || 0);
-
-      if (viewDifference !== 0) {
-        return viewDifference;
-      }
-
-      return projectTimestamp(second) -
-        projectTimestamp(first);
-    }
-  );
-}
-
-
 function toolLabel(tool) {
   return String(
     tool?.name ||
@@ -652,26 +625,29 @@ function ProjectLibrary({
 
 
 /* =========================================================
-   POPULAR PROJECTS
+   CONTENT COLLECTIONS
 ========================================================= */
 
-function PopularProjects({
+function ContentCollections({
   projects,
 }) {
 
   const collections =
-    sortByMostViewed(projects)
+    projects
       .slice(0, 3)
       .map(
         (project) => ({
           eyebrow:
-            "Proyek Paling Populer",
+            "Karya Pengguna",
 
           title:
             project.title,
 
           metadata:
-            `${formatNumber(project.viewer)} kali dilihat oleh user`,
+            `oleh ${
+              project.ownerName ||
+              "Pengguna ArduFlow"
+            }`,
 
           href:
             projectDetailHref(
@@ -690,7 +666,7 @@ function PopularProjects({
     <section
       id="dokumentasi"
       className="content-collections"
-      aria-label="Proyek paling populer"
+      aria-label="Koleksi konten"
     >
 
       <div className="content-collections__inner">
@@ -924,9 +900,9 @@ function FinalCta() {
 
         <a
           className="final-cta__button"
-          href="/ide"
+          href="/signup"
         >
-          Daftar IDE
+          Daftar Akses
         </a>
 
       </div>
@@ -1050,7 +1026,7 @@ export function Project() {
       />
 
 
-      <PopularProjects
+      <ContentCollections
         projects={
           projects
         }
