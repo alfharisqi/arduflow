@@ -634,27 +634,65 @@ function MateriCatalog() {
             <p>Terapkan materi yang sudah kamu pelajari melalui project nyata.</p>
           </div>
           <div className="materials-project-grid">
-            {projectCards.map((project) => (
-              <article className="materials-project-card" key={project.id}>
-                <img src={project.coverImageUrl || projectFallbackImage} alt={project.title} loading="lazy" />
-                <div>
-                  <span>{projectMetaText(project.difficulty, 'Pemula')}</span>
-                  <h3>{project.title}</h3>
-                  <small>{projectMetaText(project.category || project.tools?.[0], 'IoT')} • {projectComponentsLabel(project)}</small>
-                  <p>
-                    {projectDescriptionText(
-                      project.description ||
-                        project.shortDescription ||
-                        project.fullDescription
-                    )}
-                  </p>
-                  <a href={String(project.id).startsWith('fallback-project') ? '/project' : `/project/detail?id=${encodeURIComponent(project.id)}`}>
-                    Lihat Project <span aria-hidden="true"></span>
-                  </a>
-                </div>
-              </article>
-            ))}
-          </div>
+          {projectCards.slice(0, 3).map((project) => (
+            <article
+              className="materials-project-card"
+              key={project.id}
+            >
+              <img
+                src={
+                  project.coverImageUrl ||
+                  projectFallbackImage
+                }
+                alt={project.title}
+                loading="lazy"
+              />
+
+              <div>
+                <span>
+                  {projectMetaText(
+                    project.difficulty,
+                    'Pemula'
+                  )}
+                </span>
+
+                <h3>{project.title}</h3>
+
+                <small>
+                  {projectMetaText(
+                    project.category ||
+                      project.tools?.[0],
+                    'IoT'
+                  )}{' '}
+                  • {projectComponentsLabel(project)}
+                </small>
+
+                <p>
+                  {projectDescriptionText(
+                    project.description ||
+                      project.shortDescription ||
+                      project.fullDescription
+                  )}
+                </p>
+
+                <a
+                  href={
+                    String(project.id).startsWith(
+                      'fallback-project'
+                    )
+                      ? '/project'
+                      : `/project/detail?id=${encodeURIComponent(
+                          project.id
+                        )}`
+                  }
+                >
+                  Lihat Project{' '}
+                  <span aria-hidden="true"></span>
+                </a>
+              </div>
+            </article>
+          ))}
+        </div>
         </section>
 
         <section className="materials-section" aria-labelledby="materials-latest-title">

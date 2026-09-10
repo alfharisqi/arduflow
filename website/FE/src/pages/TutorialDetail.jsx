@@ -1194,27 +1194,12 @@ export function TutorialDetail() {
     }
   };
 
-  const completeActiveSlide = () => {
-    if (
-      showOverview ||
-      !activeSlide
-    ) {
-      return;
-    }
-
-    markSlideCompleted(
-      activeSlide.id
-    );
-  };
-
   const openOverview = () => {
     /*
-     * Jika user meninggalkan materi untuk
-     * kembali ke overview, materi aktif
-     * dianggap sudah dibaca.
+     * Kembali ke overview TIDAK menambah progress.
+     * Progress hanya bertambah ketika user menekan
+     * tombol "Materi Selanjutnya".
      */
-    completeActiveSlide();
-
     setShowOverview(true);
 
     window.scrollTo({
@@ -1235,22 +1220,16 @@ export function TutorialDetail() {
     }
 
     /*
-     * Saat user berpindah ke materi lain
-     * melalui tombol Next/Previous,
-     * daftar materi, atau related card,
-     * materi yang sedang dibuka ditandai
-     * selesai dibaca.
+     * Fungsi ini HANYA berpindah materi.
+     *
+     * Klik dari:
+     * - Daftar Materi
+     * - Materi Sebelumnya
+     * - Related material
+     * - Mulai Materi
+     *
+     * TIDAK menambah progress.
      */
-    if (
-      !showOverview &&
-      activeSlide &&
-      nextIndex !== activeIndex
-    ) {
-      markSlideCompleted(
-        activeSlide.id
-      );
-    }
-
     setShowOverview(false);
     setActiveIndex(nextIndex);
 
@@ -1279,6 +1258,18 @@ export function TutorialDetail() {
       return;
     }
 
+    /*
+     * SATU-SATUNYA aksi navigasi yang
+     * menambah progress adalah tombol
+     * "Materi Selanjutnya".
+     *
+     * Materi yang sedang dibaca ditandai
+     * selesai, lalu pindah ke materi berikutnya.
+     */
+    markSlideCompleted(
+      activeSlide.id
+    );
+
     if (
       activeIndex <
       slides.length - 1
@@ -1294,21 +1285,20 @@ export function TutorialDetail() {
    * SELESAIKAN MATERI
    * ================================
    *
-   * Tombol ini berarti user menyatakan
-   * seluruh materi selesai. Karena itu,
-   * semua slide ditandai selesai agar
-   * progress menjadi 100%.
+   * Pada materi terakhir tidak ada tombol
+   * "Materi Selanjutnya", jadi tombol
+   * "Selesaikan Materi" dipakai untuk
+   * menandai materi terakhir sebagai selesai.
+   *
+   * Tombol ini TIDAK otomatis menandai
+   * materi lain yang dilewati user.
    */
   const finishTutorial = () => {
-    const allSlideIds =
-      slides.map(
-        (slide) =>
-          String(slide.id)
+    if (activeSlide) {
+      markSlideCompleted(
+        activeSlide.id
       );
-
-    saveCompletedSlideIds(
-      allSlideIds
-    );
+    }
 
     // Kembali ke halaman daftar materi.
     window.location.href =
