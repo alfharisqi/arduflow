@@ -15,6 +15,7 @@ use Arduflow\Api\Services\MailService;
 use Arduflow\Api\Services\MqttService;
 use Arduflow\Api\Support\Clock;
 use Arduflow\Api\Validation\AuthValidator;
+use PDOException;
 
 final class UserAuthController
 {
@@ -51,22 +52,33 @@ final class UserAuthController
         if (!AuthValidator::password($password)) {
             return Response::json(['message' => 'Kata sandi minimal 8 karakter dengan kombinasi huruf, angka, dan simbol.'], 422);
         }
-        if ($this->users->findByEmail($email)) {
+        if ($this->users->findAnyByEmail($email)) {
             return Response::json(['message' => 'Email sudah terdaftar.'], 409);
         }
-        if ($this->users->findByWhatsapp($whatsapp)) {
+        if ($this->users->findAnyByWhatsapp($whatsapp)) {
             return Response::json(['message' => 'Nomor WhatsApp sudah terdaftar.'], 409);
         }
 
         $rawVerificationToken = $this->tokens->random();
-        $user = $this->users->create([
-            'name' => $name,
-            'email' => $email,
-            'whatsapp' => $whatsapp,
-            'occupation' => $occupation,
-            'password_hash' => $this->passwords->hash($password),
-            'verification_token' => $this->tokens->hash($rawVerificationToken),
-        ]);
+        try {
+            $user = $this->users->create([
+                'name' => $name,
+                'email' => $email,
+                'whatsapp' => $whatsapp,
+                'occupation' => $occupation,
+                'password_hash' => $this->passwords->hash($password),
+                'verification_token' => $this->tokens->hash($rawVerificationToken),
+            ]);
+        } catch (PDOException $exception) {
+            $databaseMessage = $exception->getMessage();
+            if (str_contains($databaseMessage, 'users.email')) {
+                return Response::json(['message' => 'Email sudah terdaftar.'], 409);
+            }
+            if (str_contains($databaseMessage, 'users.whatsapp')) {
+                return Response::json(['message' => 'Nomor WhatsApp sudah terdaftar.'], 409);
+            }
+            throw $exception;
+        }
         $this->logs->record('register_success', true, (int) $user['id'], $email);
 
         $sent = false;
@@ -225,13 +237,13 @@ final class UserAuthController
             if (!AuthValidator::email($email)) {
                 return Response::json(['message' => 'Format email tidak valid.'], 422);
             }
-            $result['emailAvailable'] = $this->users->findByEmail($email) === null;
+            $result['emailAvailable'] = $this->users->findAnyByEmail($email) === null;
         }
         if ($whatsapp !== '') {
             if (!AuthValidator::whatsapp($whatsapp)) {
                 return Response::json(['message' => 'Nomor WhatsApp harus memakai kode negara dan berisi 8-15 digit.'], 422);
             }
-            $result['whatsappAvailable'] = $this->users->findByWhatsapp($whatsapp) === null;
+            $result['whatsappAvailable'] = $this->users->findAnyByWhatsapp($whatsapp) === null;
         }
         return Response::json($result);
     }

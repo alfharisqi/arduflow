@@ -30,12 +30,65 @@ final class UserRepository
         );
     }
 
-    public function findByWhatsapp(string $whatsapp): ?array
+    public function findAnyByEmail(string $email): ?array
     {
         return $this->one(
-            'SELECT * FROM users WHERE whatsapp = :whatsapp AND deleted_at IS NULL',
-            ['whatsapp' => $whatsapp],
+            'SELECT * FROM users WHERE LOWER(email) = LOWER(:email) LIMIT 1',
+            ['email' => $email],
         );
+    }
+
+    public function findByWhatsapp(string $whatsapp): ?array
+    {
+        return $this->findWhatsapp($whatsapp, false);
+    }
+
+    public function findAnyByWhatsapp(string $whatsapp): ?array
+    {
+        return $this->findWhatsapp($whatsapp, true);
+    }
+
+    private function findWhatsapp(string $whatsapp, bool $includeDeleted): ?array
+    {
+        $variants = $this->whatsappVariants($whatsapp);
+        if ($variants === []) {
+            return null;
+        }
+
+        $placeholders = [];
+        $params = [];
+        foreach ($variants as $index => $variant) {
+            $key = ':whatsapp' . $index;
+            $placeholders[] = $key;
+            $params[$key] = $variant;
+        }
+
+        return $this->one(
+            'SELECT * FROM users WHERE whatsapp IN (' . implode(', ', $placeholders) . ')' .
+            ($includeDeleted ? '' : ' AND deleted_at IS NULL') .
+            ' LIMIT 1',
+            $params,
+        );
+    }
+
+    private function whatsappVariants(string $whatsapp): array
+    {
+        $value = trim($whatsapp);
+        if ($value === '') {
+            return [];
+        }
+
+        $digits = preg_replace('/\D+/', '', $value) ?? '';
+        $variants = [$value];
+        if ($digits !== '') {
+            $variants[] = '+' . $digits;
+            $variants[] = $digits;
+            if (str_starts_with($digits, '62')) {
+                $variants[] = '0' . substr($digits, 2);
+            }
+        }
+
+        return array_values(array_unique(array_filter($variants, static fn (string $variant): bool => trim($variant) !== '')));
     }
 
     public function findByUsername(string $username): ?array

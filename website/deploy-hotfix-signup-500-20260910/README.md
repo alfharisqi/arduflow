@@ -1,23 +1,26 @@
-Hotfix signup 500
+Hotfix signup availability dan duplicate nomor/email
 
 Upload file berikut ke hosting, sesuai path yang sama:
 
 - app/Application.php
 - app/Database/LegacyApiMigrator.php
+- app/Controllers/UserAuthController.php
+- app/Repositories/UserRepository.php
 
 Tidak perlu build atau upload FE/dist karena FE berjalan lokal.
 
 Masalah yang diperbaiki:
 
-- CORS sudah lewat, tetapi signup valid masuk status 500.
-- Penyebab paling kuat: database hosting sudah pernah menandai migration 001_initial sebagai applied, sementara isi 001_initial kemudian bertambah tabel/kolom seperti sync_outbox.
-- Saat register user berhasil insert, UserRepository menulis event ke sync_outbox. Jika sync_outbox belum ada karena migrasi lama tidak dijalankan ulang, request register crash 500.
-- Application sekarang menjalankan LegacyApiMigrator setelah SqliteMigrator. Migrator ini membuat/menambah tabel kompatibilitas lama seperti sync_outbox, auth_tokens, transaksi, payment_methods, dan tabel pendukung lain tanpa menghapus data.
+- Field nomor WhatsApp bisa hijau di cek realtime, tetapi setelah klik Daftar muncul Nomor WhatsApp sudah terdaftar.
+- Penyebabnya availability sebelumnya memakai findByWhatsapp yang hanya membaca user aktif/deleted_at NULL, sedangkan UNIQUE index database tetap menolak nomor/email yang sudah ada walaupun row lama soft-deleted.
+- Availability dan register sekarang memakai findAnyByEmail/findAnyByWhatsapp, yaitu cek yang mengikuti constraint database.
+- WhatsApp juga dicek dengan beberapa variasi umum: +628xxx, 628xxx, dan 08xxx untuk mengurangi mismatch format lama.
+- Jika submit tetap terkena duplicate dari database, backend mengembalikan 409 dengan pesan yang benar, bukan 500.
 
 Urutan cek:
 
-1. Upload app/Application.php.
-2. Upload app/Database/LegacyApiMigrator.php.
-3. Hard refresh FE lokal.
-4. Coba signup ulang dengan email baru.
-5. Jika masih 500, buka file hosting storage/logs/app.log dan kirim 10 baris terakhir supaya stack trace pasti terlihat.
+1. Upload semua file di atas.
+2. Hard refresh FE lokal atau restart Vite.
+3. Isi email/nomor yang sama seperti tadi.
+4. Saat blur field nomor/email, status harus langsung merah jika datanya sudah pernah dipakai.
+5. Untuk signup sukses, gunakan email baru dan nomor WhatsApp baru.

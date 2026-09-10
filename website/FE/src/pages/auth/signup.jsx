@@ -119,7 +119,20 @@ export function SignUp() {
       sessionStorage.setItem('arduflow_auth_message', data.message);
       window.location.assign('/signup/email-verification');
     } catch (error) {
-      setStatus({ type: 'error', message: error.message });
+      const message = error.message || 'Registrasi gagal.';
+      setStatus({ type: 'error', message });
+      if (/whatsapp/i.test(message)) {
+        setFieldStatus((current) => ({
+          ...current,
+          whatsapp: { type: 'error', message: 'Nomor WhatsApp sudah terdaftar.' },
+        }));
+      }
+      if (/email/i.test(message)) {
+        setFieldStatus((current) => ({
+          ...current,
+          email: { type: 'error', message: 'Email sudah terdaftar.' },
+        }));
+      }
     } finally {
       setIsSubmitting(false);
     }
