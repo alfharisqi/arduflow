@@ -1405,6 +1405,9 @@ function ProjectHero({
           </div>
 
           <h1 id="project-detail-title">{project.title}</h1>
+          <p className="project-detail__creator">
+            Dibuat oleh <strong>{project.ownerName || "Nama pembuat belum tersedia"}</strong>
+          </p>
           <div className="project-detail__description-wrapper">
             <div
               className="project-detail__description mce-content-body"

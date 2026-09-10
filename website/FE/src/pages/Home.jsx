@@ -693,45 +693,14 @@ function IdeAccessIcon({ type }) {
     );
   }
 
-                return (
-                  <div
-                    className="community-partner-item"
-                    key={
-                      partner.id ||
-                      partnerName
-                    }
-                  >
-                    <span
-                      className={
-                        partner.featured
-                          ? 'partner-logo featured'
-                          : 'partner-logo'
-                      }
-                      aria-hidden="true"
-                    >
-                      {logoUrl ? (
-                        <img
-                          src={logoUrl}
-                          alt=""
-                        />
-                      ) : (
-                        partnerInitial(
-                          partner,
-                        )
-                      )}
-                    </span>
-
-                    <p>
-                      {partnerName}
-                    </p>
-                  </div>
-                );
-              },
-            )}
-          </div>
-        </div>
-      </div>
-    </section>
+  return (
+    <svg {...common}>
+      <path d="M14 2H6A2 2 0 0 0 4 4V20A2 2 0 0 0 6 22H18A2 2 0 0 0 20 20V8L14 2Z" />
+      <path d="M14 2V8H20" />
+      <path d="M8 13H16" />
+      <path d="M8 17H16" />
+      <path d="M8 9H10" />
+    </svg>
   );
 }
 
