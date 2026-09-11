@@ -43,6 +43,9 @@ function normalizeProject(project) {
     description: project.description || 'Belum ada deskripsi proyek.',
     status: project.status || 'draft',
     visibility: project.visibility || 'draft',
+    userId: project.userId || project.user_id || project.ownerId || project.owner_id || project.payload?.userId || project.payload?.user_id || null,
+    ownerEmail: project.ownerEmail || project.owner_email || project.payload?.ownerEmail || project.payload?.owner_email || project.payload?.email || '',
+    ownerUsername: project.ownerUsername || project.owner_username || project.payload?.ownerUsername || project.payload?.owner_username || '',
     ownerName: project.ownerName || 'User',
     difficulty: project.difficulty || 'Pemula',
     estimatedTime: project.estimatedTime || '',
@@ -169,6 +172,40 @@ export async function deleteProjectRating(id, params = {}) {
 
   if (!response.ok || payload.success === false) {
     throw new Error(payload.message || `Gagal menghapus rating proyek. HTTP ${response.status}`);
+  }
+
+  return normalizeProject(payload.data?.project || payload.project || payload.data || {});
+}
+
+export async function updateProjectRatingReply(id, reply, params = {}) {
+  const projectId = String(id || '').trim();
+
+  if (!projectId) {
+    throw new Error('ID proyek tidak tersedia.');
+  }
+
+  const url = new URL(PROJECT_API_URL, window.location.origin);
+  url.searchParams.set('id', projectId);
+  url.searchParams.set('action', 'rating-reply');
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+      url.searchParams.set(key, String(value).trim());
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(reply || {}),
+  });
+  const responseText = await response.text();
+  const payload = responseText ? JSON.parse(responseText) : {};
+
+  if (!response.ok || payload.success === false) {
+    throw new Error(payload.message || `Gagal menyimpan balasan review. HTTP ${response.status}`);
   }
 
   return normalizeProject(payload.data?.project || payload.project || payload.data || {});

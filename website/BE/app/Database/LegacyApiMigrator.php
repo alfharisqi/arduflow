@@ -576,9 +576,7 @@ final class LegacyApiMigrator
         $pdo->exec('CREATE INDEX IF NOT EXISTS idx_partners_status ON partners(status)');
         $pdo->exec('CREATE INDEX IF NOT EXISTS idx_partners_homepage ON partners(show_homepage, featured)');
 
-        if ($tableWasMissing) {
-            $this->seedPartners($pdo);
-        }
+        unset($tableWasMissing);
     }
 
     private function testimonials(PDO $pdo): void

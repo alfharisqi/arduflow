@@ -8,6 +8,20 @@ import {
 } from '../../services/userNotificationApi.js';
 import { getStoredUser } from '../../services/authSession.js';
 
+const SETTINGS_KEY = 'arduflow_user_settings';
+
+const defaultNotificationSettings = {
+  workshopReminder: true,
+  transactionStatus: true,
+  certificateReady: true,
+  testimonialRequest: true,
+  projectSale: true,
+  projectReview: true,
+  payoutStatus: true,
+  emailNotification: true,
+  dashboardNotification: true,
+};
+
 function formatNotificationTime(value) {
   if (!value) return 'Baru saja';
   const date = new Date(value);
@@ -34,6 +48,57 @@ function adminPriority(notification) {
   return priority;
 }
 
+function getNotificationSettings() {
+  try {
+    const raw = window.localStorage.getItem(SETTINGS_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return {
+      ...defaultNotificationSettings,
+      ...(parsed?.notifications || {}),
+    };
+  } catch {
+    return defaultNotificationSettings;
+  }
+}
+
+function notificationSettingKey(type) {
+  const normalizedType = String(type || '').toLowerCase();
+  if (normalizedType === 'workshop_reminder') return 'workshopReminder';
+  if (normalizedType === 'certificate') return 'certificateReady';
+  if (normalizedType === 'testimonial') return 'testimonialRequest';
+  if (normalizedType === 'project_sale') return 'projectSale';
+  if (normalizedType === 'project_review') return 'projectReview';
+  if (normalizedType === 'payout' || normalizedType === 'payout_activity') return 'payoutStatus';
+  if (normalizedType === 'transaction') return 'transactionStatus';
+  return null;
+}
+
+function filterNotificationsBySettings(rows, settings) {
+  if (!settings.dashboardNotification) return [];
+  return rows.filter((notification) => {
+    const key = notificationSettingKey(notification.type);
+    return key ? settings[key] !== false : true;
+  });
+}
+
+function enabledNotificationTypes(settings) {
+  const pairs = [
+    ['workshopReminder', 'workshop_reminder'],
+    ['certificateReady', 'certificate'],
+    ['testimonialRequest', 'testimonial'],
+    ['projectSale', 'project_sale'],
+    ['projectReview', 'project_review'],
+    ['payoutStatus', 'payout'],
+    ['payoutStatus', 'payout_activity'],
+    ['transactionStatus', 'transaction'],
+  ];
+
+  return pairs
+    .filter(([settingKey]) => settings[settingKey] !== false)
+    .map(([, type]) => type)
+    .join(',');
+}
+
 export function UserDashboardTopbar({ fullName, profileImage }) {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -54,10 +119,18 @@ export function UserDashboardTopbar({ fullName, profileImage }) {
   async function loadNotifications({ sendEmail = true } = {}) {
     const userId = user.id || user.userId || user.user_id || '';
     const email = user.email || '';
+    const settings = getNotificationSettings();
+    const shouldSendEmail = sendEmail && settings.emailNotification !== false;
 
     if (!userId && !email) {
       setNotifications([]);
       setError('Login diperlukan untuk memuat notifikasi.');
+      return;
+    }
+
+    if (!settings.dashboardNotification && !shouldSendEmail) {
+      setNotifications([]);
+      setError('');
       return;
     }
 
@@ -68,9 +141,10 @@ export function UserDashboardTopbar({ fullName, profileImage }) {
       const rows = await fetchUserNotifications({
         userId,
         email,
-        sendEmail: sendEmail ? 1 : 0,
+        sendEmail: shouldSendEmail ? 1 : 0,
+        enabledTypes: enabledNotificationTypes(settings),
       });
-      setNotifications(rows);
+      setNotifications(filterNotificationsBySettings(rows, settings));
     } catch (loadError) {
       setNotifications([]);
       setError(loadError.message || 'Notifikasi tidak dapat dimuat.');
@@ -156,7 +230,7 @@ export function UserDashboardTopbar({ fullName, profileImage }) {
                 {error ? (
                   <p className="admin-notification-empty">{error}</p>
                 ) : notifications.length ? (
-                  notifications.map((notification, index) => (
+                  notifications.map((notification) => (
                     <button
                       className={`admin-notification-item is-${adminPriority(notification)}`}
                       key={notification.key}

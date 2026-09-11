@@ -128,11 +128,10 @@ const fallbackPartners = [
 
 const fallbackTestimonials = [
   {
-    quote:
-      'Arduflow membantu peserta memahami alur kerja Arduino dan IoT tanpa langsung terbebani coding. Visual programming sangat membantu.',
-    name: 'Budi Santoso',
-    role: 'Guru SMKN 1 Glagah',
-    sourceType: 'workshop',
+    quote: 'Belum ada testimonial',
+    name: '',
+    role: '',
+    sourceType: 'empty',
   },
 ];
 
@@ -485,7 +484,7 @@ function sourceLabel(sourceType) {
 ========================================================= */
 
 function HomeTestimonials({ partners, testimonials, activeIndex }) {
-  const visiblePartners = partners.length ? partners : fallbackPartners;
+  const visiblePartners = partners;
   const visibleTestimonials = testimonials.length ? testimonials : fallbackTestimonials;
   const featuredTestimonial = visibleTestimonials[activeIndex % visibleTestimonials.length];
 
@@ -1014,8 +1013,7 @@ export function Home() {
 
   useEffect(() => {
     const testimonialCount =
-      homeTestimonials.length ||
-      fallbackTestimonials.length;
+      homeTestimonials.length;
 
     if (
       testimonialCount <= 1

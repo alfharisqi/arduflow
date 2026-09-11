@@ -11,6 +11,7 @@ import {
   isPublicProject,
   deleteProjectRating,
   updateProjectRating,
+  updateProjectRatingReply,
   updateProjectInteraction,
 } from "../services/projectApi.js";
 import { createTransaction, fetchTransactions } from "../services/transactionApi.js";
@@ -63,6 +64,74 @@ function getUserDisplayName(user) {
   return String(user?.name || user?.fullName || user?.username || getUserEmail(user) || "User").trim();
 }
 
+function normalizeIdentity(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function isCurrentUserProjectOwner(project, user = getStoredUser()) {
+  if (!project || !user) {
+    return false;
+  }
+
+  const userId = getUserId(user);
+  const userEmail = getUserEmail(user);
+  const userName = user?.name || user?.fullName || user?.full_name || "";
+  const username = user?.username || user?.nickname || "";
+  const payload = project.payload && typeof project.payload === "object" ? project.payload : {};
+
+  const projectOwnerIds = [
+    project.userId,
+    project.user_id,
+    project.ownerId,
+    project.owner_id,
+    payload.userId,
+    payload.user_id,
+    payload.ownerId,
+    payload.owner_id,
+  ].filter((value) => value !== undefined && value !== null && String(value).trim() !== "");
+
+  if (userId !== null && userId !== undefined && projectOwnerIds.some((ownerId) => String(ownerId) === String(userId))) {
+    return true;
+  }
+
+  const userEmails = [
+    userEmail,
+  ].map(normalizeIdentity).filter(Boolean);
+
+  const projectOwnerEmails = [
+    project.ownerEmail,
+    project.owner_email,
+    payload.ownerEmail,
+    payload.owner_email,
+    payload.email,
+    payload.userEmail,
+    payload.user_email,
+  ].map(normalizeIdentity).filter(Boolean);
+
+  if (userEmails.length && projectOwnerEmails.some((email) => userEmails.includes(email))) {
+    return true;
+  }
+
+  const userNames = [
+    userName,
+    username,
+  ].map(normalizeIdentity).filter(Boolean);
+
+  const projectOwnerNames = [
+    project.ownerName,
+    project.ownerUsername,
+    project.owner_username,
+    payload.ownerName,
+    payload.owner_name,
+    payload.ownerUsername,
+    payload.owner_username,
+    payload.name,
+    payload.username,
+  ].map(normalizeIdentity).filter(Boolean);
+
+  return userNames.length > 0 && projectOwnerNames.some((name) => userNames.includes(name));
+}
+
 function getInitials(name) {
   return String(name || "User")
     .split(" ")
@@ -107,6 +176,10 @@ function normalizeProjectReviews(reviews = []) {
       authorName: String(review?.authorName || review?.userName || review?.name || "User").trim(),
       authorEmail: String(review?.authorEmail || review?.email || "").trim(),
       authorAvatarUrl: backendAssetUrl(review?.authorAvatarUrl || ""),
+      ownerReply: String(review?.ownerReply || review?.owner_reply || "").trim(),
+      ownerReplyBy: String(review?.ownerReplyBy || review?.owner_reply_by || "").trim(),
+      ownerReplyAt: review?.ownerReplyAt || review?.owner_reply_at || null,
+      ownerReplyUpdatedAt: review?.ownerReplyUpdatedAt || review?.owner_reply_updated_at || null,
       createdAt: review?.createdAt || review?.created_at || null,
       updatedAt: review?.updatedAt || review?.updated_at || null,
     }))
@@ -421,12 +494,16 @@ function InfoNotice() {
   );
 }
 
-function ProjectSocialActions({ stats, onLike, onSave, onShare, onComment }) {
+function ProjectSocialActions({ stats, onLike, onSave, onShare, onComment, isProjectOwner = false }) {
   const actions = [
     { type: "like", label: "Suka", count: stats.likes, active: stats.liked, onClick: onLike },
     { type: "comment", label: "Komentar", count: stats.comments, active: false, onClick: onComment },
     { type: "share", label: "Bagikan", count: stats.shares, active: false, onClick: onShare },
-  ];
+  ].filter((action) => (
+    isProjectOwner
+      ? !["like", "comment"].includes(action.type)
+      : true
+  ));
 
   return (
     <section className="project-social-actions" aria-label="Interaksi proyek">
@@ -447,16 +524,18 @@ function ProjectSocialActions({ stats, onLike, onSave, onShare, onComment }) {
           ))}
         </div>
 
-        <button
-          className={`project-social-actions__button${stats.saved ? " is-active" : ""}`}
-          type="button"
-          onClick={onSave}
-          aria-pressed={stats.saved}
-          title={stats.saved ? "Batalkan simpan" : "Simpan proyek"}
-        >
-          <SocialIcon type="save" />
-          <span>{formatNumber(stats.saves)}</span>
-        </button>
+        {!isProjectOwner ? (
+          <button
+            className={`project-social-actions__button${stats.saved ? " is-active" : ""}`}
+            type="button"
+            onClick={onSave}
+            aria-pressed={stats.saved}
+            title={stats.saved ? "Batalkan simpan" : "Simpan proyek"}
+          >
+            <SocialIcon type="save" />
+            <span>{formatNumber(stats.saves)}</span>
+          </button>
+        ) : null}
       </div>
 
       <p>
@@ -502,6 +581,15 @@ function ProjectReview({
   isEditing,
   isSubmitting,
   inputRef,
+  isProjectOwner = false,
+  ownerReplyDrafts = {},
+  ownerReplyEditingId = "",
+  ownerReplyError = "",
+  isSubmittingOwnerReply = false,
+  onStartOwnerReply,
+  onCancelOwnerReply,
+  onOwnerReplyDraftChange,
+  onSubmitOwnerReply,
   onStartEdit,
   onCancelEdit,
   onDelete,
@@ -511,7 +599,7 @@ function ProjectReview({
   onSubmit,
 }) {
   const roundedAverage = Math.min(5, Math.max(0, Number(average) || 0));
-  const formVisible = isEditing || !viewerReview;
+  const formVisible = !isProjectOwner && (isEditing || !viewerReview);
   const visibleReviews = viewerReview
     ? reviews.filter((review) => review.identity !== viewerReview.identity && review.id !== viewerReview.id)
     : reviews;
@@ -524,7 +612,7 @@ function ProjectReview({
           <span>/ 5</span>
           <small>{count ? `${formatNumber(count)} review` : "Belum ada review"}</small>
         </div>
-        {viewerReview && !isEditing ? (
+        {viewerReview && !isEditing && !isProjectOwner ? (
           <div className="project-review__actions">
             <button type="button" onClick={onStartEdit}>Edit Review</button>
             <button type="button" onClick={onDelete} disabled={isSubmitting}>Hapus</button>
@@ -548,12 +636,27 @@ function ProjectReview({
             <span>{viewerReview.value}/5</span>
           </header>
           {viewerReview.message ? <p>{viewerReview.message}</p> : null}
+          {viewerReview.ownerReply ? (
+            <div className="project-review__owner-reply">
+              <strong>Balasan owner</strong>
+              <p>{viewerReview.ownerReply}</p>
+              {viewerReview.ownerReplyUpdatedAt || viewerReview.ownerReplyAt ? (
+                <time>{formatCommentDate(viewerReview.ownerReplyUpdatedAt || viewerReview.ownerReplyAt)}</time>
+              ) : null}
+            </div>
+          ) : null}
           <div className="project-review__mine-categories">
             {PROJECT_REVIEW_CATEGORIES.map((category) => (
               <span key={category.id}>{category.label}: {viewerReview.categories?.[category.id] || 0}/5</span>
             ))}
           </div>
         </article>
+      ) : null}
+
+      {isProjectOwner ? (
+        <p className="project-review__empty">
+          Pemilik proyek tidak dapat memberi review pada proyek sendiri.
+        </p>
       ) : null}
 
       {formVisible ? (
@@ -612,11 +715,46 @@ function ProjectReview({
                 {review.updatedAt || review.createdAt ? <time>{formatCommentDate(review.updatedAt || review.createdAt)}</time> : null}
               </header>
               {review.message ? <p>{review.message}</p> : null}
+              {review.ownerReply ? (
+                <div className="project-review__owner-reply">
+                  <strong>Balasan owner</strong>
+                  <p>{review.ownerReply}</p>
+                  {review.ownerReplyUpdatedAt || review.ownerReplyAt ? (
+                    <time>{formatCommentDate(review.ownerReplyUpdatedAt || review.ownerReplyAt)}</time>
+                  ) : null}
+                </div>
+              ) : null}
               <div className="project-review__item-categories">
                 {PROJECT_REVIEW_CATEGORIES.map((category) => (
                   <span key={category.id}>{category.label}: {review.categories?.[category.id] || 0}/5</span>
                 ))}
               </div>
+              {isProjectOwner ? (
+                <div className="project-review__reply-tools">
+                  {ownerReplyEditingId === review.identity ? (
+                    <form onSubmit={(event) => onSubmitOwnerReply(event, review)}>
+                      <textarea
+                        value={ownerReplyDrafts[review.identity] ?? review.ownerReply ?? ""}
+                        onChange={(event) => onOwnerReplyDraftChange(review.identity, event.target.value)}
+                        placeholder="Tulis balasan untuk review ini"
+                        rows={3}
+                        maxLength={1000}
+                      />
+                      <div>
+                        {ownerReplyError ? <span>{ownerReplyError}</span> : <small>{String(ownerReplyDrafts[review.identity] ?? review.ownerReply ?? "").length}/1000</small>}
+                        <button type="button" className="project-review__ghost" onClick={onCancelOwnerReply} disabled={isSubmittingOwnerReply}>Batal</button>
+                        <button type="submit" disabled={isSubmittingOwnerReply}>
+                          {isSubmittingOwnerReply ? "Menyimpan..." : "Simpan Balasan"}
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <button type="button" onClick={() => onStartOwnerReply(review)}>
+                      {review.ownerReply ? "Edit Balasan" : "Balas Review"}
+                    </button>
+                  )}
+                </div>
+              ) : null}
             </div>
           </article>
         )) : (
@@ -1274,6 +1412,7 @@ function ProjectHero({
   onToggleSave,
   isDownloading = false,
   onDownload,
+  isProjectOwner = false,
 }) {
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
@@ -1298,7 +1437,7 @@ function ProjectHero({
   const pendingTransaction = projectTransactions.find((transaction) =>
     isPendingProjectTransaction(transaction, project)
   );
-  const hasProjectAccess = !paidProject || hasPurchasedFromDatabase || Boolean(paidTransaction);
+  const hasProjectAccess = !paidProject || isProjectOwner || hasPurchasedFromDatabase || Boolean(paidTransaction);
 
   const descriptionLength = useMemo(
     () => getPlainTextLengthFromHtml(description),
@@ -1320,7 +1459,7 @@ function ProjectHero({
     const userId = getUserId(user);
     const email = getUserEmail(user);
 
-    if (!paidProject || (!userId && !email)) {
+    if (!paidProject || isProjectOwner || (!userId && !email)) {
       setProjectTransactions([]);
       return undefined;
     }
@@ -1370,7 +1509,7 @@ function ProjectHero({
     return () => {
       isActive = false;
     };
-  }, [paidProject, project.id]);
+  }, [paidProject, isProjectOwner, project.id]);
 
   async function handleBuyProject() {
     const token = getStoredUserToken();
@@ -1522,13 +1661,15 @@ function ProjectHero({
                 >
                   {isPurchasing ? "Memproses..." : pendingTransaction ? "Lihat Transaksi" : "Beli Proyek"}
                 </button>
-                <button
-                  className={`project-detail__button project-detail__button--ghost${isSaved ? " is-active" : ""}`}
-                  type="button"
-                  onClick={onToggleSave}
-                >
-                  {isSaved ? "Proyek Tersimpan" : "Simpan Proyek"}
-                </button>
+                {!isProjectOwner ? (
+                  <button
+                    className={`project-detail__button project-detail__button--ghost${isSaved ? " is-active" : ""}`}
+                    type="button"
+                    onClick={onToggleSave}
+                  >
+                    {isSaved ? "Proyek Tersimpan" : "Simpan Proyek"}
+                  </button>
+                ) : null}
                 {pendingTransaction ? (
                   <p className="project-detail__purchase-message" role="status">
                     Transaksi proyek sedang menunggu pembayaran atau verifikasi admin.
@@ -1555,13 +1696,15 @@ function ProjectHero({
                 >
                   {isDownloading ? "Menyiapkan ZIP..." : getProjectFileLabel(project)}
                 </button>
-                <button
-                  className={`project-detail__button project-detail__button--ghost${isSaved ? " is-active" : ""}`}
-                  type="button"
-                  onClick={onToggleSave}
-                >
-                  {isSaved ? "Proyek Tersimpan" : "Simpan Proyek"}
-                </button>
+                {!isProjectOwner ? (
+                  <button
+                    className={`project-detail__button project-detail__button--ghost${isSaved ? " is-active" : ""}`}
+                    type="button"
+                    onClick={onToggleSave}
+                  >
+                    {isSaved ? "Proyek Tersimpan" : "Simpan Proyek"}
+                  </button>
+                ) : null}
               </>
             )}
           </div>
@@ -1671,6 +1814,10 @@ export function ProjectDetail() {
   const [reviewError, setReviewError] = useState("");
   const [isReviewEditing, setIsReviewEditing] = useState(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [ownerReplyDrafts, setOwnerReplyDrafts] = useState({});
+  const [ownerReplyEditingId, setOwnerReplyEditingId] = useState("");
+  const [ownerReplyError, setOwnerReplyError] = useState("");
+  const [isSubmittingOwnerReply, setIsSubmittingOwnerReply] = useState(false);
   const reviewInputRef = useRef(null);
   const [socialStats, setSocialStats] = useState({
     viewer: 0,
@@ -1716,6 +1863,8 @@ export function ProjectDetail() {
 
     setProjectReviews(reviews);
     setViewerReview(currentViewerReview);
+    setOwnerReplyEditingId("");
+    setOwnerReplyError("");
 
     if (currentViewerReview) {
       setReviewDraft(currentViewerReview.message || "");
@@ -1770,6 +1919,7 @@ export function ProjectDetail() {
 
   function handleToggleLike() {
     if (!project?.id) return;
+    if (isCurrentUserProjectOwner(project)) return;
 
     const nextLiked = !socialStats.liked;
     window.localStorage.setItem(getInteractionStorageKey(project.id, "liked"), nextLiked ? "1" : "0");
@@ -1783,6 +1933,7 @@ export function ProjectDetail() {
 
   function handleToggleSave() {
     if (!project?.id) return;
+    if (isCurrentUserProjectOwner(project)) return;
 
     const nextSaved = !socialStats.saved;
     window.localStorage.setItem(getInteractionStorageKey(project.id, "saved"), nextSaved ? "1" : "0");
@@ -1823,6 +1974,8 @@ export function ProjectDetail() {
   }
 
   function handleCommentProject() {
+    if (isCurrentUserProjectOwner(project)) return;
+
     setIsReviewEditing(true);
     window.setTimeout(() => {
       reviewInputRef.current?.focus();
@@ -1842,6 +1995,8 @@ export function ProjectDetail() {
   }
 
   function handleStartEditReview() {
+    if (isCurrentUserProjectOwner(project)) return;
+
     setIsReviewEditing(true);
     setReviewError("");
     window.setTimeout(() => {
@@ -1864,6 +2019,11 @@ export function ProjectDetail() {
 
     const message = reviewDraft.trim();
     const { user, userId, email, viewerParams } = getViewerParams();
+
+    if (isCurrentUserProjectOwner(project, user)) {
+      setReviewError("Pemilik proyek tidak dapat memberi review pada proyek sendiri.");
+      return;
+    }
 
     if (!userId && !email) {
       setReviewError("Login diperlukan untuk memberi review.");
@@ -1902,6 +2062,79 @@ export function ProjectDetail() {
       setReviewError(submitError.message || "Review tidak dapat disimpan.");
     } finally {
       setIsSubmittingReview(false);
+    }
+  }
+
+  function handleStartOwnerReply(review) {
+    if (!isCurrentUserProjectOwner(project)) return;
+
+    setOwnerReplyEditingId(review.identity);
+    setOwnerReplyError("");
+    setOwnerReplyDrafts((current) => ({
+      ...current,
+      [review.identity]: review.ownerReply || "",
+    }));
+  }
+
+  function handleCancelOwnerReply() {
+    setOwnerReplyEditingId("");
+    setOwnerReplyError("");
+  }
+
+  function handleOwnerReplyDraftChange(reviewIdentity, value) {
+    setOwnerReplyDrafts((current) => ({
+      ...current,
+      [reviewIdentity]: value,
+    }));
+    if (ownerReplyError) {
+      setOwnerReplyError("");
+    }
+  }
+
+  async function handleSubmitOwnerReply(event, review) {
+    event.preventDefault();
+
+    if (!project?.id || isSubmittingOwnerReply || !review?.identity) return;
+
+    const { user, userId, email, viewerParams } = getViewerParams();
+
+    if (!userId && !email) {
+      setOwnerReplyError("Login diperlukan untuk membalas review.");
+      return;
+    }
+
+    if (!isCurrentUserProjectOwner(project, user)) {
+      setOwnerReplyError("Hanya pemilik proyek yang dapat membalas review.");
+      return;
+    }
+
+    const message = String(ownerReplyDrafts[review.identity] ?? "").trim();
+
+    if (message.length > 1000) {
+      setOwnerReplyError("Balasan maksimal 1000 karakter.");
+      return;
+    }
+
+    setOwnerReplyError("");
+    setIsSubmittingOwnerReply(true);
+
+    try {
+      const updatedProject = await updateProjectRatingReply(project.id, {
+        identity: review.identity,
+        message,
+        ownerName: getUserDisplayName(user),
+      }, viewerParams);
+
+      if (updatedProject?.id) {
+        setProject(updatedProject);
+        applyProjectStats(updatedProject);
+        applyProjectReviews(updatedProject);
+      }
+    } catch (replyError) {
+      console.error("Gagal menyimpan balasan review:", replyError);
+      setOwnerReplyError(replyError.message || "Balasan review tidak dapat disimpan.");
+    } finally {
+      setIsSubmittingOwnerReply(false);
     }
   }
 
@@ -2030,6 +2263,8 @@ export function ProjectDetail() {
   const description = normalizeDescriptionHtml(
     project.descriptionHtml || project.description
   );
+  const isProjectOwner = isCurrentUserProjectOwner(project);
+
   return (
     <main className="project-detail">
       <div className="project-detail__shell">
@@ -2045,6 +2280,7 @@ export function ProjectDetail() {
           onToggleSave={handleToggleSave}
           isDownloading={isDownloading}
           onDownload={handleDownloadProject}
+          isProjectOwner={isProjectOwner}
         />
 
         <div className="project-detail__info">
@@ -2061,6 +2297,7 @@ export function ProjectDetail() {
           onSave={handleToggleSave}
           onShare={handleShareProject}
           onComment={handleCommentProject}
+          isProjectOwner={isProjectOwner}
         />
         <ProjectReview
           average={socialStats.averageRating}
@@ -2075,6 +2312,15 @@ export function ProjectDetail() {
           isEditing={isReviewEditing}
           isSubmitting={isSubmittingReview}
           inputRef={reviewInputRef}
+          isProjectOwner={isProjectOwner}
+          ownerReplyDrafts={ownerReplyDrafts}
+          ownerReplyEditingId={ownerReplyEditingId}
+          ownerReplyError={ownerReplyError}
+          isSubmittingOwnerReply={isSubmittingOwnerReply}
+          onStartOwnerReply={handleStartOwnerReply}
+          onCancelOwnerReply={handleCancelOwnerReply}
+          onOwnerReplyDraftChange={handleOwnerReplyDraftChange}
+          onSubmitOwnerReply={handleSubmitOwnerReply}
           onStartEdit={handleStartEditReview}
           onCancelEdit={handleCancelEditReview}
           onDelete={handleDeleteReview}

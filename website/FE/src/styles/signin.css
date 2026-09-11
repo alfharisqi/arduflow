@@ -120,15 +120,15 @@
 }
 
 .auth-back-button {
-  position: absolute;
-  top: 48px;
-  left: 13.2%;
+  position: static;
   z-index: 2;
   display: inline-flex;
+  align-self: flex-start;
   align-items: center;
   justify-content: center;
   min-width: 118px;
   height: 44px;
+  margin: 0 0 8px;
   padding: 0 20px;
   border: 1px solid rgba(255, 255, 255, 0.88);
   border-radius: 999px;
@@ -1017,7 +1017,7 @@
   .auth-back-button {
     display: flex;
     width: fit-content;
-    margin: 0 auto 32px;
+    margin: 0;
   }
 
   .signup-form {
