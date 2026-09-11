@@ -63,6 +63,74 @@ function getUserDisplayName(user) {
   return String(user?.name || user?.fullName || user?.username || getUserEmail(user) || "User").trim();
 }
 
+function normalizeIdentity(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function isCurrentUserProjectOwner(project, user = getStoredUser()) {
+  if (!project || !user) {
+    return false;
+  }
+
+  const userId = getUserId(user);
+  const userEmail = getUserEmail(user);
+  const userName = user?.name || user?.fullName || user?.full_name || "";
+  const username = user?.username || user?.nickname || "";
+  const payload = project.payload && typeof project.payload === "object" ? project.payload : {};
+
+  const projectOwnerIds = [
+    project.userId,
+    project.user_id,
+    project.ownerId,
+    project.owner_id,
+    payload.userId,
+    payload.user_id,
+    payload.ownerId,
+    payload.owner_id,
+  ].filter((value) => value !== undefined && value !== null && String(value).trim() !== "");
+
+  if (userId !== null && userId !== undefined && projectOwnerIds.some((ownerId) => String(ownerId) === String(userId))) {
+    return true;
+  }
+
+  const userEmails = [
+    userEmail,
+  ].map(normalizeIdentity).filter(Boolean);
+
+  const projectOwnerEmails = [
+    project.ownerEmail,
+    project.owner_email,
+    payload.ownerEmail,
+    payload.owner_email,
+    payload.email,
+    payload.userEmail,
+    payload.user_email,
+  ].map(normalizeIdentity).filter(Boolean);
+
+  if (userEmails.length && projectOwnerEmails.some((email) => userEmails.includes(email))) {
+    return true;
+  }
+
+  const userNames = [
+    userName,
+    username,
+  ].map(normalizeIdentity).filter(Boolean);
+
+  const projectOwnerNames = [
+    project.ownerName,
+    project.ownerUsername,
+    project.owner_username,
+    payload.ownerName,
+    payload.owner_name,
+    payload.ownerUsername,
+    payload.owner_username,
+    payload.name,
+    payload.username,
+  ].map(normalizeIdentity).filter(Boolean);
+
+  return userNames.length > 0 && projectOwnerNames.some((name) => userNames.includes(name));
+}
+
 function getInitials(name) {
   return String(name || "User")
     .split(" ")
@@ -421,12 +489,16 @@ function InfoNotice() {
   );
 }
 
-function ProjectSocialActions({ stats, onLike, onSave, onShare, onComment }) {
+function ProjectSocialActions({ stats, onLike, onSave, onShare, onComment, isProjectOwner = false }) {
   const actions = [
     { type: "like", label: "Suka", count: stats.likes, active: stats.liked, onClick: onLike },
     { type: "comment", label: "Komentar", count: stats.comments, active: false, onClick: onComment },
     { type: "share", label: "Bagikan", count: stats.shares, active: false, onClick: onShare },
-  ];
+  ].filter((action) => (
+    isProjectOwner
+      ? !["like", "comment"].includes(action.type)
+      : true
+  ));
 
   return (
     <section className="project-social-actions" aria-label="Interaksi proyek">
@@ -447,16 +519,18 @@ function ProjectSocialActions({ stats, onLike, onSave, onShare, onComment }) {
           ))}
         </div>
 
-        <button
-          className={`project-social-actions__button${stats.saved ? " is-active" : ""}`}
-          type="button"
-          onClick={onSave}
-          aria-pressed={stats.saved}
-          title={stats.saved ? "Batalkan simpan" : "Simpan proyek"}
-        >
-          <SocialIcon type="save" />
-          <span>{formatNumber(stats.saves)}</span>
-        </button>
+        {!isProjectOwner ? (
+          <button
+            className={`project-social-actions__button${stats.saved ? " is-active" : ""}`}
+            type="button"
+            onClick={onSave}
+            aria-pressed={stats.saved}
+            title={stats.saved ? "Batalkan simpan" : "Simpan proyek"}
+          >
+            <SocialIcon type="save" />
+            <span>{formatNumber(stats.saves)}</span>
+          </button>
+        ) : null}
       </div>
 
       <p>
@@ -502,6 +576,7 @@ function ProjectReview({
   isEditing,
   isSubmitting,
   inputRef,
+  isProjectOwner = false,
   onStartEdit,
   onCancelEdit,
   onDelete,
@@ -511,7 +586,7 @@ function ProjectReview({
   onSubmit,
 }) {
   const roundedAverage = Math.min(5, Math.max(0, Number(average) || 0));
-  const formVisible = isEditing || !viewerReview;
+  const formVisible = !isProjectOwner && (isEditing || !viewerReview);
   const visibleReviews = viewerReview
     ? reviews.filter((review) => review.identity !== viewerReview.identity && review.id !== viewerReview.id)
     : reviews;
@@ -524,7 +599,7 @@ function ProjectReview({
           <span>/ 5</span>
           <small>{count ? `${formatNumber(count)} review` : "Belum ada review"}</small>
         </div>
-        {viewerReview && !isEditing ? (
+        {viewerReview && !isEditing && !isProjectOwner ? (
           <div className="project-review__actions">
             <button type="button" onClick={onStartEdit}>Edit Review</button>
             <button type="button" onClick={onDelete} disabled={isSubmitting}>Hapus</button>
@@ -554,6 +629,12 @@ function ProjectReview({
             ))}
           </div>
         </article>
+      ) : null}
+
+      {isProjectOwner ? (
+        <p className="project-review__empty">
+          Pemilik proyek tidak dapat memberi review pada proyek sendiri.
+        </p>
       ) : null}
 
       {formVisible ? (
@@ -1274,6 +1355,7 @@ function ProjectHero({
   onToggleSave,
   isDownloading = false,
   onDownload,
+  isProjectOwner = false,
 }) {
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
@@ -1286,6 +1368,7 @@ function ProjectHero({
   const paidProject = isPaidProject(project);
   const projectPrice = getProjectPrice(project);
   const projectCurrency = payment.currency || "IDR";
+  const isProjectOwner = isCurrentUserProjectOwner(project);
   const hasPurchasedFromDatabase = Boolean(
     project?.hasPurchased ||
     project?.has_purchased ||
@@ -1298,7 +1381,7 @@ function ProjectHero({
   const pendingTransaction = projectTransactions.find((transaction) =>
     isPendingProjectTransaction(transaction, project)
   );
-  const hasProjectAccess = !paidProject || hasPurchasedFromDatabase || Boolean(paidTransaction);
+  const hasProjectAccess = !paidProject || isProjectOwner || hasPurchasedFromDatabase || Boolean(paidTransaction);
 
   const descriptionLength = useMemo(
     () => getPlainTextLengthFromHtml(description),
@@ -1320,7 +1403,7 @@ function ProjectHero({
     const userId = getUserId(user);
     const email = getUserEmail(user);
 
-    if (!paidProject || (!userId && !email)) {
+    if (!paidProject || isProjectOwner || (!userId && !email)) {
       setProjectTransactions([]);
       return undefined;
     }
@@ -1370,7 +1453,7 @@ function ProjectHero({
     return () => {
       isActive = false;
     };
-  }, [paidProject, project.id]);
+  }, [paidProject, isProjectOwner, project.id]);
 
   async function handleBuyProject() {
     const token = getStoredUserToken();
@@ -1522,13 +1605,15 @@ function ProjectHero({
                 >
                   {isPurchasing ? "Memproses..." : pendingTransaction ? "Lihat Transaksi" : "Beli Proyek"}
                 </button>
-                <button
-                  className={`project-detail__button project-detail__button--ghost${isSaved ? " is-active" : ""}`}
-                  type="button"
-                  onClick={onToggleSave}
-                >
-                  {isSaved ? "Proyek Tersimpan" : "Simpan Proyek"}
-                </button>
+                {!isProjectOwner ? (
+                  <button
+                    className={`project-detail__button project-detail__button--ghost${isSaved ? " is-active" : ""}`}
+                    type="button"
+                    onClick={onToggleSave}
+                  >
+                    {isSaved ? "Proyek Tersimpan" : "Simpan Proyek"}
+                  </button>
+                ) : null}
                 {pendingTransaction ? (
                   <p className="project-detail__purchase-message" role="status">
                     Transaksi proyek sedang menunggu pembayaran atau verifikasi admin.
@@ -1555,13 +1640,15 @@ function ProjectHero({
                 >
                   {isDownloading ? "Menyiapkan ZIP..." : getProjectFileLabel(project)}
                 </button>
-                <button
-                  className={`project-detail__button project-detail__button--ghost${isSaved ? " is-active" : ""}`}
-                  type="button"
-                  onClick={onToggleSave}
-                >
-                  {isSaved ? "Proyek Tersimpan" : "Simpan Proyek"}
-                </button>
+                {!isProjectOwner ? (
+                  <button
+                    className={`project-detail__button project-detail__button--ghost${isSaved ? " is-active" : ""}`}
+                    type="button"
+                    onClick={onToggleSave}
+                  >
+                    {isSaved ? "Proyek Tersimpan" : "Simpan Proyek"}
+                  </button>
+                ) : null}
               </>
             )}
           </div>
