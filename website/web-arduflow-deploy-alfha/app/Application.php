@@ -15,6 +15,7 @@ use Arduflow\Api\Controllers\ProgramController;
 use Arduflow\Api\Controllers\UserAuthController;
 use Arduflow\Api\Controllers\WorkshopController;
 use Arduflow\Api\Database\ConnectionFactory;
+use Arduflow\Api\Database\LegacyApiMigrator;
 use Arduflow\Api\Database\SqliteMigrator;
 use Arduflow\Api\Http\Request;
 use Arduflow\Api\Http\Response;
@@ -54,6 +55,7 @@ final class Application
     ) {
         $sqlite = $connections->sqlite();
         (new SqliteMigrator($root . '/migrations/sqlite'))->migrate($sqlite);
+        (new LegacyApiMigrator())->migrate($sqlite);
 
         $syncStatus = new SyncStatusRepository($sqlite);
         $health = new HealthController($syncStatus, new DatabaseHealthService($connections, $syncStatus));
@@ -110,6 +112,8 @@ final class Application
         $this->router->post('/api/auth/logout', [$userAuth, 'logout']);
         $this->router->get('/api/auth/verify-email', [$userAuth, 'verifyEmail']);
         $this->router->post('/api/auth/verify-email', [$userAuth, 'verifyEmail']);
+        $this->router->post('/api/auth/verification/resend', [$userAuth, 'resendVerificationEmail']);
+        $this->router->get('/api/auth/password-reset/open', [$userAuth, 'openPasswordReset']);
         $this->router->post('/api/auth/password-reset/request', [$userAuth, 'requestPasswordReset']);
         $this->router->post('/api/auth/password-reset/confirm', [$userAuth, 'confirmPasswordReset']);
         $this->router->get('/api/auth/check-availability', [$userAuth, 'availability']);

@@ -30,12 +30,65 @@ final class UserRepository
         );
     }
 
-    public function findByWhatsapp(string $whatsapp): ?array
+    public function findAnyByEmail(string $email): ?array
     {
         return $this->one(
-            'SELECT * FROM users WHERE whatsapp = :whatsapp AND deleted_at IS NULL',
-            ['whatsapp' => $whatsapp],
+            'SELECT * FROM users WHERE LOWER(email) = LOWER(:email) LIMIT 1',
+            ['email' => $email],
         );
+    }
+
+    public function findByWhatsapp(string $whatsapp): ?array
+    {
+        return $this->findWhatsapp($whatsapp, false);
+    }
+
+    public function findAnyByWhatsapp(string $whatsapp): ?array
+    {
+        return $this->findWhatsapp($whatsapp, true);
+    }
+
+    private function findWhatsapp(string $whatsapp, bool $includeDeleted): ?array
+    {
+        $variants = $this->whatsappVariants($whatsapp);
+        if ($variants === []) {
+            return null;
+        }
+
+        $placeholders = [];
+        $params = [];
+        foreach ($variants as $index => $variant) {
+            $key = ':whatsapp' . $index;
+            $placeholders[] = $key;
+            $params[$key] = $variant;
+        }
+
+        return $this->one(
+            'SELECT * FROM users WHERE whatsapp IN (' . implode(', ', $placeholders) . ')' .
+            ($includeDeleted ? '' : ' AND deleted_at IS NULL') .
+            ' LIMIT 1',
+            $params,
+        );
+    }
+
+    private function whatsappVariants(string $whatsapp): array
+    {
+        $value = trim($whatsapp);
+        if ($value === '') {
+            return [];
+        }
+
+        $digits = preg_replace('/\D+/', '', $value) ?? '';
+        $variants = [$value];
+        if ($digits !== '') {
+            $variants[] = '+' . $digits;
+            $variants[] = $digits;
+            if (str_starts_with($digits, '62')) {
+                $variants[] = '0' . substr($digits, 2);
+            }
+        }
+
+        return array_values(array_unique(array_filter($variants, static fn (string $variant): bool => trim($variant) !== '')));
     }
 
     public function findByUsername(string $username): ?array
@@ -255,6 +308,46 @@ final class UserRepository
             $this->pdo->prepare('DELETE FROM user_sessions WHERE user_id = :user_id')
                 ->execute(['user_id' => $id]);
             return true;
+        });
+    }
+
+    public function deletePermanently(int $id): bool
+    {
+        if ($id <= 0) {
+            return false;
+        }
+
+        return Transaction::immediate($this->pdo, function () use ($id): bool {
+            // Cari user termasuk yang sebelumnya sudah terkena soft delete.
+            $user = $this->one(
+                'SELECT id FROM users WHERE id = :id LIMIT 1',
+                ['id' => $id],
+            );
+
+            if (!$user) {
+                return false;
+            }
+
+            // Putus seluruh sesi user terlebih dahulu agar tidak ada sesi yatim.
+            $this->pdo->prepare(
+                'DELETE FROM user_sessions WHERE user_id = :user_id'
+            )->execute([
+                'user_id' => $id,
+            ]);
+
+            // Catat operasi delete untuk mekanisme sinkronisasi/outbox.
+            // Diletakkan sebelum DELETE fisik agar event masih tercatat dalam transaksi yang sama.
+            $this->outbox->enqueue($this->pdo, 'users', $id, 'delete');
+
+            // Hard delete: record benar-benar dihapus dari tabel users.
+            $statement = $this->pdo->prepare(
+                'DELETE FROM users WHERE id = :id'
+            );
+            $statement->execute([
+                'id' => $id,
+            ]);
+
+            return $statement->rowCount() > 0;
         });
     }
 

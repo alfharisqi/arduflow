@@ -9,17 +9,19 @@ const TRANSACTION_API_URL = apiEndpoint(
 async function requestTransactions(url, options = {}) {
   const { skipUserAuth = false, ...fetchOptions } = options;
   const isFormData = options.body instanceof FormData;
-  const token = skipUserAuth ? '' : getStoredUserToken();
+  const isAdminPage = window.location.pathname.startsWith('/admin');
+  const token = isAdminPage ? String(window.localStorage.getItem('arduflow_admin_token') || '') : skipUserAuth ? '' : getStoredUserToken();
   const existingHeaders = options.headers || {};
-  const hasAuthorizationHeader = Object.keys(existingHeaders).some(
-    (key) => key.toLowerCase() === 'authorization'
-  );
+  const normalizedHeaderNames = Object.keys(existingHeaders).map((key) => key.toLowerCase());
+  const hasAuthorizationHeader = normalizedHeaderNames.includes('authorization');
+  const hasFallbackTokenHeader = normalizedHeaderNames.includes('x-auth-token');
   const response = await fetch(url, {
     ...fetchOptions,
     headers: {
       Accept: 'application/json',
       ...(options.body && !isFormData ? { 'Content-Type': 'application/json' } : {}),
       ...(token && !hasAuthorizationHeader ? { Authorization: `Bearer ${token}` } : {}),
+      ...(token && !hasFallbackTokenHeader ? { 'X-Auth-Token': token } : {}),
       ...existingHeaders,
     },
   });
@@ -32,7 +34,10 @@ async function requestTransactions(url, options = {}) {
   }
 
   if (!response.ok || payload?.success === false) {
-    throw new Error(payload?.message || `Gagal mengakses transaksi (${response.status}).`);
+    const error = new Error(payload?.message || `Gagal mengakses transaksi (${response.status}).`);
+    error.status = response.status;
+    error.payload = payload;
+    throw error;
   }
 
   return payload;
@@ -160,16 +165,7 @@ function paymentMethodBody(data = {}) {
 }
 
 export async function fetchTransactions(params = {}, options = {}) {
-  const hasUserFilter = Boolean(
-    params?.userId ||
-      params?.user_id ||
-      params?.email
-  );
-  const requestOptions = {
-    ...(hasUserFilter ? { skipUserAuth: true } : {}),
-    ...options,
-  };
-  const payload = await requestTransactions(`${TRANSACTION_API_URL}${buildQuery(params)}`, requestOptions);
+  const payload = await requestTransactions(`${TRANSACTION_API_URL}${buildQuery(params)}`, options);
   const records = payload?.data?.transactions || payload?.transactions || payload?.data || [];
   return Array.isArray(records) ? records.map(normalizeTransaction).filter(Boolean) : [];
 }
@@ -177,6 +173,38 @@ export async function fetchTransactions(params = {}, options = {}) {
 export async function fetchFinanceConfig() {
   const payload = await requestTransactions(`${TRANSACTION_API_URL}?action=finance-config`);
   return payload?.data || payload || { commissionRate: 10 };
+}
+
+export async function fetchProjectSales() {
+  const payload = await requestTransactions(`${TRANSACTION_API_URL}?action=project-sales`);
+  const data = payload?.data || {};
+  return {
+    purchases: Array.isArray(data.purchases) ? data.purchases.map(normalizeTransaction).filter(Boolean) : [],
+    sales: Array.isArray(data.sales) ? data.sales.map(normalizeTransaction).filter(Boolean) : [],
+    payouts: Array.isArray(data.payouts) ? data.payouts.map(normalizeTransaction).filter(Boolean) : [],
+    balances: Array.isArray(data.balances) ? data.balances : [],
+    commissionRate: Number(data.commissionRate ?? 10),
+  };
+}
+
+export async function fetchPayoutSecurity() {
+  const data = (await requestTransactions(`${TRANSACTION_API_URL}?action=payout-status`)).data;
+  if (!data || typeof data.hasPin !== 'boolean' || !Array.isArray(data.balances) || !Array.isArray(data.accounts)) {
+    throw new Error('API keamanan pencairan belum tersedia. Perbarui backend sebelum mengaktifkan pencairan.');
+  }
+  return data;
+}
+
+export async function requestPayoutCode(data) {
+  return (await requestTransactions(`${TRANSACTION_API_URL}?action=payout-request-code`, {
+    method: 'POST', body: JSON.stringify(data),
+  })).data;
+}
+
+export async function confirmPayoutSecurity(data) {
+  return (await requestTransactions(`${TRANSACTION_API_URL}?action=payout-confirm`, {
+    method: 'POST', body: JSON.stringify(data),
+  })).data;
 }
 
 export async function updateFinanceConfig(data = {}) {

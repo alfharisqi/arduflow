@@ -61,7 +61,8 @@ final class SyncEventValidator
         ],
         'user_entitlements' => [
             'id', 'transaction_id', 'user_id', 'email', 'product_type', 'product_id',
-            'product_title', 'status', 'granted_at', 'deleted_at', 'version',
+            'product_title', 'status', 'granted_at', 'disabled_reason', 'disabled_at',
+            'disabled_by', 'deleted_at', 'version',
             'created_at', 'updated_at',
         ],
         'workshop_registrations' => [

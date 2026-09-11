@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import workshopHero from '../assets/images/workshop-list-presentation-speaker.jpg';
 import { fetchWorkshopDetail } from '../services/workshopApi.js';
+import { requireUserLoginForAction } from '../utils/authRequired.js';
 import '../styles/workshop-detail.css';
 
 
@@ -920,7 +921,14 @@ export function DetailWorkshop() {
                   </strong>
                 </p>
 
-                <a href={registerHref}>
+                <a
+                  href={registerHref}
+                  onClick={(event) => requireUserLoginForAction(
+                    event,
+                    registerHref,
+                    'Silakan login terlebih dahulu untuk mendaftar workshop ini. Setelah login, Anda akan diarahkan kembali ke form pendaftaran.',
+                  )}
+                >
 
                   Daftar Sekarang
 

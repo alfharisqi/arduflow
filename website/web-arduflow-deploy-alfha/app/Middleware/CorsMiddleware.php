@@ -14,6 +14,18 @@ final class CorsMiddleware
     {
     }
 
+    private function isAllowedOrigin(string $origin): bool
+    {
+        if (in_array($origin, $this->allowedOrigins, true)) {
+            return true;
+        }
+
+        return preg_match(
+            '#^http://(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}):[0-9]+$#',
+            $origin
+        ) === 1;
+    }
+
     public function handle(Request $request): ?Response
     {
         $origin = $request->header('origin');
@@ -21,7 +33,7 @@ final class CorsMiddleware
             return $request->method === 'OPTIONS' ? Response::empty(204) : null;
         }
 
-        if (!in_array($origin, $this->allowedOrigins, true)) {
+        if (!$this->isAllowedOrigin($origin)) {
             throw new HttpException(403, 'Origin tidak diizinkan.');
         }
 
@@ -29,7 +41,7 @@ final class CorsMiddleware
             'Access-Control-Allow-Origin' => $origin,
             'Access-Control-Allow-Credentials' => 'true',
             'Access-Control-Allow-Methods' => 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-            'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Sync-Timestamp, X-Sync-Nonce, X-Sync-Signature',
+            'Access-Control-Allow-Headers' => 'Content-Type, Accept, Authorization, X-Auth-Token, X-Sync-Timestamp, X-Sync-Nonce, X-Sync-Signature',
             'Access-Control-Max-Age' => '600',
             'Vary' => 'Origin',
         ];
@@ -40,7 +52,7 @@ final class CorsMiddleware
     public function headers(Request $request): array
     {
         $origin = $request->header('origin');
-        if ($origin === null || !in_array($origin, $this->allowedOrigins, true)) {
+        if ($origin === null || !$this->isAllowedOrigin($origin)) {
             return [];
         }
 
