@@ -1368,7 +1368,6 @@ function ProjectHero({
   const paidProject = isPaidProject(project);
   const projectPrice = getProjectPrice(project);
   const projectCurrency = payment.currency || "IDR";
-  const isProjectOwner = isCurrentUserProjectOwner(project);
   const hasPurchasedFromDatabase = Boolean(
     project?.hasPurchased ||
     project?.has_purchased ||
@@ -1857,6 +1856,7 @@ export function ProjectDetail() {
 
   function handleToggleLike() {
     if (!project?.id) return;
+    if (isCurrentUserProjectOwner(project)) return;
 
     const nextLiked = !socialStats.liked;
     window.localStorage.setItem(getInteractionStorageKey(project.id, "liked"), nextLiked ? "1" : "0");
@@ -1870,6 +1870,7 @@ export function ProjectDetail() {
 
   function handleToggleSave() {
     if (!project?.id) return;
+    if (isCurrentUserProjectOwner(project)) return;
 
     const nextSaved = !socialStats.saved;
     window.localStorage.setItem(getInteractionStorageKey(project.id, "saved"), nextSaved ? "1" : "0");
@@ -1910,6 +1911,8 @@ export function ProjectDetail() {
   }
 
   function handleCommentProject() {
+    if (isCurrentUserProjectOwner(project)) return;
+
     setIsReviewEditing(true);
     window.setTimeout(() => {
       reviewInputRef.current?.focus();
@@ -1929,6 +1932,8 @@ export function ProjectDetail() {
   }
 
   function handleStartEditReview() {
+    if (isCurrentUserProjectOwner(project)) return;
+
     setIsReviewEditing(true);
     setReviewError("");
     window.setTimeout(() => {
@@ -1951,6 +1956,11 @@ export function ProjectDetail() {
 
     const message = reviewDraft.trim();
     const { user, userId, email, viewerParams } = getViewerParams();
+
+    if (isCurrentUserProjectOwner(project, user)) {
+      setReviewError("Pemilik proyek tidak dapat memberi review pada proyek sendiri.");
+      return;
+    }
 
     if (!userId && !email) {
       setReviewError("Login diperlukan untuk memberi review.");
@@ -2117,6 +2127,8 @@ export function ProjectDetail() {
   const description = normalizeDescriptionHtml(
     project.descriptionHtml || project.description
   );
+  const isProjectOwner = isCurrentUserProjectOwner(project);
+
   return (
     <main className="project-detail">
       <div className="project-detail__shell">
@@ -2132,6 +2144,7 @@ export function ProjectDetail() {
           onToggleSave={handleToggleSave}
           isDownloading={isDownloading}
           onDownload={handleDownloadProject}
+          isProjectOwner={isProjectOwner}
         />
 
         <div className="project-detail__info">
@@ -2148,6 +2161,7 @@ export function ProjectDetail() {
           onSave={handleToggleSave}
           onShare={handleShareProject}
           onComment={handleCommentProject}
+          isProjectOwner={isProjectOwner}
         />
         <ProjectReview
           average={socialStats.averageRating}
@@ -2162,6 +2176,7 @@ export function ProjectDetail() {
           isEditing={isReviewEditing}
           isSubmitting={isSubmittingReview}
           inputRef={reviewInputRef}
+          isProjectOwner={isProjectOwner}
           onStartEdit={handleStartEditReview}
           onCancelEdit={handleCancelEditReview}
           onDelete={handleDeleteReview}
