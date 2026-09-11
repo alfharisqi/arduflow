@@ -1360,7 +1360,42 @@
 
 
 /* =========================================================
-   DETAIL RICH TEXT
+   DETAIL GALLERY - ARTICLE STYLE
+   ========================================================= */
+
+.gallery-detail-content {
+  box-sizing: border-box;
+
+  width: 100%;
+
+  margin-bottom: 28px;
+
+  padding: 42px 54px 56px;
+
+  border: 1px solid #17324f;
+
+  background: #06172c;
+
+  color: #ffffff;
+}
+
+
+/* JUDUL "ISI DOKUMENTASI" */
+
+.gallery-detail-content > h2 {
+  margin: 0 0 28px;
+
+  color: #ff6a00;
+
+  font-family: "Rajdhani", sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+
+/* =========================================================
+   ISI RICH TEXT
    ========================================================= */
 
 .gallery-detail-richtext {
@@ -1368,31 +1403,30 @@
 
   position: relative;
 
-  min-height: 280px;
+  width: 100%;
+  min-height: 0;
 
-  padding: clamp(22px, 4vw, 48px);
+  padding: 0;
 
-  border: 1px solid #d9e2ec;
-  border-radius: 8px;
+  border: 0;
+  border-radius: 0;
 
-  background: #ffffff;
+  background: transparent;
 
-  color: #1f2937;
+  color: #f3f6fb;
 
-  font-family:
-    Arial,
-    Helvetica,
-    sans-serif;
+  font-family: "Rajdhani", sans-serif;
+  font-size: 20px;
+  font-weight: 400;
 
-  font-size: 16px;
-
-  line-height: 1.7;
+  line-height: 1.75;
 
   overflow-wrap: break-word;
-
   word-break: normal;
 }
 
+
+/* CLEAR FLOAT */
 
 .gallery-detail-richtext::after {
   content: "";
@@ -1403,29 +1437,43 @@
 }
 
 
-.gallery-detail-richtext :first-child {
+/* FIRST / LAST */
+
+.gallery-detail-richtext > :first-child {
   margin-top: 0;
 }
 
-
-.gallery-detail-richtext :last-child {
+.gallery-detail-richtext > :last-child {
   margin-bottom: 0;
 }
 
 
+/* =========================================================
+   PARAGRAPH
+   ========================================================= */
+
 .gallery-detail-richtext p {
-  margin: 0 0 14px;
+  margin: 0 0 22px;
+
+  color: #f3f6fb;
+
+  font-family: "Rajdhani", sans-serif;
+  font-size: 20px;
+
+  line-height: 1.75;
+
+  text-align: justify;
 }
 
 
 .gallery-detail-richtext p:empty,
 .gallery-detail-richtext p:has(br:only-child) {
-  min-height: 1.7em;
+  min-height: 1.75em;
 }
 
 
 /* =========================================================
-   DETAIL HEADINGS
+   HEADING
    ========================================================= */
 
 .gallery-detail-richtext h1,
@@ -1434,12 +1482,11 @@
 .gallery-detail-richtext h4,
 .gallery-detail-richtext h5,
 .gallery-detail-richtext h6 {
-  margin: 22px 0 12px;
+  margin: 32px 0 16px;
 
-  color: inherit;
+  color: #ffffff;
 
-  font-family: inherit;
-
+  font-family: "Rajdhani", sans-serif;
   font-weight: 700;
 
   line-height: 1.25;
@@ -1447,24 +1494,36 @@
 
 
 .gallery-detail-richtext h1 {
-  font-size: 32px;
+  font-size: 36px;
 }
-
 
 .gallery-detail-richtext h2 {
-  font-size: 26px;
+  font-size: 30px;
 }
 
-
 .gallery-detail-richtext h3 {
+  font-size: 25px;
+}
+
+.gallery-detail-richtext h4 {
   font-size: 22px;
 }
 
-
-.gallery-detail-richtext h4,
 .gallery-detail-richtext h5,
 .gallery-detail-richtext h6 {
-  font-size: 18px;
+  font-size: 20px;
+}
+
+
+/* =========================================================
+   STRONG / BOLD
+   ========================================================= */
+
+.gallery-detail-richtext strong,
+.gallery-detail-richtext b {
+  color: #ffffff;
+
+  font-weight: 700;
 }
 
 
@@ -1474,16 +1533,22 @@
 
 .gallery-detail-richtext ul,
 .gallery-detail-richtext ol {
-  margin: 0 0 16px 24px;
+  margin: 0 0 22px;
 
-  padding: 0 0 0 18px;
+  padding-left: 28px;
+
+  color: #f3f6fb;
 }
 
 
 .gallery-detail-richtext li {
-  margin: 5px 0;
+  margin: 8px 0;
 
   padding-left: 4px;
+
+  font-size: 20px;
+
+  line-height: 1.7;
 }
 
 
@@ -1492,13 +1557,18 @@
    ========================================================= */
 
 .gallery-detail-richtext a {
-  color: #0969da;
+  color: #00a8ff;
 
   font-weight: 700;
 
   text-decoration: underline;
 
-  text-underline-offset: 3px;
+  text-underline-offset: 4px;
+}
+
+
+.gallery-detail-richtext a:hover {
+  color: #43c1ff;
 }
 
 
@@ -1507,51 +1577,97 @@
    ========================================================= */
 
 .gallery-detail-richtext blockquote {
-  margin: 18px 0;
+  margin: 28px 0;
 
-  padding: 12px 18px;
+  padding: 18px 24px;
 
-  border-left: 4px solid #94a3b8;
+  border-left: 4px solid #ff6a00;
 
-  background: #f8fafc;
+  background: #081d36;
 
-  color: #475569;
+  color: #d8e4f2;
+
+  font-style: italic;
 }
 
 
 /* =========================================================
-   TABLE
+   IMAGE
    ========================================================= */
 
-.gallery-detail-richtext table {
-  width: 100%;
+.gallery-detail-richtext img {
+  display: block;
 
-  margin: 18px 0;
+  width: auto;
+  max-width: 100%;
 
-  border-collapse: collapse;
+  height: auto;
+  max-height: 680px;
 
-  color: inherit;
+  margin: 28px 0;
+
+  border: 0;
+  border-radius: 4px;
+
+  background: transparent;
+
+  object-fit: contain;
 }
 
 
-.gallery-detail-richtext th,
-.gallery-detail-richtext td {
-  padding: 10px 12px;
+/* IMAGE CENTER */
 
-  border: 1px solid #d1d5db;
+.gallery-detail-richtext img.aligncenter,
+.gallery-detail-richtext figure.aligncenter {
+  display: block;
 
-  text-align: left;
+  float: none;
 
-  vertical-align: top;
+  clear: both;
+
+  margin: 28px auto;
+
+  text-align: center;
 }
 
 
-.gallery-detail-richtext th {
-  background: #f3f4f6;
+/* IMAGE LEFT */
 
-  color: #111827;
+.gallery-detail-richtext img.alignleft,
+.gallery-detail-richtext figure.alignleft {
+  float: left;
 
-  font-weight: 700;
+  margin: 8px 28px 18px 0;
+}
+
+
+/* IMAGE RIGHT */
+
+.gallery-detail-richtext img.alignright,
+.gallery-detail-richtext figure.alignright {
+  float: right;
+
+  margin: 8px 0 18px 28px;
+}
+
+
+/* =========================================================
+   FIGURE
+   ========================================================= */
+
+.gallery-detail-richtext figure {
+  margin: 28px 0;
+}
+
+
+.gallery-detail-richtext figcaption {
+  margin-top: 10px;
+
+  color: #8499b2;
+
+  font-size: 15px;
+
+  text-align: center;
 }
 
 
@@ -1562,232 +1678,88 @@
 .gallery-detail-richtext hr {
   height: 1px;
 
-  margin: 24px 0;
+  margin: 32px 0;
 
   border: 0;
 
-  background: #d1d5db;
+  background: #17324f;
 }
 
 
 /* =========================================================
-   PRE / CODE
+   TABLE
+   ========================================================= */
+
+.gallery-detail-richtext table {
+  width: 100%;
+
+  margin: 28px 0;
+
+  border-collapse: collapse;
+
+  color: #f3f6fb;
+}
+
+
+.gallery-detail-richtext th,
+.gallery-detail-richtext td {
+  padding: 12px 14px;
+
+  border: 1px solid #294767;
+
+  text-align: left;
+
+  vertical-align: top;
+}
+
+
+.gallery-detail-richtext th {
+  background: #0a203a;
+
+  color: #ffffff;
+
+  font-weight: 700;
+}
+
+
+.gallery-detail-richtext td {
+  background: #06172c;
+}
+
+
+/* =========================================================
+   CODE
    ========================================================= */
 
 .gallery-detail-richtext pre {
   overflow-x: auto;
 
-  margin: 18px 0;
+  margin: 28px 0;
 
-  padding: 16px;
+  padding: 20px;
 
-  border: 1px solid #d1d5db;
+  border: 1px solid #294767;
 
-  border-radius: 8px;
+  border-radius: 6px;
 
-  background: #f8fafc;
+  background: #020e21;
 
-  color: #111827;
+  color: #dce7f4;
 }
 
 
 .gallery-detail-richtext code {
+  color: #dce7f4;
+
   font-family:
     Consolas,
     Monaco,
     "Courier New",
     monospace;
 
-  font-size: 14px;
+  font-size: 15px;
 
   line-height: 1.6;
-}
-
-
-/* =========================================================
-   DETAIL IMAGE
-   ========================================================= */
-
-.gallery-detail-richtext img {
-  display: block;
-
-  max-width: 100%;
-
-  height: auto;
-
-  width: auto;
-
-  max-height: 680px;
-
-  object-fit: contain;
-
-  margin: 18px 0;
-
-  border-radius: 4px;
-
-  background: #f8fafc;
-}
-
-
-/* =========================================================
-   FIGURE
-   ========================================================= */
-
-.gallery-detail-richtext figure {
-  margin: 24px 0;
-}
-
-
-.gallery-detail-richtext figcaption {
-  margin-top: 8px;
-
-  color: #64748b;
-
-  font-size: 14px;
-
-  text-align: center;
-}
-
-
-/* =========================================================
-   TINYMCE
-   ========================================================= */
-
-.gallery-detail-richtext .mce-content-body,
-.gallery-detail-richtext .mce-item-table,
-.gallery-detail-richtext .mce-item-table td,
-.gallery-detail-richtext .mce-item-table th {
-  border-color: #d1d5db;
-}
-
-
-/* =========================================================
-   TEXT ALIGNMENT
-   ========================================================= */
-
-.gallery-detail-richtext .alignleft,
-.gallery-detail-richtext .mce-toc {
-  text-align: left;
-}
-
-
-.gallery-detail-richtext .aligncenter {
-  text-align: center;
-}
-
-
-.gallery-detail-richtext .alignright {
-  text-align: right;
-}
-
-
-.gallery-detail-richtext .alignjustify {
-  text-align: justify;
-}
-
-
-/* =========================================================
-   IMAGE ALIGNMENT
-   ========================================================= */
-
-.gallery-detail-richtext img.alignleft,
-.gallery-detail-richtext figure.alignleft {
-  float: left;
-
-  margin: 6px 18px 12px 0;
-}
-
-
-.gallery-detail-richtext img.alignright,
-.gallery-detail-richtext figure.alignright {
-  float: right;
-
-  margin: 6px 0 12px 18px;
-}
-
-
-.gallery-detail-richtext img.aligncenter,
-.gallery-detail-richtext figure.aligncenter {
-  display: block;
-
-  float: none;
-
-  margin: 16px auto;
-
-  text-align: center;
-}
-
-
-/* =========================================================
-   IMAGE TEXT WRAP
-   ========================================================= */
-
-.gallery-detail-richtext img[data-text-wrap="inline"] {
-  display: inline-block;
-
-  float: none;
-
-  margin: 0 4px;
-
-  max-width: 100%;
-}
-
-
-.gallery-detail-richtext img[data-text-wrap="squareLeft"],
-.gallery-detail-richtext img[data-text-wrap="tightLeft"],
-.gallery-detail-richtext img[data-text-wrap="front"] {
-  float: left;
-
-  max-width: 48%;
-
-  margin: 6px 18px 12px 0;
-}
-
-
-.gallery-detail-richtext img[data-text-wrap="squareRight"],
-.gallery-detail-richtext img[data-text-wrap="tightRight"] {
-  float: right;
-
-  max-width: 48%;
-
-  margin: 6px 0 12px 18px;
-}
-
-
-.gallery-detail-richtext img[data-text-wrap="topBottom"] {
-  display: block;
-
-  float: none;
-
-  clear: both;
-
-  margin: 16px auto;
-
-  max-width: 100%;
-}
-
-
-.gallery-detail-richtext img[data-text-wrap="center"] {
-  display: block;
-
-  float: none;
-
-  clear: both;
-
-  margin: 16px auto;
-
-  max-width: 70%;
-}
-
-
-.gallery-detail-richtext img[data-text-wrap="behind"] {
-  position: absolute;
-
-  z-index: 0;
-
-  max-width: 55%;
-
-  opacity: 0.55;
 }
 
 
@@ -1798,15 +1770,15 @@
 .gallery-detail-richtext .arduino-code-block {
   position: relative;
 
-  margin: 18px 0;
+  margin: 28px 0;
 
   overflow: hidden;
 
   border: 1px solid #294767;
 
-  border-radius: 10px;
+  border-radius: 8px;
 
-  background: #f8fafc;
+  background: #020e21;
 }
 
 
@@ -1818,13 +1790,13 @@
 
   gap: 12px;
 
-  padding: 9px 12px;
+  padding: 10px 14px;
 
-  border-bottom: 1px solid #d1d5db;
+  border-bottom: 1px solid #294767;
 
-  background: #eef2f7;
+  background: #0a203a;
 
-  color: #334155;
+  color: #dce7f4;
 
   font-size: 13px;
 
@@ -1835,24 +1807,70 @@
 .gallery-detail-richtext .arduino-code-block pre {
   margin: 0;
 
-  padding: 16px;
+  padding: 18px;
 
   border: 0;
 
   border-radius: 0;
 
-  background: #ffffff;
+  background: #020e21;
 
-  color: #0f172a;
+  color: #dce7f4;
 }
 
 
 .gallery-detail-richtext .arduino-code-block code {
-  color: #0f172a;
+  color: #dce7f4;
 
   white-space: pre;
 }
 
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+  .gallery-detail-content {
+    padding: 28px 24px 36px;
+  }
+
+  .gallery-detail-content > h2 {
+    font-size: 23px;
+  }
+
+  .gallery-detail-richtext,
+  .gallery-detail-richtext p,
+  .gallery-detail-richtext li {
+    font-size: 17px;
+
+    line-height: 1.65;
+  }
+
+  .gallery-detail-richtext h1 {
+    font-size: 30px;
+  }
+
+  .gallery-detail-richtext h2 {
+    font-size: 26px;
+  }
+
+  .gallery-detail-richtext h3 {
+    font-size: 22px;
+  }
+
+  .gallery-detail-richtext img.alignleft,
+  .gallery-detail-richtext img.alignright,
+  .gallery-detail-richtext figure.alignleft,
+  .gallery-detail-richtext figure.alignright {
+    float: none;
+
+    max-width: 100%;
+
+    margin: 22px auto;
+  }
+}
 
 /* =========================================================
    DETAIL BUTTON / LINK
