@@ -73,6 +73,15 @@
   background: #f0fdf4;
 }
 
+.user-ide-buy-card--disabled {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.user-ide-buy-card--disabled > span {
+  color: #b91c1c;
+}
+
 .user-ide-token-card strong,
 .user-ide-buy-card strong {
   display: block;

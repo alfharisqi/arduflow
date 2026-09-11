@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import hideIcon from '../../assets/icons/icon-hide-1.svg';
+import eyeOpenIcon from '../../assets/icons/icon-eyeopen-1.svg';
 import { AuthImageSlider } from '../../components/auth/AuthImageSlider.jsx';
 import { confirmPasswordReset } from '../../services/authApi.js';
 import { showErrorAlert, showSuccessAlert } from '../../utils/alerts.js';
@@ -43,6 +44,8 @@ export function ResetPasswordForm() {
       <AuthImageSlider />
 
       <section className="reset-password-panel" aria-labelledby="reset-password-form-title">
+        <a className="auth-back-button" href="/">← Kembali</a>
+
         <form className="reset-password-form-box" onSubmit={handleSubmit}>
           <h2 id="reset-password-form-title">Reset password anda</h2>
 
@@ -55,7 +58,7 @@ export function ResetPasswordForm() {
                   className="signin-hide-button"
                   onClick={() => setShowNewPassword((current) => !current)}
                 >
-                  <img src={hideIcon} alt="" />
+                  <img src={showNewPassword ? eyeOpenIcon : hideIcon} alt="" />
                   <span>{showNewPassword ? 'Show' : 'Hide'}</span>
                 </button>
               </span>
@@ -76,7 +79,7 @@ export function ResetPasswordForm() {
                   className="signin-hide-button"
                   onClick={() => setShowConfirmPassword((current) => !current)}
                 >
-                  <img src={hideIcon} alt="" />
+                  <img src={showConfirmPassword ? eyeOpenIcon : hideIcon} alt="" />
                   <span>{showConfirmPassword ? 'Show' : 'Hide'}</span>
                 </button>
               </span>

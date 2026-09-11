@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
 import hideIcon from '../../assets/icons/icon-hide-1.svg';
+import eyeOpenIcon from '../../assets/icons/icon-eyeopen-1.svg';
 import { AuthImageSlider } from '../../components/auth/AuthImageSlider.jsx';
 import { checkAuthAvailability, registerUser } from '../../services/authApi.js';
 
@@ -117,9 +118,24 @@ export function SignUp() {
       });
 
       sessionStorage.setItem('arduflow_auth_message', data.message);
+      sessionStorage.setItem('arduflow_verification_email', String(form.get('email') || '').trim().toLowerCase());
+      sessionStorage.setItem('arduflow_verification_resend_until', String(Date.now() + 60000));
       window.location.assign('/signup/email-verification');
     } catch (error) {
-      setStatus({ type: 'error', message: error.message });
+      const message = error.message || 'Registrasi gagal.';
+      setStatus({ type: 'error', message });
+      if (/whatsapp/i.test(message)) {
+        setFieldStatus((current) => ({
+          ...current,
+          whatsapp: { type: 'error', message: 'Nomor WhatsApp sudah terdaftar.' },
+        }));
+      }
+      if (/email/i.test(message)) {
+        setFieldStatus((current) => ({
+          ...current,
+          email: { type: 'error', message: 'Email sudah terdaftar.' },
+        }));
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -130,6 +146,8 @@ export function SignUp() {
       <AuthImageSlider />
 
       <section className="signup-panel" aria-labelledby="signup-title">
+        <a className="auth-back-button" href="/">← Kembali</a>
+
         <div className="signup-form-box">
           <h2 id="signup-title">Daftar Sekarang</h2>
 
@@ -201,7 +219,7 @@ export function SignUp() {
                   className="signin-hide-button"
                   onClick={() => setShowPassword((current) => !current)}
                 >
-                  <img src={hideIcon} alt="" />
+                  <img src={showPassword ? eyeOpenIcon : hideIcon} alt="" />
                   <span>{showPassword ? 'Show' : 'Hide'}</span>
                 </button>
               </span>

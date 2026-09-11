@@ -19,6 +19,8 @@ export function ResetPassword() {
     setSubmitting(true);
     try {
       const data = await requestPasswordReset(email);
+      sessionStorage.setItem('arduflow_reset_email', email);
+      sessionStorage.setItem('arduflow_reset_resend_until', String(Date.now() + ((Number(data.retryAfter) || 60) * 1000)));
       await showSuccessAlert('Email reset password terkirim', data.message);
       window.location.href = '/reset-password/email-sent';
     } catch (error) {
@@ -33,6 +35,8 @@ export function ResetPassword() {
       <AuthImageSlider />
 
       <section className="reset-password-panel" aria-labelledby="reset-password-title">
+        <a className="auth-back-button" href="/">← Kembali</a>
+
         <form className="reset-password-box" onSubmit={handleSubmit}>
           <h2 id="reset-password-title">Reset password anda</h2>
 

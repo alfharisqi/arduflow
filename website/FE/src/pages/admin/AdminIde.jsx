@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AdminPage, AdminTopbar } from './AdminChrome.jsx';
-import { fetchIdeConfig, updateIdeConfig } from '../../services/ideApi.js';
+import { deactivateIdeToken, fetchIdeConfig, fetchIdeTokens, updateIdeConfig } from '../../services/ideApi.js';
+import { showPromptAlert } from '../../utils/alerts.js';
 
 const initialForm = {
   title: 'Akses ArduFlow IDE',
@@ -18,12 +19,32 @@ function formatCurrency(value) {
   }).format(Number(value) || 0);
 }
 
+function formatDate(value) {
+  if (!value) return '-';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+
+  return new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
 export function AdminIde() {
   const [form, setForm] = useState(initialForm);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [search, setSearch] = useState('');
+  const [tokens, setTokens] = useState([]);
+  const [tokenSummary, setTokenSummary] = useState({ total: 0, active: 0, disabled: 0 });
+  const [isLoadingTokens, setLoadingTokens] = useState(false);
+  const [tokenMessage, setTokenMessage] = useState('');
+  const searchTimerRef = useRef(null);
 
   async function loadConfig() {
     setIsLoading(true);
@@ -45,8 +66,29 @@ export function AdminIde() {
     }
   }
 
+  async function loadTokens(nextSearch = search) {
+    setLoadingTokens(true);
+    setTokenMessage('');
+
+    try {
+      const data = await fetchIdeTokens({
+        admin: 1,
+        search: nextSearch,
+      });
+      setTokens(data.tokens);
+      setTokenSummary(data.summary);
+    } catch (error) {
+      setTokens([]);
+      setTokenSummary({ total: 0, active: 0, disabled: 0 });
+      setTokenMessage(error.message || 'Token IDE gagal dimuat.');
+    } finally {
+      setLoadingTokens(false);
+    }
+  }
+
   useEffect(() => {
     loadConfig();
+    loadTokens('');
   }, []);
 
   function updateField(field, value) {
@@ -84,13 +126,45 @@ export function AdminIde() {
     }
   }
 
+  async function handleDeactivateToken(token) {
+    const reason = await showPromptAlert({
+      title: 'Nonaktifkan Token IDE',
+      text: `Berikan alasan untuk menonaktifkan token ${token.token}. Alasan ini akan tampil di dashboard user.`,
+      inputPlaceholder: 'Contoh: Token disalahgunakan / pembayaran dibatalkan',
+      confirmButtonText: 'Nonaktifkan',
+      requiredMessage: 'Alasan nonaktif wajib diisi.',
+    });
+
+    if (reason === null) {
+      return;
+    }
+
+    setTokenMessage('Menonaktifkan token IDE...');
+
+    try {
+      await deactivateIdeToken(token.id, reason);
+      setTokenMessage('Token IDE berhasil dinonaktifkan.');
+      await loadTokens();
+    } catch (error) {
+      setTokenMessage(error.message || 'Token IDE gagal dinonaktifkan.');
+    }
+  }
+
+  function handleTokenSearch(value) {
+    setSearch(value);
+    window.clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = window.setTimeout(() => {
+      loadTokens(value);
+    }, 350);
+  }
+
   return (
     <AdminPage pageClassName="admin-ide-page" ariaLabel="Admin ArduFlow IDE">
       <AdminTopbar
         searchPlaceholder="Cari konfigurasi IDE..."
         searchLabel="Cari konfigurasi IDE"
         searchValue={search}
-        onSearchChange={setSearch}
+        onSearchChange={handleTokenSearch}
       />
 
       <section className="admin-ide-heading">
@@ -116,6 +190,11 @@ export function AdminIde() {
           <span>Status Pembelian</span>
           <strong>{form.isActive ? 'Aktif' : 'Nonaktif'}</strong>
           <small>Tombol checkout mengikuti status ini</small>
+        </article>
+        <article>
+          <span>Token Aktif</span>
+          <strong>{tokenSummary.active || 0}</strong>
+          <small>{tokenSummary.disabled || 0} token dinonaktifkan</small>
         </article>
       </section>
 
@@ -199,6 +278,62 @@ export function AdminIde() {
           <p>{form.description || 'Deskripsi akses IDE akan tampil di halaman /akses.'}</p>
           <small>{form.isActive ? 'Pembelian tersedia' : 'Pembelian dinonaktifkan'} | {form.durationDays || 365} hari</small>
         </aside>
+      </section>
+
+      <section className="admin-ide-token-section" aria-labelledby="admin-ide-token-title">
+        <div className="admin-ide-token-head">
+          <div>
+            <h2 id="admin-ide-token-title">List Token IDE User</h2>
+            <p>Token dibuat otomatis dari transaksi IDE yang sudah disetujui. Token nonaktif tidak bisa membuka proyek di IDE.</p>
+          </div>
+          <button type="button" onClick={() => loadTokens()} disabled={isLoadingTokens}>
+            {isLoadingTokens ? 'Memuat...' : 'Refresh Token'}
+          </button>
+        </div>
+
+        {tokenMessage ? <p className="admin-ide-message">{tokenMessage}</p> : null}
+
+        <div className="admin-ide-token-table" role="table" aria-label="List token IDE user">
+          <div className="admin-ide-token-table__head" role="row">
+            <span>User</span>
+            <span>Email</span>
+            <span>Token</span>
+            <span>Status</span>
+            <span>Diberikan</span>
+            <span>Alasan Nonaktif</span>
+            <span>Aksi</span>
+          </div>
+
+          {isLoadingTokens ? (
+            <div className="admin-ide-token-table__row admin-ide-token-table__row--state" role="row">
+              <span>Memuat token IDE...</span>
+            </div>
+          ) : tokens.length === 0 ? (
+            <div className="admin-ide-token-table__row admin-ide-token-table__row--state" role="row">
+              <span>Belum ada token IDE.</span>
+            </div>
+          ) : (
+            tokens.map((token) => (
+              <div className="admin-ide-token-table__row" role="row" key={token.id}>
+                <span>{token.userName || '-'}</span>
+                <span>{token.email || '-'}</span>
+                <span><code>{token.token}</code></span>
+                <span>
+                  <b className={token.isActive ? 'is-active' : 'is-disabled'}>
+                    {token.isActive ? 'Aktif' : 'Nonaktif'}
+                  </b>
+                </span>
+                <span>{formatDate(token.grantedAt)}</span>
+                <span>{token.disabledReason || '-'}</span>
+                <span>
+                  <button type="button" disabled={!token.isActive} onClick={() => handleDeactivateToken(token)}>
+                    Nonaktifkan
+                  </button>
+                </span>
+              </div>
+            ))
+          )}
+        </div>
       </section>
     </AdminPage>
   );
