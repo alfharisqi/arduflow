@@ -146,9 +146,9 @@ export function SignUp() {
       <AuthImageSlider />
 
       <section className="signup-panel" aria-labelledby="signup-title">
-        <a className="auth-back-button" href="/">← Kembali</a>
-
         <div className="signup-form-box">
+          <a className="auth-back-button" href="/">← Kembali</a>
+
           <h2 id="signup-title">Daftar Sekarang</h2>
 
           <form className="signup-form" onSubmit={handleSubmit}>

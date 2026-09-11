@@ -56,6 +56,23 @@ final class MailService
         return $this->send((string) $user['email'], (string) $user['name'], 'Kode keamanan pencairan ArduFlow', $body);
     }
 
+    public function sendUserNotification(string $address, string $name, string $subject, string $title, string $message, string $path = '/dashboard'): bool
+    {
+        $url = $this->frontendUrl($path);
+        $safeName = htmlspecialchars($name !== '' ? $name : 'User ArduFlow', ENT_QUOTES, 'UTF-8');
+        $body = $this->buttonTemplate(
+            $title,
+            "Halo {$safeName},",
+            $message,
+            'Buka Dashboard',
+            $url,
+            'Jika tombol tidak bisa dibuka, salin tautan berikut ke browser Anda.',
+            'Email ini dikirim karena notifikasi email akun Anda aktif.',
+        );
+
+        return $this->send($address, $name !== '' ? $name : $address, $subject, $body);
+    }
+
     private function send(string $address, string $name, string $subject, string $html): bool
     {
         if (!(bool) $this->config->get('mail.enabled', true)) {

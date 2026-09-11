@@ -97,9 +97,9 @@ export function EmailVerification() {
       <AuthImageSlider />
 
       <section className="verify-email-panel" aria-labelledby="verify-email-title">
-        <a className="auth-back-button" href="/">← Kembali</a>
-
         <div className={`verify-email-content verify-email-content--${verificationState.type}`}>
+          <a className="auth-back-button" href="/">← Kembali</a>
+
           <div>
             <h2 id="verify-email-title">{verificationState.title}</h2>
             <p>{verificationState.message}</p>
