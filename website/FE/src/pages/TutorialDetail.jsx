@@ -4,6 +4,11 @@ import {
   isPublishedTutorial,
 } from '../services/materiApi.js';
 import fallbackTutorialImage from '../assets/images/tutorial-device.png';
+import {
+  readTutorialProgress,
+  safeStorageKeyPart,
+  writeTutorialProgress,
+} from '../utils/learningProgress.js';
 import '../styles/tutorial.css';
 
 const DEPLOY_URL = (
@@ -152,19 +157,6 @@ function normalizeLearningObjectives(value) {
         .trim()
     )
     .filter(Boolean);
-}
-
-function safeStorageKeyPart(value) {
-  return String(value ?? 'unknown').replace(
-    /[^a-zA-Z0-9_-]/g,
-    '-'
-  );
-}
-
-function progressStorageKey(tutorialId) {
-  return `arduflow:tutorial-progress:${safeStorageKeyPart(
-    tutorialId
-  )}`;
 }
 
 function bookmarkStorageKey(tutorialId) {
@@ -807,23 +799,53 @@ export function TutorialDetail() {
     }
 
     try {
-      const savedProgress =
-        JSON.parse(
-          localStorage.getItem(
-            progressStorageKey(
-              tutorial.id
-            )
-          ) || '[]'
+      const storedProgress =
+        readTutorialProgress(
+          tutorial.id
         );
 
+      const validSlideIds =
+        new Set(
+          slides.map(
+            (slide) =>
+              String(slide.id)
+          )
+        );
+
+      const restoredIds =
+        storedProgress
+          .completedSlideIds
+          .filter(
+            (id) =>
+              validSlideIds.has(
+                String(id)
+              )
+          );
+
       setCompletedSlideIds(
-        Array.isArray(savedProgress)
-          ? savedProgress.map(
-              (item) =>
-                String(item)
-            )
-          : []
+        restoredIds
       );
+
+      /*
+       * Tulis ulang summary agar data lama
+       * yang hanya berisi array ID otomatis
+       * ikut kompatibel dengan dashboard.
+       */
+      writeTutorialProgress({
+        tutorialId:
+          tutorial.id,
+        tutorialSlug:
+          tutorial.slug ||
+          tutorial.urlSlug ||
+          tutorial.url_slug ||
+          '',
+        tutorialTitle:
+          tutorial.title || '',
+        completedSlideIds:
+          restoredIds,
+        totalSlides:
+          slides.length,
+      });
 
       setIsSaved(
         localStorage.getItem(
@@ -835,7 +857,14 @@ export function TutorialDetail() {
     } catch {
       setCompletedSlideIds([]);
     }
-  }, [tutorial?.id]);
+  }, [
+    tutorial?.id,
+    tutorial?.slug,
+    tutorial?.title,
+    tutorial?.urlSlug,
+    tutorial?.url_slug,
+    slides,
+  ]);
 
   const completedSlideSet =
     useMemo(
@@ -1075,12 +1104,25 @@ export function TutorialDetail() {
   const saveCompletedSlideIds = (
     nextIds
   ) => {
+    const validSlideIds =
+      new Set(
+        slides.map(
+          (slide) =>
+            String(slide.id)
+        )
+      );
+
     const uniqueIds = [
       ...new Set(
-        nextIds.map(
-          (item) =>
-            String(item)
-        )
+        nextIds
+          .map(
+            (item) =>
+              String(item)
+          )
+          .filter(
+            (id) =>
+              validSlideIds.has(id)
+          )
       ),
     ];
 
@@ -1089,14 +1131,21 @@ export function TutorialDetail() {
     );
 
     if (tutorial?.id) {
-      localStorage.setItem(
-        progressStorageKey(
-          tutorial.id
-        ),
-        JSON.stringify(
-          uniqueIds
-        )
-      );
+      writeTutorialProgress({
+        tutorialId:
+          tutorial.id,
+        tutorialSlug:
+          tutorial.slug ||
+          tutorial.urlSlug ||
+          tutorial.url_slug ||
+          '',
+        tutorialTitle:
+          tutorial.title || '',
+        completedSlideIds:
+          uniqueIds,
+        totalSlides:
+          slides.length,
+      });
     }
   };
 
@@ -1146,6 +1195,11 @@ export function TutorialDetail() {
   };
 
   const openOverview = () => {
+    /*
+     * Kembali ke overview TIDAK menambah progress.
+     * Progress hanya bertambah ketika user menekan
+     * tombol "Materi Selanjutnya".
+     */
     setShowOverview(true);
 
     window.scrollTo({
@@ -1165,6 +1219,17 @@ export function TutorialDetail() {
       return;
     }
 
+    /*
+     * Fungsi ini HANYA berpindah materi.
+     *
+     * Klik dari:
+     * - Daftar Materi
+     * - Materi Sebelumnya
+     * - Related material
+     * - Mulai Materi
+     *
+     * TIDAK menambah progress.
+     */
     setShowOverview(false);
     setActiveIndex(nextIndex);
 
@@ -1193,6 +1258,14 @@ export function TutorialDetail() {
       return;
     }
 
+    /*
+     * SATU-SATUNYA aksi navigasi yang
+     * menambah progress adalah tombol
+     * "Materi Selanjutnya".
+     *
+     * Materi yang sedang dibaca ditandai
+     * selesai, lalu pindah ke materi berikutnya.
+     */
     markSlideCompleted(
       activeSlide.id
     );
@@ -1212,50 +1285,19 @@ export function TutorialDetail() {
    * SELESAIKAN MATERI
    * ================================
    *
-   * 1. Menandai materi terakhir selesai.
-   * 2. Menyimpan progress ke localStorage.
-   * 3. Kembali ke halaman /materi.
+   * Pada materi terakhir tidak ada tombol
+   * "Materi Selanjutnya", jadi tombol
+   * "Selesaikan Materi" dipakai untuk
+   * menandai materi terakhir sebagai selesai.
+   *
+   * Tombol ini TIDAK otomatis menandai
+   * materi lain yang dilewati user.
    */
   const finishTutorial = () => {
     if (activeSlide) {
-      const currentId =
-        String(
-          activeSlide.id
-        );
-
-      const nextCompletedIds =
-        completedSlideSet.has(
-          currentId
-        )
-          ? completedSlideIds
-          : [
-              ...completedSlideIds,
-              currentId,
-            ];
-
-      const uniqueIds = [
-        ...new Set(
-          nextCompletedIds.map(
-            (item) =>
-              String(item)
-          )
-        ),
-      ];
-
-      setCompletedSlideIds(
-        uniqueIds
+      markSlideCompleted(
+        activeSlide.id
       );
-
-      if (tutorial?.id) {
-        localStorage.setItem(
-          progressStorageKey(
-            tutorial.id
-          ),
-          JSON.stringify(
-            uniqueIds
-          )
-        );
-      }
     }
 
     // Kembali ke halaman daftar materi.
@@ -1338,6 +1380,20 @@ export function TutorialDetail() {
       <div className="tutorial-material-shell">
 
         {/* =========================
+            TOMBOL KEMBALI
+        ========================== */}
+        <div className="tutorial-material-back-wrap">
+          <a
+            className="tutorial-material-back-link"
+            href="/materi#semua-materi"
+            aria-label="Kembali ke daftar materi"
+          >
+            <span aria-hidden="true"></span>
+            Kembali ke Daftar Materi
+          </a>
+        </div>
+
+        {/* =========================
             HEADER
         ========================== */}
         <section className="tutorial-material-header">
@@ -1392,30 +1448,7 @@ export function TutorialDetail() {
             </div>
 
             <div className="tutorial-material-action-row">
-              <button
-                className={`tutorial-material-btn is-light ${
-                  isSaved
-                    ? 'is-saved'
-                    : ''
-                }`}
-                type="button"
-                onClick={
-                  toggleBookmark
-                }
-              >
-                <Icon
-                  name={
-                    isSaved
-                      ? 'bookmarkFilled'
-                      : 'bookmark'
-                  }
-                  size={14}
-                />
 
-                {isSaved
-                  ? 'Tersimpan'
-                  : 'Simpan'}
-              </button>
             </div>
           </div>
         </section>

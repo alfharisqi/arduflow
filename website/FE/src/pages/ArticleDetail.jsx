@@ -317,13 +317,13 @@ export function ArticleDetail() {
         <div className="article-detail-v2-shell">
           <div className="article-detail-v2-hero-grid">
             <div className="article-detail-v2-hero-copy">
-              <a
-                className="article-detail-v2-back"
-                href="/tutorial"
-              >
-                <span aria-hidden="true">←</span>
-                Kembali ke Tutorial
-              </a>
+            <a
+              className="article-detail-v2-back"
+              href="/tutorial/#artikel-terbaru"
+            >
+            <span aria-hidden="true"></span>
+             Kembali ke Tutorial
+            </a>
 
               <span className="article-detail-v2-category">
                 {article.category || 'Artikel'}
@@ -435,9 +435,8 @@ export function ArticleDetail() {
                   berhubungan dengan artikel ini.
                 </p>
               </div>
-
               <a href="/artikel">
-                Lihat Semua Artikel →
+                Lihat Semua Artikel
               </a>
             </div>
 
@@ -487,7 +486,7 @@ export function ArticleDetail() {
                     </p>
 
                     <strong>
-                      Baca Artikel →
+                      Baca Artikel
                     </strong>
                   </div>
                 </a>

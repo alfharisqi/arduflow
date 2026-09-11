@@ -32,6 +32,7 @@ const initialFormData = {
   cardImage: null,
   difficultyLevel: 'Level Pemula',
   estimatedTime: '2-4 jam',
+  price: '',
   ctaText: 'Mulai Belajar',
   targetLink: 'Materi Pertama',
   urlSlug: 'panduan-pemula',
@@ -81,6 +82,43 @@ const htmlToPlainText = (html = '') =>
     .replace(/\s+/g, ' ')
     .trim();
 
+
+const normalizeAdminAccessType = (value) => {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase();
+
+  if (
+    ['premium', 'paid', 'berbayar'].includes(normalized)
+  ) {
+    return 'Premium';
+  }
+
+  if (
+    [
+      'login',
+      'member',
+      'perlu login',
+      'perlu login / akun',
+      'akun',
+    ].includes(normalized)
+  ) {
+    return 'Perlu login / Akun';
+  }
+
+  return 'Gratis';
+};
+
+const formatRupiah = (value) => {
+  const amount = Math.max(0, Number(value) || 0);
+
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
 function AdminTutorialForm({ mode = 'create' }) {
   // Mode edit otomatis aktif jika URL memiliki ?id=...
   // Jadi route /admin/tutorial/tambah?id=123 tetap memuat data lama
@@ -127,6 +165,7 @@ function AdminTutorialForm({ mode = 'create' }) {
   const slideImageInputRef = useRef(null);
   const slideVideoInputRef = useRef(null);
   const pageOrderRef = useRef(null);
+  const priceRef = useRef(null);
 
   const selectedSlide =
     slides.find((slide) => slide.id === selectedSlideId) || slides[0] || null;
@@ -229,6 +268,7 @@ function AdminTutorialForm({ mode = 'create' }) {
           cardImage: null,
           difficultyLevel: tutorial.difficulty_level || 'Level Pemula',
           estimatedTime: tutorial.estimated_time || '',
+          price: String(Number(tutorial.price || tutorial.material_price || 0) || ''),
           ctaText: tutorial.cta_text || 'Mulai Belajar',
           targetLink: tutorial.cta_target_link || 'Materi Pertama',
           urlSlug: tutorial.cta_url_slug || tutorial.slug || '',
@@ -250,7 +290,7 @@ function AdminTutorialForm({ mode = 'create' }) {
             showOnPage: Boolean(tutorial.show_on_page),
             featured: Boolean(tutorial.featured),
             comments: tutorial.comments !== false,
-            accessType: tutorial.access_type || 'Gratis',
+            accessType: normalizeAdminAccessType(tutorial.access_type || tutorial.accessType || 'Gratis'),
             featuredOrder: String(tutorial.featured_order || 1),
           },
           accessSettings: {
@@ -917,6 +957,14 @@ function AdminTutorialForm({ mode = 'create' }) {
     if (!formData.pageSettings.pageOrder) {
       validationErrors.pageOrder = 'Kolom ini belum diisi.';
     }
+
+    if (
+      normalizeAdminAccessType(formData.pageSettings.accessType) === 'Premium' &&
+      Number(formData.price) <= 0
+    ) {
+      validationErrors.price = 'Harga materi Premium harus lebih dari Rp0.';
+    }
+
     if (slides.length === 0) {
       validationErrors.slides = 'Daftar materi harus memiliki minimal satu slide.';
     }
@@ -934,6 +982,7 @@ function AdminTutorialForm({ mode = 'create' }) {
       fullDescription: fullDescriptionRef.current,
       cardImage: cardImageSectionRef.current,
       pageOrder: pageOrderRef.current,
+      price: priceRef.current,
     };
 
     return targets[fieldName] || null;
@@ -949,6 +998,7 @@ function AdminTutorialForm({ mode = 'create' }) {
       'fullDescription',
       'cardImage',
       'pageOrder',
+      'price',
     ];
     const firstInvalidField = fieldOrder.find(
       (fieldName) => validationErrors[fieldName]
@@ -999,11 +1049,21 @@ function AdminTutorialForm({ mode = 'create' }) {
             .toLowerCase()
             .replace(/\s+/g, '_');
 
+    const normalizedAccessType = normalizeAdminAccessType(
+      formData.pageSettings.accessType
+    );
+
+    const materialPrice =
+      normalizedAccessType === 'Premium'
+        ? Math.max(0, Math.round(Number(formData.price) || 0))
+        : 0;
+
     return ({
     title: formData.title.trim(),
     slug: formData.slug.trim(),
     category: formData.category,
     display_order: Number(formData.displayOrder),
+    price: materialPrice,
     descriptions: {
       short_description: formData.shortDescription.trim(),
       full_description: formData.fullDescription.trim(),
@@ -1036,7 +1096,8 @@ function AdminTutorialForm({ mode = 'create' }) {
       show_on_page: formData.pageSettings.showOnPage,
       featured: formData.pageSettings.featured,
       comments: formData.pageSettings.comments,
-      access_type: formData.pageSettings.accessType,
+      access_type: normalizedAccessType,
+      price: materialPrice,
       featured_order: formData.pageSettings.featuredOrder,
     },
     access_settings: {
@@ -1447,13 +1508,27 @@ function AdminTutorialForm({ mode = 'create' }) {
           <div className="admin-tutorial-create-two">
             <label>
               <span className="admin-tutorial-label">
-                Kategori / Jalur<span className="admin-tutorial-required">*</span>
+                Kategori<span className="admin-tutorial-required">*</span>
               </span>
-              <select ref={categoryRef} className={errors.category ? 'is-error' : ''} name="category" value={formData.category} onChange={handleChange} aria-invalid={Boolean(errors.category)}>
-                <option value="" disabled>Pilih jalur materi</option>
-                <option value="panduan-pemula">Panduan Pemula</option>
-                <option value="penggunaan-ide">Penggunaan IDE</option>
-                <option value="dasar-hardware-iot">Dasar Hardware dan IoT</option>
+              <select
+                ref={categoryRef}
+                className={errors.category ? 'is-error' : ''}
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                aria-invalid={Boolean(errors.category)}
+              >
+                <option value="" disabled>
+                  Pilih kategori materi
+                </option>
+                <option value="IoT">IoT</option>
+                <option value="ArduFlow">ArduFlow</option>
+                <option value="Arduino">Arduino</option>
+                <option value="ESP32">ESP32</option>
+                <option value="Sensor">Sensor</option>
+                <option value="Visual Programming">Visual Programming</option>
+                <option value="MQTT">MQTT</option>
+                <option value="Project">Project</option>
               </select>
               {errors.category && <small className="admin-tutorial-error">{errors.category}</small>}
             </label>
@@ -2431,7 +2506,7 @@ function AdminTutorialForm({ mode = 'create' }) {
                     <input
                       type="radio"
                       checked={
-                        formData.pageSettings.accessType === 'Gratis'
+                        normalizeAdminAccessType(formData.pageSettings.accessType) === 'Gratis'
                       }
                       onChange={() =>
                         handleNestedChange(
@@ -2451,7 +2526,7 @@ function AdminTutorialForm({ mode = 'create' }) {
                     <input
                       type="radio"
                       checked={
-                        formData.pageSettings.accessType ===
+                        normalizeAdminAccessType(formData.pageSettings.accessType) ===
                         'Perlu login / Akun'
                       }
                       onChange={() =>
@@ -2467,7 +2542,59 @@ function AdminTutorialForm({ mode = 'create' }) {
                       <small>Pengguna harus masuk terlebih dahulu.</small>
                     </span>
                   </label>
+
+                  <label>
+                    <input
+                      type="radio"
+                      checked={
+                        normalizeAdminAccessType(formData.pageSettings.accessType) ===
+                        'Premium'
+                      }
+                      onChange={() =>
+                        handleNestedChange(
+                          'pageSettings',
+                          'accessType',
+                          'Premium'
+                        )
+                      }
+                    />
+                    <span>
+                      <b>Premium / Berbayar</b>
+                      <small>Pengguna harus membeli materi sebelum dapat membuka isinya.</small>
+                    </span>
+                  </label>
                 </div>
+
+                {normalizeAdminAccessType(formData.pageSettings.accessType) === 'Premium' && (
+                  <label className="admin-create-settings-field">
+                    <span>
+                      Harga Materi
+                      <i className="admin-tutorial-required">*</i>
+                    </span>
+
+                    <input
+                      ref={priceRef}
+                      className={errors.price ? 'is-error' : ''}
+                      type="number"
+                      name="price"
+                      min="1000"
+                      step="1000"
+                      value={formData.price}
+                      onChange={handleChange}
+                      placeholder="Contoh: 49000"
+                    />
+
+                    <small>
+                      Masukkan angka Rupiah tanpa titik. Contoh: 49000 akan tampil sebagai Rp49.000.
+                    </small>
+
+                    {errors.price && (
+                      <small className="admin-tutorial-error">
+                        {errors.price}
+                      </small>
+                    )}
+                  </label>
+                )}
               </article>
             </div>
           </section>
@@ -2492,15 +2619,14 @@ function AdminTutorialForm({ mode = 'create' }) {
                   onChange={handleChange}
                 >
                   <option value="">Pilih kategori</option>
-                  <option value="panduan-pemula">
-                    Panduan Pemula
-                  </option>
-                  <option value="penggunaan-ide">
-                    Penggunaan IDE
-                  </option>
-                  <option value="dasar-hardware-iot">
-                    Dasar Hardware dan IoT
-                  </option>
+                 <option value="IoT">IoT</option>
+                <option value="ArduFlow">ArduFlow</option>
+                <option value="Arduino">Arduino</option>
+                <option value="ESP32">ESP32</option>
+                <option value="Sensor">Sensor</option>
+                <option value="Visual Programming">Visual Programming</option>
+                <option value="MQTT">MQTT</option>
+                <option value="Project">Project</option>
                 </select>
 
                 <small>Pilih jalur atau kategori materi.</small>
@@ -2835,7 +2961,7 @@ function AdminTutorialForm({ mode = 'create' }) {
                 <div className="admin-create-settings-preview-tags">
                   <span>{formData.difficultyLevel}</span>
                   <span>
-                    {formData.pageSettings.accessType || 'Gratis'}
+                    {normalizeAdminAccessType(formData.pageSettings.accessType)}
                   </span>
                 </div>
 
@@ -2849,6 +2975,9 @@ function AdminTutorialForm({ mode = 'create' }) {
                 <div className="admin-create-settings-preview-meta">
                   <span>{formData.estimatedTime || '-'}</span>
                   <span>{slides.length} slide</span>
+                  {normalizeAdminAccessType(formData.pageSettings.accessType) === 'Premium' && (
+                    <span>{formatRupiah(formData.price)}</span>
+                  )}
                 </div>
 
                 <button type="button">
@@ -2881,7 +3010,13 @@ function AdminTutorialForm({ mode = 'create' }) {
                   'Featured',
                   formData.pageSettings.featured ? 'Ya' : 'Tidak',
                 ],
-                ['Akses', formData.pageSettings.accessType],
+                ['Akses', normalizeAdminAccessType(formData.pageSettings.accessType)],
+                [
+                  'Harga',
+                  normalizeAdminAccessType(formData.pageSettings.accessType) === 'Premium'
+                    ? formatRupiah(formData.price)
+                    : 'Gratis',
+                ],
                 ['Kategori', formData.category || '-'],
                 ['Level', formData.difficultyLevel],
                 [

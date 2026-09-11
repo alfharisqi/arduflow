@@ -353,7 +353,17 @@ export function UserPartnerDashboard() {
         throw new Error('URL logo tidak diterima dari server.');
       }
 
-      setEditForm((current) => ({ ...current, logoUrl: uploadedLogo.url }));
+      const nextForm = { ...editForm, logoUrl: uploadedLogo.url };
+      setEditForm(nextForm);
+
+      if (editingPartner?.id) {
+        const saveResult = await updatePartner(editingPartner.id, payloadFromForm(nextForm, editingPartner));
+        const updatedPartner = saveResult.partner || { ...editingPartner, logoUrl: uploadedLogo.url };
+        setPartners((current) => current.map((partner) => (partner.id === updatedPartner.id ? updatedPartner : partner)));
+        setEditingPartner(updatedPartner);
+        setSelectedPartner((current) => (current?.id === updatedPartner.id ? updatedPartner : current));
+        setSaveMessage('Logo partner berhasil diupload dan disimpan.');
+      }
     } catch (uploadError) {
       setFormError(uploadError.message || 'Upload logo gagal.');
     } finally {

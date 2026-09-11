@@ -823,3 +823,245 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Final responsive table normalization.
+   Keeps this page aligned with the cleaner admin-dashboard table style
+   while preventing the workshop columns from clipping/overlapping. */
+.user-workshop-content {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  padding: 35px clamp(16px, 3vw, 46px) 64px;
+}
+
+.user-workshop-panel,
+.user-workshop-header,
+.user-workshop-toolbar,
+.user-workshop-message,
+.user-workshop-table {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1121px;
+}
+
+.user-workshop-panel {
+  align-items: stretch;
+  margin: 0 auto;
+}
+
+.user-workshop-toolbar {
+  height: auto;
+  min-height: 48px;
+  gap: 16px;
+}
+
+.user-workshop-table {
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid #edf0f5;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.user-workshop-table__head,
+.user-workshop-table__row {
+  display: grid;
+  grid-template-columns:
+    minmax(220px, 1.45fr)
+    minmax(82px, 0.5fr)
+    minmax(190px, 1.15fr)
+    minmax(148px, 0.8fr)
+    minmax(104px, 0.58fr)
+    minmax(58px, 0.34fr)
+    minmax(172px, 0.88fr);
+  min-width: 980px;
+  width: 100%;
+  column-gap: 0;
+}
+
+.user-workshop-table__head {
+  min-height: 56px;
+  height: auto;
+}
+
+.user-workshop-table__row {
+  min-height: 70px;
+  height: auto;
+}
+
+.user-workshop-table__row--state {
+  min-width: 100%;
+  grid-template-columns: 1fr;
+}
+
+.user-workshop-table__head span,
+.user-workshop-table__row > span,
+.user-workshop-table__row time {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: inherit;
+  padding: 12px 14px;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.user-workshop-table__head span {
+  min-height: 56px;
+}
+
+.user-workshop-table__row > span,
+.user-workshop-table__row time {
+  min-height: 70px;
+}
+
+.user-workshop-table__head span:nth-child(6),
+.user-workshop-table__head span:nth-child(7),
+.user-workshop-table__row > .user-workshop-table__action-cell {
+  justify-content: center;
+  padding-left: 10px;
+  padding-right: 10px;
+  text-align: center;
+}
+
+.user-workshop-pill {
+  width: fit-content;
+  max-width: 100%;
+  min-height: 24px;
+  height: auto;
+  padding: 6px 10px;
+  line-height: 1.25;
+  text-align: center;
+  white-space: normal;
+}
+
+.user-workshop-row-actions {
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.user-workshop-detail-button,
+.user-workshop-testimonial-mini {
+  flex: 0 0 auto;
+  min-width: 0;
+  height: 34px;
+  white-space: nowrap;
+}
+
+.user-workshop-detail-button {
+  width: 86px;
+}
+
+.user-workshop-testimonial-mini {
+  width: 112px;
+}
+
+@media (max-width: 1100px) {
+  .user-workshop-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .user-workshop-search {
+    flex: 1 1 280px;
+  }
+}
+
+@media (max-width: 760px) {
+  .user-workshop-content {
+    padding: 24px 16px 48px;
+  }
+
+  .user-workshop-header,
+  .user-workshop-toolbar,
+  .user-workshop-controls {
+    align-items: stretch;
+  }
+
+  .user-workshop-toolbar,
+  .user-workshop-controls {
+    flex-direction: column;
+  }
+
+  .user-workshop-search,
+  .user-workshop-sort,
+  .user-workshop-sort select,
+  .user-workshop-filter {
+    width: 100%;
+  }
+
+  .user-workshop-sort {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .user-workshop-table {
+    display: grid;
+    gap: 12px;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .user-workshop-table__head {
+    display: none;
+  }
+
+  .user-workshop-table__row {
+    display: grid;
+    grid-template-columns: 1fr;
+    min-width: 0;
+    min-height: auto;
+    padding: 14px;
+    border: 1px solid #edf0f5;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  }
+
+  .user-workshop-table__row > span,
+  .user-workshop-table__row time,
+  .user-workshop-table__row > .user-workshop-table__action-cell {
+    display: grid;
+    grid-template-columns: 118px minmax(0, 1fr);
+    align-items: center;
+    min-height: 0;
+    padding: 9px 0;
+    text-align: left;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .user-workshop-table__row > span::before,
+  .user-workshop-table__row time::before {
+    content: attr(data-label);
+    color: #7b809a;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  .user-workshop-table__row > .user-workshop-table__action-cell {
+    justify-content: stretch;
+  }
+
+  .user-workshop-table__row > span:last-child {
+    border-bottom: 0;
+  }
+
+  .user-workshop-row-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .user-workshop-detail-button,
+  .user-workshop-testimonial-mini {
+    width: auto;
+    min-width: 104px;
+  }
+}

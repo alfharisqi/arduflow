@@ -278,26 +278,6 @@ function hasStoredFile(
         ) !== '';
 }
 
-function getProjectOwnerName(PDO $pdo, array $payload): string
-{
-    $fallback = trim((string) ($payload['ownerName'] ?? '')) ?: 'Nama pembuat belum tersedia';
-    $userId = filter_var($payload['userId'] ?? $payload['user_id'] ?? null, FILTER_VALIDATE_INT);
-    if (!$userId || $userId < 1) {
-        return $fallback;
-    }
-
-    $columns = array_column($pdo->query('PRAGMA table_info(users)')->fetchAll(), 'name');
-    if (!in_array('name', $columns, true)) {
-        return $fallback;
-    }
-
-    $activeFilter = in_array('deleted_at', $columns, true) ? ' AND deleted_at IS NULL' : '';
-    $statement = $pdo->prepare('SELECT name FROM users WHERE id = :id' . $activeFilter . ' LIMIT 1');
-    $statement->execute([':id' => $userId]);
-
-    return trim((string) $statement->fetchColumn()) ?: $fallback;
-}
-
 function rowToProject(
     PDO $pdo,
     array $row,
@@ -533,7 +513,8 @@ function rowToProject(
                 ),
 
         'ownerName' =>
-            getProjectOwnerName($pdo, $payload),
+            $payload['ownerName']
+            ?? 'User',
 
         'ownerUsername' =>
             $payload['ownerUsername']

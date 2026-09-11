@@ -15,6 +15,7 @@ import {
 } from "../services/projectApi.js";
 import { createTransaction, fetchTransactions } from "../services/transactionApi.js";
 import { getStoredUser, getStoredUserToken } from "../services/authSession.js";
+import { backendAssetUrl } from "../services/apiEndpoints.js";
 import { NodeSprite } from "../components/NodeSprite.jsx";
 import { getProjectNodeType } from "../config/projectNodes.js";
 
@@ -103,6 +104,7 @@ function normalizeProjectReviews(reviews = []) {
       categories: normalizeReviewCategories(review?.categories),
       authorName: String(review?.authorName || review?.userName || review?.name || "User").trim(),
       authorEmail: String(review?.authorEmail || review?.email || "").trim(),
+      authorAvatarUrl: backendAssetUrl(review?.authorAvatarUrl || ""),
       createdAt: review?.createdAt || review?.created_at || null,
       updatedAt: review?.updatedAt || review?.updated_at || null,
     }))
@@ -123,6 +125,24 @@ function formatCommentDate(value) {
   } catch {
     return "";
   }
+}
+
+function ReviewAvatar({ review }) {
+  const [failedUrl, setFailedUrl] = useState(null);
+  const showImage = review.authorAvatarUrl && failedUrl !== review.authorAvatarUrl;
+
+  return (
+    <span className="project-review__avatar">
+      {showImage ? (
+        <img
+          src={review.authorAvatarUrl}
+          alt={`Foto profil ${review.authorName}`}
+          loading="lazy"
+          onError={() => setFailedUrl(review.authorAvatarUrl)}
+        />
+      ) : getInitials(review.authorName)}
+    </span>
+  );
 }
 
 function getToolName(tool) {
@@ -582,7 +602,7 @@ function ProjectReview({
       <div className="project-review__list">
         {visibleReviews.length ? visibleReviews.map((review) => (
           <article className="project-review__item" key={review.id}>
-            <span>{getInitials(review.authorName)}</span>
+            <ReviewAvatar review={review} />
             <div>
               <header>
                 <strong>{review.authorName}</strong>
@@ -1385,6 +1405,9 @@ function ProjectHero({
           </div>
 
           <h1 id="project-detail-title">{project.title}</h1>
+          <p className="project-detail__creator">
+            Dibuat oleh <strong>{project.ownerName || "Nama pembuat belum tersedia"}</strong>
+          </p>
           <div className="project-detail__description-wrapper">
             <div
               className="project-detail__description mce-content-body"

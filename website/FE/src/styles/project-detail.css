@@ -102,6 +102,17 @@
   line-height: 1.65;
 }
 
+.project-detail__headline > .project-detail__creator {
+  margin-top: 10px;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.project-detail__creator strong {
+  color: #f1f5f9;
+  font-weight: 600;
+}
+
 .project-detail__side-panel {
   display: grid;
   gap: 14px;
@@ -1409,6 +1420,17 @@
   color: #ffffff;
   font-size: 13px;
   font-weight: 900;
+}
+
+.project-review__avatar {
+  overflow: hidden;
+}
+
+.project-review__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .project-review__item div {

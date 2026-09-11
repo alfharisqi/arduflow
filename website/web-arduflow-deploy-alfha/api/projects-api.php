@@ -278,7 +278,28 @@ function hasStoredFile(
         ) !== '';
 }
 
+function getProjectOwnerName(PDO $pdo, array $payload): string
+{
+    $fallback = trim((string) ($payload['ownerName'] ?? '')) ?: 'Nama pembuat belum tersedia';
+    $userId = filter_var($payload['userId'] ?? $payload['user_id'] ?? null, FILTER_VALIDATE_INT);
+    if (!$userId || $userId < 1) {
+        return $fallback;
+    }
+
+    $columns = array_column($pdo->query('PRAGMA table_info(users)')->fetchAll(), 'name');
+    if (!in_array('name', $columns, true)) {
+        return $fallback;
+    }
+
+    $activeFilter = in_array('deleted_at', $columns, true) ? ' AND deleted_at IS NULL' : '';
+    $statement = $pdo->prepare('SELECT name FROM users WHERE id = :id' . $activeFilter . ' LIMIT 1');
+    $statement->execute([':id' => $userId]);
+
+    return trim((string) $statement->fetchColumn()) ?: $fallback;
+}
+
 function rowToProject(
+    PDO $pdo,
     array $row,
     array $viewerAccess = []
 ): array {
@@ -324,6 +345,14 @@ function rowToProject(
             $payload,
             $viewerRatingIdentity
         );
+
+    $ratingSummary['ratingItems'] = attachProjectReviewAvatars($pdo, $ratingSummary['ratingItems']);
+    foreach ($ratingSummary['ratingItems'] as $review) {
+        if ($review['identity'] === $viewerRatingIdentity) {
+            $ratingSummary['viewerReview'] = $review;
+            break;
+        }
+    }
 
     $coverImage = [
         'file_name' =>
@@ -504,8 +533,7 @@ function rowToProject(
                 ),
 
         'ownerName' =>
-            $payload['ownerName']
-            ?? 'User',
+            getProjectOwnerName($pdo, $payload),
 
         'ownerUsername' =>
             $payload['ownerUsername']
@@ -1211,6 +1239,47 @@ function normalizeRatingCategories(
     }
 
     return $normalized;
+}
+
+function attachProjectReviewAvatars(PDO $pdo, array $reviews): array
+{
+    if ($reviews === []) {
+        return $reviews;
+    }
+
+    // Older databases may not have profile_image yet.
+    $columns = array_column($pdo->query('PRAGMA table_info(users)')->fetchAll(), 'name');
+    $avatarColumns = array_values(array_intersect(['profile_image', 'avatar_path'], $columns));
+    if ($avatarColumns === []) {
+        return $reviews;
+    }
+
+    $select = implode(', ', $avatarColumns);
+    $activeFilter = in_array('deleted_at', $columns, true) ? ' AND deleted_at IS NULL' : '';
+    $byId = $pdo->prepare('SELECT ' . $select . ' FROM users WHERE id = :identity' . $activeFilter . ' LIMIT 1');
+    $byEmail = $pdo->prepare('SELECT ' . $select . ' FROM users WHERE email = :identity COLLATE NOCASE' . $activeFilter . ' LIMIT 1');
+    $cache = [];
+
+    foreach ($reviews as &$review) {
+        $identity = $review['identity'];
+        $email = trim($review['authorEmail']);
+        $isUserId = preg_match('/^user:([1-9][0-9]*)$/', $identity, $matches) === 1;
+        if (!$isUserId && str_starts_with($identity, 'email:')) {
+            $email = substr($identity, 6);
+        }
+        $key = $isUserId ? $identity : 'email:' . strtolower($email);
+        if (!array_key_exists($key, $cache)) {
+            $statement = $isUserId ? $byId : $byEmail;
+            $statement->execute([':identity' => $isUserId ? (int) $matches[1] : $email]);
+            $user = $statement->fetch() ?: [];
+            $cache[$key] = trim((string) ($user['profile_image'] ?? ''))
+                ?: trim((string) ($user['avatar_path'] ?? ''));
+        }
+        $review['authorAvatarUrl'] = $cache[$key];
+    }
+    unset($review);
+
+    return $reviews;
 }
 
 function normalizeProjectRatings(
@@ -2662,7 +2731,7 @@ try {
                         'Detail proyek berhasil diambil.',
 
                     'data' =>
-                        rowToProject(
+                        rowToProject($pdo,
                             $row,
                             getProjectViewerAccess(
                                 $pdo,
@@ -2689,7 +2758,7 @@ try {
                 $statement->fetch()
         ) {
             $projects[] =
-                rowToProject($row);
+                rowToProject($pdo,$row);
         }
 
         sendJson(
@@ -2793,7 +2862,7 @@ try {
                             $result['value'],
 
                         'project' =>
-                            rowToProject(
+                            rowToProject($pdo,
                                 $updatedRow,
                                 getProjectViewerAccess(
                                     $pdo,
@@ -2893,7 +2962,7 @@ try {
                             ],
 
                         'project' =>
-                            rowToProject(
+                            rowToProject($pdo,
                                 $updatedRow,
                                 getProjectViewerAccess(
                                     $pdo,
@@ -3392,7 +3461,7 @@ try {
                     'Proyek berhasil disimpan ke SQLite.',
 
                 'data' =>
-                    rowToProject(
+                    rowToProject($pdo,
                         $row
                     ),
             ]
@@ -4056,7 +4125,7 @@ try {
                     'Proyek berhasil diperbarui.',
 
                 'data' =>
-                    rowToProject(
+                    rowToProject($pdo,
                         $updatedRow
                     ),
             ]
@@ -4135,7 +4204,7 @@ try {
                             ],
 
                         'project' =>
-                            rowToProject(
+                            rowToProject($pdo,
                                 $updatedRow,
                                 getProjectViewerAccess(
                                     $pdo,
