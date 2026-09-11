@@ -1,10 +1,58 @@
 import fallbackImage from '../../assets/images/tutorial-device.png';
+import '../../styles/material-card.css';
 
 function stripHtml(value) {
   return String(value || '')
     .replace(/<[^>]*>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function normalizeAccessType(value) {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase();
+
+  if (
+    [
+      'premium',
+      'premium / berbayar',
+      'berbayar',
+      'paid',
+    ].includes(normalized)
+  ) {
+    return 'Premium';
+  }
+
+  if (
+    [
+      'login',
+      'member',
+      'perlu login',
+      'perlu login / akun',
+      'akun',
+    ].includes(normalized)
+  ) {
+    return 'Perlu login / Akun';
+  }
+
+  return 'Gratis';
+}
+
+function formatRupiah(value) {
+  const amount = Math.max(
+    0,
+    Number(value) || 0,
+  );
+
+  return new Intl.NumberFormat(
+    'id-ID',
+    {
+      style: 'currency',
+      currency: 'IDR',
+      maximumFractionDigits: 0,
+    },
+  ).format(amount);
 }
 
 export function MaterialCard({
@@ -42,6 +90,30 @@ export function MaterialCard({
     material.cardImageUrl ||
     material.thumbnail ||
     fallbackImage;
+
+  const price = Math.max(
+    0,
+    Number(
+      material.price ??
+        material.material_price ??
+        material.page_settings?.price ??
+        0,
+    ) || 0,
+  );
+
+  const accessType = normalizeAccessType(
+    material.accessType ||
+      material.access_type ||
+      material.page_settings?.access_type ||
+      (price > 0 ? 'Premium' : 'Gratis'),
+  );
+
+  const isPremium =
+    accessType === 'Premium' ||
+    price > 0;
+
+  const formattedPrice =
+    formatRupiah(price);
 
   return (
     <article
@@ -84,6 +156,7 @@ export function MaterialCard({
           aria-label="Informasi materi"
         >
           <span>Waktu {duration}</span>
+
           <span>
             {lessons
               ? `${lessons} bagian`
@@ -91,11 +164,36 @@ export function MaterialCard({
           </span>
         </div>
 
+        <div className="materials-card__access">
+          {isPremium ? (
+            <a
+              className="materials-card__price-button"
+              href={href}
+              aria-label={`Lihat materi ${material.title} dengan harga ${formattedPrice}`}
+            >
+              <span className="materials-card__price-label">
+                Premium
+              </span>
+
+              <strong>
+                {formattedPrice}
+              </strong>
+            </a>
+          ) : (
+            <span className="materials-card__free-label">
+              Gratis
+            </span>
+          )}
+        </div>
+
         <a
           className="materials-card__link"
           href={href}
         >
-          Pelajari{' '}
+          {isPremium
+            ? 'Lihat Materi'
+            : 'Pelajari'}{' '}
+
           <span aria-hidden="true">
             -&gt;
           </span>
@@ -109,6 +207,7 @@ export function MaterialEmptyState() {
   return (
     <div className="materials-empty-state">
       <h3>Materi tidak ditemukan</h3>
+
       <p>
         Coba gunakan kata kunci atau kategori lainnya.
       </p>

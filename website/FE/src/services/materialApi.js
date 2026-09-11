@@ -279,6 +279,22 @@ function normalizeMaterial(item) {
       cardImageName,
     );
 
+  const price = Math.max(
+    0,
+    Number(
+      item.price ??
+        item.material_price ??
+        item.page_settings?.price ??
+        0,
+    ) || 0,
+  );
+
+  const accessType =
+    item.access_type ||
+    item.accessType ||
+    item.page_settings?.access_type ||
+    (price > 0 ? 'Premium' : 'Gratis');
+
   return {
     id: item.id,
 
@@ -359,6 +375,26 @@ function normalizeMaterial(item) {
         item.comments || 0,
       ) || 0,
 
+    accessType,
+    price,
+
+    formattedPrice:
+      new Intl.NumberFormat(
+        'id-ID',
+        {
+          style: 'currency',
+          currency: 'IDR',
+          maximumFractionDigits: 0,
+        },
+      ).format(price),
+
+    isPremium:
+      String(accessType)
+        .trim()
+        .toLowerCase()
+        .includes('premium') ||
+      price > 0,
+
     featuredOrder:
       Number(
         item.featured_order ||
@@ -375,6 +411,7 @@ function normalizeMaterial(item) {
       item.access_requirement ||
       item.accessRequirement ||
       '',
+
 
     slides,
 

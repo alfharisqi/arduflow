@@ -5384,7 +5384,6 @@
 }
 
 .materials-path-node.is-active {
-  border-color: #00a2ff;
   box-shadow: 0 0 0 3px rgba(0, 162, 255, 0.12);
 }
 
