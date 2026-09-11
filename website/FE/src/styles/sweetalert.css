@@ -20,6 +20,11 @@
   font-weight: 600;
 }
 
+.arduflow-swal-actions {
+  gap: 14px;
+  margin-top: 32px;
+}
+
 .arduflow-swal-confirm {
   min-width: 118px;
   height: 42px;
@@ -61,4 +66,16 @@
 
 .arduflow-swal-timer {
   background: linear-gradient(90deg, #ff6a00, #00a2ff);
+}
+
+@media (max-width: 480px) {
+  .arduflow-swal-actions {
+    width: 100%;
+    gap: 12px;
+  }
+
+  .arduflow-swal-confirm,
+  .arduflow-swal-cancel {
+    flex: 1 1 140px;
+  }
 }

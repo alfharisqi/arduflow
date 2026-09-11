@@ -45,6 +45,7 @@ export function showArduflowAlert({
       popup: 'arduflow-swal-popup',
       title: 'arduflow-swal-title',
       htmlContainer: 'arduflow-swal-text',
+      actions: 'arduflow-swal-actions',
       confirmButton: 'arduflow-swal-confirm',
       cancelButton: 'arduflow-swal-cancel',
       timerProgressBar: 'arduflow-swal-timer',
