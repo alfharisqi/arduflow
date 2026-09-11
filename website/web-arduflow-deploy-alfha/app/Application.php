@@ -112,6 +112,8 @@ final class Application
         $this->router->post('/api/auth/logout', [$userAuth, 'logout']);
         $this->router->get('/api/auth/verify-email', [$userAuth, 'verifyEmail']);
         $this->router->post('/api/auth/verify-email', [$userAuth, 'verifyEmail']);
+        $this->router->post('/api/auth/verification/resend', [$userAuth, 'resendVerificationEmail']);
+        $this->router->get('/api/auth/password-reset/open', [$userAuth, 'openPasswordReset']);
         $this->router->post('/api/auth/password-reset/request', [$userAuth, 'requestPasswordReset']);
         $this->router->post('/api/auth/password-reset/confirm', [$userAuth, 'confirmPasswordReset']);
         $this->router->get('/api/auth/check-availability', [$userAuth, 'availability']);

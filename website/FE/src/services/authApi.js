@@ -74,6 +74,7 @@ async function request(path, options = {}) {
     apiError.status = response.status;
     apiError.errors = data.errors || {};
     apiError.data = data.data || {};
+    apiError.retryAfter = Number(data.retryAfter || data.data?.retryAfter || 0);
     apiError.response = data;
 
     throw apiError;
@@ -379,6 +380,13 @@ export function verifyEmailToken(token) {
       method: "GET",
     }
   );
+}
+
+export function resendVerificationEmail(email) {
+  return request("/api/auth/verification/resend", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
 }
 
 /*

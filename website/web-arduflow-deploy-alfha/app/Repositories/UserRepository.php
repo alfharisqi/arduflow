@@ -311,6 +311,46 @@ final class UserRepository
         });
     }
 
+    public function deletePermanently(int $id): bool
+    {
+        if ($id <= 0) {
+            return false;
+        }
+
+        return Transaction::immediate($this->pdo, function () use ($id): bool {
+            // Cari user termasuk yang sebelumnya sudah terkena soft delete.
+            $user = $this->one(
+                'SELECT id FROM users WHERE id = :id LIMIT 1',
+                ['id' => $id],
+            );
+
+            if (!$user) {
+                return false;
+            }
+
+            // Putus seluruh sesi user terlebih dahulu agar tidak ada sesi yatim.
+            $this->pdo->prepare(
+                'DELETE FROM user_sessions WHERE user_id = :user_id'
+            )->execute([
+                'user_id' => $id,
+            ]);
+
+            // Catat operasi delete untuk mekanisme sinkronisasi/outbox.
+            // Diletakkan sebelum DELETE fisik agar event masih tercatat dalam transaksi yang sama.
+            $this->outbox->enqueue($this->pdo, 'users', $id, 'delete');
+
+            // Hard delete: record benar-benar dihapus dari tabel users.
+            $statement = $this->pdo->prepare(
+                'DELETE FROM users WHERE id = :id'
+            );
+            $statement->execute([
+                'id' => $id,
+            ]);
+
+            return $statement->rowCount() > 0;
+        });
+    }
+
     public function setActiveStatus(int $id, bool $isActive): ?array
     {
         return Transaction::immediate($this->pdo, function () use ($id, $isActive): ?array {

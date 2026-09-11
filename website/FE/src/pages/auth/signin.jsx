@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import googleIcon from "../../assets/icons/sosmed-google.png";
 import twitterIcon from "../../assets/icons/sosmed-twitter.png";
 import hideIcon from "../../assets/icons/icon-hide-1.svg";
+import eyeOpenIcon from "../../assets/icons/icon-eyeopen-1.svg";
 import { AuthImageSlider } from "../../components/auth/AuthImageSlider.jsx";
 import { loginUser } from "../../services/authApi.js";
 import { setUserAuthState } from "../../services/authSession.js";
@@ -13,6 +14,24 @@ import {
 export function SignIn() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const verificationStatus = params.get('verified');
+    const queryMessage = params.get('message');
+    const storedMessage = sessionStorage.getItem('arduflow_auth_message');
+
+    if (verificationStatus === '1') {
+      const message = queryMessage || storedMessage || 'Email berhasil diverifikasi. Silakan masuk untuk melanjutkan.';
+      sessionStorage.removeItem('arduflow_auth_message');
+      showSuccessAlert('Verifikasi berhasil', message);
+      window.history.replaceState({}, '', '/signin');
+    } else if (verificationStatus === '0') {
+      const message = queryMessage || 'Verifikasi email gagal. Silakan minta ulang email verifikasi.';
+      showErrorAlert('Verifikasi gagal', message);
+      window.history.replaceState({}, '', '/signin');
+    }
+  }, []);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -100,6 +119,8 @@ export function SignIn() {
         className="signin-panel"
         aria-labelledby="signin-title"
       >
+        <a className="auth-back-button" href="/">← Kembali</a>
+
         <div className="signin-form-box">
           <h2 id="signin-title">Masuk</h2>
 
@@ -167,7 +188,7 @@ export function SignIn() {
                       : "Tampilkan kata sandi"
                   }
                 >
-                  <img src={hideIcon} alt="" />
+                  <img src={showPassword ? eyeOpenIcon : hideIcon} alt="" />
                   <span>
                     {showPassword ? "Hide" : "Show"}
                   </span>
