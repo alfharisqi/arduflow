@@ -695,6 +695,8 @@ function storePaymentProof(int $transactionId, string $projectRoot): array
 
 function grantProductAccess(PDO $pdo, array $transaction, string $now): void
 {
+    ensureEntitlementTokenColumns($pdo);
+
     $statement = $pdo->prepare(
         'INSERT INTO user_entitlements (
             transaction_id, user_id, email, product_type, product_id, product_title,
@@ -705,6 +707,9 @@ function grantProductAccess(PDO $pdo, array $transaction, string $now): void
         )
         ON CONFLICT(transaction_id) DO UPDATE SET
             status = "active",
+            disabled_reason = NULL,
+            disabled_at = NULL,
+            disabled_by = NULL,
             granted_at = excluded.granted_at,
             updated_at = excluded.updated_at'
     );
@@ -1241,8 +1246,56 @@ try {
                     'id' => $transactionId,
                 ],
             ]);
+    }
+}
+
+function transactionColumnExists(PDO $pdo, string $table, string $column): bool
+{
+    $statement = $pdo->query('PRAGMA table_info(' . $table . ')');
+
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        if (isset($row['name']) && strcasecmp((string) $row['name'], $column) === 0) {
+            return true;
         }
     }
+
+    return false;
+}
+
+function ensureEntitlementTokenColumns(PDO $pdo): void
+{
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS user_entitlements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            transaction_id INTEGER NOT NULL,
+            user_id INTEGER NULL,
+            email TEXT,
+            product_type TEXT NOT NULL,
+            product_id INTEGER NULL,
+            product_title TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT "active",
+            granted_at TEXT NOT NULL,
+            deleted_at TEXT,
+            version INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )'
+    );
+
+    $columns = [
+        'disabled_reason' => 'TEXT',
+        'disabled_at' => 'TEXT',
+        'disabled_by' => 'TEXT',
+        'deleted_at' => 'TEXT',
+        'version' => 'INTEGER NOT NULL DEFAULT 1',
+    ];
+
+    foreach ($columns as $column => $definition) {
+        if (!transactionColumnExists($pdo, 'user_entitlements', $column)) {
+            $pdo->exec('ALTER TABLE user_entitlements ADD COLUMN ' . $column . ' ' . $definition);
+        }
+    }
+}
 
     if ($method === 'POST' && $action === 'upload-payout-proof') {
         if ($transactionId === null) {

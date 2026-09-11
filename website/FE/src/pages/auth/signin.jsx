@@ -10,6 +10,7 @@ import {
   showErrorAlert,
   showSuccessAlert,
 } from "../../utils/alerts.js";
+import { getAfterLoginRedirect } from "../../utils/authRequired.js";
 
 export function SignIn() {
   const [showPassword, setShowPassword] = useState(false);
@@ -94,8 +95,10 @@ export function SignIn() {
         result.message || "Selamat datang kembali."
       );
 
+      const redirectTo = getAfterLoginRedirect('/dashboard');
+
       window.setTimeout(() => {
-        window.location.replace("/dashboard");
+        window.location.replace(redirectTo);
       }, 250);
     } catch (error) {
       console.error("Login gagal:", error);
