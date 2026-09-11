@@ -3,6 +3,7 @@ import { navigation } from '../features/content/arduflowContent.js';
 import { ProfileAvatar } from '../features/profile-image-crop/ProfileAvatar.jsx';
 import { AUTH_CHANGE_EVENT, getStoredUser, logoutCurrentUser } from '../services/authSession.js';
 import { fetchTransactions } from '../services/transactionApi.js';
+import { fetchUserIdeTokens } from '../services/ideApi.js';
 
 const IDE_APP_URL = 'https://ide.arduflow.com/';
 
@@ -78,11 +79,20 @@ export function Navbar() {
       }
 
       try {
-        const records = await fetchTransactions(params);
+        const access = await fetchUserIdeTokens({ ...storedUser, ...params });
 
         if (!active) {
           return;
         }
+
+        setHasIdeAccess(Boolean(access.activeToken?.isActive));
+      } catch {
+        try {
+          const records = await fetchTransactions(params);
+
+          if (!active) {
+            return;
+          }
 
         setHasIdeAccess(
           records.some((transaction) =>
@@ -90,9 +100,10 @@ export function Navbar() {
             transaction.status === 'paid'
           )
         );
-      } catch {
-        if (active) {
-          setHasIdeAccess(false);
+        } catch {
+          if (active) {
+            setHasIdeAccess(false);
+          }
         }
       }
     }

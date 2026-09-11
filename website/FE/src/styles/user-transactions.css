@@ -387,16 +387,26 @@
 
 .user-transactions-table {
   overflow-x: auto;
+  border: 1px solid #edf0f5;
   border-radius: 12px;
   background: #ffffff;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   font-family: 'Inter', sans-serif;
+  scrollbar-gutter: stable;
 }
 
 .user-transactions-table__head,
 .user-transactions-table__row {
+  grid-template-columns:
+    minmax(178px, 0.95fr)
+    minmax(250px, 1.35fr)
+    minmax(126px, 0.72fr)
+    minmax(230px, 1.2fr)
+    minmax(118px, 0.62fr)
+    minmax(156px, 0.82fr)
+    minmax(136px, 0.72fr);
   gap: 0;
-  min-width: 1180px;
+  min-width: 1194px;
   padding: 0;
 }
 
@@ -412,7 +422,7 @@
 }
 
 .user-transactions-table__row {
-  min-height: 64px;
+  min-height: 72px;
   border-bottom: 1px solid #edf0f5;
   color: #344767;
   font-size: 13px;
@@ -424,11 +434,11 @@
 }
 
 .user-transactions-table__head > span,
-.user-transactions-table__row > span {
+.user-transactions-table__row > span,
+.user-transactions-table__row > time {
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   padding: 14px 16px;
-  text-overflow: ellipsis;
 }
 
 .user-transactions-table__head > span {
@@ -492,11 +502,6 @@
 .user-transactions-panel {
   width: min(100%, 1120px);
   padding: 30px;
-}
-
-.user-transactions-table__head,
-.user-transactions-table__row {
-  min-width: 1430px;
 }
 
 .user-transactions-payment-cell {
@@ -798,15 +803,39 @@
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
-.user-transactions-table__row > span {
+.user-transactions-table__row > span,
+.user-transactions-table__row > time {
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
-.user-transactions-table__row > span b {
+.user-transactions-table__row > span:nth-child(2) > b {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.user-transactions-table__row > span:nth-child(3),
+.user-transactions-table__row > time {
+  white-space: nowrap;
+}
+
+.user-transactions-table__row > span:nth-child(6) {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.user-transactions-table__row > span:nth-child(6) .user-transactions-pill {
+  max-width: 100%;
+  height: auto;
+  min-height: 24px;
+  justify-content: flex-start;
+  white-space: normal;
+  text-align: left;
 }
 
 .user-transactions-pagination {

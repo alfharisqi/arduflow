@@ -4,6 +4,7 @@ import { DashboardUserSidebarIcon } from './userSidebarIcons.jsx';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
 import projectImage from '../../assets/images/workshop-experience-student.png';
 import { WorkshopImageCropper } from '../../features/profile-image-crop/WorkshopImageCropper.jsx';
+import { SecurePayout } from '../../components/SecurePayout.jsx';
 import { TinyMCEEditor } from '../../components/TinyMCEEditor.jsx';
 import { NodeSprite } from '../../components/NodeSprite.jsx';
 import {
@@ -13,7 +14,7 @@ import {
   normalizeNodeType,
 } from '../../config/projectNodes.js';
 import { API_BASE_URL, apiEndpoint } from '../../services/apiEndpoints.js';
-import { completeProjectPayout, createTransaction, fetchFinanceConfig, fetchTransactions } from '../../services/transactionApi.js';
+import { completeProjectPayout, fetchFinanceConfig, fetchProjectSales } from '../../services/transactionApi.js';
 import { showConfirmAlert, showSuccessAlert } from '../../utils/alerts.js';
 import { UserDashboardTopbar } from './UserDashboardTopbar.jsx';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
@@ -597,6 +598,48 @@ function EmptyUploadTable({ title, description }) {
         <p>{description}</p>
       </div>
     </div>
+  );
+}
+
+function pickProjectIdentityValue(project, keys) {
+  const payload = project?.payload && typeof project.payload === 'object' ? project.payload : {};
+
+  for (const key of keys) {
+    const value = project?.[key] ?? payload?.[key];
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+      return String(value).trim();
+    }
+  }
+
+  return '';
+}
+
+function isProjectOwnedByUser(project, currentUserId, currentUserEmail) {
+  const ownerId = pickProjectIdentityValue(project, [
+    'userId',
+    'user_id',
+    'ownerId',
+    'owner_id',
+    'authorId',
+    'author_id',
+    'creatorId',
+    'creator_id',
+    'createdBy',
+    'created_by',
+  ]);
+  const ownerEmail = pickProjectIdentityValue(project, [
+    'email',
+    'userEmail',
+    'user_email',
+    'ownerEmail',
+    'owner_email',
+    'authorEmail',
+    'author_email',
+  ]).toLowerCase();
+
+  return Boolean(
+    (currentUserId && ownerId && String(ownerId) === String(currentUserId))
+      || (currentUserEmail && ownerEmail && ownerEmail === currentUserEmail)
   );
 }
 
@@ -2142,19 +2185,20 @@ export function UserProjectGallery() {
   const greetingName = user.nickname || fullName;
   const profileImage = user.profileImage || user.avatar || '';
   const currentUserId = user.id || user.userId || null;
+  const currentUserEmail = String(user.email || '').trim().toLowerCase();
   const [projects, setProjects] = useState([]);
   const [isProjectsLoading, setProjectsLoading] = useState(true);
   const [projectsError, setProjectsError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('Terbaru');
-  const [filterBy, setFilterBy] = useState('all');
+  const [filterBy, setFilterBy] = useState(() => new URLSearchParams(window.location.search).get('tab') === 'selling' ? 'selling' : 'all');
   const [selectedSalesProject, setSelectedSalesProject] = useState(null);
   const [selectedDetailProject, setSelectedDetailProject] = useState(null);
   const [financeTransactions, setFinanceTransactions] = useState([]);
   const [commissionRate, setCommissionRate] = useState(10);
   const [selectedPayoutProjectIds, setSelectedPayoutProjectIds] = useState([]);
-  const [payoutPurpose, setPayoutPurpose] = useState('');
-  const [isPayoutSubmitting, setIsPayoutSubmitting] = useState(false);
+  const [payoutSecurity, setPayoutSecurity] = useState(null);
+
   const [payoutMessage, setPayoutMessage] = useState('');
 
   async function loadProjects() {
@@ -2181,32 +2225,33 @@ export function UserProjectGallery() {
       }
 
       const rows = Array.isArray(result.data) ? result.data : [];
-      const transactionParams = {};
-      if (currentUserId) transactionParams.userId = currentUserId;
-      if (user.email) transactionParams.email = user.email;
       const paidProjectIds = new Set();
       const projectSales = new Map();
-
-      if (transactionParams.userId || transactionParams.email) {
-        try {
-          const transactions = await fetchTransactions(transactionParams);
-          transactions
-            .filter((transaction) => transaction.itemType === 'project' && transaction.status === 'paid')
-            .forEach((transaction) => {
-              if (transaction.itemId !== null && transaction.itemId !== undefined) {
-                paidProjectIds.add(String(transaction.itemId));
-              }
-            });
-        } catch (transactionError) {
-          console.error('Gagal mengambil transaksi proyek user:', transactionError);
-        }
-      }
+      let salesSummary = null;
 
       try {
-        const transactions = await fetchTransactions();
-        setFinanceTransactions(transactions);
-        transactions
-          .filter((transaction) => transaction.itemType === 'project' && transaction.status === 'paid' && transaction.itemId !== null && transaction.itemId !== undefined)
+        salesSummary = await fetchProjectSales();
+        setFinanceTransactions(salesSummary.payouts);
+        setCommissionRate(Number(salesSummary.commissionRate ?? 10));
+        setPayoutSecurity((current) => ({
+          ...(current || {}),
+          balances: salesSummary.balances,
+          commissionRate: Number(salesSummary.commissionRate ?? 10),
+          accounts: current?.accounts || [],
+          notifications: current?.notifications || [],
+          hasPin: current?.hasPin || false,
+          lockedUntil: current?.lockedUntil || 0,
+          cooldownUntil: current?.cooldownUntil || 0,
+        }));
+        salesSummary.purchases
+          .filter((transaction) => transaction.status === 'paid')
+          .forEach((transaction) => {
+            if (transaction.itemId !== null && transaction.itemId !== undefined) {
+              paidProjectIds.add(String(transaction.itemId));
+            }
+          });
+        salesSummary.sales
+          .filter((transaction) => transaction.status === 'paid' && transaction.itemId !== null && transaction.itemId !== undefined)
           .forEach((transaction) => {
             const projectId = String(transaction.itemId);
             const sales = projectSales.get(projectId) || [];
@@ -2218,16 +2263,18 @@ export function UserProjectGallery() {
         setFinanceTransactions([]);
       }
 
-      try {
-        const financeConfig = await fetchFinanceConfig();
-        setCommissionRate(Number(financeConfig?.commissionRate ?? 10));
-      } catch (financeError) {
-        console.error('Gagal mengambil pengaturan komisi:', financeError);
+      if (!salesSummary) {
+        try {
+          const financeConfig = await fetchFinanceConfig();
+          setCommissionRate(Number(financeConfig?.commissionRate ?? 10));
+        } catch (financeError) {
+          console.error('Gagal mengambil pengaturan komisi:', financeError);
+        }
       }
 
-      const ownedProjects = currentUserId
+      const ownedProjects = currentUserId || currentUserEmail
         ? rows.map((project) => {
-            const isOwner = String(project.userId || project.payload?.userId || '') === String(currentUserId);
+            const isOwner = isProjectOwnedByUser(project, currentUserId, currentUserEmail);
             const isPurchased = paidProjectIds.has(String(project.id || ''));
             const salesHistory = projectSales.get(String(project.id || '')) || [];
 
@@ -2295,8 +2342,9 @@ export function UserProjectGallery() {
   const salesRows = useMemo(() => projects
     .filter((project) => project.isOwnerProject && isPaidProject(project))
     .map((project) => {
-      const gross = (project.salesHistory || []).reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
-      const commission = gross * (commissionRate / 100);
+      const serverBalance = payoutSecurity?.balances.find((item) => String(item.projectId) === String(project.id));
+      const gross = serverBalance?.gross ?? (project.salesHistory || []).reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
+      const commission = serverBalance?.commission ?? Math.ceil(gross * (commissionRate / 100));
       const paidOut = financeTransactions
         .filter((transaction) => transaction.itemType === 'project_payout' && String(transaction.itemId) === String(project.id) && ['proof_sent', 'done'].includes(transaction.status))
         .reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
@@ -2306,10 +2354,10 @@ export function UserProjectGallery() {
         commission,
         paidOut,
         net: gross - commission,
-        available: Math.max(0, gross - commission - paidOut),
+        available: serverBalance?.available ?? 0,
         sold: project.salesHistory?.length || 0,
       };
-    }), [commissionRate, financeTransactions, projects]);
+    }), [commissionRate, financeTransactions, projects, payoutSecurity]);
 
   const payoutTransactions = useMemo(() => financeTransactions.filter((transaction) => (
     transaction.itemType === 'project_payout' && String(transaction.userId || '') === String(currentUserId || '')
@@ -2327,50 +2375,7 @@ export function UserProjectGallery() {
 
   const grossSales = salesRows.reduce((sum, row) => sum + row.gross, 0);
   const totalCommission = salesRows.reduce((sum, row) => sum + row.commission, 0);
-  const availableBalance = Math.max(0, grossSales - totalCommission - payoutTotal);
-
-  async function handlePayoutSubmit(event) {
-    event.preventDefault();
-    if (!selectedPayoutRows.length) {
-      setPayoutMessage('Pilih minimal satu proyek yang akan dicairkan melalui checkbox tabel.');
-      return;
-    }
-    if (!payoutPurpose.trim()) {
-      setPayoutMessage('Tujuan pencairan dana wajib diisi.');
-      return;
-    }
-    setIsPayoutSubmitting(true);
-    setPayoutMessage('Mengajukan pencairan dana...');
-    try {
-      await Promise.all(selectedPayoutRows.map((selected) => createTransaction({
-          userId: currentUserId,
-          userName: fullName,
-          email: user.email || '',
-          itemType: 'project_payout',
-          itemId: selected.project.id,
-          itemTitle: `Pencairan: ${selected.project.title || 'Proyek'}`,
-          amount: selected.available,
-          currency: 'IDR',
-          status: 'payout_requested',
-          notes: payoutPurpose.trim(),
-          payload: {
-            purpose: payoutPurpose.trim(),
-            projectTitle: selected.project.title || '',
-            grossAmount: selected.gross,
-            commissionRate,
-            commissionAmount: selected.commission,
-          },
-        })));
-      setPayoutPurpose('');
-      setSelectedPayoutProjectIds([]);
-      setPayoutMessage(`Pengajuan pencairan ${selectedPayoutRows.length} proyek berhasil dikirim ke admin.`);
-      await loadProjects();
-    } catch (error) {
-      setPayoutMessage(error.message || 'Pengajuan pencairan gagal dikirim.');
-    } finally {
-      setIsPayoutSubmitting(false);
-    }
-  }
+  const availableBalance = salesRows.reduce((sum, row) => sum + row.available, 0);
 
   async function handleCompletePayout(transaction) {
     try {
@@ -2592,11 +2597,18 @@ export function UserProjectGallery() {
                   <h3>Ajukan pencairan dana</h3>
                   <p>Pilih proyek melalui checkbox tabel. Dana akan diproses admin setelah pengajuan diterima, dan komisi ArduFlow sudah dikurangi dari saldo bersih.</p>
                 </div>
-                <form className="user-project-payout-form" onSubmit={handlePayoutSubmit}>
-                  <div className="user-project-payout-selection"><span>{selectedPayoutRows.length} proyek dipilih</span><strong>{formatTransactionAmount({ amount: selectedPayoutAmount })}</strong></div>
-                  <label>Tujuan pencairan dana<textarea value={payoutPurpose} onChange={(event) => setPayoutPurpose(event.target.value)} placeholder="Contoh: pencairan ke rekening BCA atas nama..." rows="3" /></label>
-                  <button type="submit" disabled={isPayoutSubmitting || selectedPayoutRows.length === 0}>{isPayoutSubmitting ? 'Mengirim...' : 'Ajukan pencairan'}</button>
-                </form>
+                {selectedPayoutProjectIds.length > 0 ? (
+                  <SecurePayout
+                    projectIds={selectedPayoutProjectIds}
+                    onStatus={setPayoutSecurity}
+                    onSubmitted={async () => { setSelectedPayoutProjectIds([]); await loadProjects(); }}
+                  />
+                ) : (
+                  <div className="user-project-payout-placeholder">
+                    <strong>Pilih proyek yang saldonya tersedia</strong>
+                    <span>Form PIN dan rekening akan muncul setelah ada proyek yang dipilih untuk dicairkan.</span>
+                  </div>
+                )}
               </div>
 
               {payoutTransactions.length ? (

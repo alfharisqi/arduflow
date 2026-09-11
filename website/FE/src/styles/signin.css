@@ -119,6 +119,38 @@
   font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
 }
 
+.auth-back-button {
+  position: absolute;
+  top: 48px;
+  left: 13.2%;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 118px;
+  height: 44px;
+  padding: 0 20px;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #030b1e;
+  font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 20px;
+  text-decoration: none;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.auth-back-button:hover,
+.auth-back-button:focus-visible {
+  background: #f8fafc;
+  color: #030b1e;
+  outline: none;
+  transform: translateY(-1px);
+}
+
 .signin-panel__signup {
   position: absolute;
   top: 48px;
@@ -316,7 +348,7 @@
   border: 0;
   border-radius: 32px;
   color: #000000;
-  background: rgba(255, 255, 255, 0.25);
+  background: #ffffff;
   font: inherit;
   font-size: 20px;
   font-weight: 700;
@@ -325,7 +357,7 @@
 }
 
 .signin-submit:hover {
-  background: rgba(255, 255, 255, 0.35);
+  background: #f8fafc;
 }
 
 .signin-submit-group p {
@@ -638,7 +670,7 @@
   border: 0;
   border-radius: 32px;
   color: #000000;
-  background: rgba(255, 255, 255, 0.25);
+  background: #ffffff;
   font: inherit;
   font-size: 20px;
   font-weight: 700;
@@ -647,7 +679,7 @@
 }
 
 .signup-submit:hover {
-  background: rgba(255, 255, 255, 0.35);
+  background: #f8fafc;
 }
 
 .signup-actions p {
@@ -814,7 +846,7 @@
   border: 0;
   border-radius: 32px;
   color: #000000;
-  background: rgba(255, 255, 255, 0.25);
+  background: #ffffff;
   font: inherit;
   font-size: 20px;
   font-weight: 700;
@@ -823,7 +855,7 @@
 }
 
 .reset-password-actions button:hover {
-  background: rgba(255, 255, 255, 0.35);
+  background: #f8fafc;
 }
 
 .reset-password-actions p {
@@ -964,6 +996,7 @@
   }
 
   .signin-panel__signup,
+  .auth-back-button,
   .signin-form-box,
   .signup-form-box,
   .verify-email-content,
@@ -979,6 +1012,12 @@
   .signin-panel__signup {
     margin-bottom: 64px;
     text-align: right;
+  }
+
+  .auth-back-button {
+    display: flex;
+    width: fit-content;
+    margin: 0 auto 32px;
   }
 
   .signup-form {
@@ -1045,4 +1084,45 @@
   .reset-password-actions button {
     width: 100%;
   }
+}
+
+
+.auth-email-target {
+  margin-top: 10px !important;
+  color: rgba(255, 255, 255, 0.78) !important;
+}
+
+.auth-resend-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.auth-resend-actions button {
+  min-width: 190px;
+  min-height: 46px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 999px;
+  color: #030b1e;
+  background: #ffffff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.auth-resend-actions button:disabled {
+  color: rgba(3, 11, 30, 0.58);
+  background: rgba(255, 255, 255, 0.4);
+  cursor: not-allowed;
+}
+
+.auth-resend-actions a {
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+  text-decoration: none;
 }

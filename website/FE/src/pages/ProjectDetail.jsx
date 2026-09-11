@@ -14,10 +14,12 @@ import {
   updateProjectInteraction,
 } from "../services/projectApi.js";
 import { createTransaction, fetchTransactions } from "../services/transactionApi.js";
+import { fetchUserIdeTokens } from "../services/ideApi.js";
 import { getStoredUser, getStoredUserToken } from "../services/authSession.js";
 import { backendAssetUrl } from "../services/apiEndpoints.js";
 import { NodeSprite } from "../components/NodeSprite.jsx";
 import { getProjectNodeType } from "../config/projectNodes.js";
+import { showArduflowAlert } from "../utils/alerts.js";
 
 function getProjectIdFromUrl() {
   return new URLSearchParams(window.location.search).get("id") || "";
@@ -1170,6 +1172,33 @@ function openIDE(descriptionHtml) {
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
+async function showIdeTokenRequiredPopup({
+  title = "Token ArduFlow IDE diperlukan",
+  message = "Anda tidak memiliki token ArduFlow IDE aktif.",
+  reason = "",
+} = {}) {
+  const detail = reason
+    ? `<p><strong>Alasan:</strong> ${reason}</p>`
+    : "";
+
+  const result = await showArduflowAlert({
+    icon: "warning",
+    title,
+    html: `
+      <p>${message}</p>
+      ${detail}
+      <p>Token IDE digunakan untuk membuka editor visual ArduFlow, menjalankan flow proyek, menyimpan percobaan, dan mengakses proyek IoT dari website ke IDE.</p>
+    `,
+    confirmButtonText: "Beli Token IDE",
+    showCancelButton: true,
+    cancelButtonText: "Nanti",
+  });
+
+  if (result.isConfirmed) {
+    window.location.href = "/akses";
+  }
+}
+
 
 function getPlainTextLengthFromHtml(value) {
   const wrapper = document.createElement("div");
@@ -1394,6 +1423,46 @@ function ProjectHero({
     }
   }
 
+  async function handleOpenProjectInIde() {
+    const storedToken = getStoredUserToken();
+    const storedUser = getStoredUser() || {};
+    const userId = getUserId(storedUser);
+    const email = getUserEmail(storedUser);
+
+    if (!storedToken || (!userId && !email)) {
+      await showIdeTokenRequiredPopup({
+        message: "Silakan login dan beli token ArduFlow IDE terlebih dahulu sebelum membuka proyek di IDE.",
+      });
+      return;
+    }
+
+    try {
+      const access = await fetchUserIdeTokens({ ...storedUser, userId, email });
+
+      if (access.activeToken?.isActive) {
+        openIDE(description);
+        return;
+      }
+
+      if (access.disabledToken) {
+        await showIdeTokenRequiredPopup({
+          title: "Token ArduFlow IDE dinonaktifkan",
+          message: "Token IDE Anda sedang tidak aktif, sehingga proyek tidak bisa dibuka di ArduFlow IDE.",
+          reason: access.disabledToken.disabledReason,
+        });
+        return;
+      }
+
+      await showIdeTokenRequiredPopup();
+    } catch (error) {
+      console.error("Gagal memvalidasi token IDE:", error);
+      await showIdeTokenRequiredPopup({
+        title: "Token IDE belum bisa diverifikasi",
+        message: "Sistem belum bisa memastikan token IDE Anda aktif. Buka halaman akses IDE untuk cek status atau membeli token.",
+      });
+    }
+  }
+
   return (
     <section className="project-detail__hero" aria-labelledby="project-detail-title">
       <div className="project-detail__summary">
@@ -1474,7 +1543,7 @@ function ProjectHero({
                 <button
                   className="project-detail__button project-detail__button--primary"
                   type="button"
-                  onClick={() => openIDE(description)}
+                  onClick={handleOpenProjectInIde}
                 >
                   Buka Proyek
                 </button>

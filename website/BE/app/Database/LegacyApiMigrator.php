@@ -465,6 +465,9 @@ final class LegacyApiMigrator
             )'
         );
         $this->ensureColumns($pdo, 'user_entitlements', [
+            'disabled_reason' => 'TEXT',
+            'disabled_at' => 'TEXT',
+            'disabled_by' => 'TEXT',
             'deleted_at' => 'TEXT',
             'version' => 'INTEGER NOT NULL DEFAULT 1',
         ]);

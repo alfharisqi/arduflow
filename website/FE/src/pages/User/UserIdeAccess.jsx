@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
 import { DashboardUserSidebarIcon } from './userSidebarIcons.jsx';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
-import { fetchIdeConfig } from '../../services/ideApi.js';
+import { fetchIdeConfig, fetchUserIdeTokens } from '../../services/ideApi.js';
 import { fetchTransactions } from '../../services/transactionApi.js';
 import { UserDashboardTopbar } from './UserDashboardTopbar.jsx';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
@@ -60,6 +60,7 @@ export function UserIdeAccess() {
   const [message, setMessage] = useState('');
   const [tokenToCheck, setTokenToCheck] = useState('');
   const [tokenCheckResult, setTokenCheckResult] = useState(null);
+  const [ideAccess, setIdeAccess] = useState({ tokens: [], activeToken: null, disabledToken: null });
 
   const user = getStoredUser() || {};
   const fullName = user.name || user.fullName || user.full_name || 'Nama Lengkap';
@@ -74,7 +75,12 @@ export function UserIdeAccess() {
   const pendingIdeTransaction = ideTransactions.find((transaction) =>
     ['pending', 'proof_uploaded', 'rejected'].includes(transaction.status)
   ) || null;
-  const ideToken = paidIdeTransaction ? makeIdeToken(paidIdeTransaction, user) : '';
+  const activeIdeToken = ideAccess.activeToken || null;
+  const disabledIdeToken = ideAccess.disabledToken || null;
+  const hasKnownIdeTokens = ideAccess.tokens.length > 0 || Boolean(activeIdeToken || disabledIdeToken);
+  const legacyPaidIdeTransaction = !hasKnownIdeTokens ? paidIdeTransaction : null;
+  const ideToken = activeIdeToken?.token || (legacyPaidIdeTransaction ? makeIdeToken(legacyPaidIdeTransaction, user) : '');
+  const hasActiveIdeAccess = Boolean(activeIdeToken || legacyPaidIdeTransaction);
 
   async function loadIdeAccess() {
     const params = {};
@@ -91,16 +97,36 @@ export function UserIdeAccess() {
     setMessage('');
 
     try {
-      const [ideConfig, records] = await Promise.all([
+      const [ideConfigResult, recordsResult, ideAccessResult] = await Promise.allSettled([
         fetchIdeConfig(),
         fetchTransactions(params),
+        fetchUserIdeTokens({ ...user, userId: params.userId, email: params.email }),
       ]);
 
-      setConfig(ideConfig);
-      setTransactions(records);
+      if (ideConfigResult.status === 'fulfilled') {
+        setConfig(ideConfigResult.value);
+      }
+
+      if (recordsResult.status === 'fulfilled') {
+        setTransactions(recordsResult.value);
+      } else {
+        setTransactions([]);
+      }
+
+      if (ideAccessResult.status === 'fulfilled') {
+        setIdeAccess(ideAccessResult.value);
+      } else {
+        setIdeAccess({ tokens: [], activeToken: null, disabledToken: null });
+      }
+
+      const failed = [ideConfigResult, recordsResult, ideAccessResult].find((result) => result.status === 'rejected');
+      if (failed) {
+        console.warn('Sebagian data akses IDE gagal dimuat:', failed.reason);
+      }
     } catch (error) {
       setMessage(error.message || 'Gagal memuat akses IDE.');
       setTransactions([]);
+      setIdeAccess({ tokens: [], activeToken: null, disabledToken: null });
     } finally {
       setIsLoading(false);
     }
@@ -142,7 +168,7 @@ export function UserIdeAccess() {
       return;
     }
 
-    if (!paidIdeTransaction) {
+    if (!hasActiveIdeAccess) {
       setTokenCheckResult({ valid: false, message: 'Belum ada akses IDE aktif pada akun ini.' });
       return;
     }
@@ -150,7 +176,7 @@ export function UserIdeAccess() {
     if (submittedToken === ideToken) {
       setTokenCheckResult({
         valid: true,
-        message: `Token valid. Akses aktif sejak ${formatDate(paidIdeTransaction.paidAt || paidIdeTransaction.createdAt)}.`,
+        message: `Token valid. Akses aktif sejak ${formatDate(activeIdeToken?.grantedAt || paidIdeTransaction?.paidAt || paidIdeTransaction?.createdAt)}.`,
       });
       return;
     }
@@ -204,29 +230,45 @@ export function UserIdeAccess() {
 
           <section className="user-ide-panel" aria-labelledby="user-ide-title">
             <div className="user-ide-panel__copy">
-              <span>{paidIdeTransaction ? 'Akses Aktif' : 'Akses Belum Aktif'}</span>
+              <span>{hasActiveIdeAccess ? 'Akses Aktif' : disabledIdeToken ? 'Token Dinonaktifkan' : 'Akses Belum Aktif'}</span>
               <h2 id="user-ide-title">
-                {paidIdeTransaction
+                {hasActiveIdeAccess
                   ? 'Token IDE kamu sudah tersedia.'
+                  : disabledIdeToken
+                    ? 'Token IDE kamu sedang dinonaktifkan.'
                   : 'Beli akses IDE untuk membuka editor ArduFlow.'}
               </h2>
               <p>
-                {paidIdeTransaction
+                {hasActiveIdeAccess
                   ? 'Gunakan token ini saat masuk ke ArduFlow IDE.'
+                  : disabledIdeToken
+                    ? 'Kamu bisa membeli token baru agar akses IDE aktif kembali.'
                   : `Akses ${config.title} tersedia dengan harga ${formatCurrency(config.price, config.currency)}.`}
               </p>
             </div>
 
             {isLoading ? (
               <p className="user-ide-message">Memuat status akses IDE...</p>
-            ) : paidIdeTransaction ? (
+            ) : hasActiveIdeAccess ? (
               <div className="user-ide-token-card">
                 <span>Token IDE</span>
                 <strong>{ideToken}</strong>
-                <small>Aktif sejak {formatDate(paidIdeTransaction.paidAt || paidIdeTransaction.createdAt)}</small>
+                <small>Aktif sejak {formatDate(activeIdeToken?.grantedAt || paidIdeTransaction?.paidAt || paidIdeTransaction?.createdAt)}</small>
                 <div>
                   <button type="button" onClick={copyToken}>Salin Token</button>
                   <a href={IDE_URL} target="_blank" rel="noreferrer">Buka IDE</a>
+                </div>
+              </div>
+            ) : disabledIdeToken ? (
+              <div className="user-ide-buy-card user-ide-buy-card--disabled">
+                <span>Token Dinonaktifkan</span>
+                <strong>{disabledIdeToken.token}</strong>
+                <p>
+                  Alasan: {disabledIdeToken.disabledReason || 'Token dinonaktifkan oleh admin.'}
+                </p>
+                <div>
+                  <a href="/akses">Beli Token Baru</a>
+                  <button type="button" onClick={loadIdeAccess}>Refresh Status</button>
                 </div>
               </div>
             ) : (

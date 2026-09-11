@@ -23,6 +23,7 @@ import experienceSoldering from '../assets/images/workshop-experience-soldering.
 import experienceStudent from '../assets/images/workshop-experience-student.png';
 import projectHeroImage from '../assets/images/project-hero-reference.png';
 import workshopHeroDevice from '../assets/images/workshop-hero-device.png';
+import { requireUserLoginForAction } from '../utils/authRequired.js';
 
 
 const aboutHighlights = [
@@ -1358,10 +1359,14 @@ export function Workshop() {
                 Lihat Jadwal Workshop
               </a>
 
-
               <a
                 className="workshop-button secondary"
                 href={registerHref}
+                onClick={(event) => requireUserLoginForAction(
+                  event,
+                  registerHref,
+                  'Silakan login terlebih dahulu untuk mendaftar workshop. Setelah login, Anda akan diarahkan kembali ke form pendaftaran.',
+                )}
               >
                 IKUTI WORKSHOP
               </a>

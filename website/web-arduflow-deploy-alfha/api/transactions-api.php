@@ -22,7 +22,7 @@ if (in_array($origin, $allowedOrigins, true)) {
 
 header('Access-Control-Allow-Credentials: true');
 header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Auth-Token');
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
     http_response_code(204);
@@ -251,14 +251,48 @@ function readTransactionBody(): array
     return readJsonBody();
 }
 
+function transactionHeaderValue(string $name): string
+{
+    $serverKey = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
+    $value = $_SERVER[$serverKey] ?? $_SERVER[$name] ?? '';
+    if (is_string($value) && trim($value) !== '') {
+        return trim($value);
+    }
+
+    foreach (['getallheaders', 'apache_request_headers'] as $reader) {
+        if (!function_exists($reader)) {
+            continue;
+        }
+
+        $headers = $reader();
+        if (!is_array($headers)) {
+            continue;
+        }
+
+        foreach ($headers as $headerName => $headerValue) {
+            if (strcasecmp((string) $headerName, $name) === 0 && is_string($headerValue)) {
+                $headerValue = trim($headerValue);
+                if ($headerValue !== '') {
+                    return $headerValue;
+                }
+            }
+        }
+    }
+
+    return '';
+}
+
 function transactionBearerToken(): ?string
 {
-    $authorizationHeader =
-        $_SERVER['HTTP_AUTHORIZATION']
-        ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
-        ?? '';
+    $fallbackToken = transactionHeaderValue('X-Auth-Token');
+    if ($fallbackToken !== '') {
+        return $fallbackToken;
+    }
 
-    if (!preg_match('/Bearer\s+(.+)/i', $authorizationHeader, $matches)) {
+    $authorizationHeader = transactionHeaderValue('Authorization')
+        ?: ($_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
+
+    if (!is_string($authorizationHeader) || !preg_match('/Bearer\s+(.+)/i', $authorizationHeader, $matches)) {
         return null;
     }
 
@@ -266,45 +300,220 @@ function transactionBearerToken(): ?string
     return $token !== '' ? $token : null;
 }
 
+function transactionTableExists(PDO $pdo, string $table): bool
+{
+    $allowedTables = ['user_sessions', 'auth_tokens', 'admin_auth_tokens', 'admin_sessions'];
+    if (!in_array($table, $allowedTables, true)) {
+        return false;
+    }
+
+    try {
+        $statement = $pdo->prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=:table LIMIT 1");
+        $statement->execute([':table' => $table]);
+        if ($statement->fetchColumn()) {
+            return true;
+        }
+    } catch (Throwable $error) {
+        // Non-SQLite connection; fall back to a harmless table probe below.
+    }
+
+    try {
+        $pdo->query('SELECT 1 FROM ' . $table . ' LIMIT 1');
+        return true;
+    } catch (Throwable $error) {
+        return false;
+    }
+}
+
 function transactionCurrentUser(PDO $pdo, bool $strict = true): ?array
 {
+    if (transactionCurrentAdmin($pdo) !== null) return null;
     $token = transactionBearerToken();
     if ($token === null) {
         return null;
     }
 
-    $statement = $pdo->prepare(
-        'SELECT
-            u.id,
-            u.name,
-            u.username,
-            u.email
-         FROM auth_tokens AS t
-         INNER JOIN users AS u ON u.id = t.user_id
-         WHERE t.token_hash = :token_hash
-           AND t.expires_at > :now
-           AND u.deleted_at IS NULL
-         LIMIT 1'
-    );
+    $tokenHash = hash('sha256', $token);
+    $now = gmdate('Y-m-d\TH:i:s\Z');
 
-    $statement->execute([
-        ':token_hash' => hash('sha256', $token),
-        ':now' => gmdate('Y-m-d\TH:i:s\Z'),
-    ]);
-
-    $user = $statement->fetch(PDO::FETCH_ASSOC);
-    if (!is_array($user)) {
-        if (!$strict) {
-            return null;
+    foreach (['user_sessions', 'auth_tokens'] as $table) {
+        if (!transactionTableExists($pdo, $table)) {
+            continue;
         }
 
-        respond(401, [
-            'success' => false,
-            'message' => 'Session tidak valid atau sudah kedaluwarsa.',
+        $statement = $pdo->prepare(
+            'SELECT
+                u.id,
+                u.name,
+                u.username,
+                u.email
+             FROM ' . $table . ' AS t
+             INNER JOIN users AS u ON u.id = t.user_id
+             WHERE t.token_hash = :token_hash
+               AND t.expires_at > :now
+               AND u.deleted_at IS NULL
+               AND (u.is_active IS NULL OR u.is_active = 1)
+             LIMIT 1'
+        );
+        $statement->execute([
+            ':token_hash' => $tokenHash,
+            ':now' => $now,
         ]);
+
+        $user = $statement->fetch(PDO::FETCH_ASSOC);
+        if (is_array($user)) {
+            if ($table === 'user_sessions') {
+                $update = $pdo->prepare('UPDATE user_sessions SET last_used_at = :last_used_at WHERE token_hash = :token_hash');
+                $update->execute([':last_used_at' => $now, ':token_hash' => $tokenHash]);
+            }
+
+            return $user;
+        }
     }
 
-    return $user;
+    if (!$strict) {
+        return null;
+    }
+
+    respond(401, [
+        'success' => false,
+        'message' => 'Session tidak valid atau sudah kedaluwarsa.',
+    ]);
+}
+
+function transactionCurrentAdmin(PDO $pdo): ?array
+{
+    $token = transactionBearerToken();
+    if (!$token) return null;
+    foreach (['admin_auth_tokens', 'admin_sessions'] as $table) {
+        if (!transactionTableExists($pdo, $table)) continue;
+        $statement = $pdo->prepare('SELECT a.* FROM ' . $table . ' s JOIN admins a ON a.id=s.admin_id
+            WHERE s.token_hash=? AND s.expires_at>? AND a.is_active=1 AND a.deleted_at IS NULL LIMIT 1');
+        $statement->execute([hash('sha256', $token), gmdate('Y-m-d\TH:i:s\Z')]);
+        $admin = $statement->fetch(PDO::FETCH_ASSOC);
+        if ($admin) return $admin;
+    }
+    return null;
+}
+
+function transactionRequireAdmin(PDO $pdo): array
+{
+    $admin = transactionCurrentAdmin($pdo);
+    if (!$admin) respond(403, ['success' => false, 'message' => 'Session admin diperlukan.']);
+    return $admin;
+}
+
+function transactionRequireOwner(PDO $pdo, array $row): void
+{
+    $user = transactionCurrentUser($pdo);
+    if (!$user || (int) ($row['user_id'] ?? 0) !== (int) $user['id']) {
+        respond(403, ['success' => false, 'message' => 'Transaksi bukan milik akun ini.']);
+    }
+}
+
+function transactionPayloadValue(array $payload, array $keys): ?string
+{
+    foreach ($keys as $key) {
+        if (isset($payload[$key]) && trim((string) $payload[$key]) !== '') {
+            return trim((string) $payload[$key]);
+        }
+    }
+
+    return null;
+}
+
+function transactionOwnedProjectIds(PDO $pdo, array $sessionUser): array
+{
+    $userId = (int) ($sessionUser['id'] ?? 0);
+    $email = strtolower(trim((string) ($sessionUser['email'] ?? '')));
+    $statement = $pdo->query('SELECT id, payload_json FROM project_submissions WHERE deleted_at IS NULL');
+    $projectIds = [];
+
+    while ($project = $statement->fetch(PDO::FETCH_ASSOC)) {
+        $payload = json_decode((string) ($project['payload_json'] ?? '{}'), true);
+        if (!is_array($payload)) {
+            $payload = [];
+        }
+
+        $payloadUserId = transactionPayloadValue($payload, [
+            'userId',
+            'user_id',
+            'ownerId',
+            'owner_id',
+            'authorId',
+            'author_id',
+            'creatorId',
+            'creator_id',
+            'createdBy',
+            'created_by',
+        ]);
+        $payloadEmail = transactionPayloadValue($payload, [
+            'email',
+            'userEmail',
+            'user_email',
+            'ownerEmail',
+            'owner_email',
+            'authorEmail',
+            'author_email',
+        ]);
+
+        $matchesUserId = $userId > 0 && $payloadUserId !== null && (int) $payloadUserId === $userId;
+        $matchesEmail = $email !== '' && $payloadEmail !== null && strtolower($payloadEmail) === $email;
+
+        if ($matchesUserId || $matchesEmail) {
+            $projectIds[] = (int) $project['id'];
+        }
+    }
+
+    return $projectIds;
+}
+
+function transactionRowsForProjectIds(PDO $pdo, array $projectIds, string $itemType): array
+{
+    $projectIds = array_values(array_unique(array_map('intval', $projectIds)));
+    if ($projectIds === []) {
+        return [];
+    }
+
+    $placeholders = implode(',', array_fill(0, count($projectIds), '?'));
+    $statement = $pdo->prepare(
+        'SELECT * FROM transactions
+         WHERE deleted_at IS NULL
+           AND item_type = ?
+           AND item_id IN (' . $placeholders . ')
+         ORDER BY created_at DESC, id DESC'
+    );
+    $statement->execute(array_merge([$itemType], $projectIds));
+
+    $rows = [];
+    while ($row = $statement->fetch(PDO::FETCH_ASSOC)) {
+        $rows[] = rowToTransaction($row);
+    }
+
+    return $rows;
+}
+
+function transactionRowsForSessionUser(PDO $pdo, array $sessionUser, string $itemType): array
+{
+    $statement = $pdo->prepare(
+        'SELECT * FROM transactions
+         WHERE deleted_at IS NULL
+           AND item_type = :item_type
+           AND (user_id = :user_id OR LOWER(email) = LOWER(:email))
+         ORDER BY created_at DESC, id DESC'
+    );
+    $statement->execute([
+        ':item_type' => $itemType,
+        ':user_id' => (int) $sessionUser['id'],
+        ':email' => trim((string) ($sessionUser['email'] ?? '')),
+    ]);
+
+    $rows = [];
+    while ($row = $statement->fetch(PDO::FETCH_ASSOC)) {
+        $rows[] = rowToTransaction($row);
+    }
+
+    return $rows;
 }
 
 function applyUserSessionToTransaction(array $transaction, ?array $sessionUser): array
@@ -486,6 +695,8 @@ function storePaymentProof(int $transactionId, string $projectRoot): array
 
 function grantProductAccess(PDO $pdo, array $transaction, string $now): void
 {
+    ensureEntitlementTokenColumns($pdo);
+
     $statement = $pdo->prepare(
         'INSERT INTO user_entitlements (
             transaction_id, user_id, email, product_type, product_id, product_title,
@@ -496,6 +707,9 @@ function grantProductAccess(PDO $pdo, array $transaction, string $now): void
         )
         ON CONFLICT(transaction_id) DO UPDATE SET
             status = "active",
+            disabled_reason = NULL,
+            disabled_at = NULL,
+            disabled_by = NULL,
             granted_at = excluded.granted_at,
             updated_at = excluded.updated_at'
     );
@@ -664,7 +878,7 @@ function transactionFromBody(array $data, ?array $existing = null): array
         'user_id' => $userId === null || $userId === '' ? null : (int) $userId,
         'user_name' => trim((string) ($data['userName'] ?? $data['user_name'] ?? $existing['user_name'] ?? '')),
         'email' => trim((string) ($data['email'] ?? $existing['email'] ?? '')),
-        'item_type' => trim((string) ($data['itemType'] ?? $data['item_type'] ?? $existing['item_type'] ?? 'workshop')) ?: 'workshop',
+        'item_type' => strtolower(trim((string) ($data['itemType'] ?? $data['item_type'] ?? $existing['item_type'] ?? 'workshop'))) ?: 'workshop',
         'item_id' => $itemId === null || $itemId === '' ? null : (int) $itemId,
         'item_title' => trim((string) ($data['itemTitle'] ?? $data['item_title'] ?? $existing['item_title'] ?? '')),
         'amount' => is_numeric($amount) ? (float) $amount : 0.0,
@@ -727,6 +941,88 @@ try {
 
     $transactionId = getTransactionId();
     $action = strtolower(trim((string) ($_GET['action'] ?? '')));
+
+    $payouts = new \Arduflow\Api\Services\PayoutService($pdo, static function (array $user, string $code, string $description) use ($projectRoot): bool {
+        try {
+            $mail = new \Arduflow\Api\Services\MailService(\Arduflow\Api\Support\Config::fromDirectory($projectRoot . '/config'));
+            return $mail->sendPayoutCode($user, $code, $description);
+        } catch (Throwable $error) {
+            return false;
+        }
+    });
+    $payouts->install();
+
+    if (str_starts_with($action, 'payout-')) {
+        $sessionUser = transactionCurrentUser($pdo);
+        if (!$sessionUser) respond(401, ['success' => false, 'message' => 'Login diperlukan untuk pencairan.']);
+        $statement = $pdo->prepare('SELECT * FROM users WHERE id=? AND deleted_at IS NULL');
+        $statement->execute([$sessionUser['id']]);
+        $payoutUser = $statement->fetch(PDO::FETCH_ASSOC);
+        if (!$payoutUser || (isset($payoutUser['is_active']) && !$payoutUser['is_active'])) respond(403, ['success' => false, 'message' => 'Akun tidak aktif.']);
+        if ($method === 'GET' && $action === 'payout-status') {
+            respond(200, ['success' => true, 'data' => $payouts->status($payoutUser)]);
+        }
+        if ($method !== 'POST' || !in_array($action, ['payout-request-code', 'payout-confirm'], true)) respond(405, ['success' => false, 'message' => 'Aksi pencairan tidak diizinkan.']);
+        $body = readJsonBody();
+        // Serialize balance checks, authorization consumption and all inserts in one SQLite transaction.
+        $pdo->exec('BEGIN IMMEDIATE');
+        try {
+            $result = $action === 'payout-confirm' ? $payouts->confirm($payoutUser, $body)
+                : $payouts->request($payoutUser, (string) ($body['purpose'] ?? ''), $body);
+            foreach (empty($result['replayed']) ? ($result['transactionIds'] ?? []) : [] as $createdId) {
+                if (function_exists('afwSyncEnqueue')) afwSyncEnqueue($pdo, 'transactions', $createdId, 'insert', false);
+            }
+            $pdo->exec('COMMIT');
+        } catch (PDOException $error) {
+            $pdo->exec('ROLLBACK');
+            throw $error;
+        } catch (\Arduflow\Api\Services\PayoutException $error) {
+            // Keep rate limits and failed-attempt counters even when verification fails.
+            $pdo->exec('COMMIT');
+            $status = in_array($error->getCode(), [400,403,404,409,422,429,503], true) ? $error->getCode() : 500;
+            respond($status, ['success' => false, 'message' => $status === 500 ? 'Pencairan gagal diproses.' : $error->getMessage()]);
+        } catch (Throwable $error) {
+            $pdo->exec('ROLLBACK');
+            throw $error;
+        }
+        respond(200, ['success' => true, 'data' => $result]);
+    }
+
+    if ($action === 'finance-config') {
+        if ($method === 'GET') respond(200, ['success' => true, 'data' => ['commissionRate' => $payouts->commissionRate()]]);
+        transactionRequireAdmin($pdo);
+        if ($method !== 'PUT') respond(405, ['success' => false, 'message' => 'Method tidak diizinkan.']);
+        $config = readJsonBody();
+        $rate = filter_var($config['commissionRate'] ?? null, FILTER_VALIDATE_INT);
+        if ($rate === false) throw new InvalidArgumentException('Komisi harus berupa persentase bulat.');
+        $payouts->setCommissionRate($rate);
+        respond(200, ['success' => true, 'data' => ['commissionRate' => $payouts->commissionRate()]]);
+    }
+
+    if ($action === 'project-sales') {
+        if ($method !== 'GET') respond(405, ['success' => false, 'message' => 'Method tidak diizinkan.']);
+        $sessionUser = transactionCurrentUser($pdo);
+        if (!$sessionUser) {
+            respond(401, ['success' => false, 'message' => 'Session tidak valid atau sudah kedaluwarsa.']);
+        }
+        $ownedProjectIds = transactionOwnedProjectIds($pdo, $sessionUser);
+        respond(200, [
+            'success' => true,
+            'message' => 'Histori penjualan proyek berhasil diambil.',
+            'data' => [
+                'purchases' => transactionRowsForSessionUser($pdo, $sessionUser, 'project'),
+                'sales' => transactionRowsForProjectIds($pdo, $ownedProjectIds, 'project'),
+                'payouts' => transactionRowsForProjectIds($pdo, $ownedProjectIds, 'project_payout'),
+                'balances' => $payouts->balances((int) $sessionUser['id']),
+                'commissionRate' => $payouts->commissionRate(),
+            ],
+        ]);
+    }
+
+    if (in_array($method, ['PUT','PATCH','DELETE'], true)
+        || ($method === 'POST' && in_array($action, ['approve','reject','upload-payout-proof','payment-methods'], true))) {
+        transactionRequireAdmin($pdo);
+    }
 
     if ($action === 'payment-methods') {
         if ($method === 'GET') {
@@ -950,8 +1246,56 @@ try {
                     'id' => $transactionId,
                 ],
             ]);
+    }
+}
+
+function transactionColumnExists(PDO $pdo, string $table, string $column): bool
+{
+    $statement = $pdo->query('PRAGMA table_info(' . $table . ')');
+
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        if (isset($row['name']) && strcasecmp((string) $row['name'], $column) === 0) {
+            return true;
         }
     }
+
+    return false;
+}
+
+function ensureEntitlementTokenColumns(PDO $pdo): void
+{
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS user_entitlements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            transaction_id INTEGER NOT NULL,
+            user_id INTEGER NULL,
+            email TEXT,
+            product_type TEXT NOT NULL,
+            product_id INTEGER NULL,
+            product_title TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT "active",
+            granted_at TEXT NOT NULL,
+            deleted_at TEXT,
+            version INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )'
+    );
+
+    $columns = [
+        'disabled_reason' => 'TEXT',
+        'disabled_at' => 'TEXT',
+        'disabled_by' => 'TEXT',
+        'deleted_at' => 'TEXT',
+        'version' => 'INTEGER NOT NULL DEFAULT 1',
+    ];
+
+    foreach ($columns as $column => $definition) {
+        if (!transactionColumnExists($pdo, 'user_entitlements', $column)) {
+            $pdo->exec('ALTER TABLE user_entitlements ADD COLUMN ' . $column . ' ' . $definition);
+        }
+    }
+}
 
     if ($method === 'POST' && $action === 'upload-payout-proof') {
         if ($transactionId === null) {
@@ -966,6 +1310,7 @@ try {
             ]);
         }
 
+        if ($existingRow['status'] !== 'processing') throw new InvalidArgumentException('Mulai proses pencairan sebelum mengunggah bukti transfer.');
         $proof = storePaymentProof($transactionId, $projectRoot);
         $now = jakartaNow();
         $statement = $pdo->prepare(
@@ -980,7 +1325,7 @@ try {
                 reviewed_at = :reviewed_at,
                 reviewed_by = :reviewed_by,
                 updated_at = :updated_at
-             WHERE id = :id'
+             WHERE id = :id AND status = "processing"'
         );
         $statement->execute([
             ':proof_file_name' => $proof['name'],
@@ -994,11 +1339,13 @@ try {
             ':updated_at' => $now,
             ':id' => $transactionId,
         ]);
+        if ($statement->rowCount() !== 1) respond(409, ['success' => false, 'message' => 'Status pencairan telah berubah. Muat ulang.']);
         if (function_exists('afwSyncEnqueue')) {
             afwSyncEnqueue($pdo, 'transactions', $transactionId, 'update');
         }
         $updatedTransaction = findTransaction($pdo, $transactionId) ?? [];
         publishTransactionEvent($projectRoot, 'payout_proof_sent', $updatedTransaction);
+        $payouts->notifyStatus((int) $existingRow['user_id'], $existingRow['invoice_number'], 'proof_sent');
 
         respond(200, [
             'success' => true,
@@ -1024,15 +1371,18 @@ try {
         if (($existingRow['status'] ?? '') !== 'proof_sent') {
             throw new InvalidArgumentException('Pencairan hanya dapat diselesaikan setelah bukti dikirim admin.');
         }
+        transactionRequireOwner($pdo, $existingRow);
 
         $now = jakartaNow();
-        $statement = $pdo->prepare('UPDATE transactions SET status = "done", updated_at = :updated_at WHERE id = :id');
+        $statement = $pdo->prepare('UPDATE transactions SET status = "done", updated_at = :updated_at WHERE id = :id AND status = "proof_sent"');
         $statement->execute([':updated_at' => $now, ':id' => $transactionId]);
+        if ($statement->rowCount() !== 1) respond(409, ['success' => false, 'message' => 'Status pencairan telah berubah. Muat ulang.']);
         if (function_exists('afwSyncEnqueue')) {
             afwSyncEnqueue($pdo, 'transactions', $transactionId, 'update');
         }
         $updatedTransaction = findTransaction($pdo, $transactionId) ?? [];
         publishTransactionEvent($projectRoot, 'payout_completed', $updatedTransaction);
+        $payouts->notifyStatus((int) $existingRow['user_id'], $existingRow['invoice_number'], 'done');
 
         respond(200, [
             'success' => true,
@@ -1056,6 +1406,9 @@ try {
             ]);
         }
 
+        if ($existingRow['item_type'] === 'project_payout') throw new InvalidArgumentException('Gunakan alur bukti pencairan admin.');
+        if (!transactionCurrentAdmin($pdo)) transactionRequireOwner($pdo, $existingRow);
+        if (!in_array($existingRow['status'], ['pending','rejected','proof_uploaded'], true)) throw new InvalidArgumentException('Status pembayaran tidak menerima perubahan bukti.');
         $referenceNumber = trim((string) ($_POST['referenceNumber'] ?? $_POST['reference_number'] ?? $existingRow['reference_number'] ?? ''));
         $proof = storePaymentProof($transactionId, $projectRoot);
         $now = jakartaNow();
@@ -1122,6 +1475,16 @@ try {
             $incoming = is_array($decoded) ? ($decoded['data'] ?? $decoded) : [];
         }
 
+        if ($existingRow['item_type'] === 'project_payout') {
+            if ($existingRow['status'] !== 'payout_requested') throw new InvalidArgumentException('Pencairan hanya dapat disetujui/ditolak saat menunggu pemeriksaan. Dana yang sedang diproses tidak boleh dilepas tanpa rekonsiliasi.');
+            $status = $action === 'approve' ? 'processing' : 'rejected';
+            $statement = $pdo->prepare('UPDATE transactions SET status=?, reviewed_at=?, reviewed_by=?, rejection_reason=?, updated_at=? WHERE id=? AND status="payout_requested"');
+            $statement->execute([$status, jakartaNow(), transactionRequireAdmin($pdo)['name'], $action === 'reject' ? trim((string) ($incoming['reason'] ?? 'Ditolak admin')) : null, jakartaNow(), $transactionId]);
+            if ($statement->rowCount() !== 1) respond(409, ['success' => false, 'message' => 'Status telah berubah. Muat ulang transaksi.']);
+            if (function_exists('afwSyncEnqueue')) afwSyncEnqueue($pdo, 'transactions', $transactionId, 'update');
+            $payouts->notifyStatus((int) $existingRow['user_id'], $existingRow['invoice_number'], $status);
+            respond(200, ['success' => true, 'data' => ['transaction' => rowToTransaction(findTransaction($pdo, $transactionId))]]);
+        }
         $now = jakartaNow();
         if ($action === 'approve') {
             $statement = $pdo->prepare(
@@ -1201,6 +1564,7 @@ try {
                 ]);
             }
 
+            if ($row['item_type'] === 'project_payout' && !transactionCurrentAdmin($pdo)) transactionRequireOwner($pdo, $row);
             if (
                 $sessionUser !== null
                 && (int) ($row['user_id'] ?? 0) !== (int) $sessionUser['id']
@@ -1222,6 +1586,7 @@ try {
 
         $where = [];
         $params = [];
+        if (!$sessionUser && !transactionCurrentAdmin($pdo)) $where[] = 'item_type <> "project_payout"';
         $hasUserId = isset($_GET['userId']) && $_GET['userId'] !== '';
         $hasEmail = isset($_GET['email']) && trim((string) $_GET['email']) !== '';
 
@@ -1269,12 +1634,19 @@ try {
     }
 
     if ($method === 'POST') {
+        if ($action !== '') throw new InvalidArgumentException('Aksi transaksi tidak dikenal.');
         $incoming = readTransactionBody();
         $sessionUser = transactionCurrentUser($pdo, false);
         $transaction = applyUserSessionToTransaction(
             transactionFromBody($incoming),
             $sessionUser
         );
+        if ($transaction['item_type'] === 'project_payout') respond(403, ['success' => false, 'message' => 'Pencairan wajib melalui ringkasan, PIN, dan kode verifikasi.']);
+        if (!transactionCurrentAdmin($pdo)) {
+            if (!$sessionUser) respond(401, ['success' => false, 'message' => 'Login diperlukan untuk membuat transaksi.']);
+            $transaction['status'] = 'pending';
+            $transaction['paid_at'] = null;
+        }
 
         if (transactionRequiresOwner($transaction) && !transactionHasOwner($transaction)) {
             respond(401, [
@@ -1380,8 +1752,10 @@ try {
             ]);
         }
 
+        if ($existingRow['item_type'] === 'project_payout') respond(403, ['success' => false, 'message' => 'Rincian pencairan terkunci. Gunakan persetujuan, penolakan, atau bukti transfer.']);
         $incoming = readTransactionBody();
         $transaction = transactionFromBody($incoming, $existingRow);
+        if ($transaction['item_type'] === 'project_payout') respond(403, ['success' => false, 'message' => 'Transaksi tidak dapat diubah menjadi pencairan.']);
         $errors = validateTransaction($transaction);
         if ($errors !== []) {
             respond(422, [
@@ -1490,6 +1864,7 @@ try {
             ]);
         }
 
+        if ($existingRow['item_type'] === 'project_payout') respond(403, ['success' => false, 'message' => 'Riwayat pencairan tidak dapat dihapus.']);
         if (function_exists('afwSyncEnqueue')) {
             afwSyncEnqueue($pdo, 'transactions', $transactionId, 'delete');
         } else {
