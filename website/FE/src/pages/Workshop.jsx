@@ -1,20 +1,58 @@
 import { useEffect, useMemo, useState } from 'react';
+
+import { MaterialCard } from '../components/materials/MaterialCard.jsx';
+import {
+  fetchMaterials,
+  isPublishedMaterial,
+} from '../services/materialApi.js';
+
+import {
+  fetchWorkshops,
+  isPublicWorkshop,
+} from '../services/workshopApi.js';
+
+import {
+  fetchProjectSubmissions,
+  isPublicProject,
+} from '../services/projectApi.js';
+
 import aboutArduflowPreview from '../assets/gif/about-arduflow-preview.gif';
 import ideAccessFlow from '../assets/gif/ide-access-flow.gif';
 import experienceGroup from '../assets/images/workshop-experience-group.png';
 import experienceSoldering from '../assets/images/workshop-experience-soldering.jpg';
 import experienceStudent from '../assets/images/workshop-experience-student.png';
+import projectHeroImage from '../assets/images/project-hero-reference.png';
 import workshopHeroDevice from '../assets/images/workshop-hero-device.png';
 import { requireUserLoginForAction } from '../utils/authRequired.js';
 
+
 const aboutHighlights = [
-  { label: 'Platform Edukasi Arduflow', icon: 'monitor' },
-  { label: 'Arduino IDE', icon: 'chip' },
-  { label: 'Tutor', icon: 'user' },
-  { label: 'Workshop', icon: 'rocket' },
-  { label: 'Proyek IoT', icon: 'globe' },
-  { label: 'Sertifikat', icon: 'cert' },
+  {
+    label: 'Platform Edukasi Arduflow',
+    icon: 'monitor',
+  },
+  {
+    label: 'Arduino IDE',
+    icon: 'chip',
+  },
+  {
+    label: 'Tutor',
+    icon: 'user',
+  },
+  {
+    label: 'Workshop',
+    icon: 'rocket',
+  },
+  {
+    label: 'Proyek IoT',
+    icon: 'globe',
+  },
+  {
+    label: 'Sertifikat',
+    icon: 'cert',
+  },
 ];
+
 
 const targetParticipants = [
   {
@@ -49,6 +87,7 @@ const targetParticipants = [
   },
 ];
 
+
 const programBenefits = [
   {
     title: 'Belajar Lebih Terarah',
@@ -82,6 +121,7 @@ const programBenefits = [
   },
 ];
 
+
 const curriculumChecklist = [
   'Pengenalan Arduino dan IoT',
   'Membuat program sederhana dengan visual flow',
@@ -91,13 +131,30 @@ const curriculumChecklist = [
   'Melakukan pengujian dan evaluasi hasil proyek',
 ];
 
+
 const curriculumModules = [
-  { title: 'Dasar Arduino dan IoT', duration: '45 min' },
-  { title: 'Visual Programming', duration: '60 min' },
-  { title: 'Sensor dan Aktuator', duration: '75 min' },
-  { title: 'Mini Proyek', duration: '90 min' },
-  { title: 'Pengujian dan Evaluasi', duration: '45 min' },
+  {
+    title: 'Dasar Arduino dan IoT',
+    duration: '45 min',
+  },
+  {
+    title: 'Visual Programming',
+    duration: '60 min',
+  },
+  {
+    title: 'Sensor dan Aktuator',
+    duration: '75 min',
+  },
+  {
+    title: 'Mini Proyek',
+    duration: '90 min',
+  },
+  {
+    title: 'Pengujian dan Evaluasi',
+    duration: '45 min',
+  },
 ];
+
 
 const learningFlow = [
   {
@@ -132,51 +189,120 @@ const learningFlow = [
   },
 ];
 
-const WORKSHOP_ENDPOINTS = [
-  import.meta.env.VITE_WORKSHOP_API_URL?.trim(),
-  'https://arduflow.indobilliard.com/apk/uploads/web-arduflow-deploy-alfha/api/workshop-api.php',
-  'https://arduflow.indobilliard.com/apk/uploads/web/api/workshop/workshop-api.php',
-  typeof window !== 'undefined'
-    ? new URL('/api/workshop-api.php', window.location.origin).toString()
-    : '',
-].filter(Boolean);
 
-function parseWorkshopPayload(row) {
-  const source = row?.payload;
+const experienceGallery = [
+  {
+    src: experienceSoldering,
+    alt: 'Peserta workshop sedang menyolder komponen Arduino',
+    variant: 'soldering',
+    caption:
+      'Mulai belajar hingga membuat proyek Arduino sendiri bersama ArduFlow.',
+  },
+  {
+    src: experienceStudent,
+    alt: 'Peserta menampilkan alur Arduflow di ponsel saat praktik IoT',
+    variant: 'student',
+    caption:
+      'Gunakan aplikasi ArduFlow dengan mudah untuk membuat dan mengembangkan proyek Arduino.',
+  },
+  {
+    src: experienceGroup,
+    alt: 'Kelompok peserta workshop merakit proyek IoT bersama mentor',
+    variant: 'group',
+    caption:
+      'Buat proyek dan lakukan praktik langsung dengan bimbingan mentor di ArduFlow.',
+  },
+];
 
-  if (source && typeof source === 'object') {
-    return source;
-  }
 
-  if (typeof source === 'string' && source.trim()) {
-    try {
-      return JSON.parse(source);
-    } catch {
-      return {};
-    }
-  }
+const registrationSteps = [
+  {
+    number: '1',
+    title: 'Pilih Program',
+    text: 'Pilih jalur belajar yang sesuai.',
+  },
+  {
+    number: '2',
+    title: 'Isi Formulir',
+    text: 'Lengkapi data peserta.',
+  },
+  {
+    number: '3',
+    title: 'Download & Ikuti',
+    text: 'Dapatkan akses aplikasi.',
+  },
+  {
+    number: '4',
+    title: 'Konfirmasi',
+    text: 'Selesaikan pembayaran.',
+  },
+  {
+    number: '5',
+    title: 'Terima Token',
+    text: 'Gunakan token akses.',
+  },
+  {
+    number: '6',
+    title: 'Mulai Belajar',
+    text: 'Masuk komunitas dan workshop.',
+  },
+];
 
-  return {};
-}
 
-function normalizeWorkshop(row) {
-  const payload = parseWorkshopPayload(row);
+const workshopFaqs = [
+  {
+    question: 'Apa yang akan dipelajari selama workshop?',
+    answer:
+      'Peserta mempelajari dasar Arduino dan IoT, visual programming, penggunaan node logic, koneksi sensor dan aktuator, pembuatan mini proyek, serta pengujian hasil proyek.',
+  },
+  {
+    question:
+      'Apakah saya harus memiliki akun untuk mendaftar workshop?',
+    answer:
+      'Ya. Anda harus memiliki akun dan login terlebih dahulu sebelum dapat melakukan pendaftaran workshop. Akun digunakan untuk transaksi, menyimpan data pendaftaran dan aktivitas workshop Anda.',
+  },
+  {
+    question:
+      'Apa perbedaan workshop dengan akses ArduFlow IDE?',
+    answer:
+      'Workshop adalah sesi belajar terarah bersama mentor untuk memahami konsep dan praktik. Akses ArduFlow IDE digunakan untuk melanjutkan latihan, membuat flow, dan belajar mandiri setelah sesi workshop sesuai akses yang diberikan pada program.',
+  },
+  {
+    question:
+      'Bagaimana jika saya ingin mendaftarkan banyak peserta workshop sekaligus?',
+    answer:
+      'Jika Anda ingin mendaftarkan peserta dalam jumlah banyak, seperti peserta dari sekolah, perguruan tinggi, perusahaan, komunitas, atau organisasi, Anda tidak perlu melakukan pendaftaran satu per satu. Cukup siapkan file CSV data seluruh peserta yang berisi nama dan email.',
+  },
+  {
+    question:
+      'Apakah setelah workshop saya masih bisa belajar mandiri?',
+    answer:
+      'Ya. Alur program memang dibuat agar workshop membantu memahami materi secara langsung, lalu peserta dapat melanjutkan latihan dan eksplorasi proyek melalui ArduFlow IDE menggunakan akses yang diterima.',
+  },
+  {
+    question:
+      'Apakah peserta mendapatkan sertifikat?',
+    answer:
+      'Ya. Sertifikat diberikan kepada peserta yang mengikuti rangkaian workshop dan menyelesaikan tugas atau praktik yang ditentukan pada program.',
+  },
+  {
+    question:
+      'Apakah workshop bisa diadakan untuk sekolah, kampus, atau komunitas?',
+    answer:
+      'Bisa. Materi, jadwal, dan format kegiatan dapat disesuaikan untuk kebutuhan kelas, praktikum, pelatihan internal, demo, maupun kegiatan komunitas.',
+  },
+  {
+    question:
+      'Saya masih bingung memilih program. Harus mulai dari mana?',
+    answer:
+      'Jika belum pernah belajar Arduino atau IoT, mulai dari workshop pemula. Untuk kebutuhan sekolah, kampus, komunitas, atau pelatihan khusus, gunakan halaman kontak agar tim ArduFlow dapat membantu memilih format yang paling sesuai.',
+  },
+];
 
-  return {
-    id: row?.id ?? null,
-    title: payload.title || row?.title || 'Workshop ArduFlow',
-    slug: payload.slug || row?.slug || '',
-    summary: payload.summary || 'Pelajari Arduino dan IoT bersama ArduFlow.',
-    category: payload.category || row?.category || '',
-    type: payload.type || '',
-    date: payload.schedule?.date || row?.date || '',
-    time: payload.schedule?.time || row?.time || '',
-    timezone: payload.schedule?.timezone || row?.timezone || '',
-    location: payload.location || row?.location || '',
-    status: payload.publication?.status || row?.status || '',
-    visibility: payload.publication?.visibility || row?.visibility || 'Publik',
-  };
-}
+
+/* =========================================================
+   HELPER WORKSHOP
+========================================================= */
 
 function getTodayDateString() {
   const today = new Date();
@@ -188,327 +314,1048 @@ function getTodayDateString() {
   ].join('-');
 }
 
+
+function getWorkshopDate(workshop) {
+  const value = workshop?.startsAt || '';
+
+  if (!value) {
+    return '';
+  }
+
+  const stringValue = String(value).trim();
+
+  const match = stringValue.match(
+    /^(\d{4}-\d{2}-\d{2})/,
+  );
+
+  if (match) {
+    return match[1];
+  }
+
+  const parsedDate = new Date(stringValue);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return '';
+  }
+
+  return [
+    parsedDate.getFullYear(),
+    String(parsedDate.getMonth() + 1).padStart(
+      2,
+      '0',
+    ),
+    String(parsedDate.getDate()).padStart(
+      2,
+      '0',
+    ),
+  ].join('-');
+}
+
+
+/*
+ * Mengubah jam awal workshop menjadi jumlah menit sejak 00:00.
+ * Mendukung format seperti 09:00, 9:00, 09.00,
+ * 09:00 - 12:00, dan 09:00 WIB.
+ */
+function getWorkshopStartMinutes(value) {
+  const timeText = String(
+    value || '',
+  ).trim();
+
+  if (!timeText) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const match = timeText.match(
+    /(?:^|\s)([01]?\d|2[0-3])[:.]([0-5]\d)/,
+  );
+
+  if (!match) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+
+  return (hour * 60) + minute;
+}
+
+
+function normalizeWorkshopForPage(workshop) {
+  return {
+    ...workshop,
+
+    date:
+      getWorkshopDate(workshop),
+
+    time:
+      workshop?.timeText ||
+      '',
+
+    type:
+      workshop?.method ||
+      '',
+  };
+}
+
+
 function formatWorkshopDate(value) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) {
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(
+      String(value || ''),
+    )
+  ) {
     return 'Jadwal belum tersedia';
   }
 
-  const [year, month, day] = value.split('-').map(Number);
-  const date = new Date(year, month - 1, day);
+  const [year, month, day] = value
+    .split('-')
+    .map(Number);
 
-  return new Intl.DateTimeFormat('id-ID', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(date);
-}
+  const date = new Date(
+    year,
+    month - 1,
+    day,
+  );
 
-function getWorkshopDateParts(value) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) {
-    return { dateText: 'Jadwal belum tersedia', dayText: '-' };
-  }
-
-  const [year, month, day] = value.split('-').map(Number);
-  const date = new Date(year, month - 1, day);
-
-  return {
-    dateText: new Intl.DateTimeFormat('id-ID', {
+  return new Intl.DateTimeFormat(
+    'id-ID',
+    {
+      weekday: 'long',
       day: 'numeric',
       month: 'long',
       year: 'numeric',
-    }).format(date),
-    dayText: new Intl.DateTimeFormat('id-ID', {
-      weekday: 'long',
-    }).format(date),
+    },
+  ).format(date);
+}
+
+
+function getWorkshopDateParts(value) {
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(
+      String(value || ''),
+    )
+  ) {
+    return {
+      dateText: 'Jadwal belum tersedia',
+      dayText: '-',
+    };
+  }
+
+  const [year, month, day] = value
+    .split('-')
+    .map(Number);
+
+  const date = new Date(
+    year,
+    month - 1,
+    day,
+  );
+
+  return {
+    dateText: new Intl.DateTimeFormat(
+      'id-ID',
+      {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      },
+    ).format(date),
+
+    dayText: new Intl.DateTimeFormat(
+      'id-ID',
+      {
+        weekday: 'long',
+      },
+    ).format(date),
   };
 }
+
 
 function getWorkshopDetailHref(workshop) {
   const params = new URLSearchParams();
 
-  if (workshop?.id !== null && workshop?.id !== undefined && String(workshop.id).trim()) {
-    params.set('id', String(workshop.id));
+  if (
+    workshop?.id !== null &&
+    workshop?.id !== undefined &&
+    String(workshop.id).trim()
+  ) {
+    params.set(
+      'id',
+      String(workshop.id),
+    );
   }
 
   if (workshop?.slug) {
-    params.set('slug', String(workshop.slug));
+    params.set(
+      'slug',
+      String(workshop.slug),
+    );
   }
 
   const query = params.toString();
 
-  return query ? `/workshop/detail?${query}` : '/workshop/detail';
+  return query
+    ? `/workshop/detail?${query}`
+    : '/workshop/detail';
 }
 
-const experienceGallery = [
-  {
-    src: experienceSoldering,
-    alt: 'Peserta workshop sedang menyolder komponen Arduino',
-    variant: 'soldering',
-    caption: 'Mulai belajar hingga membuat proyek Arduino sendiri bersama ArduFlow.',
-  },
-  {
-    src: experienceStudent,
-    alt: 'Peserta menampilkan alur Arduflow di ponsel saat praktik IoT',
-    variant: 'student',
-    caption: 'Gunakan aplikasi ArduFlow dengan mudah untuk membuat dan mengembangkan proyek Arduino.',
-  },
-  {
-    src: experienceGroup,
-    alt: 'Kelompok peserta workshop merakit proyek IoT bersama mentor',
-    variant: 'group',
-    caption: 'Buat proyek dan lakukan praktik langsung dengan bimbingan mentor di ArduFlow.',
-  },
-];
 
-const registrationSteps = [
-  { number: '1', title: 'Pilih Program', text: 'Pilih jalur belajar yang sesuai.' },
-  { number: '2', title: 'Isi Formulir', text: 'Lengkapi data peserta.' },
-  { number: '3', title: 'Download & Ikuti', text: 'Dapatkan akses aplikasi.' },
-  { number: '4', title: 'Konfirmasi', text: 'Selesaikan pembayaran.' },
-  { number: '5', title: 'Terima Token', text: 'Gunakan token akses.' },
-  { number: '6', title: 'Mulai Belajar', text: 'Masuk komunitas dan workshop.' },
-];
+/* =========================================================
+   HELPER MATERI
+========================================================= */
 
-const workshopFaqs = [
-  {
-    question: 'Apa yang akan dipelajari selama workshop?',
-    answer:
-      'Peserta mempelajari dasar Arduino dan IoT, visual programming, penggunaan node logic, koneksi sensor dan aktuator, pembuatan mini proyek, serta pengujian hasil proyek.',
-  },
-  {
-    question: 'Apakah saya harus memiliki akun untuk mendaftar workshop?',
-    answer:
-      'Ya. Anda harus memiliki akun dan login terlebih dahulu sebelum dapat melakukan pendaftaran workshop. Akun digunakan untuk transaksi, menyimpan data pendaftaran dan aktivitas workshop Anda.',
-  },
-  {
-    question: 'Apa perbedaan workshop dengan akses ArduFlow IDE?',
-    answer:
-      'Workshop adalah sesi belajar terarah bersama mentor untuk memahami konsep dan praktik. Akses ArduFlow IDE digunakan untuk melanjutkan latihan, membuat flow, dan belajar mandiri setelah sesi workshop sesuai akses yang diberikan pada program.',
-  },
-  {
-    question: 'Bagaimana jika saya ingin mendaftarkan banyak peserta workshop sekaligus?',
-    answer:
-      'Jika Anda ingin mendaftarkan peserta dalam jumlah banyak, seperti peserta dari sekolah, perguruan tinggi, perusahaan, komunitas, atau organisasi, Anda tidak perlu melakukan pendaftaran satu per satu. Cukup siapkan file CSV data seluruh peserta yang berisi nama dan email.',
-  },
-  {
-    question: 'Apakah setelah workshop saya masih bisa belajar mandiri?',
-    answer:
-      'Ya. Alur program memang dibuat agar workshop membantu memahami materi secara langsung, lalu peserta dapat melanjutkan latihan dan eksplorasi proyek melalui ArduFlow IDE menggunakan akses yang diterima.',
-  },
-  {
-    question: 'Apakah peserta mendapatkan sertifikat?',
-    answer:
-      'Ya. Sertifikat diberikan kepada peserta yang mengikuti rangkaian workshop dan menyelesaikan tugas atau praktik yang ditentukan pada program.',
-  },
-  {
-    question: 'Apakah workshop bisa diadakan untuk sekolah, kampus, atau komunitas?',
-    answer:
-      'Bisa. Materi, jadwal, dan format kegiatan dapat disesuaikan untuk kebutuhan kelas, praktikum, pelatihan internal, demo, maupun kegiatan komunitas.',
-  },
-  {
-    question: 'Saya masih bingung memilih program. Harus mulai dari mana?',
-    answer:
-      'Jika belum pernah belajar Arduino atau IoT, mulai dari workshop pemula. Untuk kebutuhan sekolah, kampus, komunitas, atau pelatihan khusus, gunakan halaman kontak agar tim ArduFlow dapat membantu memilih format yang paling sesuai.',
-  },
-];
+function materialHref(material) {
+  if (
+    String(material?.id || '')
+      .startsWith('fallback-')
+  ) {
+    return '/materi';
+  }
+
+  const identifier =
+    material?.slug ||
+    material?.id ||
+    '';
+
+  return identifier
+    ? `/materi/${identifier}`
+    : '/materi';
+}
+
+
+/* =========================================================
+   HELPER PROJECT
+========================================================= */
+
+function projectDetailHref(project) {
+  const projectId = String(
+    project?.id || '',
+  ).trim();
+
+  return projectId
+    ? `/project/detail?id=${encodeURIComponent(projectId)}`
+    : '/project';
+}
+
+
+function stripProjectHtml(value) {
+  const source = String(
+    value || '',
+  );
+
+  if (
+    typeof document !== 'undefined'
+  ) {
+    const wrapper = document.createElement(
+      'div',
+    );
+
+    wrapper.innerHTML = source;
+
+    return (
+      wrapper.textContent ||
+      wrapper.innerText ||
+      ''
+    );
+  }
+
+  return source.replace(
+    /<[^>]*>/g,
+    ' ',
+  );
+}
+
+
+function projectSummary(value) {
+  return stripProjectHtml(value)
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+
+function projectImage(project) {
+  return (
+    project?.coverImageUrl ||
+    projectHeroImage
+  );
+}
+
 
 export function Workshop() {
-  const [activeFaq, setActiveFaq] = useState(0);
-  const [workshops, setWorkshops] = useState([]);
-  const [isWorkshopLoading, setIsWorkshopLoading] = useState(true);
-  const [workshopLoadError, setWorkshopLoadError] = useState('');
+  const [
+    activeFaq,
+    setActiveFaq,
+  ] = useState(0);
+
+
+  /* =======================================================
+     WORKSHOP STATE
+  ======================================================= */
+
+  const [
+    workshops,
+    setWorkshops,
+  ] = useState([]);
+
+  const [
+    isWorkshopLoading,
+    setIsWorkshopLoading,
+  ] = useState(true);
+
+  const [
+    workshopLoadError,
+    setWorkshopLoadError,
+  ] = useState('');
+
+
+  /* =======================================================
+     MATERIAL STATE
+  ======================================================= */
+
+  const [
+    materials,
+    setMaterials,
+  ] = useState([]);
+
+
+  /* =======================================================
+     PROJECT STATE
+  ======================================================= */
+
+  const [
+    projects,
+    setProjects,
+  ] = useState([]);
+
+  const [
+    isProjectLoading,
+    setIsProjectLoading,
+  ] = useState(true);
+
+  const [
+    projectLoadError,
+    setProjectLoadError,
+  ] = useState('');
+
+
+  /* =======================================================
+     LOAD WORKSHOP
+     Menggunakan services/workshopApi.js
+
+     - Fetch pertama menampilkan loading.
+     - Refresh berikutnya berjalan di background.
+     - Refresh otomatis setiap 60 detik.
+     - Refresh saat user kembali membuka browser/tab.
+     - Jika background refresh gagal, data lama tetap tampil.
+  ======================================================= */
 
   useEffect(() => {
     let isActive = true;
+    let hasLoadedSuccessfully = false;
 
-    async function loadWorkshops() {
-      let lastError = null;
 
-      for (const endpoint of WORKSHOP_ENDPOINTS) {
-        try {
-          const response = await fetch(endpoint, {
-            method: 'GET',
-            headers: {
-              Accept: 'application/json',
-            },
-          });
-
-          const rawText = await response.text();
-          let result;
-
-          try {
-            result = rawText ? JSON.parse(rawText) : {};
-          } catch {
-            throw new Error(`Response workshop bukan JSON. HTTP ${response.status}.`);
-          }
-
-          if (!response.ok || !result.success) {
-            throw new Error(result.message || `Gagal mengambil workshop. HTTP ${response.status}.`);
-          }
-
-          const rows = Array.isArray(result.data?.workshops)
-            ? result.data.workshops
-            : [];
-
-          if (!isActive) return;
-
-          setWorkshops(rows.map(normalizeWorkshop));
-          setWorkshopLoadError('');
-          setIsWorkshopLoading(false);
-          return;
-        } catch (error) {
-          lastError = error;
-        }
+    async function loadWorkshops({
+      showLoading = false,
+    } = {}) {
+      if (showLoading) {
+        setIsWorkshopLoading(true);
       }
 
-      if (!isActive) return;
 
-      setWorkshops([]);
-      setWorkshopLoadError(lastError?.message || 'Gagal mengambil data workshop.');
-      setIsWorkshopLoading(false);
+      try {
+        const data =
+          await fetchWorkshops();
+
+
+        if (!isActive) {
+          return;
+        }
+
+
+        const publicWorkshops =
+          Array.isArray(data)
+            ? data
+                .filter(
+                  isPublicWorkshop,
+                )
+                .map(
+                  normalizeWorkshopForPage,
+                )
+            : [];
+
+
+        setWorkshops(
+          publicWorkshops,
+        );
+
+        setWorkshopLoadError('');
+        hasLoadedSuccessfully = true;
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+
+
+        console.error(
+          'Gagal mengambil data workshop:',
+          error,
+        );
+
+
+        /*
+         * Fetch awal gagal:
+         * tampilkan error.
+         *
+         * Background refresh gagal:
+         * pertahankan data lama.
+         */
+        if (!hasLoadedSuccessfully) {
+          setWorkshops([]);
+
+          setWorkshopLoadError(
+            error?.message ||
+              'Gagal mengambil data workshop.',
+          );
+        }
+      } finally {
+        if (
+          isActive &&
+          showLoading
+        ) {
+          setIsWorkshopLoading(false);
+        }
+      }
     }
 
-    loadWorkshops();
 
-    // Jika admin menambah/mengubah workshop saat halaman ini sedang terbuka,
-    // data akan disegarkan otomatis tanpa user harus reload halaman.
-    const refreshTimer = window.setInterval(loadWorkshops, 60_000);
-    const refreshOnFocus = () => loadWorkshops();
-    window.addEventListener('focus', refreshOnFocus);
+    /*
+     * Fetch pertama.
+     */
+    void loadWorkshops({
+      showLoading: true,
+    });
+
+
+    /*
+     * Refresh otomatis setiap 60 detik
+     * tanpa mengembalikan card ke skeleton.
+     */
+    const refreshTimer =
+      window.setInterval(
+        () => {
+          void loadWorkshops();
+        },
+        60_000,
+      );
+
+
+    /*
+     * Refresh saat user kembali ke window.
+     */
+    const refreshOnFocus = () => {
+      void loadWorkshops();
+    };
+
+
+    window.addEventListener(
+      'focus',
+      refreshOnFocus,
+    );
+
 
     return () => {
       isActive = false;
-      window.clearInterval(refreshTimer);
-      window.removeEventListener('focus', refreshOnFocus);
+
+      window.clearInterval(
+        refreshTimer,
+      );
+
+      window.removeEventListener(
+        'focus',
+        refreshOnFocus,
+      );
     };
   }, []);
 
-  const upcomingWorkshops = useMemo(() => {
-    const todayString = getTodayDateString();
 
-    return [...workshops]
-      .filter((item) => {
-        const status = String(item.status || '').toLowerCase();
-        const visibility = String(item.visibility || '').toLowerCase();
+  /* =======================================================
+     LOAD MATERIAL
+  ======================================================= */
 
-        return (
-          item.date &&
-          item.date >= todayString &&
-          status !== 'selesai' &&
-          status !== 'draft' &&
-          visibility !== 'privat'
+  useEffect(() => {
+    let isMounted = true;
+
+
+    async function loadMaterials() {
+      try {
+        const data =
+          await fetchMaterials();
+
+
+        if (!isMounted) {
+          return;
+        }
+
+
+        const publishedMaterials =
+          Array.isArray(data)
+            ? data.filter(
+                isPublishedMaterial,
+              )
+            : [];
+
+
+        setMaterials(
+          publishedMaterials,
         );
-      })
-      .sort((a, b) => {
-        const dateCompare = a.date.localeCompare(b.date);
-        if (dateCompare !== 0) return dateCompare;
-        return String(a.time || '').localeCompare(String(b.time || ''));
-      })
-      .slice(0, 3);
-  }, [workshops]);
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
 
-  const nearestWorkshop = upcomingWorkshops[0] ?? null;
+        console.error(
+          'Gagal mengambil materi:',
+          error,
+        );
 
-  const registerHref = useMemo(() => {
-    const params = new URLSearchParams();
-
-    params.set('category', '3');
-
-    if (nearestWorkshop?.id !== null && nearestWorkshop?.id !== undefined) {
-      const workshopId = String(nearestWorkshop.id).trim();
-
-      if (workshopId) {
-        params.set('workshop_id', workshopId);
+        setMaterials([]);
       }
     }
 
-    if (nearestWorkshop?.title) {
-      params.set('workshop', String(nearestWorkshop.title));
+
+    void loadMaterials();
+
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+
+  /* =======================================================
+     LOAD PROJECT
+     Menggunakan services/projectApi.js
+  ======================================================= */
+
+  useEffect(() => {
+    let isMounted = true;
+
+
+    async function loadProjects() {
+      try {
+        setIsProjectLoading(true);
+
+        const data =
+          await fetchProjectSubmissions();
+
+
+        if (!isMounted) {
+          return;
+        }
+
+
+        const publicProjects =
+          Array.isArray(data)
+            ? data.filter(
+                isPublicProject,
+              )
+            : [];
+
+
+        setProjects(
+          publicProjects,
+        );
+
+        setProjectLoadError('');
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+
+        console.error(
+          'Gagal mengambil proyek pilihan:',
+          error,
+        );
+
+        setProjects([]);
+
+        setProjectLoadError(
+          error?.message ||
+            'Gagal mengambil proyek pilihan.',
+        );
+      } finally {
+        if (isMounted) {
+          setIsProjectLoading(false);
+        }
+      }
     }
 
-    return `/kontak?${params.toString()}#form-daftar-workshop`;
-  }, [nearestWorkshop]);
 
-  const workshopDetails = useMemo(() => {
-    if (isWorkshopLoading) {
-      return [
-        { label: 'Tanggal', value: 'Memuat jadwal...', sub: 'Workshop terdekat', icon: 'calendar' },
-        { label: 'Waktu', value: 'Memuat waktu...', sub: 'Workshop terdekat', icon: 'clock' },
-        { label: 'Lokasi', value: 'Memuat lokasi...', sub: 'Workshop terdekat', icon: 'pin' },
+    void loadProjects();
+
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+
+  /* =======================================================
+     3 MATERIAL POPULER
+  ======================================================= */
+
+  const popularMaterials =
+    useMemo(() => {
+      const preferredKeywords = [
+        'arduflow ide',
+        'led',
+        'dht',
+        'wifi',
+        'mqtt',
       ];
-    }
 
-    if (!nearestWorkshop) {
+
+      const selected =
+        preferredKeywords
+          .map((keyword) =>
+            materials.find(
+              (material) =>
+                String(
+                  material?.title || '',
+                )
+                  .toLowerCase()
+                  .includes(
+                    keyword,
+                  ),
+            ),
+          )
+          .filter(Boolean);
+
+
       return [
-        { label: 'Tanggal', value: 'Belum tersedia', sub: 'Belum ada workshop mendatang', icon: 'calendar' },
-        { label: 'Waktu', value: 'Belum tersedia', sub: 'Jadwal akan diperbarui otomatis', icon: 'clock' },
-        { label: 'Lokasi', value: 'Belum tersedia', sub: 'Lokasi akan tampil setelah diterbitkan', icon: 'pin' },
+        ...selected,
+        ...materials,
+      ]
+        .filter(
+          (
+            material,
+            index,
+            list,
+          ) =>
+            list.findIndex(
+              (item) =>
+                item.id ===
+                material.id,
+            ) === index,
+        )
+        .slice(0, 3);
+
+    }, [materials]);
+
+
+  /* =======================================================
+     3 PROYEK PILIHAN
+     Mengikuti halaman Project: 3 proyek public pertama.
+  ======================================================= */
+
+  const featuredProjects =
+    useMemo(
+      () => projects.slice(0, 3),
+      [projects],
+    );
+
+
+  /* =======================================================
+     3 WORKSHOP MENDATANG
+  ======================================================= */
+
+  const upcomingWorkshops =
+    useMemo(() => {
+      const todayString =
+        getTodayDateString();
+
+
+      return [...workshops]
+        .filter((item) => {
+          const status =
+            String(
+              item.status || '',
+            )
+              .trim()
+              .toLowerCase();
+
+          const visibility =
+            String(
+              item.visibility || '',
+            )
+              .trim()
+              .toLowerCase();
+
+
+          return (
+            item.date &&
+            item.date >= todayString &&
+            status !== 'selesai' &&
+            status !== 'draft' &&
+            visibility !== 'privat' &&
+            visibility !== 'private'
+          );
+        })
+
+        .sort((a, b) => {
+          /*
+           * Prioritas pertama: tanggal.
+           */
+          const dateCompare =
+            a.date.localeCompare(
+              b.date,
+            );
+
+          if (dateCompare !== 0) {
+            return dateCompare;
+          }
+
+
+          /*
+           * Prioritas kedua: jam mulai.
+           */
+          const aTime =
+            getWorkshopStartMinutes(
+              a.time,
+            );
+
+          const bTime =
+            getWorkshopStartMinutes(
+              b.time,
+            );
+
+
+          if (aTime !== bTime) {
+            return aTime - bTime;
+          }
+
+
+          /*
+           * Fallback untuk format waktu
+           * yang tidak dapat diparse.
+           */
+          return String(
+            a.time || '',
+          ).localeCompare(
+            String(
+              b.time || '',
+            ),
+          );
+        })
+
+        .slice(0, 3);
+
+    }, [workshops]);
+
+
+  const nearestWorkshop =
+    upcomingWorkshops[0] ??
+    null;
+
+
+  /* =======================================================
+     LINK REGISTRASI WORKSHOP
+  ======================================================= */
+
+  const registerHref =
+    useMemo(() => {
+      const params =
+        new URLSearchParams();
+
+
+      params.set(
+        'category',
+        '3',
+      );
+
+
+      if (
+        nearestWorkshop?.id !== null &&
+        nearestWorkshop?.id !== undefined
+      ) {
+        const workshopId =
+          String(
+            nearestWorkshop.id,
+          ).trim();
+
+
+        if (workshopId) {
+          params.set(
+            'workshop_id',
+            workshopId,
+          );
+        }
+      }
+
+
+      if (
+        nearestWorkshop?.title
+      ) {
+        params.set(
+          'workshop',
+          String(
+            nearestWorkshop.title,
+          ),
+        );
+      }
+
+
+      return `/kontak?${params.toString()}#form-daftar-workshop`;
+
+    }, [nearestWorkshop]);
+
+
+  /* =======================================================
+     HERO INFO WORKSHOP
+  ======================================================= */
+
+  const workshopDetails =
+    useMemo(() => {
+
+      if (isWorkshopLoading) {
+        return [
+          {
+            label: 'Tanggal',
+            value:
+              'Memuat jadwal...',
+            sub:
+              'Workshop terdekat',
+            icon:
+              'calendar',
+          },
+          {
+            label: 'Waktu',
+            value:
+              'Memuat waktu...',
+            sub:
+              'Workshop terdekat',
+            icon:
+              'clock',
+          },
+          {
+            label: 'Lokasi',
+            value:
+              'Memuat lokasi...',
+            sub:
+              'Workshop terdekat',
+            icon:
+              'pin',
+          },
+        ];
+      }
+
+
+      if (!nearestWorkshop) {
+        return [
+          {
+            label: 'Tanggal',
+            value:
+              'Belum tersedia',
+            sub:
+              'Belum ada workshop mendatang',
+            icon:
+              'calendar',
+          },
+          {
+            label: 'Waktu',
+            value:
+              'Belum tersedia',
+            sub:
+              'Jadwal akan diperbarui otomatis',
+            icon:
+              'clock',
+          },
+          {
+            label: 'Lokasi',
+            value:
+              'Belum tersedia',
+            sub:
+              'Lokasi akan tampil setelah diterbitkan',
+            icon:
+              'pin',
+          },
+        ];
+      }
+
+
+      const {
+        dateText,
+        dayText,
+      } =
+        getWorkshopDateParts(
+          nearestWorkshop.date,
+        );
+
+
+      const workshopTypeText = [
+        nearestWorkshop.type,
+        nearestWorkshop.category,
+      ]
+        .filter(Boolean)
+        .join(' · ');
+
+
+      return [
+        {
+          label:
+            'Tanggal',
+
+          value:
+            dateText,
+
+          sub:
+            dayText,
+
+          icon:
+            'calendar',
+        },
+
+        {
+          label:
+            'Waktu',
+
+          value:
+            nearestWorkshop.time ||
+            'Waktu belum tersedia',
+
+          sub:
+            nearestWorkshop.timezone ||
+            'Zona waktu belum tersedia',
+
+          icon:
+            'clock',
+        },
+
+        {
+          label:
+            'Lokasi',
+
+          value:
+            nearestWorkshop.location ||
+            'Lokasi belum tersedia',
+
+          sub:
+            workshopTypeText ||
+            nearestWorkshop.title,
+
+          icon:
+            'pin',
+        },
       ];
-    }
 
-    const { dateText, dayText } = getWorkshopDateParts(nearestWorkshop.date);
-    const workshopTypeText = [nearestWorkshop.type, nearestWorkshop.category]
-      .filter(Boolean)
-      .join(' · ');
+    }, [
+      isWorkshopLoading,
+      nearestWorkshop,
+    ]);
 
-    return [
-      {
-        label: 'Tanggal',
-        value: dateText,
-        sub: dayText,
-        icon: 'calendar',
-      },
-      {
-        label: 'Waktu',
-        value: nearestWorkshop.time || 'Waktu belum tersedia',
-        sub: nearestWorkshop.timezone || 'Zona waktu belum tersedia',
-        icon: 'clock',
-      },
-      {
-        label: 'Lokasi',
-        value: nearestWorkshop.location || 'Lokasi belum tersedia',
-        sub: workshopTypeText || nearestWorkshop.title,
-        icon: 'pin',
-      },
-    ];
-  }, [isWorkshopLoading, nearestWorkshop]);
 
   return (
     <main className="workshop-page">
-      <section className="workshop-hero" aria-labelledby="workshop-title">
+
+      {/* ===================================================
+          HERO
+      =================================================== */}
+
+      <section
+        className="workshop-hero"
+        aria-labelledby="workshop-title"
+      >
+
         <div className="workshop-hero-inner">
+
           <div className="workshop-copy">
-            <h1 className="workshop-title" id="workshop-title">
-              <span>Program Belajar IoT</span>
-              <span>Terstruktur dengan</span>
-              <strong>ARDUFLOW</strong>
+
+            <h1
+              className="workshop-title"
+              id="workshop-title"
+            >
+
+              <span>
+                Program Belajar IoT
+              </span>
+
+              <span>
+                Terstruktur dengan
+              </span>
+
+              <strong>
+                ARDUFLOW
+              </strong>
+
             </h1>
+
+
             <p className="workshop-body">
-              Rancang proyek IoT dari nol dengan alur visual, praktik langsung, dan akses Arduflow IDE.
-              Cocok untuk siswa, mahasiswa, pengajar, dan profesional yang ingin belajar cepat tanpa coding rumit.
+              Rancang proyek IoT dari nol dengan
+              alur visual, praktik langsung, dan
+              akses Arduflow IDE. Cocok untuk
+              siswa, mahasiswa, pengajar, dan
+              profesional yang ingin belajar
+              cepat tanpa coding rumit.
             </p>
 
-            <div className="workshop-info-grid" aria-label="Jadwal workshop terdekat">
-              {workshopDetails.map((item) => (
-                <article
-                  className={`workshop-info-card workshop-info-card-${item.icon}`}
-                  key={item.label}
-                >
-                  <span className={`workshop-icon ${item.icon}`} aria-hidden="true" />
-                  <div className="workshop-info-content">
-                    <p className="workshop-info-label">{item.label}</p>
-                    <div className="workshop-info-value-group">
-                      <strong>{item.value}</strong>
-                      <span>{item.sub}</span>
+
+            <div
+              className="workshop-info-grid"
+              aria-label="Jadwal workshop terdekat"
+            >
+
+              {workshopDetails.map(
+                (item) => (
+
+                  <article
+                    className={`workshop-info-card workshop-info-card-${item.icon}`}
+                    key={item.label}
+                  >
+
+                    <span
+                      className={`workshop-icon ${item.icon}`}
+                      aria-hidden="true"
+                    />
+
+
+                    <div className="workshop-info-content">
+
+                      <p className="workshop-info-label">
+                        {item.label}
+                      </p>
+
+
+                      <div className="workshop-info-value-group">
+
+                        <strong>
+                          {item.value}
+                        </strong>
+
+                        <span>
+                          {item.sub}
+                        </span>
+
+                      </div>
+
                     </div>
-                  </div>
-                </article>
-              ))}
+
+                  </article>
+
+                ),
+              )}
+
             </div>
 
+
             <div className="workshop-actions">
-              <a className="workshop-button primary" href="/daftar-workshop">
+
+              <a
+                className="workshop-button primary"
+                href="/daftar-workshop"
+              >
                 Lihat Jadwal Workshop
               </a>
 
@@ -523,370 +1370,1347 @@ export function Workshop() {
               >
                 IKUTI WORKSHOP
               </a>
+
             </div>
+
           </div>
+
         </div>
 
-        <div className="workshop-visual" aria-hidden="true">
-          <img src={workshopHeroDevice} alt="" />
+
+        <div
+          className="workshop-visual"
+          aria-hidden="true"
+        >
+
+          <img
+            src={workshopHeroDevice}
+            alt=""
+          />
+
         </div>
+
       </section>
 
-      <section className="workshop-about" aria-labelledby="about-arduflow-title">
+
+      {/* ===================================================
+          ABOUT
+      =================================================== */}
+
+      <section
+        className="workshop-about"
+        aria-labelledby="about-arduflow-title"
+      >
+
         <div className="workshop-about-inner">
-          <div className="about-preview" aria-hidden="true">
-            <img src={aboutArduflowPreview} alt="" />
+
+          <div
+            className="about-preview"
+            aria-hidden="true"
+          >
+
+            <img
+              src={aboutArduflowPreview}
+              alt=""
+            />
+
           </div>
+
 
           <div className="about-content">
-            <h2 className="about-title" id="about-arduflow-title">
+
+            <h2
+              className="about-title"
+              id="about-arduflow-title"
+            >
               Belajar IoT dengan Alur yang Lebih Terarah
             </h2>
+
+
             <p className="about-desc">
-              Arduflow membantumu memahami cara perangkat saling terhubung lewat pendekatan flow-based.
-              Semua konsep inti disusun bertahap agar belajar IoT terasa praktis, visual, dan menyenangkan.
+              Arduflow membantumu memahami cara
+              perangkat saling terhubung lewat
+              pendekatan flow-based. Semua konsep
+              inti disusun bertahap agar belajar
+              IoT terasa praktis, visual, dan
+              menyenangkan.
             </p>
-            <div className="about-chip-grid" aria-label="Fitur belajar Arduflow">
-              {aboutHighlights.map((item) => (
-                <div className="about-chip" key={item.label}>
-                  <span className={`about-icon ${item.icon}`} aria-hidden="true" />
-                  <span>{item.label}</span>
-                </div>
-              ))}
+
+
+            <div
+              className="about-chip-grid"
+              aria-label="Fitur belajar Arduflow"
+            >
+
+              {aboutHighlights.map(
+                (item) => (
+
+                  <div
+                    className="about-chip"
+                    key={item.label}
+                  >
+
+                    <span
+                      className={`about-icon ${item.icon}`}
+                      aria-hidden="true"
+                    />
+
+                    <span>
+                      {item.label}
+                    </span>
+
+                  </div>
+
+                ),
+              )}
+
             </div>
+
           </div>
+
         </div>
+
       </section>
 
-      <section className="workshop-target" aria-labelledby="target-peserta-title">
+
+      {/* ===================================================
+          TARGET
+      =================================================== */}
+
+      <section
+        className="workshop-target"
+        aria-labelledby="target-peserta-title"
+      >
+
         <div className="workshop-target-inner">
-          <h2 className="target-title" id="target-peserta-title">
+
+          <h2
+            className="target-title"
+            id="target-peserta-title"
+          >
             Untuk Siapa Program Ini?
           </h2>
+
+
           <p className="target-desc">
-            Program disusun agar cocok untuk pemula, pembelajar teknologi, dan calon pengembang solusi IoT
-            yang membutuhkan alur belajar lebih rapi.
+            Program disusun agar cocok untuk
+            pemula, pembelajar teknologi, dan
+            calon pengembang solusi IoT yang
+            membutuhkan alur belajar lebih rapi.
           </p>
+
 
           <div className="target-card-grid">
-            {targetParticipants.map((item) => (
-              <article className="target-card" key={item.title}>
-                <span className="target-icon-box" aria-hidden="true">
-                  <span className={`target-icon ${item.icon}`} />
-                </span>
-                <div>
-                  <h3>{item.title}</h3>
-                  <p>{item.text}</p>
-                </div>
-              </article>
-            ))}
+
+            {targetParticipants.map(
+              (item) => (
+
+                <article
+                  className="target-card"
+                  key={item.title}
+                >
+
+                  <span
+                    className="target-icon-box"
+                    aria-hidden="true"
+                  >
+
+                    <span
+                      className={`target-icon ${item.icon}`}
+                    />
+
+                  </span>
+
+
+                  <div>
+
+                    <h3>
+                      {item.title}
+                    </h3>
+
+                    <p>
+                      {item.text}
+                    </p>
+
+                  </div>
+
+                </article>
+
+              ),
+            )}
+
           </div>
+
         </div>
+
       </section>
 
-      <section className="workshop-benefits" aria-labelledby="manfaat-program-title">
+
+      {/* ===================================================
+          BENEFIT
+      =================================================== */}
+
+      <section
+        className="workshop-benefits"
+        aria-labelledby="manfaat-program-title"
+      >
+
         <div className="workshop-benefits-inner">
-          <h2 className="benefit-title" id="manfaat-program-title">
+
+          <h2
+            className="benefit-title"
+            id="manfaat-program-title"
+          >
             Manfaat Mengikuti Program Arduflow
           </h2>
+
+
           <p className="benefit-desc">
-            Setiap bagian dirancang untuk mengubah konsep IoT menjadi kemampuan praktis yang bisa langsung dipakai.
+            Setiap bagian dirancang untuk
+            mengubah konsep IoT menjadi
+            kemampuan praktis yang bisa
+            langsung dipakai.
           </p>
+
 
           <div className="benefit-card-grid">
-            {programBenefits.map((item) => (
-              <article className="benefit-card" key={item.title}>
-                <span className={`benefit-icon ${item.icon}`} aria-hidden="true" />
-                <div>
-                  <h3>{item.title}</h3>
-                  <p>{item.text}</p>
-                </div>
-              </article>
-            ))}
+
+            {programBenefits.map(
+              (item) => (
+
+                <article
+                  className="benefit-card"
+                  key={item.title}
+                >
+
+                  <span
+                    className={`benefit-icon ${item.icon}`}
+                    aria-hidden="true"
+                  />
+
+
+                  <div>
+
+                    <h3>
+                      {item.title}
+                    </h3>
+
+                    <p>
+                      {item.text}
+                    </p>
+
+                  </div>
+
+                </article>
+
+              ),
+            )}
+
           </div>
+
         </div>
+
       </section>
 
-      <section className="workshop-curriculum" aria-labelledby="kurikulum-title">
+
+      {/* ===================================================
+          CURRICULUM
+      =================================================== */}
+
+      <section
+        className="workshop-curriculum"
+        aria-labelledby="kurikulum-title"
+      >
+
         <div className="workshop-curriculum-inner">
+
           <div className="curriculum-copy">
-            <h2 className="curriculum-title" id="kurikulum-title">
+
+            <h2
+              className="curriculum-title"
+              id="kurikulum-title"
+            >
               Materi yang Akan Dipelajari
             </h2>
+
+
             <p className="curriculum-desc">
-              Modul dirancang seperti roadmap praktik: mulai dari dasar Arduino dan IoT,
-              mengenal flow programming, sampai evaluasi proyek.
+              Modul dirancang seperti roadmap
+              praktik: mulai dari dasar Arduino
+              dan IoT, mengenal flow programming,
+              sampai evaluasi proyek.
             </p>
+
+
             <ul className="curriculum-checklist">
-              {curriculumChecklist.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
+
+              {curriculumChecklist.map(
+                (item) => (
+
+                  <li key={item}>
+                    {item}
+                  </li>
+
+                ),
+              )}
+
             </ul>
+
           </div>
 
-          <div className="curriculum-module-list" aria-label="Daftar modul dan durasi">
-            {curriculumModules.map((item) => (
-              <article className="curriculum-module" key={item.title}>
-                <h3>{item.title}</h3>
-                <span>{item.duration}</span>
-              </article>
-            ))}
+
+          <div
+            className="curriculum-module-list"
+            aria-label="Daftar modul dan durasi"
+          >
+
+            {curriculumModules.map(
+              (item) => (
+
+                <article
+                  className="curriculum-module"
+                  key={item.title}
+                >
+
+                  <h3>
+                    {item.title}
+                  </h3>
+
+                  <span>
+                    {item.duration}
+                  </span>
+
+                </article>
+
+              ),
+            )}
+
           </div>
+
         </div>
+
       </section>
 
-      <section className="workshop-flow" id="alur-belajar" aria-labelledby="alur-belajar-title">
+
+      {/* ===================================================
+          FLOW
+      =================================================== */}
+
+      <section
+        className="workshop-flow"
+        id="alur-belajar"
+        aria-labelledby="alur-belajar-title"
+      >
+
         <div className="workshop-flow-inner">
-          <h2 className="flow-title" id="alur-belajar-title">
+
+          <h2
+            className="flow-title"
+            id="alur-belajar-title"
+          >
             Alur Belajar yang Terstruktur
           </h2>
+
+
           <p className="flow-desc">
-            Ikuti proses belajar yang jelas dari registrasi sampai presentasi proyek.
+            Ikuti proses belajar yang jelas
+            dari registrasi sampai presentasi
+            proyek.
           </p>
 
-          <div className="flow-timeline" aria-label="Tahapan alur belajar">
-            {learningFlow.map((item) => (
-              <article className="flow-step" key={item.number}>
-                <span className="flow-number">{item.number}</span>
-                <h3>{item.title}</h3>
-                <p>{item.text}</p>
-              </article>
-            ))}
+
+          <div
+            className="flow-timeline"
+            aria-label="Tahapan alur belajar"
+          >
+
+            {learningFlow.map(
+              (item) => (
+
+                <article
+                  className="flow-step"
+                  key={item.number}
+                >
+
+                  <span className="flow-number">
+                    {item.number}
+                  </span>
+
+                  <h3>
+                    {item.title}
+                  </h3>
+
+                  <p>
+                    {item.text}
+                  </p>
+
+                </article>
+
+              ),
+            )}
+
           </div>
+
         </div>
+
       </section>
 
-      <section className="workshop-ide-access" aria-labelledby="ide-access-title">
+
+      {/* ===================================================
+          IDE ACCESS
+      =================================================== */}
+
+      <section
+        className="workshop-ide-access"
+        aria-labelledby="ide-access-title"
+      >
+
         <div className="ide-access-card">
+
           <div className="ide-access-copy">
+
             <p className="ide-access-tag">
+
               <span aria-hidden="true" />
+
               AKSES TOOLS
+
             </p>
-            <h2 className="ide-access-title" id="ide-access-title">
+
+
+            <h2
+              className="ide-access-title"
+              id="ide-access-title"
+            >
               Workshop dan Akses Arduflow IDE
             </h2>
+
+
             <p className="ide-access-desc">
-              Workshop live membantu peserta memahami ulang setiap alur dari materi.
-              Setelah itu peserta mendapatkan akses belajar mandiri lewat platform Arduflow IDE.
+              Workshop live membantu peserta
+              memahami ulang setiap alur dari
+              materi. Setelah itu peserta
+              mendapatkan akses belajar mandiri
+              lewat platform Arduflow IDE.
             </p>
-            <a className="ide-access-button" href="/tutorial">Lihat Cara Pendaftaran</a>
+
+
+            <a
+              className="ide-access-button"
+              href="/tutorial"
+            >
+              Lihat Cara Pendaftaran
+            </a>
+
           </div>
 
-          <div className="ide-access-visual" aria-hidden="true">
-            <img src={ideAccessFlow} alt="" />
+
+          <div
+            className="ide-access-visual"
+            aria-hidden="true"
+          >
+
+            <img
+              src={ideAccessFlow}
+              alt=""
+            />
+
           </div>
+
         </div>
+
       </section>
 
-      <section className="workshop-learning-path" aria-labelledby="workshop-mendatang-title">
+
+      {/* ===================================================
+          WORKSHOP MENDATANG
+      =================================================== */}
+
+      <section
+        className="workshop-learning-path"
+        aria-labelledby="workshop-mendatang-title"
+      >
+
         <div className="learning-path-inner">
-          <h2 className="learning-path-title" id="workshop-mendatang-title">
+
+          <h2
+            className="learning-path-title"
+            id="workshop-mendatang-title"
+          >
             Workshop Terbaru yang Akan Datang
           </h2>
+
+
           <p className="learning-path-desc">
-            Temukan workshop ArduFlow dengan jadwal terdekat. Informasi workshop diperbarui secara otomatis sesuai jadwal dan data terbaru.
+            Temukan workshop ArduFlow dengan
+            jadwal terdekat. Informasi workshop
+            diperbarui secara otomatis sesuai
+            jadwal dan data terbaru.
           </p>
 
-          <div className="learning-path-grid" aria-live="polite">
+
+          <div
+            className="learning-path-grid"
+            aria-live="polite"
+          >
+
             {isWorkshopLoading &&
-              Array.from({ length: 3 }, (_, index) => (
-                <article className="learning-path-card is-loading" key={`workshop-loading-${index}`} aria-hidden="true">
-                  <span className="learning-path-skeleton short" />
-                  <span className="learning-path-skeleton title" />
-                  <span className="learning-path-skeleton text" />
-                  <span className="learning-path-skeleton button" />
-                </article>
-              ))}
+              Array.from(
+                { length: 3 },
+                (_, index) => (
 
-            {!isWorkshopLoading && workshopLoadError && (
-              <div className="learning-path-state" role="status">
-                <strong>Workshop belum dapat dimuat.</strong>
-                <span>{workshopLoadError}</span>
-              </div>
-            )}
+                  <article
+                    className="learning-path-card is-loading"
+                    key={`workshop-loading-${index}`}
+                    aria-hidden="true"
+                  >
 
-            {!isWorkshopLoading && !workshopLoadError && upcomingWorkshops.length === 0 && (
-              <div className="learning-path-state" role="status">
-                <strong>Belum ada workshop mendatang.</strong>
-                <span>Workshop baru akan muncul otomatis setelah jadwal diterbitkan.</span>
-              </div>
-            )}
+                    <span className="learning-path-skeleton short" />
 
-            {!isWorkshopLoading && !workshopLoadError && upcomingWorkshops.map((item, index) => {
-              const detailHref = getWorkshopDetailHref(item);
+                    <span className="learning-path-skeleton title" />
 
-              return (
-                <a
-                  className={`learning-path-card learning-path-card-link${index === 0 ? ' featured' : ''}`}
-                  href={detailHref}
-                  key={item.id ?? item.slug ?? `${item.title}-${item.date}`}
-                  aria-label={`Lihat detail workshop ${item.title}`}
+                    <span className="learning-path-skeleton text" />
+
+                    <span className="learning-path-skeleton button" />
+
+                  </article>
+
+                ),
+              )}
+
+
+            {!isWorkshopLoading &&
+              workshopLoadError && (
+
+                <div
+                  className="learning-path-state"
+                  role="status"
                 >
-                  <div className="learning-path-meta">
-                    <span className="learning-path-date">{formatWorkshopDate(item.date)}</span>
-                    {index === 0 && <span className="learning-path-nearest">Terdekat</span>}
-                  </div>
 
-                  <h3>{item.title}</h3>
-                  <p>{item.summary}</p>
+                  <strong>
+                    Workshop belum dapat dimuat.
+                  </strong>
 
-                  <div className="learning-path-info">
-                    {item.time && (
-                      <span>{item.time}{item.timezone ? ` · ${item.timezone}` : ''}</span>
-                    )}
-                    {item.location && item.location !== '-' && <span>{item.location}</span>}
-                    {(item.type || item.category) && (
-                      <span>{[item.type, item.category].filter(Boolean).join(' · ')}</span>
-                    )}
-                  </div>
-
-                  <span className="learning-path-button">
-                    Lihat Workshop
+                  <span>
+                    {workshopLoadError}
                   </span>
-                </a>
-              );
-            })}
+
+                </div>
+
+              )}
+
+
+            {!isWorkshopLoading &&
+              !workshopLoadError &&
+              upcomingWorkshops.length === 0 && (
+
+                <div
+                  className="learning-path-state"
+                  role="status"
+                >
+
+                  <strong>
+                    Belum ada workshop mendatang.
+                  </strong>
+
+                  <span>
+                    Workshop baru akan muncul
+                    otomatis setelah jadwal
+                    diterbitkan.
+                  </span>
+
+                </div>
+
+              )}
+
+
+            {!isWorkshopLoading &&
+              !workshopLoadError &&
+              upcomingWorkshops.map(
+                (item, index) => {
+
+                  const detailHref =
+                    getWorkshopDetailHref(
+                      item,
+                    );
+
+
+                  return (
+
+                    <a
+                      className={`learning-path-card learning-path-card-link${
+                        index === 0
+                          ? ' featured'
+                          : ''
+                      }`}
+
+                      href={
+                        detailHref
+                      }
+
+                      key={
+                        item.id ??
+                        item.slug ??
+                        `${item.title}-${item.date}`
+                      }
+
+                      aria-label={`Lihat detail workshop ${item.title}`}
+                    >
+
+                      <div className="learning-path-meta">
+
+                        <span className="learning-path-date">
+
+                          {formatWorkshopDate(
+                            item.date,
+                          )}
+
+                        </span>
+
+
+                        {index === 0 && (
+
+                          <span className="learning-path-nearest">
+                            Terdekat
+                          </span>
+
+                        )}
+
+                      </div>
+
+
+                      <h3>
+                        {item.title}
+                      </h3>
+
+
+                      <p>
+                        {item.summary}
+                      </p>
+
+
+                      <div className="learning-path-info">
+
+                        {item.time && (
+
+                          <span>
+
+                            {item.time}
+
+                            {item.timezone
+                              ? ` · ${item.timezone}`
+                              : ''}
+
+                          </span>
+
+                        )}
+
+
+                        {item.location &&
+                          item.location !== '-' && (
+
+                            <span>
+                              {item.location}
+                            </span>
+
+                          )}
+
+
+                        {(item.type ||
+                          item.category) && (
+
+                          <span>
+
+                            {[
+                              item.type,
+                              item.category,
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')}
+
+                          </span>
+
+                        )}
+
+                      </div>
+
+
+                      <span className="learning-path-button">
+                        Lihat Workshop
+                      </span>
+
+                    </a>
+
+                  );
+
+                },
+              )}
+
           </div>
+
         </div>
+
       </section>
 
-      <section className="workshop-experience" aria-labelledby="pengalaman-belajar-title">
+
+      {/* ===================================================
+          EXPERIENCE
+      =================================================== */}
+
+      <section
+        className="workshop-experience"
+        aria-labelledby="pengalaman-belajar-title"
+      >
+
         <div className="experience-inner">
+
           <div className="experience-copy">
-            <h2 className="experience-title" id="pengalaman-belajar-title">
+
+            <h2
+              className="experience-title"
+              id="pengalaman-belajar-title"
+            >
               Pengalaman Belajar Bersama Arduflow
             </h2>
+
+
             <p className="experience-desc">
-              Cuplikan aktivitas belajar, praktik proyek, dan suasana workshop.
+              Cuplikan aktivitas belajar,
+              praktik proyek, dan suasana
+              workshop.
             </p>
+
           </div>
 
-          <div className="experience-gallery" aria-label="Dokumentasi kegiatan workshop">
-            {experienceGallery.map((item) => (
-              <figure className={`experience-gallery-card ${item.variant}`} key={item.alt} tabIndex={0}>
-                <img src={item.src} alt={item.alt} />
-                <figcaption>{item.caption}</figcaption>
-              </figure>
-            ))}
+
+          <div
+            className="experience-gallery"
+            aria-label="Dokumentasi kegiatan workshop"
+          >
+
+            {experienceGallery.map(
+              (item) => (
+
+                <figure
+                  className={`experience-gallery-card ${item.variant}`}
+                  key={item.alt}
+                  tabIndex={0}
+                >
+
+                  <img
+                    src={item.src}
+                    alt={item.alt}
+                  />
+
+
+                  <figcaption>
+                    {item.caption}
+                  </figcaption>
+
+                </figure>
+
+              ),
+            )}
+
           </div>
+
 
           <article className="experience-testimonial">
-            <span className="experience-testimonial-icon" aria-hidden="true" />
+
+            <span
+              className="experience-testimonial-icon"
+              aria-hidden="true"
+            />
+
+
             <blockquote>
-              Materi lebih mudah dipahami karena langsung praktik dan dibantu mentor saat membuat proyek.
+              Materi lebih mudah dipahami karena
+              langsung praktik dan dibantu mentor
+              saat membuat proyek.
             </blockquote>
-            <span className="experience-quote-line" aria-hidden="true" />
-            <p className="experience-name">Budi Santoso</p>
-            <p className="experience-role">Guru Teknik Elektronika</p>
+
+
+            <span
+              className="experience-quote-line"
+              aria-hidden="true"
+            />
+
+
+            <p className="experience-name">
+              Budi Santoso
+            </p>
+
+
+            <p className="experience-role">
+              Guru Teknik Elektronika
+            </p>
+
           </article>
+
         </div>
+
       </section>
 
-      <section className="workshop-registration" aria-labelledby="cara-daftar-title">
+
+      {/* ===================================================
+          3 MATERIAL POPULER
+      =================================================== */}
+
+      <section
+        className="materials-section"
+        aria-labelledby="materials-popular-title"
+      >
+
+        <div className="materials-section__head">
+
+          <span className="materials-eyebrow">
+            Populer
+          </span>
+
+
+          <h2 id="materials-popular-title">
+            Paling Banyak Dipelajari
+          </h2>
+
+
+          <p>
+            Materi pilihan yang paling banyak
+            dipelajari pengguna ArduFlow.
+          </p>
+
+        </div>
+
+
+        <div className="materials-popular-grid">
+
+          {popularMaterials.map(
+            (material) => (
+
+              <MaterialCard
+                badge="Populer"
+                href={
+                  materialHref(
+                    material,
+                  )
+                }
+                material={
+                  material
+                }
+                key={
+                  material.id
+                }
+              />
+
+            ),
+          )}
+
+        </div>
+
+      </section>
+
+
+      {/* ===================================================
+          3 PROYEK PILIHAN
+      =================================================== */}
+
+      <section
+        className="workshop-featured-projects"
+        aria-labelledby="workshop-featured-projects-title"
+      >
+
+        <div className="workshop-featured-projects__inner">
+
+          <div className="workshop-featured-projects__header">
+
+            <div>
+
+              <p className="workshop-featured-projects__eyebrow">
+                DATABASE PROJECTS
+              </p>
+
+
+              <h2 id="workshop-featured-projects-title">
+                Proyek Pilihan
+              </h2>
+
+            </div>
+
+
+            <a
+              className="workshop-featured-projects__all"
+              href="/project/semua"
+            >
+              Lihat semua Proyek
+
+              <span aria-hidden="true">
+                -&gt;
+              </span>
+            </a>
+
+          </div>
+
+
+          <div
+            className="workshop-featured-projects__grid"
+            aria-live="polite"
+          >
+
+            {isProjectLoading &&
+              Array.from(
+                { length: 3 },
+                (_, index) => (
+
+                  <article
+                    className="workshop-project-card is-loading"
+                    key={`project-loading-${index}`}
+                    aria-hidden="true"
+                  >
+
+                    <span className="workshop-project-skeleton image" />
+
+                    <div className="workshop-project-card__body">
+
+                      <span className="workshop-project-skeleton title" />
+
+                      <span className="workshop-project-skeleton category" />
+
+                      <span className="workshop-project-skeleton text" />
+
+                      <span className="workshop-project-skeleton link" />
+
+                    </div>
+
+                  </article>
+
+                ),
+              )}
+
+
+            {!isProjectLoading &&
+              projectLoadError && (
+
+                <div
+                  className="workshop-featured-projects__state"
+                  role="status"
+                >
+
+                  <strong>
+                    Proyek pilihan belum dapat dimuat.
+                  </strong>
+
+                  <span>
+                    {projectLoadError}
+                  </span>
+
+                </div>
+
+              )}
+
+
+            {!isProjectLoading &&
+              !projectLoadError &&
+              featuredProjects.length === 0 && (
+
+                <div
+                  className="workshop-featured-projects__state"
+                  role="status"
+                >
+
+                  <strong>
+                    Belum ada proyek pilihan.
+                  </strong>
+
+                  <span>
+                    Proyek akan tampil otomatis setelah
+                    dipublikasikan di database.
+                  </span>
+
+                </div>
+
+              )}
+
+
+            {!isProjectLoading &&
+              !projectLoadError &&
+              featuredProjects.map(
+                (project) => (
+
+                  <article
+                    className="workshop-project-card"
+                    key={project.id}
+                  >
+
+                    <img
+                      className="workshop-project-card__image"
+                      src={projectImage(project)}
+                      alt=""
+                    />
+
+
+                    <div className="workshop-project-card__body">
+
+                      <h3>
+                        {project.title}
+                      </h3>
+
+
+                      <span className="workshop-project-card__category">
+                        {project.category}
+                      </span>
+
+
+                      <p>
+                        {projectSummary(
+                          project.description,
+                        )}
+                      </p>
+
+
+                      <a
+                        href={projectDetailHref(
+                          project,
+                        )}
+                      >
+                        Lihat Detail Proyek
+
+                        <span aria-hidden="true">
+                          -&gt;
+                        </span>
+                      </a>
+
+                    </div>
+
+                  </article>
+
+                ),
+              )}
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+      {/* ===================================================
+          REGISTRATION
+      =================================================== */}
+
+      <section
+        className="workshop-registration"
+        aria-labelledby="cara-daftar-title"
+      >
+
         <div className="registration-inner">
-          <h2 className="registration-title" id="cara-daftar-title">
+
+          <h2
+            className="registration-title"
+            id="cara-daftar-title"
+          >
             Cara Mendaftar Program Arduflow
           </h2>
+
+
           <p className="registration-desc">
-            Alur pendaftaran dibuat singkat agar pengguna bisa langsung memilih program dan mulai belajar.
+            Alur pendaftaran dibuat singkat
+            agar pengguna bisa langsung memilih
+            program dan mulai belajar.
           </p>
 
-          <div className="registration-step-grid" aria-label="Tahapan pendaftaran program">
-            {registrationSteps.map((item) => (
-              <article className="registration-step-card" key={item.number}>
-                <span>{item.number}</span>
-                <h3>{item.title}</h3>
-                <p>{item.text}</p>
-              </article>
-            ))}
+
+          <div
+            className="registration-step-grid"
+            aria-label="Tahapan pendaftaran program"
+          >
+
+            {registrationSteps.map(
+              (item) => (
+
+                <article
+                  className="registration-step-card"
+                  key={item.number}
+                >
+
+                  <span>
+                    {item.number}
+                  </span>
+
+                  <h3>
+                    {item.title}
+                  </h3>
+
+                  <p>
+                    {item.text}
+                  </p>
+
+                </article>
+
+              ),
+            )}
+
           </div>
+
 
           <div className="registration-actions">
-            <a className="registration-button secondary" href="/daftar-workshop">Mulai Pendaftaran</a>
-            <a className="registration-button primary" href="/kontak">Tanyakan Program ke Arduflow</a>
+
+            <a
+              className="registration-button secondary"
+              href="/daftar-workshop"
+            >
+              Mulai Pendaftaran
+            </a>
+
+
+            <a
+              className="registration-button primary"
+              href="/kontak"
+            >
+              Tanyakan Program ke Arduflow
+            </a>
+
           </div>
+
         </div>
+
       </section>
 
-      <section className="workshop-faq" aria-labelledby="faq-title">
+
+      {/* ===================================================
+          FAQ
+      =================================================== */}
+
+      <section
+        className="workshop-faq"
+        aria-labelledby="faq-title"
+      >
+
         <div className="faq-inner">
+
           <div className="faq-card">
+
             <header className="faq-header">
+
               <div className="faq-heading-row">
-                <span className="faq-star" aria-hidden="true" />
+
+                <span
+                  className="faq-star"
+                  aria-hidden="true"
+                />
+
+
                 <div>
-                  <p className="faq-eyebrow">FAQ WORKSHOP</p>
-                  <h2 className="faq-title" id="faq-title">
+
+                  <p className="faq-eyebrow">
+                    FAQ WORKSHOP
+                  </p>
+
+
+                  <h2
+                    className="faq-title"
+                    id="faq-title"
+                  >
                     Pertanyaan Umum
                   </h2>
+
                 </div>
+
               </div>
+
+
               <p className="faq-desc">
-                Jawaban singkat untuk hal yang paling sering membuat peserta bingung sebelum mengikuti
-                workshop dan menggunakan ArduFlow IDE.
+                Jawaban singkat untuk hal yang
+                paling sering membuat peserta
+                bingung sebelum mengikuti
+                workshop dan menggunakan
+                ArduFlow IDE.
               </p>
+
             </header>
 
-            <div className="faq-list" aria-label="Daftar pertanyaan umum workshop ArduFlow IDE">
-              {workshopFaqs.map((item, index) => {
-                const isOpen = activeFaq === index;
-                const answerId = `workshop-faq-answer-${index}`;
-                const questionId = `workshop-faq-question-${index}`;
 
-                return (
-                  <article className={`faq-item${isOpen ? ' is-open' : ''}`} key={item.question}>
-                    <button
-                      aria-controls={answerId}
-                      aria-expanded={isOpen}
-                      className="faq-question"
-                      id={questionId}
-                      type="button"
-                      onClick={() => setActiveFaq(isOpen ? -1 : index)}
-                    >
-                      <span className="faq-question-text">{item.question}</span>
-                      <span className="faq-toggle-icon" aria-hidden="true" />
-                    </button>
+            <div
+              className="faq-list"
+              aria-label="Daftar pertanyaan umum workshop ArduFlow IDE"
+            >
 
-                    <div
-                      aria-hidden={!isOpen}
-                      aria-labelledby={questionId}
-                      className="faq-answer-wrap"
-                      id={answerId}
-                      role="region"
+              {workshopFaqs.map(
+                (item, index) => {
+
+                  const isOpen =
+                    activeFaq ===
+                    index;
+
+
+                  const answerId =
+                    `workshop-faq-answer-${index}`;
+
+
+                  const questionId =
+                    `workshop-faq-question-${index}`;
+
+
+                  return (
+
+                    <article
+                      className={`faq-item${
+                        isOpen
+                          ? ' is-open'
+                          : ''
+                      }`}
+                      key={
+                        item.question
+                      }
                     >
-                      <div className="faq-answer-inner">
-                        <p className="faq-answer">{item.answer}</p>
+
+                      <button
+                        aria-controls={
+                          answerId
+                        }
+
+                        aria-expanded={
+                          isOpen
+                        }
+
+                        className="faq-question"
+
+                        id={
+                          questionId
+                        }
+
+                        type="button"
+
+                        onClick={() =>
+                          setActiveFaq(
+                            isOpen
+                              ? -1
+                              : index,
+                          )
+                        }
+                      >
+
+                        <span className="faq-question-text">
+                          {item.question}
+                        </span>
+
+
+                        <span
+                          className="faq-toggle-icon"
+                          aria-hidden="true"
+                        />
+
+                      </button>
+
+
+                      <div
+                        aria-hidden={
+                          !isOpen
+                        }
+
+                        aria-labelledby={
+                          questionId
+                        }
+
+                        className="faq-answer-wrap"
+
+                        id={
+                          answerId
+                        }
+
+                        role="region"
+                      >
+
+                        <div className="faq-answer-inner">
+
+                          <p className="faq-answer">
+                            {item.answer}
+                          </p>
+
+                        </div>
+
                       </div>
-                    </div>
-                  </article>
-                );
-              })}
+
+                    </article>
+
+                  );
+
+                },
+              )}
+
             </div>
+
 
             <div className="faq-help">
-              <span>Masih ada yang ingin ditanyakan?</span>
-              <a href="/kontak">Hubungi Tim ArduFlow</a>
+
+              <span>
+                Masih ada yang ingin ditanyakan?
+              </span>
+
+
+              <a href="/kontak">
+                Hubungi Tim ArduFlow
+              </a>
+
             </div>
+
           </div>
+
         </div>
+
       </section>
 
-      <section className="workshop-final-cta" aria-labelledby="final-cta-title">
+
+      {/* ===================================================
+          FINAL CTA
+      =================================================== */}
+
+      <section
+        className="workshop-final-cta"
+        aria-labelledby="final-cta-title"
+      >
+
         <div className="final-cta-panel">
-          <h2 className="final-cta-title" id="final-cta-title">
-            Siap Belajar IoT dengan Lebih Terarah?
+
+          <h2
+            className="final-cta-title"
+            id="final-cta-title"
+          >
+            Siap Belajar IoT dengan Lebih
+            Terarah?
           </h2>
+
+
           <p className="final-cta-desc">
-            Daftar program Arduflow untuk mulai belajar Arduino dan IoT melalui visual programming,
-            praktik langsung, pendampingan mentor, dan akses Arduflow IDE berbasis token.
+            Daftar program Arduflow untuk mulai
+            belajar Arduino dan IoT melalui
+            visual programming, praktik langsung,
+            pendampingan mentor, dan akses
+            Arduflow IDE berbasis token.
           </p>
+
+
           <div className="final-cta-actions">
-            <a className="final-cta-button primary" href="/daftar-workshop">Lihat Jadwal Workshop</a>
-            <a className="final-cta-button secondary" href="/kontak">Hubungi Tim</a>
+
+            <a
+              className="final-cta-button primary"
+              href="/daftar-workshop"
+            >
+              Lihat Jadwal Workshop
+            </a>
+
+
+            <a
+              className="final-cta-button secondary"
+              href="/kontak"
+            >
+              Hubungi Tim
+            </a>
+
           </div>
+
         </div>
+
       </section>
+
     </main>
   );
 }
