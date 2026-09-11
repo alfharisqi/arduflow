@@ -43,6 +43,9 @@ const defaultSettings = {
     transactionStatus: true,
     certificateReady: true,
     testimonialRequest: true,
+    projectSale: true,
+    projectReview: true,
+    payoutStatus: true,
     emailNotification: true,
     dashboardNotification: true,
   },
@@ -406,8 +409,11 @@ export function UserSettings() {
                 </div>
                 <Toggle checked={settings.notifications.workshopReminder} label="Reminder workshop" note="Pengingat jadwal workshop dan program." onChange={(value) => updateSettingsGroup('notifications', 'workshopReminder', value)} />
                 <Toggle checked={settings.notifications.transactionStatus} label="Status transaksi" note="Update pembayaran dan akses." onChange={(value) => updateSettingsGroup('notifications', 'transactionStatus', value)} />
+                <Toggle checked={settings.notifications.projectSale} label="Pembelian proyek" note="Saat ada user membeli proyek kamu." onChange={(value) => updateSettingsGroup('notifications', 'projectSale', value)} />
+                <Toggle checked={settings.notifications.projectReview} label="Review proyek" note="Saat ada review baru di proyek kamu." onChange={(value) => updateSettingsGroup('notifications', 'projectReview', value)} />
+                <Toggle checked={settings.notifications.payoutStatus} label="Pencairan dana" note="Update pengajuan, bukti pencairan, dan konfirmasi selesai." onChange={(value) => updateSettingsGroup('notifications', 'payoutStatus', value)} />
                 <Toggle checked={settings.notifications.certificateReady} label="Sertifikat terbit" note="Saat sertifikat siap diunduh." onChange={(value) => updateSettingsGroup('notifications', 'certificateReady', value)} />
-                <Toggle checked={settings.notifications.testimonialRequest} label="Permintaan testimoni" note="Ajakan mengisi testimoni partner/workshop." onChange={(value) => updateSettingsGroup('notifications', 'testimonialRequest', value)} />
+                <Toggle checked={settings.notifications.testimonialRequest} label="Status testimoni" note="Update testimoni yang disetujui, ditolak, atau menunggu review." onChange={(value) => updateSettingsGroup('notifications', 'testimonialRequest', value)} />
                 <Toggle checked={settings.notifications.emailNotification} label="Email notification" onChange={(value) => updateSettingsGroup('notifications', 'emailNotification', value)} />
                 <Toggle checked={settings.notifications.dashboardNotification} label="Dashboard notification" onChange={(value) => updateSettingsGroup('notifications', 'dashboardNotification', value)} />
               </section>

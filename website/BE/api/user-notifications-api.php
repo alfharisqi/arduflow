@@ -405,8 +405,8 @@ function buildProjectSaleNotifications(PDO $pdo, ?int $userId, string $email): a
         'SELECT id, user_id, user_name, email, item_id, item_title, amount, currency, paid_at, updated_at, created_at
          FROM transactions
          WHERE deleted_at IS NULL
-           AND LOWER(item_type) = "project"
-           AND LOWER(status) IN ("paid", "approved", "lunas")
+           AND LOWER(item_type) = \'project\'
+           AND LOWER(status) IN (\'paid\', \'approved\', \'lunas\')
            AND item_id IN (' . $placeholders . ')
          ORDER BY COALESCE(paid_at, updated_at, created_at) DESC
          LIMIT 50'
@@ -496,7 +496,7 @@ function buildPayoutNotifications(PDO $pdo, ?int $userId, string $email): array
     $notifications = [];
 
     if (notificationTableExists($pdo, 'transactions')) {
-        $where = ['deleted_at IS NULL', 'LOWER(item_type) = "project_payout"'];
+        $where = ['deleted_at IS NULL', 'LOWER(item_type) = \'project_payout\''];
         $params = [];
         if ($userId !== null && $email !== '') {
             $where[] = '(user_id = :user_id OR LOWER(email) = LOWER(:email))';
@@ -697,7 +697,7 @@ function notificationSentEmailKeys(PDO $pdo, string $email, array $keys): array
         'SELECT notification_key
          FROM user_notification_email_logs
          WHERE LOWER(email) = LOWER(?)
-           AND status = "sent"
+           AND status = \'sent\'
            AND notification_key IN (' . $placeholders . ')'
     );
     $statement->execute(array_merge([$email], $keys));
@@ -727,14 +727,15 @@ function notificationWriteEmailLog(PDO $pdo, string $key, string $email, string 
     ]);
 }
 
-function notificationDispatchEmails(PDO $pdo, array $notifications, string $email, string $name, bool $enabled): array
+function notificationDispatchEmails(PDO $pdo, array $notifications, string $email, string $name, bool $enabled, array $enabledTypes = []): array
 {
     if (!$enabled || $email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
         return $notifications;
     }
 
     $sentKeys = notificationSentEmailKeys($pdo, $email, array_column($notifications, 'key'));
-    $importantTypes = ['transaction', 'workshop_reminder', 'project_sale', 'project_review', 'payout', 'testimonial', 'certificate'];
+    $importantTypes = ['transaction', 'workshop_reminder', 'project_sale', 'project_review', 'payout', 'payout_activity', 'testimonial', 'certificate'];
+    $enabledTypeMap = $enabledTypes === [] ? [] : array_fill_keys($enabledTypes, true);
     $mail = null;
 
     foreach ($notifications as &$notification) {
@@ -748,7 +749,12 @@ function notificationDispatchEmails(PDO $pdo, array $notifications, string $emai
             continue;
         }
 
-        if (!in_array((string) ($notification['type'] ?? ''), $importantTypes, true)) {
+        $type = (string) ($notification['type'] ?? '');
+        if (!in_array($type, $importantTypes, true)) {
+            continue;
+        }
+
+        if ($enabledTypeMap !== [] && !isset($enabledTypeMap[$type])) {
             continue;
         }
 
@@ -785,6 +791,11 @@ try {
     $userIdRaw = trim((string) ($_GET['userId'] ?? $_GET['user_id'] ?? ''));
     $userId = ctype_digit($userIdRaw) ? (int) $userIdRaw : null;
     $sendEmail = filter_var($_GET['sendEmail'] ?? $_GET['send_email'] ?? false, FILTER_VALIDATE_BOOLEAN);
+    $enabledTypesRaw = trim((string) ($_GET['enabledTypes'] ?? $_GET['enabled_types'] ?? ''));
+    $enabledTypes = array_values(array_filter(array_unique(array_map(
+        static fn (string $type): string => strtolower(trim($type)),
+        explode(',', $enabledTypesRaw)
+    ))));
 
     if ($email === '' && $userId === null) {
         notificationRespond(400, [
@@ -827,7 +838,7 @@ try {
         return strtotime((string) ($right['createdAt'] ?? 'now')) <=> strtotime((string) ($left['createdAt'] ?? 'now'));
     });
 
-    $unique = notificationDispatchEmails($pdo, $unique, $email, $userName, $sendEmail);
+    $unique = notificationDispatchEmails($pdo, $unique, $email, $userName, $sendEmail, $enabledTypes);
 
     notificationRespond(200, [
         'success' => true,
