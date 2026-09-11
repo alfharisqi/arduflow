@@ -485,7 +485,7 @@ function sourceLabel(sourceType) {
 ========================================================= */
 
 function HomeTestimonials({ partners, testimonials, activeIndex }) {
-  const visiblePartners = partners.length ? partners : fallbackPartners;
+  const visiblePartners = partners;
   const visibleTestimonials = testimonials.length ? testimonials : fallbackTestimonials;
   const featuredTestimonial = visibleTestimonials[activeIndex % visibleTestimonials.length];
 

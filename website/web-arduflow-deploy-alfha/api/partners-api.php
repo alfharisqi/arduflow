@@ -1667,8 +1667,6 @@ try {
             );
         }
 
-        partnersSyncSources($pdo);
-
         $where = [
             'deleted_at IS NULL',
         ];
