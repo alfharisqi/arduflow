@@ -213,7 +213,7 @@ function buildTransactionNotifications(PDO $pdo, ?int $userId, string $email): a
         $params[':email'] = $email;
     }
 
-    $sql = 'SELECT id, status, item_title, invoice_number, due_at, updated_at, created_at, rejection_reason
+    $sql = 'SELECT id, status, item_type, item_title, invoice_number, due_at, updated_at, created_at, rejection_reason
             FROM transactions
             WHERE ' . implode(' AND ', $where) . '
             ORDER BY updated_at DESC, created_at DESC
@@ -225,6 +225,10 @@ function buildTransactionNotifications(PDO $pdo, ?int $userId, string $email): a
     while ($transaction = $statement->fetch()) {
         $id = (string) ($transaction['id'] ?? '');
         $status = strtolower(trim((string) ($transaction['status'] ?? 'pending')));
+        $itemType = strtolower(trim((string) ($transaction['item_type'] ?? '')));
+        if ($itemType === 'project_payout') {
+            continue;
+        }
         $title = trim((string) ($transaction['item_title'] ?? 'Transaksi Arduflow'));
         $invoice = trim((string) ($transaction['invoice_number'] ?? ''));
         $createdAt = notificationDate((string) ($transaction['updated_at'] ?? $transaction['created_at'] ?? ''));
@@ -474,7 +478,7 @@ function buildProjectReviewNotifications(PDO $pdo, ?int $userId, string $email):
                 'key' => 'project_review:' . $projectId . ':' . $identity . ':' . md5($createdAt . $message . $ratingValue),
                 'type' => 'project_review',
                 'title' => 'Review baru untuk proyek kamu',
-                'message' => $authorName . ' memberi review ' . $ratingValue . '/5 untuk "' . $projectTitle . '"' . ($message !== '' ? ': ' . mb_substr($message, 0, 120) : '.'),
+                'message' => $authorName . ' memberi review ' . $ratingValue . '/5 untuk "' . $projectTitle . '"' . ($message !== '' ? ': ' . substr($message, 0, 120) : '.'),
                 'href' => '/project/detail?id=' . $projectId,
                 'actionLabel' => 'Lihat Review',
                 'priority' => 'normal',
@@ -576,7 +580,7 @@ function buildTestimonialNotifications(PDO $pdo, ?int $userId, string $email): a
     }
 
     $statement = $pdo->prepare(
-        'SELECT id, status, source_type, source_title, reviewed_at, updated_at, created_at
+        'SELECT id, status, source_type, source_id, admin_note, updated_at, created_at
          FROM testimonials
          WHERE LOWER(email) = LOWER(:email)
          ORDER BY updated_at DESC, created_at DESC
@@ -593,18 +597,23 @@ function buildTestimonialNotifications(PDO $pdo, ?int $userId, string $email): a
         $approved = in_array($status, ['approved', 'disetujui'], true);
         $rejected = in_array($status, ['rejected', 'ditolak'], true);
         $title = $approved ? 'Testimoni disetujui' : ($rejected ? 'Testimoni perlu diperbaiki' : 'Testimoni menunggu review');
-        $sourceTitle = trim((string) ($row['source_title'] ?? 'ArduFlow'));
+        $sourceType = trim((string) ($row['source_type'] ?? 'general'));
+        $sourceId = trim((string) ($row['source_id'] ?? ''));
+        $sourceTitle = $sourceType !== '' && $sourceType !== 'general'
+            ? ucfirst($sourceType) . ($sourceId !== '' ? ' #' . $sourceId : '')
+            : 'ArduFlow';
+        $adminNote = trim((string) ($row['admin_note'] ?? ''));
 
         $notifications[] = [
             'id' => 'testimonial:' . (string) $row['id'],
             'key' => 'testimonial:' . (string) $row['id'] . ':' . $status,
             'type' => 'testimonial',
             'title' => $title,
-            'message' => 'Testimoni untuk ' . $sourceTitle . ' ' . ($approved ? 'sudah disetujui admin.' : ($rejected ? 'ditolak admin dan perlu diperbaiki.' : 'sedang menunggu review admin.')),
+            'message' => 'Testimoni untuk ' . $sourceTitle . ' ' . ($approved ? 'sudah disetujui admin.' : ($rejected ? 'ditolak admin dan perlu diperbaiki.' : 'sedang menunggu review admin.')) . ($adminNote !== '' ? ' Catatan: ' . $adminNote : ''),
             'href' => '/workshop-program',
             'actionLabel' => 'Buka Testimoni',
             'priority' => $rejected ? 'urgent' : 'normal',
-            'createdAt' => notificationDate((string) ($row['reviewed_at'] ?? $row['updated_at'] ?? $row['created_at'] ?? '')),
+            'createdAt' => notificationDate((string) ($row['updated_at'] ?? $row['created_at'] ?? '')),
             'emailSent' => false,
         ];
     }
@@ -614,18 +623,32 @@ function buildTestimonialNotifications(PDO $pdo, ?int $userId, string $email): a
 
 function buildCertificateNotifications(PDO $pdo, ?int $userId, string $email): array
 {
-    if (!notificationTableExists($pdo, 'certificates') || $email === '') {
+    if (!notificationTableExists($pdo, 'certificates') || ($email === '' && $userId === null)) {
         return [];
+    }
+
+    $where = [];
+    $params = [];
+    if ($userId !== null && $email !== '') {
+        $where[] = '(user_id = :user_id OR LOWER(email) = LOWER(:email))';
+        $params[':user_id'] = $userId;
+        $params[':email'] = $email;
+    } elseif ($userId !== null) {
+        $where[] = 'user_id = :user_id';
+        $params[':user_id'] = $userId;
+    } else {
+        $where[] = 'LOWER(email) = LOWER(:email)';
+        $params[':email'] = $email;
     }
 
     $statement = $pdo->prepare(
         'SELECT id, workshop_title, certificate_number, created_at, updated_at
          FROM certificates
-         WHERE LOWER(email) = LOWER(:email)
+         WHERE ' . implode(' AND ', $where) . '
          ORDER BY updated_at DESC, created_at DESC
          LIMIT 20'
     );
-    $statement->execute([':email' => $email]);
+    $statement->execute($params);
 
     $notifications = [];
     while ($row = $statement->fetch()) {
@@ -761,6 +784,7 @@ try {
     $email = strtolower(trim((string) ($_GET['email'] ?? '')));
     $userIdRaw = trim((string) ($_GET['userId'] ?? $_GET['user_id'] ?? ''));
     $userId = ctype_digit($userIdRaw) ? (int) $userIdRaw : null;
+    $sendEmail = filter_var($_GET['sendEmail'] ?? $_GET['send_email'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
     if ($email === '' && $userId === null) {
         notificationRespond(400, [
@@ -770,9 +794,15 @@ try {
     }
 
     $pdo = notificationPdo();
+    $userName = notificationUserName($pdo, $userId, $email);
     $notifications = array_merge(
         buildTransactionNotifications($pdo, $userId, $email),
-        buildWorkshopNotifications($pdo, $userId, $email)
+        buildWorkshopNotifications($pdo, $userId, $email),
+        buildProjectSaleNotifications($pdo, $userId, $email),
+        buildProjectReviewNotifications($pdo, $userId, $email),
+        buildPayoutNotifications($pdo, $userId, $email),
+        buildTestimonialNotifications($pdo, $userId, $email),
+        buildCertificateNotifications($pdo, $userId, $email)
     );
 
     $seen = [];
@@ -797,13 +827,15 @@ try {
         return strtotime((string) ($right['createdAt'] ?? 'now')) <=> strtotime((string) ($left['createdAt'] ?? 'now'));
     });
 
+    $unique = notificationDispatchEmails($pdo, $unique, $email, $userName, $sendEmail);
+
     notificationRespond(200, [
         'success' => true,
         'message' => 'Notifikasi user berhasil dimuat.',
         'data' => [
             'notifications' => $unique,
             'total' => count($unique),
-            'emailEnabled' => false,
+            'emailEnabled' => $sendEmail,
         ],
     ]);
 } catch (Throwable $exception) {
