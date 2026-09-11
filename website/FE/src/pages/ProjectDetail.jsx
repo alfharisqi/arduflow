@@ -11,6 +11,7 @@ import {
   isPublicProject,
   deleteProjectRating,
   updateProjectRating,
+  updateProjectRatingReply,
   updateProjectInteraction,
 } from "../services/projectApi.js";
 import { createTransaction, fetchTransactions } from "../services/transactionApi.js";
@@ -175,6 +176,10 @@ function normalizeProjectReviews(reviews = []) {
       authorName: String(review?.authorName || review?.userName || review?.name || "User").trim(),
       authorEmail: String(review?.authorEmail || review?.email || "").trim(),
       authorAvatarUrl: backendAssetUrl(review?.authorAvatarUrl || ""),
+      ownerReply: String(review?.ownerReply || review?.owner_reply || "").trim(),
+      ownerReplyBy: String(review?.ownerReplyBy || review?.owner_reply_by || "").trim(),
+      ownerReplyAt: review?.ownerReplyAt || review?.owner_reply_at || null,
+      ownerReplyUpdatedAt: review?.ownerReplyUpdatedAt || review?.owner_reply_updated_at || null,
       createdAt: review?.createdAt || review?.created_at || null,
       updatedAt: review?.updatedAt || review?.updated_at || null,
     }))
@@ -577,6 +582,14 @@ function ProjectReview({
   isSubmitting,
   inputRef,
   isProjectOwner = false,
+  ownerReplyDrafts = {},
+  ownerReplyEditingId = "",
+  ownerReplyError = "",
+  isSubmittingOwnerReply = false,
+  onStartOwnerReply,
+  onCancelOwnerReply,
+  onOwnerReplyDraftChange,
+  onSubmitOwnerReply,
   onStartEdit,
   onCancelEdit,
   onDelete,
@@ -623,6 +636,15 @@ function ProjectReview({
             <span>{viewerReview.value}/5</span>
           </header>
           {viewerReview.message ? <p>{viewerReview.message}</p> : null}
+          {viewerReview.ownerReply ? (
+            <div className="project-review__owner-reply">
+              <strong>Balasan owner</strong>
+              <p>{viewerReview.ownerReply}</p>
+              {viewerReview.ownerReplyUpdatedAt || viewerReview.ownerReplyAt ? (
+                <time>{formatCommentDate(viewerReview.ownerReplyUpdatedAt || viewerReview.ownerReplyAt)}</time>
+              ) : null}
+            </div>
+          ) : null}
           <div className="project-review__mine-categories">
             {PROJECT_REVIEW_CATEGORIES.map((category) => (
               <span key={category.id}>{category.label}: {viewerReview.categories?.[category.id] || 0}/5</span>
@@ -693,11 +715,46 @@ function ProjectReview({
                 {review.updatedAt || review.createdAt ? <time>{formatCommentDate(review.updatedAt || review.createdAt)}</time> : null}
               </header>
               {review.message ? <p>{review.message}</p> : null}
+              {review.ownerReply ? (
+                <div className="project-review__owner-reply">
+                  <strong>Balasan owner</strong>
+                  <p>{review.ownerReply}</p>
+                  {review.ownerReplyUpdatedAt || review.ownerReplyAt ? (
+                    <time>{formatCommentDate(review.ownerReplyUpdatedAt || review.ownerReplyAt)}</time>
+                  ) : null}
+                </div>
+              ) : null}
               <div className="project-review__item-categories">
                 {PROJECT_REVIEW_CATEGORIES.map((category) => (
                   <span key={category.id}>{category.label}: {review.categories?.[category.id] || 0}/5</span>
                 ))}
               </div>
+              {isProjectOwner ? (
+                <div className="project-review__reply-tools">
+                  {ownerReplyEditingId === review.identity ? (
+                    <form onSubmit={(event) => onSubmitOwnerReply(event, review)}>
+                      <textarea
+                        value={ownerReplyDrafts[review.identity] ?? review.ownerReply ?? ""}
+                        onChange={(event) => onOwnerReplyDraftChange(review.identity, event.target.value)}
+                        placeholder="Tulis balasan untuk review ini"
+                        rows={3}
+                        maxLength={1000}
+                      />
+                      <div>
+                        {ownerReplyError ? <span>{ownerReplyError}</span> : <small>{String(ownerReplyDrafts[review.identity] ?? review.ownerReply ?? "").length}/1000</small>}
+                        <button type="button" className="project-review__ghost" onClick={onCancelOwnerReply} disabled={isSubmittingOwnerReply}>Batal</button>
+                        <button type="submit" disabled={isSubmittingOwnerReply}>
+                          {isSubmittingOwnerReply ? "Menyimpan..." : "Simpan Balasan"}
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <button type="button" onClick={() => onStartOwnerReply(review)}>
+                      {review.ownerReply ? "Edit Balasan" : "Balas Review"}
+                    </button>
+                  )}
+                </div>
+              ) : null}
             </div>
           </article>
         )) : (
@@ -1757,6 +1814,10 @@ export function ProjectDetail() {
   const [reviewError, setReviewError] = useState("");
   const [isReviewEditing, setIsReviewEditing] = useState(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [ownerReplyDrafts, setOwnerReplyDrafts] = useState({});
+  const [ownerReplyEditingId, setOwnerReplyEditingId] = useState("");
+  const [ownerReplyError, setOwnerReplyError] = useState("");
+  const [isSubmittingOwnerReply, setIsSubmittingOwnerReply] = useState(false);
   const reviewInputRef = useRef(null);
   const [socialStats, setSocialStats] = useState({
     viewer: 0,
@@ -1802,6 +1863,8 @@ export function ProjectDetail() {
 
     setProjectReviews(reviews);
     setViewerReview(currentViewerReview);
+    setOwnerReplyEditingId("");
+    setOwnerReplyError("");
 
     if (currentViewerReview) {
       setReviewDraft(currentViewerReview.message || "");
@@ -2002,6 +2065,79 @@ export function ProjectDetail() {
     }
   }
 
+  function handleStartOwnerReply(review) {
+    if (!isCurrentUserProjectOwner(project)) return;
+
+    setOwnerReplyEditingId(review.identity);
+    setOwnerReplyError("");
+    setOwnerReplyDrafts((current) => ({
+      ...current,
+      [review.identity]: review.ownerReply || "",
+    }));
+  }
+
+  function handleCancelOwnerReply() {
+    setOwnerReplyEditingId("");
+    setOwnerReplyError("");
+  }
+
+  function handleOwnerReplyDraftChange(reviewIdentity, value) {
+    setOwnerReplyDrafts((current) => ({
+      ...current,
+      [reviewIdentity]: value,
+    }));
+    if (ownerReplyError) {
+      setOwnerReplyError("");
+    }
+  }
+
+  async function handleSubmitOwnerReply(event, review) {
+    event.preventDefault();
+
+    if (!project?.id || isSubmittingOwnerReply || !review?.identity) return;
+
+    const { user, userId, email, viewerParams } = getViewerParams();
+
+    if (!userId && !email) {
+      setOwnerReplyError("Login diperlukan untuk membalas review.");
+      return;
+    }
+
+    if (!isCurrentUserProjectOwner(project, user)) {
+      setOwnerReplyError("Hanya pemilik proyek yang dapat membalas review.");
+      return;
+    }
+
+    const message = String(ownerReplyDrafts[review.identity] ?? "").trim();
+
+    if (message.length > 1000) {
+      setOwnerReplyError("Balasan maksimal 1000 karakter.");
+      return;
+    }
+
+    setOwnerReplyError("");
+    setIsSubmittingOwnerReply(true);
+
+    try {
+      const updatedProject = await updateProjectRatingReply(project.id, {
+        identity: review.identity,
+        message,
+        ownerName: getUserDisplayName(user),
+      }, viewerParams);
+
+      if (updatedProject?.id) {
+        setProject(updatedProject);
+        applyProjectStats(updatedProject);
+        applyProjectReviews(updatedProject);
+      }
+    } catch (replyError) {
+      console.error("Gagal menyimpan balasan review:", replyError);
+      setOwnerReplyError(replyError.message || "Balasan review tidak dapat disimpan.");
+    } finally {
+      setIsSubmittingOwnerReply(false);
+    }
+  }
+
   async function handleDeleteReview() {
     if (!project?.id || isSubmittingReview) return;
 
@@ -2177,6 +2313,14 @@ export function ProjectDetail() {
           isSubmitting={isSubmittingReview}
           inputRef={reviewInputRef}
           isProjectOwner={isProjectOwner}
+          ownerReplyDrafts={ownerReplyDrafts}
+          ownerReplyEditingId={ownerReplyEditingId}
+          ownerReplyError={ownerReplyError}
+          isSubmittingOwnerReply={isSubmittingOwnerReply}
+          onStartOwnerReply={handleStartOwnerReply}
+          onCancelOwnerReply={handleCancelOwnerReply}
+          onOwnerReplyDraftChange={handleOwnerReplyDraftChange}
+          onSubmitOwnerReply={handleSubmitOwnerReply}
           onStartEdit={handleStartEditReview}
           onCancelEdit={handleCancelEditReview}
           onDelete={handleDeleteReview}

@@ -177,6 +177,40 @@ export async function deleteProjectRating(id, params = {}) {
   return normalizeProject(payload.data?.project || payload.project || payload.data || {});
 }
 
+export async function updateProjectRatingReply(id, reply, params = {}) {
+  const projectId = String(id || '').trim();
+
+  if (!projectId) {
+    throw new Error('ID proyek tidak tersedia.');
+  }
+
+  const url = new URL(PROJECT_API_URL, window.location.origin);
+  url.searchParams.set('id', projectId);
+  url.searchParams.set('action', 'rating-reply');
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+      url.searchParams.set(key, String(value).trim());
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(reply || {}),
+  });
+  const responseText = await response.text();
+  const payload = responseText ? JSON.parse(responseText) : {};
+
+  if (!response.ok || payload.success === false) {
+    throw new Error(payload.message || `Gagal menyimpan balasan review. HTTP ${response.status}`);
+  }
+
+  return normalizeProject(payload.data?.project || payload.project || payload.data || {});
+}
+
 export async function addProjectComment(id, comment, params = {}) {
   const projectId = String(id || '').trim();
 
