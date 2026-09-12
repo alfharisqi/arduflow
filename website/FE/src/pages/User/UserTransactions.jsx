@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import arrowDownIcon from '../../assets/icons/icon-arrowdown-1.svg';
 import { DashboardUserSidebarIcon } from './userSidebarIcons.jsx';
 import logoutIcon from '../../assets/icons/icon-logout-1.svg';
-import { completeProjectPayout, fetchTransactions, uploadPaymentProof } from '../../services/transactionApi.js';
+import { completeProjectPayout, fetchPaymentMethods, fetchTransactions, uploadPaymentProof } from '../../services/transactionApi.js';
 import { UserDashboardTopbar } from './UserDashboardTopbar.jsx';
 import { getInitialSidebarCollapsed, persistSidebarCollapsed } from './sidebarState.js';
 import { getStoredUser, logoutCurrentUser } from '../../services/authSession.js';
@@ -82,6 +82,37 @@ function paymentMethodLabel(transaction) {
   return [transaction.paymentMethod, transaction.paymentChannel].filter(Boolean).join(' / ') || '-';
 }
 
+function normalizeText(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function paymentMethodQrisForTransaction(transaction, paymentMethods) {
+  const transactionQrisUrl = transaction?.qrisFile?.url || '';
+  if (transactionQrisUrl) {
+    return transaction.qrisFile;
+  }
+
+  const methodsWithQr = paymentMethods.filter((method) => method?.isActive && method?.image?.url);
+  if (methodsWithQr.length === 0) {
+    return null;
+  }
+
+  const paymentMethod = normalizeText(transaction?.paymentMethod);
+  const paymentChannel = normalizeText(transaction?.paymentChannel);
+  const paymentCode = normalizeText(transaction?.paymentCode);
+
+  return (
+    methodsWithQr.find((method) => normalizeText(method.name) === paymentMethod) ||
+    methodsWithQr.find((method) => normalizeText(method.paymentCode) === paymentCode) ||
+    methodsWithQr.find((method) => {
+      const channel = normalizeText(method.channel);
+      const type = normalizeText(method.methodType);
+      return paymentChannel && (paymentChannel === channel || paymentChannel === type);
+    }) ||
+    methodsWithQr[0]
+  )?.image || null;
+}
+
 function transactionTime(transaction) {
   const date = new Date(transaction.createdAt || transaction.paidAt || 0);
   return Number.isNaN(date.getTime()) ? 0 : date.getTime();
@@ -102,6 +133,7 @@ export function UserTransactions() {
   const [openPaymentFormId, setOpenPaymentFormId] = useState(null);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [message, setMessage] = useState('');
+  const [paymentMethods, setPaymentMethods] = useState([]);
   const user = getStoredUser() || {};
   const fullName = user.name || user.fullName || 'Nama Lengkap';
   const greetingName = user.nickname || fullName;
@@ -144,6 +176,26 @@ export function UserTransactions() {
       isMounted = false;
     };
   }, [user.email, user.id, user.userId]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchPaymentMethods({ active: 1 })
+      .then((records) => {
+        if (isMounted) {
+          setPaymentMethods(records);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setPaymentMethods([]);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   function updatePaymentForm(transactionId, field, value) {
     setPaymentForms((current) => ({
@@ -245,6 +297,10 @@ export function UserTransactions() {
     [transactions]
   );
 
+  const selectedTransactionQris = selectedTransaction
+    ? paymentMethodQrisForTransaction(selectedTransaction, paymentMethods)
+    : null;
+
   function handleLogout() {
     logoutCurrentUser({ redirectTo: '/signin' });
   }
@@ -326,7 +382,10 @@ export function UserTransactions() {
               <p className="user-payment-empty">Tidak ada transaksi yang perlu dibayar saat ini.</p>
             ) : (
               <div className="user-payment-card-list">
-                {actionTransactions.map((transaction, index) => (
+                {actionTransactions.map((transaction, index) => {
+                  const qrisFile = paymentMethodQrisForTransaction(transaction, paymentMethods);
+
+                  return (
                   <article className="user-payment-card" key={transaction.id}>
                     <header className="user-payment-card__header">
                       <div>
@@ -369,6 +428,13 @@ export function UserTransactions() {
                       </div>
                     </dl>
 
+                    {qrisFile?.url ? (
+                      <figure className="user-payment-qris user-payment-qris--card">
+                        <img src={qrisFile.url} alt={`QRIS pembayaran ${transaction.invoiceNumber || transaction.itemTitle || ''}`} />
+                        <figcaption>Scan QRIS ini, lalu upload bukti pembayaran.</figcaption>
+                      </figure>
+                    ) : null}
+
                     {canConfirmPayout(transaction) ? (
                       <div className="user-payment-actions">
                         {transaction.proofFile?.url ? <a className="user-transactions-proof-link" href={transaction.proofFile.url} target="_blank" rel="noreferrer">Lihat bukti pencairan</a> : null}
@@ -379,7 +445,7 @@ export function UserTransactions() {
                     ) : (
                       <div className="user-payment-actions">
                         <button type="button" onClick={() => copyPaymentCode(transaction)} disabled={!transaction.paymentCode}>
-                          Salin Nomor Rekening
+                          Salin Kode Pembayaran
                         </button>
                         <button
                           type="button"
@@ -392,15 +458,8 @@ export function UserTransactions() {
                       </div>
                     )}
 
-                    <div className="user-payment-body">
-                      {transaction.qrisFile?.url ? (
-                        <figure className="user-payment-qris">
-                          <img src={transaction.qrisFile.url} alt={`QRIS pembayaran ${transaction.invoiceNumber || transaction.itemTitle || ''}`} />
-                          <figcaption>Scan QRIS ini, lalu upload bukti pembayaran.</figcaption>
-                        </figure>
-                      ) : null}
-
-                      {openPaymentFormId === transaction.id ? (
+                    {openPaymentFormId === transaction.id ? (
+                      <div className="user-payment-body">
                         <form className="user-transactions-payment user-transactions-payment--card" onSubmit={(event) => handleUploadProof(event, transaction)}>
                           <label>
                             <span>No. referensi pembayaran</span>
@@ -420,10 +479,11 @@ export function UserTransactions() {
                           </label>
                           <button type="submit">Kirim Bukti Pembayaran</button>
                         </form>
-                      ) : null}
-                    </div>
+                      </div>
+                    ) : null}
                   </article>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -614,6 +674,12 @@ export function UserTransactions() {
             </dl>
             {selectedTransaction.rejectionReason ? (
               <p className="user-transactions-modal__rejection"><strong>Catatan admin:</strong> {selectedTransaction.rejectionReason}</p>
+            ) : null}
+            {selectedTransactionQris?.url ? (
+              <figure className="user-payment-qris user-payment-qris--modal">
+                <img src={selectedTransactionQris.url} alt={`QRIS pembayaran ${selectedTransaction.invoiceNumber || selectedTransaction.itemTitle || ''}`} />
+                <figcaption>Scan QRIS ini untuk pembayaran transaksi.</figcaption>
+              </figure>
             ) : null}
             <footer className="user-transactions-modal__footer">
               {canConfirmPayout(selectedTransaction) ? (

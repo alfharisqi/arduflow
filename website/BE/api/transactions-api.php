@@ -487,7 +487,7 @@ function transactionRowsForProjectIds(PDO $pdo, array $projectIds, string $itemT
 
     $rows = [];
     while ($row = $statement->fetch(PDO::FETCH_ASSOC)) {
-        $rows[] = rowToTransaction($row);
+        $rows[] = rowToEnrichedTransaction($pdo, $row);
     }
 
     return $rows;
@@ -510,7 +510,7 @@ function transactionRowsForSessionUser(PDO $pdo, array $sessionUser, string $ite
 
     $rows = [];
     while ($row = $statement->fetch(PDO::FETCH_ASSOC)) {
-        $rows[] = rowToTransaction($row);
+        $rows[] = rowToEnrichedTransaction($pdo, $row);
     }
 
     return $rows;
@@ -793,6 +793,165 @@ function findPaymentMethod(PDO $pdo, int $id): ?array
     $statement->execute([':id' => $id]);
     $row = $statement->fetch(PDO::FETCH_ASSOC);
     return is_array($row) ? $row : null;
+}
+
+function paymentMethodHasQris(array $method): bool
+{
+    return trim((string) ($method['qris_file_url'] ?? '')) !== ''
+        || trim((string) ($method['qris_file_path'] ?? '')) !== '';
+}
+
+function transactionDecodedPayload(array $transaction): array
+{
+    $payload = $transaction['payload'] ?? null;
+
+    if (is_array($payload)) {
+        return $payload;
+    }
+
+    $json = (string) ($transaction['payload_json'] ?? '');
+    if ($json === '') {
+        return [];
+    }
+
+    $decoded = json_decode($json, true);
+    return is_array($decoded) ? $decoded : [];
+}
+
+function findPaymentMethodForTransaction(PDO $pdo, array $transaction): ?array
+{
+    if (!transactionTableExists($pdo, 'payment_methods')) {
+        return null;
+    }
+
+    if (($transaction['item_type'] ?? '') === 'project_payout') {
+        return null;
+    }
+
+    $payload = transactionDecodedPayload($transaction);
+    $methodId = $payload['paymentMethodId']
+        ?? $payload['payment_method_id']
+        ?? $payload['paymentMethod']['id']
+        ?? null;
+
+    if ($methodId !== null && $methodId !== '') {
+        $method = findPaymentMethod($pdo, (int) $methodId);
+        if ($method !== null && (int) ($method['is_active'] ?? 1) === 1) {
+            return $method;
+        }
+    }
+
+    $statement = $pdo->query(
+        'SELECT * FROM payment_methods
+         WHERE deleted_at IS NULL
+         AND is_active = 1
+         ORDER BY id ASC'
+    );
+    $methods = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+    if ($methods === []) {
+        return null;
+    }
+
+    $paymentMethod = strtolower(trim((string) ($transaction['payment_method'] ?? '')));
+    $paymentChannel = strtolower(trim((string) ($transaction['payment_channel'] ?? '')));
+    $paymentCode = strtolower(trim((string) ($transaction['payment_code'] ?? '')));
+
+    $bestMethod = null;
+    $bestScore = -1;
+
+    foreach ($methods as $method) {
+        $name = strtolower(trim((string) ($method['name'] ?? '')));
+        $channel = strtolower(trim((string) ($method['channel'] ?? '')));
+        $type = strtolower(trim((string) ($method['method_type'] ?? '')));
+        $code = strtolower(trim((string) ($method['payment_code'] ?? '')));
+        $score = paymentMethodHasQris($method) ? 5 : 0;
+
+        if ($paymentMethod !== '' && $paymentMethod === $name) {
+            $score += 100;
+        }
+        if ($paymentCode !== '' && $paymentCode === $code) {
+            $score += 80;
+        }
+        if ($paymentChannel !== '' && ($paymentChannel === $channel || $paymentChannel === $type)) {
+            $score += 40;
+        }
+
+        if ($score > $bestScore) {
+            $bestScore = $score;
+            $bestMethod = $method;
+        }
+    }
+
+    return $bestMethod;
+}
+
+function mergePaymentMethodIntoTransaction(array $transaction, array $method): array
+{
+    if (trim((string) ($transaction['payment_channel'] ?? '')) === '') {
+        $transaction['payment_channel'] = trim((string) ($method['channel'] ?? $method['method_type'] ?? ''));
+    }
+    if (trim((string) ($transaction['payment_code'] ?? '')) === '') {
+        $transaction['payment_code'] = trim((string) ($method['payment_code'] ?? ''));
+    }
+    if (trim((string) ($transaction['recipient_name'] ?? '')) === '') {
+        $transaction['recipient_name'] = trim((string) ($method['recipient_name'] ?? ''));
+    }
+
+    if (trim((string) ($transaction['qris_file_url'] ?? '')) === '') {
+        $transaction['qris_file_name'] = $method['qris_file_name'] ?? null;
+        $transaction['qris_file_type'] = $method['qris_file_type'] ?? null;
+        $transaction['qris_file_size'] = $method['qris_file_size'] ?? null;
+        $transaction['qris_file_path'] = $method['qris_file_path'] ?? null;
+        $transaction['qris_file_url'] = $method['qris_file_url'] ?? null;
+    }
+
+    return $transaction;
+}
+
+function enrichTransactionPaymentMethod(PDO $pdo, array $transaction): array
+{
+    $method = findPaymentMethodForTransaction($pdo, $transaction);
+    return $method === null ? $transaction : mergePaymentMethodIntoTransaction($transaction, $method);
+}
+
+function rowToEnrichedTransaction(PDO $pdo, array $row): array
+{
+    return rowToTransaction(enrichTransactionPaymentMethod($pdo, $row));
+}
+
+function applyStoredPaymentMethodToTransaction(PDO $pdo, int $transactionId, array $transaction, string $now): void
+{
+    $method = findPaymentMethodForTransaction($pdo, $transaction);
+    if ($method === null) {
+        return;
+    }
+
+    $statement = $pdo->prepare(
+        'UPDATE transactions SET
+            payment_channel = CASE WHEN payment_channel IS NULL OR payment_channel = "" THEN :payment_channel ELSE payment_channel END,
+            payment_code = CASE WHEN payment_code IS NULL OR payment_code = "" THEN :payment_code ELSE payment_code END,
+            recipient_name = CASE WHEN recipient_name IS NULL OR recipient_name = "" THEN :recipient_name ELSE recipient_name END,
+            qris_file_name = CASE WHEN qris_file_url IS NULL OR qris_file_url = "" THEN :qris_file_name ELSE qris_file_name END,
+            qris_file_type = CASE WHEN qris_file_url IS NULL OR qris_file_url = "" THEN :qris_file_type ELSE qris_file_type END,
+            qris_file_size = CASE WHEN qris_file_url IS NULL OR qris_file_url = "" THEN :qris_file_size ELSE qris_file_size END,
+            qris_file_path = CASE WHEN qris_file_url IS NULL OR qris_file_url = "" THEN :qris_file_path ELSE qris_file_path END,
+            qris_file_url = CASE WHEN qris_file_url IS NULL OR qris_file_url = "" THEN :qris_file_url ELSE qris_file_url END,
+            updated_at = :updated_at
+         WHERE id = :id'
+    );
+    $statement->execute([
+        ':payment_channel' => trim((string) ($method['channel'] ?? $method['method_type'] ?? '')),
+        ':payment_code' => trim((string) ($method['payment_code'] ?? '')),
+        ':recipient_name' => trim((string) ($method['recipient_name'] ?? '')),
+        ':qris_file_name' => $method['qris_file_name'] ?? null,
+        ':qris_file_type' => $method['qris_file_type'] ?? null,
+        ':qris_file_size' => $method['qris_file_size'] ?? null,
+        ':qris_file_path' => $method['qris_file_path'] ?? null,
+        ':qris_file_url' => $method['qris_file_url'] ?? null,
+        ':updated_at' => $now,
+        ':id' => $transactionId,
+    ]);
 }
 
 function rowToPaymentMethod(array $row): array
@@ -1351,7 +1510,7 @@ function ensureEntitlementTokenColumns(PDO $pdo): void
             'success' => true,
             'message' => 'Bukti pencairan berhasil dikirim ke user.',
             'data' => [
-                'transaction' => rowToTransaction($updatedTransaction),
+                'transaction' => rowToEnrichedTransaction($pdo, $updatedTransaction),
             ],
         ]);
     }
@@ -1388,7 +1547,7 @@ function ensureEntitlementTokenColumns(PDO $pdo): void
             'success' => true,
             'message' => 'Pencairan ditandai selesai.',
             'data' => [
-                'transaction' => rowToTransaction($updatedTransaction),
+                'transaction' => rowToEnrichedTransaction($pdo, $updatedTransaction),
             ],
         ]);
     }
@@ -1450,7 +1609,7 @@ function ensureEntitlementTokenColumns(PDO $pdo): void
             'success' => true,
             'message' => 'Bukti pembayaran berhasil diupload. Menunggu review admin.',
             'data' => [
-                'transaction' => rowToTransaction($updatedTransaction),
+                'transaction' => rowToEnrichedTransaction($pdo, $updatedTransaction),
             ],
         ]);
     }
@@ -1483,7 +1642,8 @@ function ensureEntitlementTokenColumns(PDO $pdo): void
             if ($statement->rowCount() !== 1) respond(409, ['success' => false, 'message' => 'Status telah berubah. Muat ulang transaksi.']);
             if (function_exists('afwSyncEnqueue')) afwSyncEnqueue($pdo, 'transactions', $transactionId, 'update');
             $payouts->notifyStatus((int) $existingRow['user_id'], $existingRow['invoice_number'], $status);
-            respond(200, ['success' => true, 'data' => ['transaction' => rowToTransaction(findTransaction($pdo, $transactionId))]]);
+            $reviewedPayout = findTransaction($pdo, $transactionId) ?? $existingRow;
+            respond(200, ['success' => true, 'data' => ['transaction' => rowToEnrichedTransaction($pdo, $reviewedPayout)]]);
         }
         $now = jakartaNow();
         if ($action === 'approve') {
@@ -1515,7 +1675,7 @@ function ensureEntitlementTokenColumns(PDO $pdo): void
                 'success' => true,
                 'message' => 'Transaksi disetujui dan produk sudah diberikan ke user.',
                 'data' => [
-                    'transaction' => rowToTransaction($approvedTransaction),
+                    'transaction' => rowToEnrichedTransaction($pdo, $approvedTransaction),
                 ],
             ]);
         }
@@ -1547,7 +1707,7 @@ function ensureEntitlementTokenColumns(PDO $pdo): void
             'success' => true,
             'message' => 'Transaksi ditolak. User dapat upload ulang bukti pembayaran.',
             'data' => [
-                'transaction' => rowToTransaction($rejectedTransaction),
+                'transaction' => rowToEnrichedTransaction($pdo, $rejectedTransaction),
             ],
         ]);
     }
@@ -1579,7 +1739,7 @@ function ensureEntitlementTokenColumns(PDO $pdo): void
             respond(200, [
                 'success' => true,
                 'data' => [
-                    'transaction' => rowToTransaction($row),
+                    'transaction' => rowToEnrichedTransaction($pdo, $row),
                 ],
             ]);
         }
@@ -1620,7 +1780,7 @@ function ensureEntitlementTokenColumns(PDO $pdo): void
         $statement->execute($params);
         $transactions = [];
         while ($row = $statement->fetch()) {
-            $transactions[] = rowToTransaction($row);
+            $transactions[] = rowToEnrichedTransaction($pdo, $row);
         }
 
         respond(200, [
@@ -1723,6 +1883,8 @@ function ensureEntitlementTokenColumns(PDO $pdo): void
                 ':updated_at' => jakartaNow(),
                 ':id' => $createdId,
             ]);
+        } else {
+            applyStoredPaymentMethodToTransaction($pdo, $createdId, $transaction, jakartaNow());
         }
         if (function_exists('afwSyncEnqueue')) {
             afwSyncEnqueue($pdo, 'transactions', $createdId, 'insert', false);
@@ -1734,7 +1896,7 @@ function ensureEntitlementTokenColumns(PDO $pdo): void
             'success' => true,
             'message' => 'Transaksi berhasil dibuat.',
             'data' => [
-                'transaction' => rowToTransaction($createdTransaction),
+                'transaction' => rowToEnrichedTransaction($pdo, $createdTransaction),
             ],
         ]);
     }
@@ -1835,6 +1997,8 @@ function ensureEntitlementTokenColumns(PDO $pdo): void
                 ':updated_at' => jakartaNow(),
                 ':id' => $transactionId,
             ]);
+        } else {
+            applyStoredPaymentMethodToTransaction($pdo, $transactionId, $transaction, jakartaNow());
         }
         if (function_exists('afwSyncEnqueue')) {
             afwSyncEnqueue($pdo, 'transactions', $transactionId, 'update');
@@ -1846,7 +2010,7 @@ function ensureEntitlementTokenColumns(PDO $pdo): void
             'success' => true,
             'message' => 'Transaksi berhasil diperbarui.',
             'data' => [
-                'transaction' => rowToTransaction($updatedTransaction),
+                'transaction' => rowToEnrichedTransaction($pdo, $updatedTransaction),
             ],
         ]);
     }
