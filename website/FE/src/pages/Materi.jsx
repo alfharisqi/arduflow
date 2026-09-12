@@ -1111,7 +1111,14 @@ export function Materi() {
   const contentHtml = sanitizeHtml(activeSlide.content);
 
   return (
-    <section className="materi-page" aria-labelledby="materi-title">
+    <section
+      className={`materi-page ${
+        isPremiumMaterial && !hasMaterialAccess
+          ? 'is-purchase-view'
+          : ''
+      }`}
+      aria-labelledby="materi-title"
+    >
       <div className="materi-shell">
         <a className="materi-back" href="/materi">Kembali ke Daftar Materi</a>
 
@@ -1125,75 +1132,73 @@ export function Materi() {
         </header>
 
         {isPremiumMaterial && !hasMaterialAccess ? (
-          <article className="materi-reader">
-            <main className="materi-content">
-              <div className="materi-content-head">
-                <span>Rp</span>
-                <div>
-                  <h2>Materi Premium</h2>
-                  <p>
-                    Selesaikan pembelian untuk membuka seluruh isi materi ini.
-                  </p>
-                </div>
-              </div>
+          <article className="materi-purchase">
+            <div className="materi-purchase__header">
+              <p className="materi-purchase__tag">MATERI PREMIUM</p>
+              <h2>Beli materi untuk membuka akses</h2>
+              <p>
+                {isCheckingAccess
+                  ? 'Memeriksa status pembelian materi...'
+                  : pendingTransaction
+                    ? 'Transaksi materi sedang menunggu pembayaran atau verifikasi admin.'
+                    : 'Setelah pembayaran disetujui, seluruh isi materi ini akan otomatis terbuka untuk akun Anda.'}
+              </p>
+            </div>
 
-              <div className="materi-state">
-                <h2>
+            <div className="materi-purchase__content">
+              <div className="materi-purchase__summary">
+                <span className="materi-purchase__label">Harga materi</span>
+                <strong>
                   {formatMaterialPrice(
                     material.price,
                     'IDR',
                   )}
-                </h2>
-
-                <p>
-                  {isCheckingAccess
-                    ? 'Memeriksa status pembelian materi...'
-                    : pendingTransaction
-                      ? 'Transaksi materi sedang menunggu pembayaran atau verifikasi admin.'
-                      : 'Materi ini berbayar. Setelah transaksi disetujui, seluruh bab akan otomatis terbuka untuk akun Anda.'}
-                </p>
-
-                <div className="materi-actions">
-                  <a
-                    className="materi-button secondary"
-                    href="/materi"
-                  >
-                    Kembali ke Materi
-                  </a>
-
-                  <button
-                    className="materi-button"
-                    type="button"
-                    disabled={
-                      isPurchasing ||
-                      isCheckingAccess
-                    }
-                    onClick={
-                      pendingTransaction
-                        ? () => {
-                            window.location.href =
-                              `/transaksi?transactionId=${encodeURIComponent(
-                                pendingTransaction.id,
-                              )}`;
-                          }
-                        : handleBuyMaterial
-                    }
-                  >
-                    {isPurchasing
-                      ? 'Memproses...'
-                      : pendingTransaction
-                        ? 'Lihat Transaksi'
-                        : 'Beli Materi'}
-                  </button>
-                </div>
-
-                {purchaseMessage ? (
-                  <p role="status">
-                    {purchaseMessage}
-                  </p>
-                ) : null}
+                </strong>
+                <span className="materi-purchase__note">
+                  Pembayaran dan bukti transfer dikelola melalui halaman transaksi.
+                </span>
               </div>
-            </main>
+
+              <div className="materi-purchase__actions">
+                <a
+                  className="materi-button secondary"
+                  href="/materi"
+                >
+                  Kembali ke Materi
+                </a>
+
+                <button
+                  className="materi-button"
+                  type="button"
+                  disabled={
+                    isPurchasing ||
+                    isCheckingAccess
+                  }
+                  onClick={
+                    pendingTransaction
+                      ? () => {
+                          window.location.href =
+                            `/transaksi?transactionId=${encodeURIComponent(
+                              pendingTransaction.id,
+                            )}`;
+                        }
+                      : handleBuyMaterial
+                  }
+                >
+                  {isPurchasing
+                    ? 'Memproses...'
+                    : pendingTransaction
+                      ? 'Lihat Transaksi'
+                      : 'Beli Materi'}
+                </button>
+              </div>
+            </div>
+
+            {purchaseMessage ? (
+              <p className="materi-purchase__message" role="status">
+                {purchaseMessage}
+              </p>
+            ) : null}
           </article>
         ) : (
         <article className="materi-reader">

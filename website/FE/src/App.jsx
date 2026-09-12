@@ -757,7 +757,7 @@ export default function App() {
       : path.startsWith('/workshop/detail/')
         ? '/workshop/detail'
         : path.startsWith('/materi/')
-          ? '/materi'
+          ? '/tutorial/detail'
           : path.startsWith('/tutorial/detail/')
             ? '/tutorial/detail'
             : path.startsWith('/artikel/detail/')
