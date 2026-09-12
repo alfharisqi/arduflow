@@ -139,272 +139,27 @@ function partnersEnsureRuntimeSchema(PDO $pdo): void
     );
 }
 
-function partnersSeed(PDO $pdo): void
+function partnersRemoveLegacyDummyData(PDO $pdo): void
 {
-    $seed = [
-        [
-            'SMK Negeri 2 Jakarta',
-            'Sekolah',
-            'Budi Santoso',
-            'Kepala Hubungan',
-            'budi@smkn2jkt.sch.id',
-            '0812-1234-5678',
-            'Jakarta',
-            'DKI Jakarta',
-            'www.smkn2jkt.sch.id',
-            'Instagram / Facebook / YouTube',
-            'Kerja sama dalam pelatihan IoT, workshop Arduino, dan pengetesan siswa di bidang teknologi.',
-            [
-                'Workshop IoT 2024',
-                'Arduino for School',
-                'Pelatihan Guru IoT',
-            ],
-            'Aktif',
-            1,
-            1,
-            '',
-            '2024-06-12',
-            '2024-05-20',
-        ],
-        [
-            'Universitas Indonesia',
-            'Universitas',
-            'Rina Marlina',
-            'Koordinator Kemitraan',
-            'rina.martina@ui.ac.id',
-            '0813-9876-5432',
-            'Depok',
-            'Jawa Barat',
-            'www.ui.ac.id',
-            'Instagram / LinkedIn',
-            'Kolaborasi kampus untuk program pembelajaran IoT dan publikasi karya mahasiswa.',
-            [
-                'Kuliah Tamu IoT',
-                'Project Showcase',
-            ],
-            'Aktif',
-            1,
-            1,
-            '',
-            '2024-02-05',
-            '2024-05-18',
-        ],
-        [
-            'Komunitas IoT Indonesia',
-            'Komunitas',
-            'Agung Setiawan',
-            'Ketua Komunitas',
-            'agung@iotindonesia.id',
-            '0812-2223-4444',
-            'Bandung',
-            'Jawa Barat',
-            'iotindonesia.id',
-            'Instagram / Discord',
-            'Kolaborasi komunitas untuk sharing session, mentoring proyek, dan event maker.',
-            [
-                'Community Meetup',
-                'Mentoring Proyek',
-            ],
-            'Menunggu',
-            0,
-            0,
-            'Belum balas email',
-            null,
-            '2024-05-19',
-        ],
-        [
-            'PT Tech Partner Solusi',
-            'Partner IT',
-            'Dewi Lestari',
-            'Marketing Manager',
-            'dewi@techpartner.co.id',
-            '0856-1111-2222',
-            'Surabaya',
-            'Jawa Timur',
-            'techpartner.co.id',
-            'LinkedIn',
-            'Kemitraan teknologi untuk perangkat pembelajaran dan dukungan industri.',
-            [
-                'Hardware Support',
-                'Workshop Industri',
-            ],
-            'Aktif',
-            1,
-            0,
-            '',
-            '2023-12-28',
-            '2024-05-17',
-        ],
-        [
-            'Institut Teknologi Bandung',
-            'Institusi',
-            'Yoga Pratama',
-            'Kerja Sama',
-            'yoga.pratama@itb.ac.id',
-            '0812-5555-6666',
-            'Bandung',
-            'Jawa Barat',
-            'www.itb.ac.id',
-            'LinkedIn / Instagram',
-            'Draft kerja sama riset dan pengembangan modul pembelajaran IoT.',
-            [
-                'Riset IoT',
-                'Lab Visit',
-            ],
-            'Draft',
-            0,
-            0,
-            'Logo belum dikirim',
-            null,
-            '2024-05-10',
-        ],
-        [
-            'Maker Indonesia',
-            'Komunitas',
-            'Nabila Putri',
-            'Admin',
-            'nabila@makerid.com',
-            '0821-7777-8888',
-            'Yogyakarta',
-            'DI Yogyakarta',
-            'makerid.com',
-            'Instagram',
-            'Kolaborasi komunitas maker untuk konten edukasi dan workshop.',
-            [
-                'Maker Day',
-            ],
-            'Inactive',
-            0,
-            0,
-            'Follow-up lebih dari 7 hari',
-            '2022-05-11',
-            '2024-01-02',
-        ],
-        [
-            'SMP Muhammadiyah 1',
-            'Sekolah',
-            'Ahmad Fauzi',
-            'Wakasek',
-            'ahmad@smpm1.sch.id',
-            '0813-3333-9999',
-            'Yogyakarta',
-            'DI Yogyakarta',
-            'smpm1.sch.id',
-            'Instagram',
-            'Rencana kerja sama ekstrakurikuler robotika dan IoT dasar.',
-            [
-                'Ekskul IoT',
-            ],
-            'Menunggu',
-            0,
-            0,
-            'Data PIC kosong',
-            null,
-            '2024-05-21',
-        ],
-        [
-            'EduTech Indonesia',
-            'Partner IT',
-            'Rizky Pratama',
-            'Business Dev',
-            'rizky@edutech.id',
-            '0822-4444-1212',
-            'Jakarta',
-            'DKI Jakarta',
-            'edutech.id',
-            'LinkedIn',
-            'Partner lama untuk distribusi konten dan program edukasi digital.',
-            [
-                'Edukasi Digital',
-            ],
-            'Archived',
-            0,
-            0,
-            '',
-            '2022-03-15',
-            '2023-10-03',
-        ],
+    $names = [
+        'SMK Negeri 2 Jakarta',
+        'Universitas Indonesia',
+        'Komunitas IoT Indonesia',
+        'PT Tech Partner Solusi',
+        'Institut Teknologi Bandung',
+        'Maker Indonesia',
+        'SMP Muhammadiyah 1',
+        'EduTech Indonesia',
+        'Komunitas IoT Nusantara',
+        'Indobilliard Tech Lab',
     ];
 
-    $statement = $pdo->prepare(
-        'INSERT INTO partners (
-            name,
-            type,
-            pic_name,
-            pic_role,
-            email,
-            whatsapp,
-            city,
-            province,
-            website,
-            social_media,
-            description,
-            programs_json,
-            status,
-            show_homepage,
-            featured,
-            follow_up_note,
-            start_date,
-            last_contact_at,
-            created_at,
-            updated_at
-        ) VALUES (
-            :name,
-            :type,
-            :pic_name,
-            :pic_role,
-            :email,
-            :whatsapp,
-            :city,
-            :province,
-            :website,
-            :social_media,
-            :description,
-            :programs_json,
-            :status,
-            :show_homepage,
-            :featured,
-            :follow_up_note,
-            :start_date,
-            :last_contact_at,
-            :created_at,
-            :updated_at
-        )'
-    );
+    $placeholders = implode(',', array_fill(0, count($names), '?'));
+    $statement = $pdo->prepare('DELETE FROM partners WHERE name IN (' . $placeholders . ')');
+    $statement->execute($names);
+}
 
-    $now = partnersNow();
-
-    foreach ($seed as $item) {
-        $statement->execute([
-            ':name' => $item[0],
-            ':type' => $item[1],
-            ':pic_name' => $item[2],
-            ':pic_role' => $item[3],
-            ':email' => $item[4],
-            ':whatsapp' => $item[5],
-            ':city' => $item[6],
-            ':province' => $item[7],
-            ':website' => $item[8],
-            ':social_media' => $item[9],
-            ':description' => $item[10],
-
-            ':programs_json' =>
-                json_encode(
-                    $item[11],
-                    PARTNER_JSON_FLAGS
-                ),
-
-            ':status' => $item[12],
-            ':show_homepage' => $item[13],
-            ':featured' => $item[14],
-            ':follow_up_note' => $item[15],
-            ':start_date' => $item[16],
-            ':last_contact_at' => $item[17],
-            ':created_at' => $now,
-            ':updated_at' => $now,
-        ]);
-    }
-}function partnersExistingNames(PDO $pdo): array
+function partnersExistingNames(PDO $pdo): array
 {
     $names = [];
 
@@ -1605,6 +1360,7 @@ try {
     $pdo = afwPdo();
 
     partnersEnsureRuntimeSchema($pdo);
+    partnersRemoveLegacyDummyData($pdo);
 
     $id =
         isset($_GET['id'])

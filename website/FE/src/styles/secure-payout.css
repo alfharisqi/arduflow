@@ -64,6 +64,16 @@
   font-weight: 800;
 }
 .secure-payout .secure-payout__message { color: #9ce7c4; }
+.secure-payout .secure-payout__hint {
+  margin: -4px 0 0;
+  padding: 10px 12px;
+  border: 1px solid #2b5f85;
+  border-radius: 8px;
+  background: #0e2740;
+  color: #b9e6ff;
+  font-size: 13px;
+  font-weight: 700;
+}
 .secure-payout__summary { display: grid; grid-template-columns: minmax(100px, 1fr) 2fr; gap: 12px; padding: 16px; background: #142942; border-radius: 8px; }
 .secure-payout__summary dt { color: #a9c0d8; font-weight: 700; }
 .secure-payout__summary dd { margin: 0; overflow-wrap: anywhere; font-weight: 600; }

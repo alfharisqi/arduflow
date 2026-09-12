@@ -807,38 +807,6 @@ final class LegacyApiMigrator
 
     private function seedPartners(PDO $pdo): void
     {
-        $now = (new DateTimeImmutable('now', new DateTimeZone('Asia/Jakarta')))->format(DATE_ATOM);
-        $seed = [
-            ['SMK Negeri 2 Jakarta', 'Sekolah', 'Tim Kurikulum', 'Kepala Program', 'kemitraan@smkn2jakarta.sch.id', '6281110002001', 'Jakarta', 'DKI Jakarta'],
-            ['Komunitas IoT Nusantara', 'Komunitas', 'Raka Pratama', 'Koordinator Komunitas', 'halo@iotnusantara.id', '6281110002002', 'Bandung', 'Jawa Barat'],
-            ['Indobilliard Tech Lab', 'Perusahaan', 'Dewi Lestari', 'Partnership Lead', 'partnership@indobilliard.com', '6281110002003', 'Tangerang', 'Banten'],
-        ];
-
-        $statement = $pdo->prepare(
-            'INSERT INTO partners (
-                name, type, pic_name, pic_role, email, whatsapp, city, province,
-                website, social_media, logo_url, description, programs_json, status,
-                show_homepage, featured, follow_up_note, start_date, last_contact_at,
-                created_at, updated_at
-            ) VALUES (
-                :name, :type, :pic_name, :pic_role, :email, :whatsapp, :city, :province,
-                "", "", "", "", "[]", "Disetujui", 1, 1, "", NULL, NULL, :created_at, :updated_at
-            )'
-        );
-
-        foreach ($seed as $partner) {
-            $statement->execute([
-                ':name' => $partner[0],
-                ':type' => $partner[1],
-                ':pic_name' => $partner[2],
-                ':pic_role' => $partner[3],
-                ':email' => $partner[4],
-                ':whatsapp' => $partner[5],
-                ':city' => $partner[6],
-                ':province' => $partner[7],
-                ':created_at' => $now,
-                ':updated_at' => $now,
-            ]);
-        }
+        unset($pdo);
     }
 }

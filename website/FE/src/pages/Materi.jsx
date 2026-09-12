@@ -2,6 +2,8 @@ import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { MaterialCard, MaterialEmptyState } from '../components/materials/MaterialCard.jsx';
 import { fetchMaterial, fetchMaterials, isPublishedMaterial } from '../services/materialApi.js';
 import { fetchProjectSubmissions, isPublicProject } from '../services/projectApi.js';
+import { createTransaction, fetchTransactions } from '../services/transactionApi.js';
+import { getStoredUser, getStoredUserToken } from '../services/authSession.js';
 import fallbackTutorialImage from '../assets/images/tutorial-device.png';
 import landingHeroMateriImage from '../assets/images/landing-hero-materi.png';
 import projectFallbackImage from '../assets/images/project-hero-reference.png';
@@ -88,6 +90,105 @@ function categoryLabel(value) {
 function isPublishedSlide(slide) {
   const status = String(slide.status || '').toLowerCase();
   return status === '' || status === 'published' || status === 'publish';
+}
+
+function getUserId(user) {
+  return user?.id ?? user?.userId ?? user?.user_id ?? null;
+}
+
+function getUserEmail(user) {
+  return String(
+    user?.email ??
+      user?.emailAddress ??
+      user?.email_address ??
+      '',
+  ).trim();
+}
+
+function formatMaterialPrice(value, currency = 'IDR') {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 0,
+  }).format(Math.max(0, Number(value) || 0));
+}
+
+function isTransactionForMaterial(transaction, material) {
+  const payload =
+    transaction?.payload &&
+    typeof transaction.payload === 'object'
+      ? transaction.payload
+      : {};
+
+  const transactionMaterialIds = [
+    transaction?.itemId,
+    transaction?.item_id,
+    payload.materialId,
+    payload.material_id,
+    payload.itemId,
+    payload.item_id,
+    payload.material?.id,
+  ].filter(
+    (value) =>
+      value !== undefined &&
+      value !== null &&
+      String(value).trim() !== '',
+  );
+
+  const itemType = String(
+    transaction?.itemType ||
+      transaction?.item_type ||
+      '',
+  )
+    .trim()
+    .toLowerCase();
+
+  return (
+    ['material', 'materi'].includes(itemType) &&
+    transactionMaterialIds.some(
+      (materialId) =>
+        String(materialId) ===
+        String(material?.id || ''),
+    )
+  );
+}
+
+function isPaidMaterialTransaction(transaction, material) {
+  const status = String(
+    transaction?.status || '',
+  ).toLowerCase();
+
+  return (
+    isTransactionForMaterial(transaction, material) &&
+    [
+      'paid',
+      'approved',
+      'success',
+      'successful',
+      'completed',
+      'complete',
+      'settlement',
+      'verified',
+    ].includes(status)
+  );
+}
+
+function isPendingMaterialTransaction(transaction, material) {
+  const status = String(
+    transaction?.status || '',
+  ).toLowerCase();
+
+  return (
+    isTransactionForMaterial(transaction, material) &&
+    [
+      'pending',
+      'proof_uploaded',
+      'uploaded',
+      'waiting',
+      'review',
+      'rejected',
+    ].includes(status)
+  );
 }
 
 const topicCategories = [
@@ -729,6 +830,10 @@ export function Materi() {
   const [activeIndex, setActiveIndex] = useState(getInitialSlideIndex);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [materialTransactions, setMaterialTransactions] = useState([]);
+  const [isCheckingAccess, setIsCheckingAccess] = useState(false);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [purchaseMessage, setPurchaseMessage] = useState('');
 
   const hasIdentifier = hasMaterialIdentifier();
 
@@ -768,9 +873,92 @@ export function Materi() {
     };
   }, [hasIdentifier]);
 
-  if (!hasIdentifier) {
-    return <MateriCatalog />;
-  }
+  useEffect(() => {
+    if (!material || !material.isPremium) {
+      setMaterialTransactions([]);
+      setIsCheckingAccess(false);
+      return undefined;
+    }
+
+    const token = getStoredUserToken();
+    const user = getStoredUser() || {};
+    const userId = getUserId(user);
+    const email = getUserEmail(user);
+
+    if (!token || (!userId && !email)) {
+      setMaterialTransactions([]);
+      setIsCheckingAccess(false);
+      return undefined;
+    }
+
+    let isActive = true;
+    const queries = [];
+
+    if (userId && email) {
+      queries.push({ userId, email });
+    }
+    if (email) {
+      queries.push({ email });
+    }
+    if (userId) {
+      queries.push({ userId });
+    }
+
+    setIsCheckingAccess(true);
+
+    Promise.allSettled(
+      queries.map((params) => fetchTransactions(params)),
+    )
+      .then((results) => {
+        if (!isActive) return;
+
+        const mergedRecords = results
+          .filter((result) => result.status === 'fulfilled')
+          .flatMap((result) => result.value);
+
+        const uniqueRecords = Array.from(
+          new Map(
+            mergedRecords.map((transaction, index) => [
+              transaction.id
+                ? String(transaction.id)
+                : `${transaction.itemType}-${transaction.itemId}-${index}`,
+              transaction,
+            ]),
+          ).values(),
+        );
+
+        setMaterialTransactions(
+          uniqueRecords.filter((transaction) =>
+            ['material', 'materi'].includes(
+              String(
+                transaction.itemType ||
+                  transaction.item_type ||
+                  '',
+              ).toLowerCase(),
+            ),
+          ),
+        );
+      })
+      .catch((transactionError) => {
+        console.error(
+          'Gagal memuat transaksi materi:',
+          transactionError,
+        );
+
+        if (isActive) {
+          setMaterialTransactions([]);
+        }
+      })
+      .finally(() => {
+        if (isActive) {
+          setIsCheckingAccess(false);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [material]);
 
   const slides = useMemo(() => {
     if (!material) return [];
@@ -796,6 +984,107 @@ export function Materi() {
   const safeActiveIndex = Math.min(activeIndex, Math.max(slides.length - 1, 0));
   const activeSlide = slides[safeActiveIndex] || null;
 
+  const paidTransaction = material
+    ? materialTransactions.find((transaction) =>
+        isPaidMaterialTransaction(transaction, material),
+      )
+    : null;
+
+  const pendingTransaction = material
+    ? materialTransactions.find((transaction) =>
+        isPendingMaterialTransaction(transaction, material),
+      )
+    : null;
+
+  const isPremiumMaterial = Boolean(
+    material?.isPremium ||
+      Number(material?.price || 0) > 0,
+  );
+
+  const hasMaterialAccess =
+    !isPremiumMaterial ||
+    Boolean(paidTransaction);
+
+  if (!hasIdentifier) {
+    return <MateriCatalog />;
+  }
+
+  async function handleBuyMaterial() {
+    if (!material) return;
+
+    const token = getStoredUserToken();
+    const user = getStoredUser() || {};
+    const userId = getUserId(user);
+    const email = getUserEmail(user);
+
+    if (!token || (!userId && !email)) {
+      const redirect =
+        window.location.pathname +
+        window.location.search;
+
+      window.location.href =
+        `/signin?redirect=${encodeURIComponent(redirect)}`;
+      return;
+    }
+
+    if (pendingTransaction) {
+      window.location.href =
+        `/transaksi?transactionId=${encodeURIComponent(
+          pendingTransaction.id,
+        )}`;
+      return;
+    }
+
+    setIsPurchasing(true);
+    setPurchaseMessage('Membuat transaksi materi...');
+
+    try {
+      const transaction = await createTransaction({
+        userId,
+        userName:
+          user.name ||
+          user.fullName ||
+          user.username ||
+          '',
+        email,
+        itemType: 'material',
+        itemId: material.id,
+        itemTitle: material.title,
+        amount: Math.max(
+          0,
+          Number(material.price) || 0,
+        ),
+        currency: 'IDR',
+        paymentMethod: 'Pembelian Materi',
+        paymentChannel: 'ArduFlow',
+        status: 'pending',
+        notes: `Pembelian materi ${material.title}`,
+        payload: {
+          materialId: material.id,
+          materialSlug: material.slug || '',
+          materialTitle: material.title,
+          source: 'materi-detail',
+        },
+      });
+
+      const transactionQuery =
+        transaction?.id
+          ? `?transactionId=${encodeURIComponent(
+              transaction.id,
+            )}`
+          : '';
+
+      window.location.href =
+        `/transaksi${transactionQuery}`;
+    } catch (purchaseError) {
+      setPurchaseMessage(
+        purchaseError.message ||
+          'Transaksi materi gagal dibuat.',
+      );
+      setIsPurchasing(false);
+    }
+  }
+
   function changeSlide(nextIndex) {
     if (nextIndex < 0 || nextIndex >= slides.length) return;
 
@@ -817,6 +1106,7 @@ export function Materi() {
     );
   }
 
+
   const activeImage = activeSlide.imageUrl || material.cardImageUrl || fallbackTutorialImage;
   const contentHtml = sanitizeHtml(activeSlide.content);
 
@@ -834,6 +1124,78 @@ export function Materi() {
           <img src={material.cardImageUrl || fallbackTutorialImage} alt={material.title} />
         </header>
 
+        {isPremiumMaterial && !hasMaterialAccess ? (
+          <article className="materi-reader">
+            <main className="materi-content">
+              <div className="materi-content-head">
+                <span>Rp</span>
+                <div>
+                  <h2>Materi Premium</h2>
+                  <p>
+                    Selesaikan pembelian untuk membuka seluruh isi materi ini.
+                  </p>
+                </div>
+              </div>
+
+              <div className="materi-state">
+                <h2>
+                  {formatMaterialPrice(
+                    material.price,
+                    'IDR',
+                  )}
+                </h2>
+
+                <p>
+                  {isCheckingAccess
+                    ? 'Memeriksa status pembelian materi...'
+                    : pendingTransaction
+                      ? 'Transaksi materi sedang menunggu pembayaran atau verifikasi admin.'
+                      : 'Materi ini berbayar. Setelah transaksi disetujui, seluruh bab akan otomatis terbuka untuk akun Anda.'}
+                </p>
+
+                <div className="materi-actions">
+                  <a
+                    className="materi-button secondary"
+                    href="/materi"
+                  >
+                    Kembali ke Materi
+                  </a>
+
+                  <button
+                    className="materi-button"
+                    type="button"
+                    disabled={
+                      isPurchasing ||
+                      isCheckingAccess
+                    }
+                    onClick={
+                      pendingTransaction
+                        ? () => {
+                            window.location.href =
+                              `/transaksi?transactionId=${encodeURIComponent(
+                                pendingTransaction.id,
+                              )}`;
+                          }
+                        : handleBuyMaterial
+                    }
+                  >
+                    {isPurchasing
+                      ? 'Memproses...'
+                      : pendingTransaction
+                        ? 'Lihat Transaksi'
+                        : 'Beli Materi'}
+                  </button>
+                </div>
+
+                {purchaseMessage ? (
+                  <p role="status">
+                    {purchaseMessage}
+                  </p>
+                ) : null}
+              </div>
+            </main>
+          </article>
+        ) : (
         <article className="materi-reader">
           <aside className="materi-sidebar" aria-label="Daftar materi">
             <h2>Daftar Materi</h2>
@@ -903,6 +1265,7 @@ export function Materi() {
             </div>
           </main>
         </article>
+        )}
       </div>
     </section>
   );

@@ -191,7 +191,7 @@ export function MaterialCard({
           href={href}
         >
           {isPremium
-            ? 'Lihat Materi'
+            ? 'Beli Materi'
             : 'Pelajari'}{' '}
 
           <span aria-hidden="true">
