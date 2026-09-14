@@ -193,33 +193,96 @@ function isWorkshopVisibleInList(workshop) {
   return visibility !== 'privat' && visibility !== 'private';
 }
 
+function getWorkshopEndMinutes(value) {
+  const timeText = String(value || '').trim();
+
+  if (!timeText) {
+    return null;
+  }
+
+  const matches = [
+    ...timeText.matchAll(
+      /([01]?\d|2[0-3])[:.]([0-5]\d)/g,
+    ),
+  ];
+
+  // Harus ada minimal jam mulai + jam selesai.
+  // Contoh: 09:00 - 13:00
+  if (matches.length < 2) {
+    return null;
+  }
+
+  const lastTime = matches[matches.length - 1];
+  const hour = Number(lastTime[1]);
+  const minute = Number(lastTime[2]);
+
+  return (hour * 60) + minute;
+}
+
 function isWorkshopFinished(workshop, now = new Date()) {
   // Status manual dari admin selalu menjadi override utama.
   if (isManualFinished(workshop)) {
     return true;
   }
 
-  const endValue = workshop?.endsAt;
-  const endDate = parseDate(endValue);
-
-  if (endDate) {
-    // Jika endsAt menyimpan jam, gunakan jam akhir secara presisi.
-    if (hasExplicitTime(endValue)) {
-      return endDate.getTime() < now.getTime();
-    }
-
-    // Jika endsAt hanya berupa tanggal, workshop baru dianggap selesai
-    // mulai hari berikutnya agar tidak langsung "Selesai" pada pukul 00:00.
-    return startOfDay(endDate).getTime() < startOfDay(now).getTime();
-  }
-
   const startDate = parseDate(workshop?.startsAt);
   if (!startDate) return false;
 
-  // Jika tidak ada endsAt, workshop dianggap selesai otomatis setelah
-  // tanggalnya lewat. Workshop hari ini tetap aktif kecuali admin
-  // menandainya Selesai secara manual.
-  return startOfDay(startDate).getTime() < startOfDay(now).getTime();
+  const todayStart = startOfDay(now);
+  const workshopDay = startOfDay(startDate);
+
+  // Tanggal workshop yang sudah lewat selalu dianggap selesai.
+  if (workshopDay.getTime() < todayStart.getTime()) {
+    return true;
+  }
+
+  // Tanggal mendatang tentu belum selesai.
+  if (workshopDay.getTime() > todayStart.getTime()) {
+    return false;
+  }
+
+  /*
+   * Sampai di sini berarti workshop berlangsung HARI INI.
+   *
+   * 1. Jika endsAt menyimpan datetime lengkap, gunakan jam akhirnya.
+   * 2. Jika endsAt hanya tanggal, jangan langsung return false.
+   *    Kita masih harus membaca jam akhir dari timeText.
+   */
+  const endValue = workshop?.endsAt;
+  const endDate = parseDate(endValue);
+
+  if (
+    endDate &&
+    hasExplicitTime(endValue)
+  ) {
+    return endDate.getTime() <= now.getTime();
+  }
+
+  /*
+   * Fallback utama untuk data API seperti:
+   * timeText = "09:00 - 13:00"
+   */
+  const endMinutes =
+    getWorkshopEndMinutes(
+      workshop?.timeText ||
+      workshop?.time ||
+      '',
+    );
+
+  if (endMinutes !== null) {
+    const currentMinutes =
+      (now.getHours() * 60) +
+      now.getMinutes();
+
+    return currentMinutes >= endMinutes;
+  }
+
+  /*
+   * Jika tidak ada jam akhir yang bisa diketahui,
+   * workshop hari ini tetap dianggap aktif.
+   * Ia baru otomatis selesai saat tanggal berganti.
+   */
+  return false;
 }
 
 function getWorkshopSortTime(workshop) {
@@ -343,12 +406,30 @@ export function DaftarWorkshop() {
   }, []);
 
   useEffect(() => {
-    const statusTimer = window.setInterval(() => {
+    const updateStatusNow = () => {
       setStatusNow(new Date());
-    }, 60_000);
+    };
+
+    // Cek status waktu setiap 30 detik agar badge/status
+    // berubah otomatis tanpa perlu refresh halaman.
+    const statusTimer = window.setInterval(
+      updateStatusNow,
+      30_000,
+    );
+
+    // Saat user kembali ke tab/window, cek waktu langsung.
+    window.addEventListener(
+      'focus',
+      updateStatusNow,
+    );
 
     return () => {
       window.clearInterval(statusTimer);
+
+      window.removeEventListener(
+        'focus',
+        updateStatusNow,
+      );
     };
   }, []);
 

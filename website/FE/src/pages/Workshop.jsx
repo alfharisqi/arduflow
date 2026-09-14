@@ -304,13 +304,11 @@ const workshopFaqs = [
    HELPER WORKSHOP
 ========================================================= */
 
-function getTodayDateString() {
-  const today = new Date();
-
+function getTodayDateString(date = new Date()) {
   return [
-    today.getFullYear(),
-    String(today.getMonth() + 1).padStart(2, '0'),
-    String(today.getDate()).padStart(2, '0'),
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
   ].join('-');
 }
 
@@ -378,6 +376,158 @@ function getWorkshopStartMinutes(value) {
   const minute = Number(match[2]);
 
   return (hour * 60) + minute;
+}
+
+
+/*
+ * Mengambil jam selesai dari rentang waktu workshop.
+ *
+ * Contoh:
+ * 09:00 - 13:00      -> 13:00
+ * 09.00 - 13.00 WIB  -> 13:00
+ * 09:00 s/d 13:00    -> 13:00
+ *
+ * Jika hanya satu jam yang tersedia, misalnya "09:00",
+ * fungsi mengembalikan null karena jam selesai tidak diketahui.
+ */
+function getWorkshopEndMinutes(value) {
+  const timeText = String(
+    value || '',
+  ).trim();
+
+  if (!timeText) {
+    return null;
+  }
+
+  const matches = [
+    ...timeText.matchAll(
+      /([01]?\d|2[0-3])[:.]([0-5]\d)/g,
+    ),
+  ];
+
+  if (matches.length < 2) {
+    return null;
+  }
+
+  const lastTime =
+    matches[matches.length - 1];
+
+  const hour = Number(
+    lastTime[1],
+  );
+
+  const minute = Number(
+    lastTime[2],
+  );
+
+  return (hour * 60) + minute;
+}
+
+
+/*
+ * Menentukan apakah workshop sudah selesai.
+ *
+ * Prioritas:
+ * 1. Status admin sudah selesai/completed/finished.
+ * 2. Tanggal workshop sudah lewat.
+ * 3. Jika endsAt berisi datetime lengkap, gunakan endsAt.
+ * 4. Jika tidak, ambil jam akhir dari time/timeText.
+ *
+ * Jika hanya ada jam mulai dan tidak ada jam akhir,
+ * workshop pada hari ini tetap dianggap belum selesai
+ * agar jadwal tidak hilang secara keliru.
+ */
+function isWorkshopFinished(
+  workshop,
+  now = new Date(),
+) {
+  const status = String(
+    workshop?.status || '',
+  )
+    .trim()
+    .toLowerCase();
+
+  if (
+    status === 'selesai' ||
+    status === 'completed' ||
+    status === 'finished'
+  ) {
+    return true;
+  }
+
+  const workshopDate =
+    getWorkshopDate(workshop);
+
+  if (!workshopDate) {
+    return false;
+  }
+
+  const todayDate =
+    getTodayDateString(now);
+
+  if (workshopDate < todayDate) {
+    return true;
+  }
+
+  if (workshopDate > todayDate) {
+    return false;
+  }
+
+  /*
+   * Workshop berlangsung hari ini.
+   * Jika API menyediakan endsAt lengkap dengan jam,
+   * gunakan timestamp tersebut terlebih dahulu.
+   */
+  const endsAt = String(
+    workshop?.endsAt ||
+    workshop?.ends_at ||
+    '',
+  ).trim();
+
+  if (
+    endsAt &&
+    /T\d{1,2}:\d{2}/.test(
+      endsAt,
+    )
+  ) {
+    const endDateTime =
+      new Date(endsAt);
+
+    if (
+      !Number.isNaN(
+        endDateTime.getTime(),
+      )
+    ) {
+      return (
+        now.getTime() >=
+        endDateTime.getTime()
+      );
+    }
+  }
+
+  /*
+   * Fallback untuk format seperti:
+   * "09:00 - 13:00".
+   */
+  const endMinutes =
+    getWorkshopEndMinutes(
+      workshop?.time ||
+      workshop?.timeText ||
+      '',
+    );
+
+  if (endMinutes === null) {
+    return false;
+  }
+
+  const currentMinutes =
+    (now.getHours() * 60) +
+    now.getMinutes();
+
+  return (
+    currentMinutes >=
+    endMinutes
+  );
 }
 
 
@@ -608,6 +758,16 @@ export function Workshop() {
     setWorkshopLoadError,
   ] = useState('');
 
+  /*
+   * Waktu browser saat ini.
+   * Dipakai agar workshop otomatis keluar dari daftar
+   * mendatang ketika jam selesai sudah terlewati.
+   */
+  const [
+    currentTime,
+    setCurrentTime,
+  ] = useState(() => new Date());
+
 
   /* =======================================================
      MATERIAL STATE
@@ -637,6 +797,49 @@ export function Workshop() {
     projectLoadError,
     setProjectLoadError,
   ] = useState('');
+
+
+  /* =======================================================
+     CLOCK WORKSHOP
+
+     Update waktu lokal setiap 30 detik agar status workshop
+     dapat berubah otomatis tanpa menunggu perubahan database.
+     Saat user kembali ke tab/window, waktu juga langsung
+     diperbarui.
+  ======================================================= */
+
+  useEffect(() => {
+    const updateCurrentTime = () => {
+      setCurrentTime(
+        new Date(),
+      );
+    };
+
+
+    const clockTimer =
+      window.setInterval(
+        updateCurrentTime,
+        30_000,
+      );
+
+
+    window.addEventListener(
+      'focus',
+      updateCurrentTime,
+    );
+
+
+    return () => {
+      window.clearInterval(
+        clockTimer,
+      );
+
+      window.removeEventListener(
+        'focus',
+        updateCurrentTime,
+      );
+    };
+  }, []);
 
 
   /* =======================================================
@@ -973,9 +1176,6 @@ export function Workshop() {
 
   const upcomingWorkshops =
     useMemo(() => {
-      const todayString =
-        getTodayDateString();
-
 
       return [...workshops]
         .filter((item) => {
@@ -996,8 +1196,10 @@ export function Workshop() {
 
           return (
             item.date &&
-            item.date >= todayString &&
-            status !== 'selesai' &&
+            !isWorkshopFinished(
+              item,
+              currentTime,
+            ) &&
             status !== 'draft' &&
             visibility !== 'privat' &&
             visibility !== 'private'
@@ -1052,7 +1254,10 @@ export function Workshop() {
 
         .slice(0, 3);
 
-    }, [workshops]);
+    }, [
+      workshops,
+      currentTime,
+    ]);
 
 
   const nearestWorkshop =
