@@ -32,10 +32,6 @@ function projectImage(project) {
   return project.coverImageUrl || projectHeroImage;
 }
 
-<<<<<<< HEAD
-
-=======
->>>>>>> update-tutorial-progress
 function projectTimestamp(project) {
   return new Date(project.updatedAt || project.createdAt || 0).getTime() || 0;
 }
@@ -54,32 +50,6 @@ function toolLabel(tool) {
   return String(tool?.name || tool?.title || tool || "").trim();
 }
 
-<<<<<<< HEAD
-
-/* =========================================================
-   PROJECT LINK ARROW
-   Memperbaiki error:
-   ProjectLinkArrow is not defined
-========================================================= */
-
-function ProjectLinkArrow() {
-  return (
-    <span
-      className="project-link-arrow"
-      aria-hidden="true"
-    >
-      →
-    </span>
-  );
-}
-
-
-/* =========================================================
-   METRICS
-========================================================= */
-
-=======
->>>>>>> update-tutorial-progress
 function buildMetrics(projects) {
   const owners = new Set(projects.map((project) => project.ownerName).filter(Boolean));
   const tags = new Set(projects.flatMap((project) => project.tags || []));
@@ -156,355 +126,6 @@ function FeaturedProjects({ projects, loading }) {
           </a>
         </div>
         <div className="featured-projects__grid">
-<<<<<<< HEAD
-
-          {projects.length ? (
-            projects.map(
-              (project) => (
-                <article
-                  className="featured-card"
-                  key={project.id}
-                >
-
-                  <img
-                    src={projectImage(project)}
-                    alt=""
-                    className="featured-card__image"
-                  />
-
-
-                  <div className="featured-card__body">
-
-                    <h3>
-                      {project.title}
-                    </h3>
-
-                    <span className="featured-card__category">
-                      {project.category}
-                    </span>
-
-                    <p>
-                      {projectSummary(
-                        project.description
-                      )}
-                    </p>
-
-                    <a
-                      href={projectDetailHref(
-                        project
-                      )}
-                    >
-                      Lihat Detail Proyek
-                      {" "}
-                      <span aria-hidden="true">
-                        →
-                      </span>
-                    </a>
-
-                  </div>
-
-                </article>
-              )
-            )
-          ) : (
-            <EmptyProjects
-              loading={loading}
-              message="Belum ada proyek publish di database."
-            />
-          )}
-
-        </div>
-
-      </div>
-
-    </section>
-  );
-}
-
-
-/* =========================================================
-   PROJECT LIBRARY
-========================================================= */
-
-function ProjectLibrary({
-  projects,
-  loading,
-}) {
-
-  const [
-    activeFilter,
-    setActiveFilter,
-  ] = useState("Semua");
-
-
-  const projectFilters =
-    useMemo(() => {
-
-      const values =
-        projects.flatMap(
-          (project) => {
-
-            if (
-              Array.isArray(project.tags) &&
-              project.tags.length
-            ) {
-              return project.tags;
-            }
-
-            return project.category
-              ? [project.category]
-              : [];
-          }
-        );
-
-      return [
-        "Semua",
-        ...Array.from(
-          new Set(values)
-        ).slice(0, 7),
-      ];
-
-    }, [projects]);
-
-
-  const filteredProjects =
-    activeFilter === "Semua"
-      ? projects
-      : projects.filter(
-          (project) => {
-
-            const tags =
-              Array.isArray(project.tags)
-                ? project.tags
-                : [];
-
-            return (
-              tags.includes(
-                activeFilter
-              ) ||
-              project.category ===
-                activeFilter
-            );
-          }
-        );
-
-
-  return (
-    <section
-      className="project-library"
-      aria-labelledby="project-library-title"
-    >
-
-      <div className="project-library__inner">
-
-        <div className="project-library__title">
-
-          <p className="section-eyebrow">
-            EXPLORE
-          </p>
-
-          <h2 id="project-library-title">
-            Semua Proyek
-          </h2>
-
-        </div>
-
-
-        <div
-          className="project-library__filters"
-          aria-label="Filter proyek"
-        >
-
-          {projectFilters.map(
-            (filter) => (
-              <button
-                className={
-                  activeFilter === filter
-                    ? "filter-pill active"
-                    : "filter-pill"
-                }
-                type="button"
-                aria-pressed={
-                  activeFilter ===
-                  filter
-                }
-                key={filter}
-                onClick={() =>
-                  setActiveFilter(
-                    filter
-                  )
-                }
-              >
-                {filter}
-              </button>
-            )
-          )}
-
-        </div>
-
-
-        <div className="project-library__grid">
-
-          {filteredProjects.length ? (
-            filteredProjects.map(
-              (project) => (
-                <article
-                  className="project-card"
-                  key={project.id}
-                >
-
-                  <div className="project-card__media">
-
-                    <img
-                      src={projectImage(
-                        project
-                      )}
-                      alt=""
-                    />
-
-                  </div>
-
-
-                  <div className="project-card__body">
-
-                    <h3>
-                      {project.title}
-                    </h3>
-
-                    <span className="project-card__category">
-                      {project.category}
-                    </span>
-
-                    <p>
-                      {projectSummary(
-                        project.description
-                      )}
-                    </p>
-
-                    <a
-                      href={projectDetailHref(
-                        project
-                      )}
-                    >
-                      Lihat Detail Proyek
-                      {" "}
-                      <span aria-hidden="true">
-                        →
-                      </span>
-                    </a>
-
-                  </div>
-
-                </article>
-              )
-            )
-          ) : (
-            <EmptyProjects
-              loading={loading}
-              message="Belum ada proyek sesuai filter."
-            />
-          )}
-
-        </div>
-
-
-        <a
-          className="load-more"
-          href="/project/semua"
-        >
-          Muat Lebih Banyak
-        </a>
-
-      </div>
-
-    </section>
-  );
-}
-
-
-/* =========================================================
-   POPULAR PROJECTS
-========================================================= */
-
-function PopularProjects({
-  projects,
-}) {
-
-  const collections =
-    sortByMostViewed(projects)
-      .slice(0, 3)
-      .map(
-        (project) => ({
-          eyebrow:
-            "Proyek Paling Populer",
-
-          title:
-            project.title,
-
-          metadata:
-            `${formatNumber(project.viewer)} kali dilihat oleh user`,
-
-          href:
-            projectDetailHref(
-              project
-            ),
-        })
-      );
-
-
-  if (!collections.length) {
-    return null;
-  }
-
-
-  return (
-    <section
-      id="dokumentasi"
-      className="content-collections"
-      aria-label="Proyek paling populer"
-    >
-
-      <div className="content-collections__inner">
-
-        {collections.map(
-          (collection) => (
-
-            <article
-              className="collection-card"
-              key={
-                collection.title
-              }
-            >
-
-              <p>
-                {
-                  collection.eyebrow
-                }
-              </p>
-
-              <h3>
-                {
-                  collection.title
-                }
-              </h3>
-
-              <span>
-                {
-                  collection.metadata
-                }
-              </span>
-
-              <a
-                href={
-                  collection.href
-                }
-              >
-                Lihat Selengkapnya
-                {" "}
-                <ProjectLinkArrow />
-              </a>
-
-=======
           {projects.length ? projects.map((project) => (
             <article className="featured-card" key={project.id}>
               <img src={projectImage(project)} alt="" className="featured-card__image" />
@@ -516,7 +137,6 @@ function PopularProjects({
                   Lihat Detail Proyek <span aria-hidden="true">-&gt;</span>
                 </a>
               </div>
->>>>>>> update-tutorial-progress
             </article>
           )) : (
             <EmptyProjects loading={loading} message="Belum ada proyek publish di database." />
@@ -639,19 +259,7 @@ function FinalCta() {
           <h2 id="final-cta-title">SIAP MEMBUAT PROYEK IoT PERTAMAMU?</h2>
           <p>Mulai dari template, eksplorasi proyek komunitas, lalu bangun solusi versimu sendiri.</p>
         </div>
-<<<<<<< HEAD
-
-
-        <a
-          className="final-cta__button"
-          href="/ide"
-        >
-          Daftar IDE
-        </a>
-
-=======
         <a className="final-cta__button" href="/ide">Daftar IDE</a>
->>>>>>> update-tutorial-progress
       </div>
     </section>
   );
@@ -686,54 +294,14 @@ export function Project() {
 
   return (
     <>
-<<<<<<< HEAD
-
-      <ProjectHero
-        metrics={metrics}
-      />
-
-
-      <FeaturedProjects
-        projects={
-          featuredProjects
-        }
-        loading={
-          loading
-        }
-      />
-
-
-      <ProjectLibrary
-        projects={
-          latestProjects
-        }
-        loading={
-          loading
-        }
-      />
-
-
-      <PopularProjects
-        projects={
-          projects
-        }
-      />
-
-
-=======
       <ProjectHero metrics={metrics} />
       <FeaturedProjects projects={featuredProjects} loading={loading} />
       <ProjectLibrary projects={latestProjects} loading={loading} />
       <PopularProjects projects={projects} />
->>>>>>> update-tutorial-progress
       <ProjectFaq />
       <FinalCta />
     </>
   );
 }
 
-<<<<<<< HEAD
-
-=======
->>>>>>> update-tutorial-progress
 export default Project;
