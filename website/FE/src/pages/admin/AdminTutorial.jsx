@@ -214,6 +214,85 @@ function normalizeStatus(value) {
   return 'Draft';
 }
 
+
+function normalizeAccessType(value, price = 0) {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase();
+
+  if (
+    normalized.includes('premium') ||
+    normalized.includes('berbayar') ||
+    normalized === 'paid' ||
+    Number(price || 0) > 0
+  ) {
+    return 'Premium';
+  }
+
+  if (
+    normalized.includes('login') ||
+    normalized.includes('akun') ||
+    normalized === 'member'
+  ) {
+    return 'Perlu Login';
+  }
+
+  return 'Gratis';
+}
+
+function formatRupiah(value) {
+  const amount = Math.max(
+    0,
+    Number(value) || 0
+  );
+
+  return new Intl.NumberFormat(
+    'id-ID',
+    {
+      style: 'currency',
+      currency: 'IDR',
+      maximumFractionDigits: 0,
+    }
+  ).format(amount);
+}
+
+function TutorialAccessBadge({
+  accessType,
+  price = 0,
+}) {
+  const isPremium =
+    accessType === 'Premium';
+
+  const isLogin =
+    accessType === 'Perlu Login';
+
+  return (
+    <span
+      className={`admin-tutorial-access-badge${
+        isPremium
+          ? ' is-premium'
+          : isLogin
+            ? ' is-login'
+            : ' is-free'
+      }`}
+    >
+      <strong>
+        {isPremium
+          ? 'Premium'
+          : isLogin
+            ? 'Login'
+            : 'Gratis'}
+      </strong>
+
+      {isPremium && Number(price || 0) > 0 ? (
+        <small>
+          {formatRupiah(price)}
+        </small>
+      ) : null}
+    </span>
+  );
+}
+
 function htmlToPlainText(value = '') {
   return String(value || '')
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
@@ -302,6 +381,25 @@ function normalizeTutorial(item) {
     cardImageUrl,
     status,
     author: item.author || 'Admin',
+    price: Math.max(
+      0,
+      Number(
+        item.price ??
+        item.material_price ??
+        item.page_settings?.price ??
+        0
+      ) || 0
+    ),
+    accessType: normalizeAccessType(
+      item.access_type ??
+      item.accessType ??
+      item.page_settings?.access_type ??
+      '',
+      item.price ??
+      item.material_price ??
+      item.page_settings?.price ??
+      0
+    ),
     viewer: Number(item.viewer || 0),
     completed: Number(item.completed || 0),
     totalSlides: Number(item.total_slides || item.slides?.length || 0),
@@ -925,6 +1023,7 @@ export function AdminTutorial() {
                       <th>Judul Tutorial</th>
                       <th>Kategori</th>
                       <th>Level</th>
+                      <th>Akses</th>
                       <th>Status</th>
                       <th>Author</th>
                       <th>Viewer</th>
@@ -939,19 +1038,19 @@ export function AdminTutorial() {
                   <tbody>
                     {isLoading ? (
                       <tr>
-                        <td colSpan="11" style={{ textAlign: 'center', padding: 28 }}>
+                        <td colSpan="12" style={{ textAlign: 'center', padding: 28 }}>
                           Memuat data materi dari API deploy...
                         </td>
                       </tr>
                     ) : loadError ? (
                       <tr>
-                        <td colSpan="11" style={{ textAlign: 'center', padding: 28 }}>
+                        <td colSpan="12" style={{ textAlign: 'center', padding: 28 }}>
                           Gagal mengambil data SQLite. {loadError}
                         </td>
                       </tr>
                     ) : paginatedTutorials.length === 0 ? (
                       <tr>
-                        <td colSpan="11" style={{ textAlign: 'center', padding: 28 }}>
+                        <td colSpan="12" style={{ textAlign: 'center', padding: 28 }}>
                           Belum ada data materi yang cocok dengan filter.
                         </td>
                       </tr>
@@ -1001,6 +1100,12 @@ export function AdminTutorial() {
 
                             <td><TutorialBadge>{item.category}</TutorialBadge></td>
                             <td><TutorialBadge>{item.level}</TutorialBadge></td>
+                            <td>
+                              <TutorialAccessBadge
+                                accessType={item.accessType}
+                                price={item.price}
+                              />
+                            </td>
                             <td><TutorialBadge>{item.status}</TutorialBadge></td>
                             <td>{item.author}</td>
                             <td>{item.viewer}</td>
@@ -1204,6 +1309,49 @@ export function AdminTutorial() {
           ) : null}
 
           <style>{`
+            .admin-tutorial-access-badge {
+              display: inline-flex;
+              flex-direction: column;
+              align-items: flex-start;
+              justify-content: center;
+              min-width: 72px;
+              min-height: 30px;
+              gap: 2px;
+              padding: 5px 9px;
+              border: 1px solid transparent;
+              border-radius: 8px;
+              line-height: 1.1;
+              white-space: nowrap;
+            }
+
+            .admin-tutorial-access-badge strong {
+              font-size: 11px;
+              font-weight: 800;
+            }
+
+            .admin-tutorial-access-badge small {
+              font-size: 9px;
+              font-weight: 700;
+            }
+
+            .admin-tutorial-access-badge.is-free {
+              border-color: #bbf7d0;
+              background: #ecfdf3;
+              color: #15803d;
+            }
+
+            .admin-tutorial-access-badge.is-premium {
+              border-color: #fed7aa;
+              background: #fff7ed;
+              color: #ea580c;
+            }
+
+            .admin-tutorial-access-badge.is-login {
+              border-color: #bfdbfe;
+              background: #eff6ff;
+              color: #1d4ed8;
+            }
+
             .admin-tutorial-modal-backdrop {
               position: fixed;
               inset: 0;
@@ -1504,6 +1652,21 @@ export function AdminTutorial() {
 
                     <dt>Level</dt>
                     <dd>{selectedTutorial.level}</dd>
+
+                    <dt>Akses Materi</dt>
+                    <dd>
+                      <TutorialAccessBadge
+                        accessType={selectedTutorial.accessType}
+                        price={selectedTutorial.price}
+                      />
+                    </dd>
+
+                    <dt>Harga</dt>
+                    <dd>
+                      {selectedTutorial.accessType === 'Premium'
+                        ? formatRupiah(selectedTutorial.price)
+                        : 'Gratis'}
+                    </dd>
 
                     <dt>Author</dt>
                     <dd>{selectedTutorial.author}</dd>

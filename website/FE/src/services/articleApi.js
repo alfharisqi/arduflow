@@ -867,14 +867,24 @@ export async function deleteArticle(
   }
 
 
+  /*
+   * Gunakan POST action=delete agar lebih kompatibel
+   * dengan shared hosting / reverse proxy yang dapat
+   * memblokir method DELETE sebelum request sampai ke PHP.
+   */
+  const params =
+    new URLSearchParams({
+      action: 'delete',
+      id: String(id),
+    });
+
+
   const response =
     await fetch(
-      `${ARTICLE_API_URL}?id=${encodeURIComponent(
-        id
-      )}`,
+      `${ARTICLE_API_URL}?${params.toString()}`,
       {
         method:
-          'DELETE',
+          'POST',
 
         headers: {
           Accept:

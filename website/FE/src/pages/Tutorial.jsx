@@ -1,6 +1,12 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import tutorialDevice from '../assets/images/tutorial-device.png';
+import workshopPresentationSpeaker from '../assets/images/workshop-list-presentation-speaker.jpg';
 import { fetchPublishedArticles } from '../services/articleApi.js';
+import {
+  fetchWorkshops,
+  isPublicWorkshop,
+} from '../services/workshopApi.js';
+import '../styles/workshop-list.css';
 
 export function TutorialIcon({ type }) {
   if (type === 'code') {
@@ -134,10 +140,235 @@ function formatArticleDate(value) {
 }
 
 
+
+function parseWorkshopDate(value) {
+  if (!value) return null;
+
+  const raw = String(value).trim();
+  const dateOnly = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (dateOnly) {
+    const [, year, month, day] = dateOnly;
+    return new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+    );
+  }
+
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function startOfWorkshopDay(date) {
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+  );
+}
+
+function formatWorkshopDate(value) {
+  const date = parseWorkshopDate(value);
+
+  if (!date) return '-';
+
+  return new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
+function formatWorkshopTime(
+  startValue,
+  endValue,
+  timeText = '',
+) {
+  if (timeText) {
+    return timeText;
+  }
+
+  const start = parseWorkshopDate(startValue);
+  const end = parseWorkshopDate(endValue);
+
+  if (!start) {
+    return '-';
+  }
+
+  const formatter = new Intl.DateTimeFormat(
+    'id-ID',
+    {
+      hour: '2-digit',
+      minute: '2-digit',
+    },
+  );
+
+  if (!end) {
+    return formatter.format(start);
+  }
+
+  return `${formatter.format(start)} - ${formatter.format(end)}`;
+}
+
+function workshopImage(workshop) {
+  const candidates = [
+    workshop?.coverImageUrl,
+    workshop?.cover_image_url,
+    workshop?.coverUrl,
+    workshop?.cover_url,
+    workshop?.imageUrl,
+    workshop?.image_url,
+    workshop?.raw?.coverImageUrl,
+    workshop?.raw?.cover_image_url,
+  ];
+
+  const imageUrl = candidates.find(
+    (value) =>
+      typeof value === 'string' &&
+      value.trim(),
+  );
+
+  return (
+    imageUrl?.trim() ||
+    workshopPresentationSpeaker
+  );
+}
+
+function getTextDensityClass(value) {
+  const length = String(value || '')
+    .trim()
+    .length;
+
+  if (length > 72) {
+    return ' is-very-long';
+  }
+
+  if (length > 46) {
+    return ' is-long';
+  }
+
+  return '';
+}
+
+function workshopTarget(workshop) {
+  if (workshop?.id) {
+    return `/detail-workshop?id=${encodeURIComponent(workshop.id)}`;
+  }
+
+  if (workshop?.slug) {
+    return `/detail-workshop?slug=${encodeURIComponent(workshop.slug)}`;
+  }
+
+  return '/daftar-workshop';
+}
+
+
+function TutorialWorkshopCard({
+  item,
+  nearest = false,
+}) {
+  const detailUrl = workshopTarget(item);
+
+  return (
+    <article
+      className={`workshop-list-card${
+        nearest ? ' is-nearest' : ''
+      }`}
+    >
+      <div className="workshop-list-image-wrap">
+        <img
+          src={workshopImage(item)}
+          alt={`Gambar ${item.title}`}
+          loading="lazy"
+          onError={(event) => {
+            event.currentTarget.onerror = null;
+            event.currentTarget.src =
+              workshopPresentationSpeaker;
+          }}
+        />
+
+        {nearest ? (
+          <span className="workshop-list-nearest-badge">
+            TERDEKAT
+          </span>
+        ) : null}
+      </div>
+
+      <div className="workshop-list-card-body">
+        <div className="workshop-list-title-wrap">
+          <h2>{item.title}</h2>
+        </div>
+
+        <div
+          className="workshop-list-meta"
+          aria-label={`Detail ${item.title}`}
+        >
+          <div className="workshop-list-meta-item">
+            <strong>Tanggal</strong>
+
+            <span className="workshop-list-meta-value">
+              <span className="workshop-list-meta-text">
+                {formatWorkshopDate(
+                  item.startsAt,
+                )}
+              </span>
+            </span>
+          </div>
+
+          <div className="workshop-list-meta-item">
+            <strong>Waktu</strong>
+
+            <span className="workshop-list-meta-value">
+              <span className="workshop-list-meta-text">
+                {formatWorkshopTime(
+                  item.startsAt,
+                  item.endsAt,
+                  item.timeText,
+                )}
+              </span>
+            </span>
+          </div>
+
+          <div className="workshop-list-meta-item">
+            <strong>Lokasi</strong>
+
+            <span
+              className="workshop-list-meta-value"
+              aria-label={`Lokasi: ${
+                item.location || '-'
+              }`}
+            >
+              <span
+                className={`workshop-list-meta-text workshop-list-meta-location${getTextDensityClass(
+                  item.location,
+                )}`}
+              >
+                {item.location || '-'}
+              </span>
+            </span>
+          </div>
+        </div>
+
+        <a
+          className="workshop-detail-button"
+          href={detailUrl}
+        >
+          Lihat Detail
+        </a>
+      </div>
+    </article>
+  );
+}
+
 export function Tutorial() {
   const [articles, setArticles] = useState([]);
   const [articleStatus, setArticleStatus] = useState('loading');
   const [articleError, setArticleError] = useState('');
+
+  const [workshops, setWorkshops] = useState([]);
+  const [workshopStatus, setWorkshopStatus] = useState('loading');
+  const [workshopError, setWorkshopError] = useState('');
 
   // Pastikan URL /tutorial/#artikel-terbaru langsung menuju
   // section Artikel Terbaru tanpa animasi/delay scroll.
@@ -205,6 +436,66 @@ export function Tutorial() {
       isMounted = false;
     };
   }, []);
+
+
+  useEffect(() => {
+    let isMounted = true;
+
+    setWorkshopStatus('loading');
+    setWorkshopError('');
+
+    fetchWorkshops()
+      .then((items) => {
+        if (!isMounted) return;
+
+        setWorkshops(
+          Array.isArray(items)
+            ? items.filter(isPublicWorkshop)
+            : [],
+        );
+
+        setWorkshopStatus('ready');
+      })
+      .catch((fetchError) => {
+        if (!isMounted) return;
+
+        setWorkshops([]);
+        setWorkshopStatus('error');
+        setWorkshopError(
+          fetchError instanceof Error
+            ? fetchError.message
+            : 'Workshop tidak dapat dimuat.',
+        );
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const upcomingWorkshops = useMemo(() => {
+    const today = startOfWorkshopDay(new Date());
+
+    return [...workshops]
+      .filter((item) => {
+        const date = parseWorkshopDate(item.startsAt);
+
+        if (!date) return false;
+
+        return startOfWorkshopDay(date) >= today;
+      })
+      .sort((a, b) => {
+        const dateA = parseWorkshopDate(a.startsAt);
+        const dateB = parseWorkshopDate(b.startsAt);
+
+        if (!dateA && !dateB) return 0;
+        if (!dateA) return 1;
+        if (!dateB) return -1;
+
+        return dateA.getTime() - dateB.getTime();
+      })
+      .slice(0, 3);
+  }, [workshops]);
 
   const latestArticles = useMemo(
     () => articles.slice(0, 3),
@@ -450,6 +741,66 @@ export function Tutorial() {
               })}
             </div>
           )}
+        </div>
+      </section>
+
+      <section
+        className="workshop-upcoming-section"
+        id="workshop-terdekat"
+        aria-labelledby="workshop-upcoming-title"
+      >
+        <div className="workshop-list-shell">
+          <div className="workshop-upcoming-heading">
+          <p className="workshop-upcoming-eyebrow">
+            WORKSHOP TERDEKAT
+          </p>
+
+          <h2 id="workshop-upcoming-title">
+            Workshop Terbaru yang Akan Datang
+          </h2>
+        </div>
+
+        {workshopStatus === 'loading' ? (
+          <p className="workshop-empty-state">
+            Memuat workshop terdekat...
+          </p>
+        ) : workshopStatus === 'error' ? (
+          <p className="workshop-empty-state">
+            {workshopError}
+          </p>
+        ) : upcomingWorkshops.length > 0 ? (
+          <div
+            className="workshop-card-grid workshop-upcoming-grid"
+            aria-label="Tiga workshop terdekat"
+          >
+            {upcomingWorkshops.map(
+              (item, index) => (
+                <TutorialWorkshopCard
+                  item={item}
+                  key={
+                    item.id ??
+                    item.slug ??
+                    `${item.title}-${item.startsAt}`
+                  }
+                  nearest={index === 0}
+                />
+              ),
+            )}
+          </div>
+        ) : (
+          <p className="workshop-empty-state">
+            Belum ada workshop mendatang yang tersedia.
+          </p>
+        )}
+
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              marginTop: '28px',
+            }}
+          >
+          </div>
         </div>
       </section>
     </>
