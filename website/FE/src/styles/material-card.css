@@ -1,0 +1,220 @@
+/* =========================================================
+   MATERIAL CARD - STATUS GRATIS & HARGA PREMIUM
+   File: website/FE/src/styles/material-card.css
+========================================================= */
+
+.materials-card__access {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 54px;
+  margin-top: 20px;
+}
+
+/* =========================================================
+   PREMIUM PRICE BUTTON
+========================================================= */
+
+.materials-card__price-button {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  width: 100%;
+  min-height: 54px;
+
+  padding: 10px 16px;
+
+  overflow: hidden;
+
+  border: 1px solid rgba(0, 162, 255, 0.8);
+  border-radius: 12px;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(0, 162, 255, 0.15),
+      rgba(0, 162, 255, 0.05)
+    );
+
+  color: #ffffff;
+
+  text-decoration: none;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 8px 22px rgba(0, 162, 255, 0.08);
+
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease;
+}
+
+/* efek cahaya */
+.materials-card__price-button::before {
+  position: absolute;
+  top: 0;
+  left: -100%;
+
+  width: 70%;
+  height: 100%;
+
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.08),
+    transparent
+  );
+
+  content: "";
+
+  transition: left 350ms ease;
+}
+
+.materials-card__price-button:hover {
+  transform: translateY(-2px);
+
+  border-color: #30b5ff;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(0, 162, 255, 0.23),
+      rgba(0, 162, 255, 0.09)
+    );
+
+  box-shadow:
+    0 12px 28px rgba(0, 162, 255, 0.18);
+}
+
+.materials-card__price-button:hover::before {
+  left: 130%;
+}
+
+.materials-card__price-button:focus-visible {
+  outline: 2px solid #7fd3ff;
+  outline-offset: 3px;
+}
+
+/* =========================================================
+   LABEL PREMIUM
+========================================================= */
+
+.materials-card__price-label {
+  position: relative;
+  z-index: 1;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 28px;
+
+  padding: 6px 11px;
+
+  border-radius: 999px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #ff7a00,
+      #ff5a00
+    );
+
+  color: #ffffff;
+
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+
+  letter-spacing: 0.03em;
+
+  text-transform: uppercase;
+
+  box-shadow:
+    0 4px 12px rgba(255, 106, 0, 0.22);
+}
+
+/* =========================================================
+   PRICE
+========================================================= */
+
+.materials-card__price-button strong {
+  position: relative;
+  z-index: 1;
+
+  margin-left: auto;
+
+  color: #ffffff;
+
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1;
+
+  letter-spacing: 0.01em;
+}
+
+/* =========================================================
+   FREE MATERIAL LABEL
+========================================================= */
+
+.materials-card__free-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: auto;
+  min-width: 74px;
+  min-height: 36px;
+
+  padding: 7px 14px;
+
+  border: 1px solid rgba(46, 204, 113, 0.42);
+  border-radius: 999px;
+
+  background: rgba(46, 204, 113, 0.09);
+
+  color: #79e7a8;
+
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+
+  letter-spacing: 0.02em;
+}
+
+/* =========================================================
+   LINK DI BAWAH PRICE
+========================================================= */
+
+.materials-card__access
+  + .materials-card__link {
+  margin-top: 18px;
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 640px) {
+  .materials-card__price-button {
+    width: 100%;
+    min-height: 52px;
+
+    padding: 9px 13px;
+  }
+
+  .materials-card__price-button strong {
+    font-size: 18px;
+  }
+
+  .materials-card__price-label {
+    padding: 5px 9px;
+
+    font-size: 10px;
+  }
+}

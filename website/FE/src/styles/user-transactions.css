@@ -127,13 +127,20 @@
 }
 
 .user-payment-actions button {
+  box-sizing: border-box;
+  flex: 1 1 220px;
+  min-width: 0;
   min-height: 38px;
-  padding: 0 14px;
+  padding: 9px 16px;
   border: 1px solid #2563eb;
   border-radius: 8px;
   background: #ffffff;
   color: #2563eb;
   font-weight: 800;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  text-align: center;
+  white-space: normal;
   cursor: pointer;
 }
 
@@ -182,6 +189,20 @@
   font-size: 13px;
   line-height: 1.4;
   text-align: center;
+}
+
+.user-payment-qris--card {
+  width: min(100%, 360px);
+  margin: 0 0 18px;
+}
+
+.user-payment-qris--card img {
+  max-height: 320px;
+}
+
+.user-payment-qris--modal {
+  width: min(100%, 320px);
+  margin-top: 18px;
 }
 
 .user-transactions-panel {

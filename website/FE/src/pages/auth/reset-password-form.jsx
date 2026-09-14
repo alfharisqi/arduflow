@@ -44,9 +44,9 @@ export function ResetPasswordForm() {
       <AuthImageSlider />
 
       <section className="reset-password-panel" aria-labelledby="reset-password-form-title">
-        <a className="auth-back-button" href="/">← Kembali</a>
-
         <form className="reset-password-form-box" onSubmit={handleSubmit}>
+          <a className="auth-back-button" href="/">← Kembali</a>
+
           <h2 id="reset-password-form-title">Reset password anda</h2>
 
           <div className="reset-password-form-fields">

@@ -1356,6 +1356,38 @@ function normalizeProjectRatings(
                     ?? ''
                 ),
 
+            'ownerReply' =>
+                trim(
+                    (string) (
+                        $item['ownerReply']
+                        ?? $item['owner_reply']
+                        ?? ''
+                    )
+                ),
+
+            'ownerReplyBy' =>
+                trim(
+                    (string) (
+                        $item['ownerReplyBy']
+                        ?? $item['owner_reply_by']
+                        ?? ''
+                    )
+                ),
+
+            'ownerReplyAt' =>
+                (string) (
+                    $item['ownerReplyAt']
+                    ?? $item['owner_reply_at']
+                    ?? ''
+                ),
+
+            'ownerReplyUpdatedAt' =>
+                (string) (
+                    $item['ownerReplyUpdatedAt']
+                    ?? $item['owner_reply_updated_at']
+                    ?? ''
+                ),
+
             'createdAt' =>
                 (string) (
                     $item['createdAt']
@@ -1495,6 +1527,203 @@ function summarizeProjectRatings(
         'ratingItems' =>
             $ratings,
     ];
+}
+
+function isProjectOwnedByViewer(array $payload): bool
+{
+    $viewer =
+        getViewerIdentityFromQuery();
+
+    $viewerUserId =
+        $viewer['userId']
+        ?? null;
+
+    $viewerEmail =
+        strtolower(
+            trim(
+                (string) (
+                    $viewer['email']
+                    ?? ''
+                )
+            )
+        );
+
+    $ownerIds = array_filter(
+        [
+            $payload['userId'] ?? null,
+            $payload['user_id'] ?? null,
+            $payload['ownerId'] ?? null,
+            $payload['owner_id'] ?? null,
+        ],
+        static fn($value): bool =>
+            $value !== null
+            && $value !== ''
+    );
+
+    if (
+        $viewerUserId !== null
+        && $viewerUserId !== ''
+    ) {
+        foreach ($ownerIds as $ownerId) {
+            if ((string) (int) $ownerId === (string) (int) $viewerUserId) {
+                return true;
+            }
+        }
+    }
+
+    $ownerEmails = array_filter(
+        array_map(
+            static fn($value): string =>
+                strtolower(trim((string) $value)),
+            [
+                $payload['ownerEmail'] ?? null,
+                $payload['owner_email'] ?? null,
+                $payload['userEmail'] ?? null,
+                $payload['user_email'] ?? null,
+                $payload['email'] ?? null,
+            ]
+        )
+    );
+
+    return $viewerEmail !== ''
+        && in_array(
+            $viewerEmail,
+            $ownerEmails,
+            true
+        );
+}
+
+function updateProjectRatingReply(
+    PDO $pdo,
+    array $row,
+    array $replyData
+): array {
+    $payload =
+        getProjectPayload($row);
+
+    if (!isProjectOwnedByViewer($payload)) {
+        throw new InvalidArgumentException(
+            'Hanya pemilik proyek yang dapat membalas review.'
+        );
+    }
+
+    $identity = trim(
+        (string) (
+            $replyData['identity']
+            ?? $replyData['reviewIdentity']
+            ?? $replyData['review_identity']
+            ?? ''
+        )
+    );
+
+    if ($identity === '') {
+        throw new InvalidArgumentException(
+            'Review yang ingin dibalas tidak valid.'
+        );
+    }
+
+    $message = trim(
+        (string) (
+            $replyData['message']
+            ?? $replyData['reply']
+            ?? $replyData['ownerReply']
+            ?? ''
+        )
+    );
+
+    $messageLength =
+        function_exists('mb_strlen')
+            ? mb_strlen($message)
+            : strlen($message);
+
+    if ($messageLength > 1000) {
+        throw new InvalidArgumentException(
+            'Balasan maksimal 1000 karakter.'
+        );
+    }
+
+    $ratings =
+        normalizeProjectRatings(
+            $payload
+        );
+
+    $now =
+        jakartaNow();
+
+    $found = false;
+
+    foreach ($ratings as &$rating) {
+        if (($rating['identity'] ?? '') !== $identity) {
+            continue;
+        }
+
+        $rating['ownerReply'] =
+            $message;
+
+        $rating['ownerReplyBy'] =
+            trim(
+                (string) (
+                    $replyData['ownerName']
+                    ?? $replyData['owner_name']
+                    ?? $replyData['authorName']
+                    ?? $payload['ownerName']
+                    ?? 'Owner Proyek'
+                )
+            );
+
+        if ($message === '') {
+            $rating['ownerReplyAt'] = '';
+            $rating['ownerReplyUpdatedAt'] = '';
+        } else {
+            $rating['ownerReplyAt'] =
+                $rating['ownerReplyAt']
+                ?: $now;
+
+            $rating['ownerReplyUpdatedAt'] =
+                $now;
+        }
+
+        $found = true;
+        break;
+    }
+
+    unset($rating);
+
+    if (!$found) {
+        throw new InvalidArgumentException(
+            'Review tidak ditemukan.'
+        );
+    }
+
+    $summary =
+        summarizeProjectRatings(
+            [
+                'ratingItems' =>
+                    $ratings,
+            ]
+        );
+
+    $payload['ratingItems'] =
+        $ratings;
+
+    $saved =
+        saveProjectPayload(
+            $pdo,
+            (int) $row['id'],
+            $payload,
+            $now
+        );
+
+    $row['payload_json'] =
+        $saved['json'];
+
+    $row['updated_at'] =
+        $saved['updatedAt'];
+
+    $summary['row'] =
+        $row;
+
+    return $summary;
 }
 
 function updateProjectRating(
@@ -2961,6 +3190,74 @@ try {
                                 'ratingCount'
                             ],
 
+                        'project' =>
+                            rowToProject($pdo,
+                                $updatedRow,
+                                getProjectViewerAccess(
+                                    $pdo,
+                                    $projectId
+                                )
+                            ),
+                    ],
+                ]
+            );
+        }
+
+        if (
+            (
+                $_GET['action']
+                ?? ''
+            ) === 'rating-reply'
+        ) {
+            if ($projectId === null) {
+                sendJson(
+                    422,
+                    [
+                        'success' => false,
+
+                        'message' =>
+                            'ID proyek wajib diisi.',
+                    ]
+                );
+            }
+
+            $row =
+                findProject(
+                    $pdo,
+                    $projectId
+                );
+
+            if ($row === null) {
+                sendJson(
+                    404,
+                    [
+                        'success' => false,
+
+                        'message' =>
+                            'Proyek tidak ditemukan.',
+                    ]
+                );
+            }
+
+            $result =
+                updateProjectRatingReply(
+                    $pdo,
+                    $row,
+                    readJsonBody()
+                );
+
+            $updatedRow =
+                $result['row'];
+
+            sendJson(
+                200,
+                [
+                    'success' => true,
+
+                    'message' =>
+                        'Balasan review berhasil disimpan.',
+
+                    'data' => [
                         'project' =>
                             rowToProject($pdo,
                                 $updatedRow,

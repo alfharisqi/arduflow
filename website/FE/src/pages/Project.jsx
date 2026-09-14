@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import projectHeroImage from "../assets/images/landing-hero-materi.png";
+
 import {
   fetchProjectSubmissions,
   isPublicProject,
@@ -23,7 +24,8 @@ const projectFaqs = [
       "Setiap proyek dapat berisi judul, kategori, deskripsi, komponen yang digunakan, gambaran cara kerja, serta informasi lain yang membantu pengguna memahami bagaimana proyek tersebut dibuat.",
   },
   {
-    question: "Apakah saya bisa membuat versi sendiri dari proyek yang tersedia?",
+    question:
+      "Apakah saya bisa membuat versi sendiri dari proyek yang tersedia?",
     answer:
       "Bisa. Proyek di halaman ArduFlow dapat digunakan sebagai referensi untuk memahami konsep dan alur kerja. Anda dapat membuat versi sendiri dengan mengganti komponen, konfigurasi pin, nilai parameter, maupun alur node sesuai kebutuhan.",
   },
@@ -38,12 +40,14 @@ const projectFaqs = [
       "Ya. Banyak proyek dapat digunakan sebagai contoh pembelajaran bertahap. Pemula dapat mulai dari proyek sederhana seperti LED, buzzer, sensor suhu, atau otomatisasi dasar sebelum melanjutkan ke proyek IoT yang lebih kompleks.",
   },
   {
-    question: "Apakah proyek dapat digunakan untuk tugas sekolah atau kuliah?",
+    question:
+      "Apakah proyek dapat digunakan untuk tugas sekolah atau kuliah?",
     answer:
       "Bisa. Proyek dapat digunakan sebagai referensi pembelajaran, praktikum, eksperimen, maupun pengembangan tugas sekolah dan kuliah. Anda tetap disarankan mengembangkan proyek sesuai kebutuhan tugas dan ketentuan dari pengajar.",
   },
   {
-    question: "Bagaimana jika komponen yang saya gunakan berbeda dengan contoh proyek?",
+    question:
+      "Bagaimana jika komponen yang saya gunakan berbeda dengan contoh proyek?",
     answer:
       "Anda tetap dapat menggunakan proyek sebagai referensi. Sesuaikan jenis komponen, nomor pin, nilai sensor, board, dan konfigurasi node dengan perangkat yang Anda miliki. Prinsip alur kerjanya dapat tetap digunakan selama fungsi komponennya sesuai.",
   },
@@ -53,12 +57,14 @@ const projectFaqs = [
       "Bagian Proyek Pilihan menampilkan sebagian proyek publik yang tersedia agar pengguna dapat menemukan contoh proyek dengan lebih cepat sebelum menjelajahi seluruh koleksi proyek ArduFlow.",
   },
   {
-    question: "Apakah saya dapat mengembangkan proyek menjadi lebih kompleks?",
+    question:
+      "Apakah saya dapat mengembangkan proyek menjadi lebih kompleks?",
     answer:
       "Tentu. Anda dapat menambahkan sensor, aktuator, logika kondisi, timer, koneksi internet, monitoring, maupun fitur otomatisasi lainnya. Proyek sederhana dapat dijadikan fondasi untuk membangun sistem IoT yang lebih lengkap.",
   },
   {
-    question: "Saya masih bingung memilih proyek untuk mulai belajar. Harus mulai dari mana?",
+    question:
+      "Saya masih bingung memilih proyek untuk mulai belajar. Harus mulai dari mana?",
     answer:
       "Mulailah dari proyek dengan sedikit komponen dan alur sederhana. Setelah memahami input, proses, dan output, lanjutkan ke proyek yang menggunakan beberapa sensor, kondisi logika, otomatisasi, dan komunikasi IoT.",
   },
@@ -70,12 +76,16 @@ const projectFaqs = [
 ========================================================= */
 
 function formatNumber(value) {
-  return new Intl.NumberFormat("id-ID").format(Number(value) || 0);
+  return new Intl.NumberFormat("id-ID").format(
+    Number(value) || 0
+  );
 }
 
 
 function projectDetailHref(project) {
-  return `/project/detail?id=${encodeURIComponent(project.id)}`;
+  return `/project/detail?id=${encodeURIComponent(
+    project.id
+  )}`;
 }
 
 
@@ -84,7 +94,11 @@ function stripHtml(value) {
 
   wrapper.innerHTML = String(value || "");
 
-  return wrapper.textContent || wrapper.innerText || "";
+  return (
+    wrapper.textContent ||
+    wrapper.innerText ||
+    ""
+  );
 }
 
 
@@ -96,32 +110,141 @@ function projectSummary(value) {
 
 
 function projectImage(project) {
-  return project.coverImageUrl || projectHeroImage;
+  return (
+    project.coverImageUrl ||
+    projectHeroImage
+  );
 }
 
 
 function projectTimestamp(project) {
-  return new Date(
-    project.updatedAt ||
-    project.createdAt ||
-    0
-  ).getTime() || 0;
+  return (
+    new Date(
+      project.updatedAt ||
+        project.createdAt ||
+        0
+    ).getTime() || 0
+  );
 }
 
 
-function sortByMostViewed(projects) {
+/* =========================================================
+   POPULARITY HELPERS
+========================================================= */
+
+function getProjectCommentCount(project) {
+  const directComments = Number(
+    project?.comments
+  );
+
+  /*
+   * Jika backend sudah mengirim jumlah komentar,
+   * langsung gunakan jumlah tersebut.
+   */
+  if (
+    Number.isFinite(directComments) &&
+    directComments > 0
+  ) {
+    return directComments;
+  }
+
+
+  /*
+   * Jika comments tidak tersedia,
+   * hitung dari ratingItems / review.
+   */
+  const reviews = Array.isArray(
+    project?.ratingItems
+  )
+    ? project.ratingItems
+    : [];
+
+
+  return reviews.filter((review) => {
+    const comment = String(
+      review?.message ||
+        review?.comment ||
+        ""
+    ).trim();
+
+    return Boolean(comment);
+  }).length;
+}
+
+
+function getProjectPopularityScore(project) {
+  const viewers =
+    Number(project?.viewer) || 0;
+
+  const likes =
+    Number(project?.likes) || 0;
+
+  const comments =
+    getProjectCommentCount(project);
+
+
+  /*
+   * =====================================================
+   * BOBOT POPULARITAS SAMA
+   * =====================================================
+   *
+   * 1 view     = 1 poin
+   * 1 like     = 1 poin
+   * 1 komentar = 1 poin
+   *
+   * SCORE = VIEW + LIKE + KOMENTAR
+   */
+  return (
+    viewers +
+    likes +
+    comments
+  );
+}
+
+
+function sortByPopularity(projects) {
   return [...projects].sort(
     (first, second) => {
-      const viewDifference =
-        (Number(second.viewer) || 0) -
-        (Number(first.viewer) || 0);
+      const scoreDifference =
+        getProjectPopularityScore(second) -
+        getProjectPopularityScore(first);
 
-      if (viewDifference !== 0) {
-        return viewDifference;
+
+      /*
+       * Proyek dengan total interaksi
+       * paling banyak berada di atas.
+       */
+      if (scoreDifference !== 0) {
+        return scoreDifference;
       }
 
-      return projectTimestamp(second) -
-        projectTimestamp(first);
+
+      /*
+       * Jika total skor sama,
+       * lihat like + komentar.
+       */
+      const interactionDifference =
+        (Number(second?.likes) || 0) +
+        getProjectCommentCount(second) -
+        (
+          (Number(first?.likes) || 0) +
+          getProjectCommentCount(first)
+        );
+
+
+      if (interactionDifference !== 0) {
+        return interactionDifference;
+      }
+
+
+      /*
+       * Jika masih sama,
+       * proyek terbaru berada di atas.
+       */
+      return (
+        projectTimestamp(second) -
+        projectTimestamp(first)
+      );
     }
   );
 }
@@ -130,17 +253,15 @@ function sortByMostViewed(projects) {
 function toolLabel(tool) {
   return String(
     tool?.name ||
-    tool?.title ||
-    tool ||
-    ""
+      tool?.title ||
+      tool ||
+      ""
   ).trim();
 }
 
 
 /* =========================================================
    PROJECT LINK ARROW
-   Memperbaiki error:
-   ProjectLinkArrow is not defined
 ========================================================= */
 
 function ProjectLinkArrow() {
@@ -162,40 +283,60 @@ function ProjectLinkArrow() {
 function buildMetrics(projects) {
   const owners = new Set(
     projects
-      .map((project) => project.ownerName)
-      .filter(Boolean)
-  );
-
-  const tags = new Set(
-    projects.flatMap(
-      (project) => project.tags || []
-    )
-  );
-
-  const tools = new Set(
-    projects
-      .flatMap(
+      .map(
         (project) =>
-          (project.tools || []).map(toolLabel)
+          project.ownerName
       )
       .filter(Boolean)
   );
 
+
+  const tags = new Set(
+    projects.flatMap(
+      (project) =>
+        Array.isArray(project.tags)
+          ? project.tags
+          : []
+    )
+  );
+
+
+  const tools = new Set(
+    projects
+      .flatMap((project) =>
+        Array.isArray(project.tools)
+          ? project.tools.map(
+              toolLabel
+            )
+          : []
+      )
+      .filter(Boolean)
+  );
+
+
   return [
     {
-      value: formatNumber(projects.length),
+      value: formatNumber(
+        projects.length
+      ),
       label: "Proyek",
     },
     {
-      value: formatNumber(tags.size),
+      value: formatNumber(
+        tags.size
+      ),
       label: "Kategori",
     },
     {
-      value: formatNumber(tools.size),
+      value: formatNumber(
+        tools.size
+      ),
       label: "Komponen",
     },
     {
-      value: formatNumber(owners.size),
+      value: formatNumber(
+        owners.size
+      ),
       label: "Pengguna",
     },
   ];
@@ -234,11 +375,14 @@ function ProjectHero({
     >
       <div className="project-hero__inner">
 
+        {/* CONTENT */}
+
         <div className="project-hero__content">
 
           <p className="project-hero__eyebrow">
             PROYEK &amp; GALERI
           </p>
+
 
           <h1
             id="project-title"
@@ -253,13 +397,15 @@ function ProjectHero({
             </strong>
           </h1>
 
+
           <p className="project-hero__description">
             Lihat contoh proyek, karya pengguna,
             dokumentasi kegiatan, dan kolaborasi
-            yang menunjukkan bagaimana Arduflow
+            yang menunjukkan bagaimana ArduFlow
             digunakan untuk belajar dan membangun
             solusi IoT nyata.
           </p>
+
 
           <div className="project-hero__actions">
 
@@ -269,6 +415,7 @@ function ProjectHero({
             >
               Lihat Proyek
             </a>
+
 
             <a
               className="button button--secondary"
@@ -281,6 +428,8 @@ function ProjectHero({
 
         </div>
 
+
+        {/* HERO IMAGE */}
 
         <div
           className="project-hero__visual"
@@ -295,6 +444,8 @@ function ProjectHero({
         </div>
 
 
+        {/* METRICS */}
+
         <div
           className="key-metrics"
           aria-label="Ringkasan metrik proyek"
@@ -304,12 +455,14 @@ function ProjectHero({
 
             {metrics.map(
               (metric, index) => (
+
                 <div
                   className="metric-group"
                   key={metric.label}
                 >
 
                   <div className="metric">
+
                     <strong>
                       {metric.value}
                     </strong>
@@ -317,17 +470,23 @@ function ProjectHero({
                     <span>
                       {metric.label}
                     </span>
+
                   </div>
 
+
                   {index <
-                    metrics.length - 1 && (
+                    metrics.length -
+                      1 && (
+
                     <span
                       className="metric-divider"
                       aria-hidden="true"
                     />
+
                   )}
 
                 </div>
+
               )
             )}
 
@@ -358,6 +517,8 @@ function FeaturedProjects({
 
       <div className="featured-projects__inner">
 
+        {/* HEADER */}
+
         <div className="featured-projects__header">
 
           <div>
@@ -377,27 +538,35 @@ function FeaturedProjects({
             className="featured-projects__all"
             href="/project/semua"
           >
-            Lihat semua Proyek
-            {" "}
+            Lihat semua Proyek{" "}
             <ProjectLinkArrow />
           </a>
 
         </div>
 
 
+        {/* PROJECT GRID */}
+
         <div className="featured-projects__grid">
 
           {projects.length ? (
+
             projects.map(
               (project) => (
+
                 <article
                   className="featured-card"
                   key={project.id}
                 >
 
                   <img
-                    src={projectImage(project)}
-                    alt=""
+                    src={projectImage(
+                      project
+                    )}
+                    alt={
+                      project.title ||
+                      "Proyek ArduFlow"
+                    }
                     className="featured-card__image"
                   />
 
@@ -408,9 +577,17 @@ function FeaturedProjects({
                       {project.title}
                     </h3>
 
-                    <span className="featured-card__category">
-                      {project.category}
-                    </span>
+
+                    {project.category && (
+
+                      <span className="featured-card__category">
+                        {
+                          project.category
+                        }
+                      </span>
+
+                    )}
+
 
                     <p>
                       {projectSummary(
@@ -418,28 +595,36 @@ function FeaturedProjects({
                       )}
                     </p>
 
+
                     <a
                       href={projectDetailHref(
                         project
                       )}
                     >
-                      Lihat Detail Proyek
-                      {" "}
-                      <span aria-hidden="true">
+                      Lihat Detail Proyek{" "}
+
+                      <span
+                        aria-hidden="true"
+                      >
                         →
                       </span>
+
                     </a>
 
                   </div>
 
                 </article>
+
               )
             )
+
           ) : (
+
             <EmptyProjects
               loading={loading}
               message="Belum ada proyek publish di database."
             />
+
           )}
 
         </div>
@@ -466,6 +651,8 @@ function ProjectLibrary({
   ] = useState("Semua");
 
 
+  /* FILTER LIST */
+
   const projectFilters =
     useMemo(() => {
 
@@ -474,17 +661,24 @@ function ProjectLibrary({
           (project) => {
 
             if (
-              Array.isArray(project.tags) &&
+              Array.isArray(
+                project.tags
+              ) &&
               project.tags.length
             ) {
               return project.tags;
             }
 
+
             return project.category
-              ? [project.category]
+              ? [
+                  project.category,
+                ]
               : [];
+
           }
         );
+
 
       return [
         "Semua",
@@ -496,35 +690,57 @@ function ProjectLibrary({
     }, [projects]);
 
 
+  /* FILTERED PROJECTS */
+
   const filteredProjects =
-    activeFilter === "Semua"
-      ? projects
-      : projects.filter(
-          (project) => {
+    useMemo(() => {
 
-            const tags =
-              Array.isArray(project.tags)
-                ? project.tags
-                : [];
+      if (
+        activeFilter ===
+        "Semua"
+      ) {
+        return projects;
+      }
 
-            return (
-              tags.includes(
-                activeFilter
-              ) ||
-              project.category ===
-                activeFilter
-            );
-          }
-        );
+
+      return projects.filter(
+        (project) => {
+
+          const tags =
+            Array.isArray(
+              project.tags
+            )
+              ? project.tags
+              : [];
+
+
+          return (
+            tags.includes(
+              activeFilter
+            ) ||
+            project.category ===
+              activeFilter
+          );
+
+        }
+      );
+
+    }, [
+      projects,
+      activeFilter,
+    ]);
 
 
   return (
+
     <section
       className="project-library"
       aria-labelledby="project-library-title"
     >
 
       <div className="project-library__inner">
+
+        {/* TITLE */}
 
         <div className="project-library__title">
 
@@ -539,6 +755,8 @@ function ProjectLibrary({
         </div>
 
 
+        {/* FILTER */}
+
         <div
           className="project-library__filters"
           aria-label="Filter proyek"
@@ -546,9 +764,11 @@ function ProjectLibrary({
 
           {projectFilters.map(
             (filter) => (
+
               <button
                 className={
-                  activeFilter === filter
+                  activeFilter ===
+                  filter
                     ? "filter-pill active"
                     : "filter-pill"
                 }
@@ -566,17 +786,22 @@ function ProjectLibrary({
               >
                 {filter}
               </button>
+
             )
           )}
 
         </div>
 
 
+        {/* PROJECT GRID */}
+
         <div className="project-library__grid">
 
           {filteredProjects.length ? (
+
             filteredProjects.map(
               (project) => (
+
                 <article
                   className="project-card"
                   key={project.id}
@@ -588,7 +813,10 @@ function ProjectLibrary({
                       src={projectImage(
                         project
                       )}
-                      alt=""
+                      alt={
+                        project.title ||
+                        "Proyek ArduFlow"
+                      }
                     />
 
                   </div>
@@ -600,9 +828,17 @@ function ProjectLibrary({
                       {project.title}
                     </h3>
 
-                    <span className="project-card__category">
-                      {project.category}
-                    </span>
+
+                    {project.category && (
+
+                      <span className="project-card__category">
+                        {
+                          project.category
+                        }
+                      </span>
+
+                    )}
+
 
                     <p>
                       {projectSummary(
@@ -610,32 +846,42 @@ function ProjectLibrary({
                       )}
                     </p>
 
+
                     <a
                       href={projectDetailHref(
                         project
                       )}
                     >
-                      Lihat Detail Proyek
-                      {" "}
-                      <span aria-hidden="true">
+                      Lihat Detail Proyek{" "}
+
+                      <span
+                        aria-hidden="true"
+                      >
                         →
                       </span>
+
                     </a>
 
                   </div>
 
                 </article>
+
               )
             )
+
           ) : (
+
             <EmptyProjects
               loading={loading}
               message="Belum ada proyek sesuai filter."
             />
+
           )}
 
         </div>
 
+
+        {/* LOAD MORE */}
 
         <a
           className="load-more"
@@ -660,25 +906,80 @@ function PopularProjects({
 }) {
 
   const collections =
-    sortByMostViewed(projects)
-      .slice(0, 3)
-      .map(
-        (project) => ({
-          eyebrow:
-            "Proyek Paling Populer",
+    useMemo(
+      () =>
 
-          title:
-            project.title,
+        sortByPopularity(
+          projects
+        )
 
-          metadata:
-            `${formatNumber(project.viewer)} kali dilihat oleh user`,
+          /*
+           * Hanya ambil 3 proyek
+           * dengan score paling tinggi.
+           */
+          .slice(0, 3)
 
-          href:
-            projectDetailHref(
-              project
-            ),
-        })
-      );
+
+          .map(
+            (project) => {
+
+              const likes =
+                Number(
+                  project?.likes
+                ) || 0;
+
+
+              const comments =
+                getProjectCommentCount(
+                  project
+                );
+
+
+              const viewers =
+                Number(
+                  project?.viewer
+                ) || 0;
+
+
+              return {
+
+                id:
+                  project.id,
+
+
+                eyebrow:
+                  "Proyek Paling Populer",
+
+
+                title:
+                  project.title,
+
+
+                /*
+                 * Informasi yang tampil
+                 * pada card popular.
+                 */
+                metadata: `${formatNumber(
+                  likes
+                )} suka • ${formatNumber(
+                  comments
+                )} komentar • ${formatNumber(
+                  viewers
+                )} kali dilihat`,
+
+
+                href:
+                  projectDetailHref(
+                    project
+                  ),
+
+              };
+
+            }
+          ),
+
+      [projects]
+    );
 
 
   if (!collections.length) {
@@ -687,6 +988,7 @@ function PopularProjects({
 
 
   return (
+
     <section
       id="dokumentasi"
       className="content-collections"
@@ -695,12 +997,14 @@ function PopularProjects({
 
       <div className="content-collections__inner">
 
+
         {collections.map(
           (collection) => (
 
             <article
               className="collection-card"
               key={
+                collection.id ||
                 collection.title
               }
             >
@@ -711,11 +1015,13 @@ function PopularProjects({
                 }
               </p>
 
+
               <h3>
                 {
                   collection.title
                 }
               </h3>
+
 
               <span>
                 {
@@ -723,13 +1029,13 @@ function PopularProjects({
                 }
               </span>
 
+
               <a
                 href={
                   collection.href
                 }
               >
-                Lihat Selengkapnya
-                {" "}
+                Lihat Selengkapnya{" "}
                 <ProjectLinkArrow />
               </a>
 
@@ -737,6 +1043,7 @@ function PopularProjects({
 
           )
         )}
+
 
       </div>
 
@@ -750,21 +1057,31 @@ function PopularProjects({
 ========================================================= */
 
 function ProjectFaq() {
-  const [openIndex, setOpenIndex] = useState(0);
+
+  const [
+    openIndex,
+    setOpenIndex,
+  ] = useState(0);
+
 
   return (
+
     <section
       className="project-faq"
       aria-labelledby="project-faq-title"
     >
+
       <div className="project-faq__inner">
 
         <div className="project-faq__card">
 
+
           {/* =========================
               HEADER
           ========================== */}
+
           <header className="project-faq__header">
+
 
             <div className="project-faq__heading-row">
 
@@ -773,10 +1090,13 @@ function ProjectFaq() {
                 aria-hidden="true"
               />
 
+
               <div>
+
                 <p className="project-faq__eyebrow">
                   FAQ PROYEK
                 </p>
+
 
                 <h2
                   className="project-faq__title"
@@ -784,9 +1104,11 @@ function ProjectFaq() {
                 >
                   Pertanyaan Umum
                 </h2>
+
               </div>
 
             </div>
+
 
             <p className="project-faq__description">
               Temukan jawaban mengenai penggunaan proyek,
@@ -794,90 +1116,133 @@ function ProjectFaq() {
               membuat proyek IoT menggunakan ArduFlow.
             </p>
 
+
           </header>
 
 
           {/* =========================
               FAQ LIST
           ========================== */}
+
           <div
             className="project-faq__list"
             aria-label="Daftar pertanyaan umum proyek ArduFlow"
           >
-            {projectFaqs.map((item, index) => {
-              const isOpen = openIndex === index;
 
-              const answerId =
-                `project-faq-answer-${index}`;
+            {projectFaqs.map(
+              (
+                item,
+                index
+              ) => {
 
-              const questionId =
-                `project-faq-question-${index}`;
+                const isOpen =
+                  openIndex ===
+                  index;
 
-              return (
-                <article
-                  className={
-                    `project-faq__item${
-                      isOpen ? " is-open" : ""
-                    }`
-                  }
-                  key={item.question}
-                >
 
-                  <button
-                    id={questionId}
-                    className="project-faq__question"
-                    type="button"
-                    aria-controls={answerId}
-                    aria-expanded={isOpen}
-                    onClick={() =>
-                      setOpenIndex(
-                        isOpen ? -1 : index
-                      )
+                const answerId =
+                  `project-faq-answer-${index}`;
+
+
+                const questionId =
+                  `project-faq-question-${index}`;
+
+
+                return (
+
+                  <article
+                    className={`project-faq__item${
+                      isOpen
+                        ? " is-open"
+                        : ""
+                    }`}
+                    key={
+                      item.question
                     }
                   >
 
-                    <span className="project-faq__question-text">
-                      {item.question}
-                    </span>
 
-                    <span
-                      className="project-faq__toggle-icon"
-                      aria-hidden="true"
-                    />
+                    <button
+                      id={
+                        questionId
+                      }
+                      className="project-faq__question"
+                      type="button"
+                      aria-controls={
+                        answerId
+                      }
+                      aria-expanded={
+                        isOpen
+                      }
+                      onClick={() =>
+                        setOpenIndex(
+                          isOpen
+                            ? -1
+                            : index
+                        )
+                      }
+                    >
 
-                  </button>
+                      <span className="project-faq__question-text">
+                        {
+                          item.question
+                        }
+                      </span>
 
 
-                  <div
-                    id={answerId}
-                    className="project-faq__answer-wrap"
-                    role="region"
-                    aria-labelledby={questionId}
-                    aria-hidden={!isOpen}
-                  >
-                    <div className="project-faq__answer-inner">
+                      <span
+                        className="project-faq__toggle-icon"
+                        aria-hidden="true"
+                      />
 
-                      <p className="project-faq__answer">
-                        {item.answer}
-                      </p>
+                    </button>
+
+
+                    <div
+                      id={answerId}
+                      className="project-faq__answer-wrap"
+                      role="region"
+                      aria-labelledby={
+                        questionId
+                      }
+                      aria-hidden={
+                        !isOpen
+                      }
+                    >
+
+                      <div className="project-faq__answer-inner">
+
+                        <p className="project-faq__answer">
+                          {
+                            item.answer
+                          }
+                        </p>
+
+                      </div>
 
                     </div>
-                  </div>
 
-                </article>
-              );
-            })}
+
+                  </article>
+
+                );
+
+              }
+            )}
+
           </div>
 
 
           {/* =========================
               HELP
           ========================== */}
+
           <div className="project-faq__help">
 
             <span>
               Masih ada yang ingin ditanyakan tentang proyek?
             </span>
+
 
             <a href="/kontak">
               Hubungi Tim ArduFlow
@@ -885,9 +1250,11 @@ function ProjectFaq() {
 
           </div>
 
+
         </div>
 
       </div>
+
     </section>
   );
 }
@@ -898,7 +1265,9 @@ function ProjectFaq() {
 ========================================================= */
 
 function FinalCta() {
+
   return (
+
     <section
       className="final-cta"
       aria-labelledby="final-cta-title"
@@ -906,11 +1275,13 @@ function FinalCta() {
 
       <div className="final-cta__surface">
 
+
         <div>
 
           <h2 id="final-cta-title">
             SIAP MEMBUAT PROYEK IoT PERTAMAMU?
           </h2>
+
 
           <p>
             Mulai dari template,
@@ -928,6 +1299,7 @@ function FinalCta() {
         >
           Daftar IDE
         </a>
+
 
       </div>
 
@@ -947,78 +1319,214 @@ export function Project() {
     setProjects,
   ] = useState([]);
 
+
   const [
     loading,
     setLoading,
   ] = useState(true);
 
 
+  /*
+   * =====================================================
+   * LOAD PROJECT
+   * =====================================================
+   *
+   * Selain load pertama,
+   * data juga di-refresh ketika:
+   *
+   * - user kembali ke halaman ini
+   * - tab kembali aktif
+   * - browser kembali fokus
+   *
+   * Sehingga like / komentar / viewer
+   * yang berubah di ProjectDetail
+   * langsung ikut diperbarui.
+   */
   useEffect(() => {
 
     let isMounted = true;
 
 
-    fetchProjectSubmissions()
+    async function loadProjects() {
 
-      .then(
-        (items) => {
+      try {
 
-          if (!isMounted) {
-            return;
-          }
+        const items =
+          await fetchProjectSubmissions();
 
-          const safeItems =
-            Array.isArray(items)
-              ? items
-              : [];
 
-          setProjects(
-            safeItems.filter(
-              isPublicProject
-            )
+        if (!isMounted) {
+          return;
+        }
+
+
+        const safeItems =
+          Array.isArray(items)
+            ? items
+            : [];
+
+
+        const publicProjects =
+          safeItems.filter(
+            isPublicProject
           );
 
+
+        setProjects(
+          publicProjects
+        );
+
+
+      } catch (error) {
+
+        console.error(
+          "Gagal memuat project submissions:",
+          error
+        );
+
+
+      } finally {
+
+        if (isMounted) {
+          setLoading(false);
         }
-      )
 
-      .catch(
-        (error) => {
+      }
 
-          console.error(
-            "Gagal memuat project submissions:",
-            error
-          );
+    }
 
-        }
-      )
 
-      .finally(
-        () => {
+    /*
+     * Load saat halaman pertama dibuka.
+     */
+    loadProjects();
 
-          if (isMounted) {
-            setLoading(false);
-          }
 
-        }
-      );
+    /*
+     * Refresh ketika window kembali fokus.
+     */
+    function handleWindowFocus() {
+      loadProjects();
+    }
+
+
+    /*
+     * Refresh ketika browser kembali
+     * ke halaman melalui tombol back.
+     */
+    function handlePageShow() {
+      loadProjects();
+    }
+
+
+    /*
+     * Refresh ketika tab browser
+     * kembali aktif.
+     */
+    function handleVisibilityChange() {
+
+      if (
+        document.visibilityState ===
+        "visible"
+      ) {
+        loadProjects();
+      }
+
+    }
+
+
+    window.addEventListener(
+      "focus",
+      handleWindowFocus
+    );
+
+
+    window.addEventListener(
+      "pageshow",
+      handlePageShow
+    );
+
+
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange
+    );
 
 
     return () => {
+
       isMounted = false;
+
+
+      window.removeEventListener(
+        "focus",
+        handleWindowFocus
+      );
+
+
+      window.removeEventListener(
+        "pageshow",
+        handlePageShow
+      );
+
+
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange
+      );
+
     };
 
   }, []);
 
 
+  /*
+   * =====================================================
+   * 6 PROJECT UNTUK SECTION SEMUA PROYEK
+   * =====================================================
+   */
+
   const latestProjects =
-    projects.slice(0, 6);
+    useMemo(
+      () =>
+        projects.slice(
+          0,
+          6
+        ),
+      [projects]
+    );
+
+
+  /*
+   * =====================================================
+   * 3 PROJECT PILIHAN
+   * =====================================================
+   */
 
   const featuredProjects =
-    projects.slice(0, 3);
+    useMemo(
+      () =>
+        projects.slice(
+          0,
+          3
+        ),
+      [projects]
+    );
+
+
+  /*
+   * =====================================================
+   * METRICS
+   * =====================================================
+   */
 
   const metrics =
-    buildMetrics(
-      projects
+    useMemo(
+      () =>
+        buildMetrics(
+          projects
+        ),
+      [projects]
     );
 
 
@@ -1026,7 +1534,9 @@ export function Project() {
     <>
 
       <ProjectHero
-        metrics={metrics}
+        metrics={
+          metrics
+        }
       />
 
 

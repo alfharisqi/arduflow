@@ -122,9 +122,9 @@ export function SignIn() {
         className="signin-panel"
         aria-labelledby="signin-title"
       >
-        <a className="auth-back-button" href="/">← Kembali</a>
-
         <div className="signin-form-box">
+          <a className="auth-back-button" href="/">← Kembali</a>
+
           <h2 id="signin-title">Masuk</h2>
 
           <div

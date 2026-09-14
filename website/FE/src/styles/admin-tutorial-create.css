@@ -4179,3 +4179,163 @@
     flex: 1;
   }
 }
+
+/* =========================================================
+   ADMIN TUTORIAL CREATE - FONT SIZE LEBIH BESAR
+   Tambahan khusus halaman Tambah Materi.
+   Diletakkan paling bawah agar menimpa ukuran font lama.
+========================================================= */
+
+/* Header halaman */
+.admin-tutorial-create-polished .admin-tutorial-create-hero h1 {
+  font-size: clamp(30px, 3vw, 38px) !important;
+}
+
+.admin-tutorial-create-polished .admin-tutorial-create-hero p {
+  font-size: 15px !important;
+  line-height: 1.7 !important;
+}
+
+.admin-tutorial-create-polished .admin-tutorial-create-eyebrow span {
+  font-size: 12px !important;
+}
+
+/* Step navigasi */
+.admin-tutorial-create-polished .admin-tutorial-create-steps > button > span {
+  font-size: 13px !important;
+}
+
+.admin-tutorial-create-polished .admin-tutorial-create-steps strong {
+  font-size: 14px !important;
+}
+
+.admin-tutorial-create-polished .admin-tutorial-create-steps small {
+  font-size: 12px !important;
+}
+
+/* Judul section/card */
+.admin-tutorial-create-polished .admin-tutorial-edit-section-heading h2,
+.admin-tutorial-create-polished .admin-tutorial-create-section-heading h2,
+.admin-tutorial-create-polished .admin-materials-editor-head h2,
+.admin-tutorial-create-polished .admin-create-settings-card-head h2,
+.admin-tutorial-create-polished .admin-materials-preview-order h2,
+.admin-tutorial-create-polished .admin-materials-selected-preview h2,
+.admin-tutorial-create-polished .admin-settings-card h2 {
+  font-size: 20px !important;
+}
+
+.admin-tutorial-create-polished .admin-tutorial-edit-section-heading p,
+.admin-tutorial-create-polished .admin-tutorial-create-section-heading p,
+.admin-tutorial-create-polished .admin-materials-editor-head p,
+.admin-tutorial-create-polished .admin-create-settings-card-head p {
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+}
+
+/* Label form */
+.admin-tutorial-create-polished .admin-tutorial-create-form-card > label,
+.admin-tutorial-create-polished .admin-tutorial-create-two > label,
+.admin-tutorial-create-polished .admin-tutorial-label,
+.admin-tutorial-create-polished .admin-materials-editor-grid label,
+.admin-tutorial-create-polished .admin-materials-editor-text,
+.admin-tutorial-create-polished .admin-materials-filter label,
+.admin-tutorial-create-polished .admin-create-settings-field,
+.admin-tutorial-create-polished .admin-settings-grid > label,
+.admin-tutorial-create-polished .admin-settings-card > label,
+.admin-tutorial-create-polished .admin-settings-bottom label {
+  font-size: 13px !important;
+}
+
+/* Input, select, textarea */
+.admin-tutorial-create-polished input,
+.admin-tutorial-create-polished select,
+.admin-tutorial-create-polished textarea {
+  font-size: 14px !important;
+}
+
+.admin-tutorial-create-polished input,
+.admin-tutorial-create-polished select {
+  min-height: 44px !important;
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+}
+
+.admin-tutorial-create-polished textarea {
+  padding: 12px !important;
+  line-height: 1.65 !important;
+}
+
+/* Helper text, keterangan, error */
+.admin-tutorial-create-polished label > small,
+.admin-tutorial-create-polished .admin-tutorial-error,
+.admin-tutorial-create-polished .admin-materials-tip,
+.admin-tutorial-create-polished .admin-create-settings-card-head p {
+  font-size: 12px !important;
+}
+
+/* Toolbar dan tombol kecil */
+.admin-tutorial-create-polished .admin-materials-toolbar > button,
+.admin-tutorial-create-polished .admin-materials-filter button,
+.admin-tutorial-create-polished .admin-materials-actions button,
+.admin-tutorial-create-polished .admin-materials-editor-head > button,
+.admin-tutorial-create-polished .admin-materials-editor-upload button,
+.admin-tutorial-create-polished .admin-materials-editor-video-upload button {
+  font-size: 12px !important;
+}
+
+/* Tabel materi */
+.admin-tutorial-create-polished .admin-materials-table-head {
+  font-size: 11px !important;
+}
+
+.admin-tutorial-create-polished .admin-materials-table-body article > strong,
+.admin-tutorial-create-polished .admin-materials-table-body article > span:nth-of-type(1),
+.admin-tutorial-create-polished .admin-materials-content-type,
+.admin-tutorial-create-polished .admin-materials-time,
+.admin-tutorial-create-polished .admin-materials-status {
+  font-size: 12px !important;
+}
+
+/* Ringkasan/editor */
+.admin-tutorial-create-polished .admin-tutorial-create-content-summary span,
+.admin-tutorial-create-polished .admin-tutorial-create-content-summary strong,
+.admin-tutorial-create-polished .admin-materials-editor-upload strong,
+.admin-tutorial-create-polished .admin-materials-editor-video-upload strong,
+.admin-tutorial-create-polished .admin-materials-editor-upload > span,
+.admin-tutorial-create-polished .admin-materials-editor-video-upload > span {
+  font-size: 12px !important;
+}
+
+/* Settings / akses materi */
+.admin-tutorial-create-polished .admin-settings-toggle-item strong,
+.admin-tutorial-create-polished .admin-settings-radio-item strong {
+  font-size: 13px !important;
+}
+
+.admin-tutorial-create-polished .admin-settings-toggle-item p,
+.admin-tutorial-create-polished .admin-settings-toggle-item small,
+.admin-tutorial-create-polished .admin-settings-radio-item label,
+.admin-tutorial-create-polished .admin-settings-radio-line {
+  font-size: 12px !important;
+}
+
+/* Tombol aksi bawah */
+.admin-tutorial-create-polished .admin-tutorial-create-actions button,
+.admin-tutorial-create-polished .admin-tutorial-create-actions a,
+.admin-tutorial-create-polished .admin-tutorial-create-back {
+  font-size: 13px !important;
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .admin-tutorial-create-polished input,
+  .admin-tutorial-create-polished select,
+  .admin-tutorial-create-polished textarea {
+    font-size: 16px !important;
+  }
+
+  .admin-tutorial-create-polished .admin-tutorial-create-hero h1 {
+    font-size: 30px !important;
+  }
+}
+

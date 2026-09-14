@@ -3276,3 +3276,471 @@
     width: 100%;
   }
 }
+
+/* =========================================================
+   MERGED: ADMIN ARTICLE TABLE POLISH
+   Tambahan perapihan tabel Admin Artikel
+========================================================= */
+
+/* =========================================================
+   ADMIN ARTICLE LIST - TABLE POLISH FINAL
+   Fokus:
+   - kolom Author dan Viewer tidak menempel
+   - ukuran kolom lebih proporsional
+   - judul + thumbnail lebih rapi
+   - Viewer / Featured rata tengah
+   - Aksi sticky di kanan
+   - pagination lebih stabil
+   Hanya berlaku pada halaman list Artikel.
+========================================================= */
+
+.admin-article-page:not(.admin-article-form-page) .admin-users-table-card {
+  overflow: hidden;
+  border: 1px solid #dfe5ee;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 8px 26px rgba(15, 23, 42, 0.04);
+}
+
+.admin-article-page:not(.admin-article-form-page) .admin-users-table-header {
+  min-height: 68px;
+  padding: 0 18px;
+  background: #ffffff;
+}
+
+.admin-article-page:not(.admin-article-form-page) .admin-users-table-header h2 {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.admin-article-page:not(.admin-article-form-page) .admin-users-table-header p,
+.admin-article-page:not(.admin-article-form-page) .admin-users-table-header > span {
+  font-size: 12px;
+}
+
+.admin-article-page:not(.admin-article-form-page) .admin-users-table-header > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 11px;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-weight: 600;
+}
+
+/* Area scroll table */
+.admin-article-page:not(.admin-article-form-page) .admin-article-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  scrollbar-width: thin;
+  scrollbar-color: #9ca3af #f3f4f6;
+}
+
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table-scroll::-webkit-scrollbar {
+  height: 9px;
+}
+
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table-scroll::-webkit-scrollbar-track {
+  background: #f3f4f6;
+}
+
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #9ca3af;
+}
+
+/* Tabel utama */
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program {
+  width: 100%;
+  min-width: 1260px;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-family: 'Inter', sans-serif;
+}
+
+/*
+ * Reset aturan lama yang sempat menganggap kolom ke-2
+ * sebagai title cell. Pada struktur sekarang kolom ke-2
+ * adalah Kategori, jadi wajib kembali sebagai table-cell.
+ */
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program td:nth-child(2) {
+  display: table-cell !important;
+  min-width: 0 !important;
+  gap: 0 !important;
+}
+
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program th,
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program td {
+  height: 62px;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border-bottom: 1px solid #edf0f4;
+  color: #1f2937;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program th {
+  height: 48px;
+  background: #f8fafc;
+  color: #475467;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.015em;
+}
+
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program tbody tr {
+  background: #ffffff;
+  transition: background 150ms ease;
+}
+
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program tbody tr:hover {
+  background: #f9fbff;
+}
+
+/* =========================================================
+   LEBAR KOLOM
+========================================================= */
+
+/* 1. Judul */
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program th:nth-child(1),
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program td:nth-child(1) {
+  width: 360px;
+  min-width: 360px;
+}
+
+/* 2. Kategori */
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program th:nth-child(2),
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program td:nth-child(2) {
+  width: 120px;
+  min-width: 120px;
+}
+
+/* 3. Status */
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program th:nth-child(3),
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program td:nth-child(3) {
+  width: 120px;
+  min-width: 120px;
+}
+
+/* 4. Author */
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program th:nth-child(4),
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program td:nth-child(4) {
+  width: 170px;
+  min-width: 170px;
+}
+
+/* 5. Viewer */
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program th:nth-child(5),
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program td:nth-child(5) {
+  width: 82px;
+  min-width: 82px;
+  text-align: center;
+}
+
+/* 6. Featured */
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program th:nth-child(6),
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program td:nth-child(6) {
+  width: 92px;
+  min-width: 92px;
+  text-align: center;
+}
+
+/* 7. Tgl Publish */
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program th:nth-child(7),
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program td:nth-child(7) {
+  width: 125px;
+  min-width: 125px;
+}
+
+/* 8. Update Terakhir */
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program th:nth-child(8),
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program td:nth-child(8) {
+  width: 135px;
+  min-width: 135px;
+}
+
+/* 9. Aksi */
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program th:nth-child(9),
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program td:nth-child(9) {
+  position: sticky;
+  right: 0;
+  z-index: 3;
+  width: 78px;
+  min-width: 78px;
+  text-align: center;
+  background: #ffffff;
+  box-shadow: -1px 0 0 #edf0f4;
+}
+
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program th:nth-child(9) {
+  z-index: 5;
+  background: #f8fafc;
+}
+
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program tbody tr:hover td:nth-child(9) {
+  background: #f9fbff;
+}
+
+/* =========================================================
+   TITLE / COVER
+========================================================= */
+
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-program-name-cell {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-program-name-cell > input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-program-name-button {
+  display: grid !important;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  gap: 11px;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: inherit !important;
+  text-align: left;
+}
+
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-program-name-button > span {
+  display: block;
+  min-width: 0;
+}
+
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-program-name-button b {
+  display: block;
+  max-width: 265px;
+  overflow: hidden;
+  color: #1f2937;
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-program-name-button small {
+  display: block;
+  max-width: 265px;
+  margin-top: 4px;
+  overflow: hidden;
+  color: #6b7280;
+  font-size: 11px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-thumb {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+/* =========================================================
+   CELL CONTENT
+========================================================= */
+
+/* Author */
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program td:nth-child(4) {
+  overflow: hidden;
+  color: #374151;
+  font-weight: 500;
+  text-overflow: ellipsis;
+}
+
+/* Viewer lebih tegas dan tidak lagi menempel ke Author */
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program td:nth-child(5) {
+  color: #344054;
+  font-weight: 700;
+}
+
+/* Featured */
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program td:nth-child(6) {
+  color: #475467;
+  font-weight: 600;
+}
+
+/* Tanggal */
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program td:nth-child(7),
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program td:nth-child(8) {
+  color: #475467;
+}
+
+/* Badge */
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program .admin-article-badge {
+  min-width: 68px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+/* Tombol action */
+.admin-article-page:not(.admin-article-form-page)
+  .admin-article-table--program td:nth-child(9) button {
+  margin-inline: auto;
+}
+
+/* =========================================================
+   PAGINATION
+========================================================= */
+
+.admin-article-page:not(.admin-article-form-page) .admin-users-pagination {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) auto minmax(220px, 1fr) minmax(80px, auto);
+  align-items: center;
+  gap: 16px;
+  min-height: 68px;
+  padding: 10px 16px;
+  border-top: 1px solid #edf0f4;
+  background: #ffffff;
+}
+
+.admin-article-page:not(.admin-article-form-page)
+  .admin-users-pagination > button:first-child {
+  justify-self: start;
+}
+
+.admin-article-page:not(.admin-article-form-page)
+  .admin-users-pagination > button:last-child {
+  justify-self: end;
+}
+
+.admin-article-page:not(.admin-article-form-page)
+  .admin-users-pagination > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.admin-article-page:not(.admin-article-form-page)
+  .admin-users-pagination > span {
+  justify-self: end;
+  display: grid;
+  gap: 3px;
+  text-align: right;
+}
+
+.admin-article-page:not(.admin-article-form-page)
+  .admin-users-pagination button {
+  min-width: 38px;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 8px;
+}
+
+.admin-article-page:not(.admin-article-form-page)
+  .admin-users-pagination .is-active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.admin-article-page:not(.admin-article-form-page)
+  .admin-users-pagination small {
+  font-size: 11px;
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 1100px) {
+  .admin-article-page:not(.admin-article-form-page)
+    .admin-users-pagination {
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .admin-article-page:not(.admin-article-form-page)
+    .admin-users-pagination > span {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: center;
+    text-align: center;
+  }
+}
+
+@media (max-width: 700px) {
+  .admin-article-page:not(.admin-article-form-page)
+    .admin-users-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .admin-article-page:not(.admin-article-form-page)
+    .admin-users-pagination > span {
+    width: 100%;
+    text-align: center;
+  }
+}

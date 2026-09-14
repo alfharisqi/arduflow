@@ -54,9 +54,9 @@ export function ResetPasswordSent() {
       <AuthImageSlider />
 
       <section className="reset-password-sent-panel" aria-labelledby="reset-password-sent-title">
-        <a className="auth-back-button" href="/">← Kembali</a>
-
         <div className="reset-password-sent-content">
+          <a className="auth-back-button" href="/">← Kembali</a>
+
           <div>
             <h2 id="reset-password-sent-title">Tautan pemulihan telah dikirim ke email Anda!</h2>
             <p>Silakan periksa email Anda untuk langkah selanjutnya dalam ulang kata sandi.</p>

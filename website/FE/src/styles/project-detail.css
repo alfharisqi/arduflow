@@ -1401,6 +1401,113 @@
   color: #fca5a5;
 }
 
+.project-review__owner-reply {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid rgba(0, 162, 255, 0.2);
+  border-left: 3px solid #00a2ff;
+  border-radius: 8px;
+  background: rgba(0, 162, 255, 0.08);
+}
+
+.project-review__owner-reply strong {
+  color: #7dd3fc;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.project-review__owner-reply time {
+  color: #8ea8c0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.project-review__reply-tools {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.project-review__reply-tools > button,
+.project-review__reply-tools form button {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid rgba(125, 211, 252, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #dce7f4;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.project-review__reply-tools > button {
+  justify-self: start;
+}
+
+.project-review__reply-tools form {
+  display: grid;
+  gap: 10px;
+}
+
+.project-review__reply-tools textarea {
+  width: 100%;
+  min-height: 88px;
+  resize: vertical;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid rgba(125, 211, 252, 0.24);
+  border-radius: 8px;
+  outline: 0;
+  background: rgba(255, 255, 255, 0.04);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.project-review__reply-tools textarea:focus {
+  border-color: rgba(125, 211, 252, 0.58);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.12);
+}
+
+.project-review__reply-tools form > div {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.project-review__reply-tools form small,
+.project-review__reply-tools form span {
+  margin-right: auto;
+  color: #aac1d7;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.project-review__reply-tools form span {
+  color: #fca5a5;
+}
+
+.project-review__reply-tools form button[type='submit'] {
+  border-color: #ff6a00;
+  background: #ff6a00;
+  color: #ffffff;
+}
+
+.project-review__reply-tools form button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .project-review__list {
   display: grid;
   gap: 10px;

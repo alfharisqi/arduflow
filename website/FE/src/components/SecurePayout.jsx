@@ -39,6 +39,8 @@ export function SecurePayout({ projectIds, onSubmitted, onStatus }) {
   const sessionExpired = /session tidak valid|kedaluwarsa|login diperlukan/i.test(error || '');
   const selected = status?.balances.filter((row) => projectIds.includes(String(row.projectId))) || [];
   const available = selected.reduce((sum, row) => sum + row.available, 0);
+  const selectedAccount = status?.accounts.find((account) => String(account.id) === String(form.accountId));
+  const selectedAccountWaiting = Boolean(selectedAccount && selectedAccount.available_at > now);
   const change = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
 
   function switchMode(next) {
@@ -151,13 +153,18 @@ export function SecurePayout({ projectIds, onSubmitted, onStatus }) {
             <label>Nominal pencairan<input type="number" min={1} max={available} step={1} placeholder={String(available)} value={form.amount} onChange={change('amount')} /></label>
             <label>Rekening tujuan<select required value={form.accountId} onChange={change('accountId')}>
               <option value="">Pilih rekening</option>
-              {status.accounts.map((account) => <option key={account.id} value={account.id} disabled={account.available_at > now}>
+              {status.accounts.map((account) => <option key={account.id} value={account.id}>
                 {account.bank} {account.number} — {account.name}{account.available_at > now ? ` (aktif ${date(account.available_at)})` : ''}
               </option>)}
             </select></label>
+            {selectedAccountWaiting ? (
+              <p className="secure-payout__hint" role="status">
+                Rekening ini sudah tersimpan, tetapi baru bisa dipakai untuk pencairan pada {date(selectedAccount.available_at)}.
+              </p>
+            ) : null}
             <label>Catatan (opsional)<textarea maxLength={1000} rows={2} value={form.note} onChange={change('note')} /></label>
           </>}
-          <button type="submit" disabled={busy || locked || (mode === 'payout' && (!status.hasPin || cooling || available <= 0)) || (mode === 'account' && !status.hasPin)}>
+          <button type="submit" disabled={busy || locked || (mode === 'payout' && (!status.hasPin || cooling || available <= 0 || selectedAccountWaiting)) || (mode === 'account' && !status.hasPin)}>
             {busy ? 'Mengirim kode...' : mode === 'payout' ? 'Periksa rincian & kirim kode' : 'Kirim kode verifikasi'}
           </button>
         </form>}

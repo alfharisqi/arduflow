@@ -1326,14 +1326,41 @@ function AdminTutorialForm({ mode = 'create' }) {
         }));
       }
 
-      setSubmitStatus('success');
-      setSubmitMessage(
+      const successMessage =
         options.successMessage ||
-          result.message ||
-          (effectiveTutorialId
+        result.message ||
+        (normalizedMode === 'publish'
+          ? effectiveTutorialId
+            ? 'Materi berhasil diperbarui dan dipublikasikan.'
+            : 'Materi berhasil ditambahkan dan dipublikasikan.'
+          : effectiveTutorialId
             ? 'Perubahan materi berhasil disimpan.'
-            : 'Materi berhasil diproses.')
-      );
+            : 'Draft materi berhasil disimpan.');
+
+      setSubmitStatus('success');
+      setSubmitMessage(successMessage);
+
+      /*
+       * Tampilkan popup sukses seperti pada halaman Artikel
+       * hanya untuk aksi utama form:
+       * - Simpan Draft
+       * - Publikasikan Materi
+       *
+       * Simpan Bab / Simpan Materi memakai handleSubmit(null, ...)
+       * sehingga tidak memunculkan popup dan tidak redirect.
+       */
+      const isMainFormAction =
+        Boolean(event) &&
+        options.showSuccessPopup !== false;
+
+      if (isMainFormAction) {
+        await showSuccessAlert(
+          'Berhasil',
+          successMessage
+        );
+
+        window.location.href = '/admin/tutorial';
+      }
 
       return {
         success: true,
