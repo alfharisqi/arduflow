@@ -1093,7 +1093,7 @@ async function downloadProjectArchive(project) {
   const response = await fetch(archiveUrl, {
     headers: {
       Accept: "application/zip, application/json",
-      ...(token ? { Authorization: `Bearer ${token}`, "X-Auth-Token": token } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   });
 
@@ -1133,7 +1133,7 @@ async function downloadProjectArchive(project) {
     try {
       const fileResponse = await fetch(fileUrl, {
         headers: token
-          ? { Authorization: `Bearer ${token}`, "X-Auth-Token": token }
+          ? { Authorization: `Bearer ${token}` }
           : {},
       });
       if (!fileResponse.ok) continue;
