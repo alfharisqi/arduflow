@@ -1089,15 +1089,17 @@ function triggerProjectDownload(blob, fileName) {
 
 async function downloadProjectArchive(project) {
   const archiveUrl = getProjectFileHref(project);
+  const token = getStoredUserToken();
   const response = await fetch(archiveUrl, {
-    headers: { Accept: "application/zip, application/json" },
+    headers: {
+      Accept: "application/zip, application/json",
+      ...(token ? { Authorization: `Bearer ${token}`, "X-Auth-Token": token } : {}),
+    },
   });
 
-  if (!response.ok) {
-    throw new Error(`File proyek tidak dapat diunduh. HTTP ${response.status}`);
-  }
-
-  const responseBytes = new Uint8Array(await response.arrayBuffer());
+  const responseBytes = response.ok
+    ? new Uint8Array(await response.arrayBuffer())
+    : new Uint8Array();
   const isZip = responseBytes.length >= 4 &&
     responseBytes[0] === 0x50 &&
     responseBytes[1] === 0x4b &&
@@ -1129,7 +1131,11 @@ async function downloadProjectArchive(project) {
     if (!fileUrl) continue;
 
     try {
-      const fileResponse = await fetch(fileUrl);
+      const fileResponse = await fetch(fileUrl, {
+        headers: token
+          ? { Authorization: `Bearer ${token}`, "X-Auth-Token": token }
+          : {},
+      });
       if (!fileResponse.ok) continue;
 
       archiveEntries.push({

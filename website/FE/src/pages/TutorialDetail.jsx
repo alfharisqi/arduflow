@@ -3,6 +3,14 @@ import {
   fetchTutorialArticle,
   isPublishedTutorial,
 } from '../services/materiApi.js';
+import {
+  createTransaction,
+  fetchTransactions,
+} from '../services/transactionApi.js';
+import {
+  getStoredUser,
+  getStoredUserToken,
+} from '../services/authSession.js';
 import fallbackTutorialImage from '../assets/images/tutorial-device.png';
 import {
   readTutorialProgress,
@@ -707,6 +715,11 @@ export function TutorialDetail() {
     setCompletedSlideIds,
   ] = useState([]);
 
+  const [materialTransactions, setMaterialTransactions] = useState([]);
+  const [isCheckingAccess, setIsCheckingAccess] = useState(false);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [purchaseMessage, setPurchaseMessage] = useState('');
+
   useEffect(() => {
     let isMounted = true;
 
@@ -779,6 +792,52 @@ export function TutorialDetail() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    const isPremium = Boolean(
+      tutorial?.isPremium || Number(tutorial?.price || 0) > 0
+    );
+
+    if (!tutorial?.id || !isPremium) {
+      setMaterialTransactions([]);
+      setIsCheckingAccess(false);
+      return undefined;
+    }
+
+    const token = getStoredUserToken();
+    const user = getStoredUser() || {};
+
+    if (!token || (!getUserId(user) && !getUserEmail(user))) {
+      setMaterialTransactions([]);
+      setIsCheckingAccess(false);
+      return undefined;
+    }
+
+    let isMounted = true;
+    setIsCheckingAccess(true);
+
+    fetchTransactions()
+      .then((transactions) => {
+        if (isMounted) {
+          setMaterialTransactions(
+            transactions.filter((transaction) =>
+              isTransactionForTutorial(transaction, tutorial)
+            )
+          );
+        }
+      })
+      .catch((transactionError) => {
+        console.error('Gagal memeriksa transaksi materi:', transactionError);
+        if (isMounted) setMaterialTransactions([]);
+      })
+      .finally(() => {
+        if (isMounted) setIsCheckingAccess(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [tutorial?.id, tutorial?.isPremium, tutorial?.price]);
 
   const slides = useMemo(() => {
     if (!tutorial) {
@@ -1305,6 +1364,81 @@ export function TutorialDetail() {
       '/materi';
   };
 
+  const isPremiumMaterial = Boolean(
+    tutorial?.isPremium || Number(tutorial?.price || 0) > 0
+  );
+
+  const paidTransaction = materialTransactions.find((transaction) =>
+    isTransactionForTutorial(transaction, tutorial) &&
+    ['paid', 'approved', 'success', 'successful', 'completed', 'complete', 'settlement', 'verified']
+      .includes(materialTransactionStatus(transaction))
+  );
+
+  const pendingTransaction = materialTransactions.find((transaction) =>
+    isTransactionForTutorial(transaction, tutorial) &&
+    ['pending', 'proof_uploaded', 'uploaded', 'waiting', 'review', 'rejected']
+      .includes(materialTransactionStatus(transaction))
+  );
+
+  const hasMaterialAccess = !isPremiumMaterial || Boolean(paidTransaction);
+
+  const handleBuyMaterial = async () => {
+    if (!tutorial) return;
+
+    const token = getStoredUserToken();
+    const user = getStoredUser() || {};
+    const userId = getUserId(user);
+    const email = getUserEmail(user);
+
+    if (!token || (!userId && !email)) {
+      const redirect = window.location.pathname + window.location.search;
+      window.location.href = `/signin?redirect=${encodeURIComponent(redirect)}`;
+      return;
+    }
+
+    if (pendingTransaction) {
+      window.location.href = `/transaksi?transactionId=${encodeURIComponent(pendingTransaction.id)}`;
+      return;
+    }
+
+    setIsPurchasing(true);
+    setPurchaseMessage('Membuat transaksi materi...');
+
+    try {
+      const transaction = await createTransaction({
+        userId,
+        userName: user.name || user.fullName || user.username || '',
+        email,
+        itemType: 'material',
+        itemId: tutorial.id,
+        itemTitle: tutorial.title,
+        amount: Math.max(0, Number(tutorial.price) || 0),
+        currency: 'IDR',
+        paymentMethod: 'Pembelian Materi',
+        paymentChannel: 'ArduFlow',
+        status: 'pending',
+        notes: `Pembelian materi ${tutorial.title}`,
+        payload: {
+          materialId: tutorial.id,
+          materialSlug: tutorial.slug || tutorial.urlSlug || '',
+          materialTitle: tutorial.title,
+          source: 'tutorial-detail',
+        },
+      });
+
+      window.location.href = transaction?.id
+        ? `/transaksi?transactionId=${encodeURIComponent(transaction.id)}`
+        : '/transaksi';
+    } catch (purchaseError) {
+      setPurchaseMessage(
+        purchaseError instanceof Error
+          ? purchaseError.message
+          : 'Transaksi materi gagal dibuat.'
+      );
+      setIsPurchasing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <LoadingState />
@@ -1374,6 +1508,56 @@ export function TutorialDetail() {
       ? overviewTitle
       : activeChapter?.title ||
         activeSlide.title;
+
+  if (isPremiumMaterial && !hasMaterialAccess) {
+    return (
+      <main className="tutorial-material-page">
+        <div className="tutorial-material-shell">
+          <div className="tutorial-material-back-wrap">
+            <a className="tutorial-material-back-link" href="/materi#semua-materi">
+              Kembali ke Daftar Materi
+            </a>
+          </div>
+
+          <section className="tutorial-material-purchase" aria-labelledby="material-purchase-title">
+            <img src={tutorialImage} alt={tutorial.title || 'Materi ArduFlow'} />
+            <div>
+              <span>Materi Premium</span>
+              <h1 id="material-purchase-title">{tutorial.title}</h1>
+              <p>
+                {isCheckingAccess
+                  ? 'Memeriksa status pembelian materi...'
+                  : pendingTransaction
+                    ? 'Transaksi sedang menunggu pembayaran atau persetujuan admin.'
+                    : 'Beli materi ini untuk membuka seluruh bab dan isi pembelajaran.'}
+              </p>
+              <strong>{formatMaterialPrice(tutorial.price)}</strong>
+              <div className="tutorial-material-purchase__actions">
+                <a className="tutorial-material-btn is-light" href="/materi">Kembali</a>
+                <button
+                  className="tutorial-material-btn is-dark"
+                  type="button"
+                  disabled={isPurchasing || isCheckingAccess}
+                  onClick={handleBuyMaterial}
+                >
+                  {isPurchasing
+                    ? 'Memproses...'
+                    : pendingTransaction
+                      ? 'Lihat Transaksi'
+                      : 'Beli Materi'}
+                </button>
+              </div>
+              {purchaseMessage ? (
+                <p className="tutorial-material-purchase__message" role="status">
+                  {purchaseMessage}
+                </p>
+              ) : null}
+            </div>
+          </section>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="tutorial-material-page">
@@ -2067,4 +2251,49 @@ export function TutorialDetail() {
       </div>
     </main>
   );
+}
+
+function getUserId(user) {
+  return user?.id ?? user?.userId ?? user?.user_id ?? null;
+}
+
+function getUserEmail(user) {
+  return String(
+    user?.email ?? user?.emailAddress ?? user?.email_address ?? ''
+  ).trim();
+}
+
+function formatMaterialPrice(value) {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0,
+  }).format(Math.max(0, Number(value) || 0));
+}
+
+function isTransactionForTutorial(transaction, tutorial) {
+  const payload =
+    transaction?.payload && typeof transaction.payload === 'object'
+      ? transaction.payload
+      : {};
+  const itemType = String(
+    transaction?.itemType || transaction?.item_type || ''
+  ).toLowerCase();
+  const ids = [
+    transaction?.itemId,
+    transaction?.item_id,
+    payload.materialId,
+    payload.material_id,
+    payload.itemId,
+    payload.item_id,
+  ].filter((value) => value !== undefined && value !== null && String(value) !== '');
+
+  return (
+    ['material', 'materi'].includes(itemType) &&
+    ids.some((value) => String(value) === String(tutorial?.id || ''))
+  );
+}
+
+function materialTransactionStatus(transaction) {
+  return String(transaction?.status || '').trim().toLowerCase();
 }

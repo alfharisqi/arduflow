@@ -4,13 +4,22 @@ declare(strict_types=1);
 
 use Arduflow\Api\Support\Env;
 
-const MATERI_API_VERSION = 'materi-v6-table-materi';
+const MATERI_API_VERSION = 'materi-v7-tutorials-schema';
 
 $projectRoot = dirname(__DIR__);
-$autoloadPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
 
+// Tetap kompatibel jika composer/vendor tersedia.
+$autoloadPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
 if (is_file($autoloadPath)) {
     require_once $autoloadPath;
+}
+
+// Fallback untuk hosting yang tidak memuat composer autoload.
+if (!class_exists(Env::class)) {
+    $envPath = $projectRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'Support' . DIRECTORY_SEPARATOR . 'Env.php';
+    if (is_file($envPath)) {
+        require_once $envPath;
+    }
 }
 
 if (class_exists(Env::class)) {
@@ -20,8 +29,7 @@ if (class_exists(Env::class)) {
 header('Content-Type: application/json; charset=utf-8');
 header('X-ArduFlow-Materi-API: ' . MATERI_API_VERSION);
 
-$origin = isset($_SERVER['HTTP_ORIGIN']) ? trim((string) $_SERVER['HTTP_ORIGIN']) : '';
-
+$origin = trim((string) ($_SERVER['HTTP_ORIGIN'] ?? ''));
 $allowedOrigins = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
@@ -31,15 +39,14 @@ $allowedOrigins = [
     'http://127.0.0.1:5175',
     'https://arduflow.indobilliard.com',
     'https://www.arduflow.indobilliard.com',
-        'https://web.arduflow.com',
+    'https://web.arduflow.com',
 ];
 
 if (class_exists(Env::class)) {
     $configuredOrigins = array_filter(
         array_map('trim', explode(',', Env::get('CORS_ORIGIN', ''))),
-        static fn(string $configuredOrigin): bool => $configuredOrigin !== ''
+        static fn (string $value): bool => $value !== ''
     );
-
     $allowedOrigins = array_values(array_unique([...$allowedOrigins, ...$configuredOrigins]));
 }
 
@@ -53,159 +60,301 @@ if ($origin !== '' && (in_array($origin, $allowedOrigins, true) || $isLocalOrigi
     header('Vary: Origin');
 }
 
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Accept, Authorization');
+header('Access-Control-Allow-Credentials: true');
+header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Accept, Authorization, X-Auth-Token');
 header('Access-Control-Max-Age: 86400');
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
     http_response_code(204);
     exit;
 }
 
-if (
-    $_SERVER['REQUEST_METHOD'] === 'GET'
-    && isset($_GET['action'])
-    && $_GET['action'] === 'health'
-) {
-    echo json_encode(
-        [
-            'success' => true,
-            'api' => 'materi-api.php',
-            'version' => MATERI_API_VERSION,
-            'supports' => ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        ],
-        JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
-    );
+function sendJsonResponse(array $payload, int $status = 200): never
+{
+    http_response_code($status);
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
 
-/*
-|--------------------------------------------------------------------------
-| File image endpoint
-|--------------------------------------------------------------------------
-|
-| URL contoh:
-| /api/materi-api.php?action=image&scope=card&file=abc.jpg
-| /api/materi-api.php?action=image&scope=slide&file=abc.jpg
-|
-| Image dilayani lewat endpoint PHP agar tidak bergantung pada konfigurasi
-| static-file router.
-|
-*/
-if (
-    $_SERVER['REQUEST_METHOD'] === 'GET'
-    && isset($_GET['action'])
-    && $_GET['action'] === 'image'
-) {
-    serveStoredImage();
-}
-
-if (
-    $_SERVER['REQUEST_METHOD'] === 'GET'
-    && isset($_GET['action'])
-    && $_GET['action'] === 'video'
-) {
-    serveStoredVideo();
-}
-
-if (!function_exists('getDatabaseConnection')) {
-    function getDatabaseConnection(): PDO
-    {
-        $config = require dirname(__DIR__) . '/config/database.php';
-
-        if (!is_array($config) || !isset($config['sqlite'])) {
-            throw new RuntimeException('Konfigurasi SQLite tidak ditemukan.');
-        }
-
-        $sqliteConfig = is_array($config['sqlite'])
-            ? $config['sqlite']
-            : [];
-
-        $databasePath = trim((string) ($sqliteConfig['path'] ?? ''));
-
-        if ($databasePath === '') {
-            throw new RuntimeException('Path database SQLite belum dikonfigurasi.');
-        }
-
-        $databaseDirectory = dirname($databasePath);
-
-        if (
-            !is_dir($databaseDirectory)
-            && !mkdir($databaseDirectory, 0775, true)
-            && !is_dir($databaseDirectory)
-        ) {
-            throw new RuntimeException('Folder database SQLite tidak dapat dibuat.');
-        }
-
-        $database = new PDO(
-            'sqlite:' . $databasePath,
-            null,
-            null,
-            [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES => false,
-            ]
-        );
-
-        $database->exec('PRAGMA foreign_keys = ON');
-        $database->exec('PRAGMA journal_mode = WAL');
-        $database->exec('PRAGMA synchronous = NORMAL');
-        $database->exec(
-            'PRAGMA busy_timeout = '
-            . max(15000, (int) ($sqliteConfig['busy_timeout_ms'] ?? 15000))
-        );
-
-        return $database;
-    }
-}
-
-try {
-    $database = getDatabaseConnection();
-    switch ($_SERVER['REQUEST_METHOD']) {
-        case 'GET':
-            getAllMateri($database);
-            break;
-
-        case 'POST':
-            if (isset($_GET['id'])) {
-                updateMateri($database);
-            } else {
-                createMateri($database);
-            }
-            break;
-
-        case 'PUT':
-            updateMateri($database);
-            break;
-
-        case 'DELETE':
-            deleteMateri($database);
-            break;
-
-        default:
-            sendJsonResponse(
-                [
-                    'success' => false,
-                    'message' => 'Method tidak diizinkan.',
-                ],
-                405
-            );
-    }
-} catch (Throwable $error) {
-    sendJsonResponse(
-        [
-            'success' => false,
-            'message' => 'Terjadi kesalahan pada server.',
-            'error' => $error->getMessage(),
-        ],
-        500
-    );
-}
-
-function booleanToInteger(mixed $value, int $default = 0): int
+function tableExists(PDO $database, string $table): bool
 {
-    if ($value === null) {
+    $statement = $database->prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = :name LIMIT 1"
+    );
+    $statement->execute([':name' => $table]);
+    return (bool) $statement->fetchColumn();
+}
+
+function tableColumns(PDO $database, string $table): array
+{
+    if (!preg_match('/^[A-Za-z0-9_]+$/', $table)) {
+        return [];
+    }
+
+    $rows = $database->query('PRAGMA table_info(' . $table . ')')->fetchAll(PDO::FETCH_ASSOC);
+    $columns = [];
+
+    foreach ($rows as $row) {
+        $name = trim((string) ($row['name'] ?? ''));
+        if ($name !== '') {
+            $columns[$name] = true;
+        }
+    }
+
+    return $columns;
+}
+
+function ensureMateriCommerceColumns(PDO $database): void
+{
+    if (!tableExists($database, 'tutorials')) {
+        return;
+    }
+
+    $columns = tableColumns($database, 'tutorials');
+
+    if (!isset($columns['price'])) {
+        $database->exec(
+            'ALTER TABLE tutorials ADD COLUMN price INTEGER NOT NULL DEFAULT 0'
+        );
+    }
+}
+
+function resolveDatabasePath(string $projectRoot, string $path): string
+{
+    $path = trim($path);
+    if ($path === '') {
+        return $projectRoot . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . 'arduflow.sqlite';
+    }
+
+    $isWindows = preg_match('/^[A-Za-z]:[\\\\\/]/', $path) === 1;
+    $isUnix = str_starts_with($path, '/');
+
+    if (!$isWindows && !$isUnix) {
+        return $projectRoot . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
+    }
+
+    return $path;
+}
+
+function getDatabaseConnection(): PDO
+{
+    global $projectRoot;
+
+    $configPath = $projectRoot . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'database.php';
+
+    if (!is_file($configPath)) {
+        throw new RuntimeException('File config/database.php tidak ditemukan.');
+    }
+
+    $config = require $configPath;
+
+    if (!is_array($config) || !isset($config['sqlite']) || !is_array($config['sqlite'])) {
+        throw new RuntimeException('Konfigurasi SQLite tidak ditemukan.');
+    }
+
+    $databasePath = resolveDatabasePath(
+        $projectRoot,
+        (string) ($config['sqlite']['path'] ?? '')
+    );
+
+    if (!is_file($databasePath)) {
+        throw new RuntimeException('Database SQLite tidak ditemukan: ' . $databasePath);
+    }
+
+    $database = new PDO(
+        'sqlite:' . $databasePath,
+        null,
+        null,
+        [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+        ]
+    );
+
+    $database->exec('PRAGMA foreign_keys = ON');
+    $database->exec(
+        'PRAGMA busy_timeout = ' .
+        max(5000, (int) ($config['sqlite']['busy_timeout_ms'] ?? 5000))
+    );
+
+    ensureMateriCommerceColumns($database);
+
+    return $database;
+}
+
+function requestScheme(): string
+{
+    $forwarded = strtolower(trim((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')));
+    if ($forwarded === 'https') {
+        return 'https';
+    }
+
+    $https = strtolower(trim((string) ($_SERVER['HTTPS'] ?? '')));
+    return $https !== '' && $https !== 'off' ? 'https' : 'http';
+}
+
+function deployBaseUrl(): string
+{
+    $host = trim((string) ($_SERVER['HTTP_HOST'] ?? ''));
+    $scriptName = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? '/api/materi-api.php'));
+
+    // /apk/uploads/web-arduflow-deploy-alfha/api/materi-api.php
+    // -> /apk/uploads/web-arduflow-deploy-alfha
+    $apiDir = rtrim(dirname($scriptName), '/');
+    $deployPath = rtrim(dirname($apiDir), '/');
+
+    return requestScheme() . '://' . $host . ($deployPath !== '/' ? $deployPath : '');
+}
+
+function materiUploadDirectory(): string
+{
+    global $projectRoot;
+    return $projectRoot . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'materi';
+}
+
+function legacyArticleUploadDirectory(): string
+{
+    global $projectRoot;
+    return $projectRoot . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'articles';
+}
+
+function ensureMateriUploadDirectory(): string
+{
+    $directory = materiUploadDirectory();
+
+    if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
+        throw new RuntimeException('Folder uploads/materi tidak dapat dibuat.');
+    }
+
+    if (!is_writable($directory)) {
+        throw new RuntimeException('Folder uploads/materi tidak dapat ditulis.');
+    }
+
+    return $directory;
+}
+
+function findMateriFile(?string $fileName): ?string
+{
+    $fileName = trim((string) $fileName);
+    if ($fileName === '') {
+        return null;
+    }
+
+    $safe = basename($fileName);
+
+    $candidates = [
+        materiUploadDirectory() . DIRECTORY_SEPARATOR . $safe,
+        legacyArticleUploadDirectory() . DIRECTORY_SEPARATOR . $safe,
+        legacyArticleUploadDirectory() . DIRECTORY_SEPARATOR . 'slides' . DIRECTORY_SEPARATOR . $safe,
+        legacyArticleUploadDirectory() . DIRECTORY_SEPARATOR . 'videos' . DIRECTORY_SEPARATOR . $safe,
+    ];
+
+    foreach ($candidates as $candidate) {
+        if (is_file($candidate)) {
+            return $candidate;
+        }
+    }
+
+    return null;
+}
+
+function materiFileUrl(?string $fileName): ?string
+{
+    $fileName = trim((string) $fileName);
+    if ($fileName === '') {
+        return null;
+    }
+
+    return deployBaseUrl() . '/uploads/materi/' . rawurlencode(basename($fileName));
+}
+
+function saveUploadedFile(array $file, string $prefix, array $allowedExtensions, int $maxBytes): array
+{
+    $error = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+
+    if ($error === UPLOAD_ERR_NO_FILE) {
+        throw new RuntimeException('File belum dipilih.');
+    }
+
+    if ($error !== UPLOAD_ERR_OK) {
+        throw new RuntimeException('Upload gagal. Kode error: ' . $error);
+    }
+
+    $temporaryPath = (string) ($file['tmp_name'] ?? '');
+    if ($temporaryPath === '' || !is_uploaded_file($temporaryPath)) {
+        throw new RuntimeException('Temporary file upload tidak valid.');
+    }
+
+    $size = (int) ($file['size'] ?? 0);
+    if ($size <= 0 || $size > $maxBytes) {
+        throw new RuntimeException('Ukuran file tidak valid atau melebihi batas.');
+    }
+
+    $originalName = (string) ($file['name'] ?? '');
+    $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+
+    if (!isset($allowedExtensions[$extension])) {
+        throw new RuntimeException('Format file tidak didukung.');
+    }
+
+    $directory = ensureMateriUploadDirectory();
+    $storedName = $prefix . '-' . bin2hex(random_bytes(12)) . '.' . $extension;
+    $destination = $directory . DIRECTORY_SEPARATOR . $storedName;
+
+    if (!move_uploaded_file($temporaryPath, $destination)) {
+        throw new RuntimeException('File gagal disimpan.');
+    }
+
+    return [
+        'file_name' => $storedName,
+        'file_type' => $allowedExtensions[$extension],
+        'file_size' => $size,
+        'file_path' => $destination,
+        'file_url' => materiFileUrl($storedName),
+    ];
+}
+
+function readRequestData(): array
+{
+    if (
+        isset($_POST['payload']) &&
+        is_string($_POST['payload']) &&
+        trim($_POST['payload']) !== ''
+    ) {
+        $decoded = json_decode($_POST['payload'], true);
+        if (!is_array($decoded)) {
+            throw new InvalidArgumentException('Payload multipart bukan JSON yang valid.');
+        }
+
+        return isset($decoded['data']) && is_array($decoded['data'])
+            ? $decoded['data']
+            : $decoded;
+    }
+
+    $raw = file_get_contents('php://input');
+    if (is_string($raw) && trim($raw) !== '') {
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            throw new InvalidArgumentException('Body JSON tidak valid.');
+        }
+
+        return isset($decoded['data']) && is_array($decoded['data'])
+            ? $decoded['data']
+            : $decoded;
+    }
+
+    if (!empty($_POST)) {
+        return $_POST;
+    }
+
+    return [];
+}
+
+function boolInt(mixed $value, int $default = 0): int
+{
+    if ($value === null || $value === '') {
         return $default;
     }
 
@@ -217,2726 +366,762 @@ function booleanToInteger(mixed $value, int $default = 0): int
         return $value === 0 ? 0 : 1;
     }
 
-    $normalized = strtolower(trim((string) $value));
-
     return in_array(
-        $normalized,
-        ['1', 'true', 'yes', 'on'],
+        strtolower(trim((string) $value)),
+        ['1', 'true', 'yes', 'on', 'aktif', 'active'],
         true
     ) ? 1 : 0;
 }
 
-
-function getArticleUploadDirectory(): string
+function firstValue(array $sources, array $keys, mixed $default = null): mixed
 {
-    /*
-     * Path fisik gambar.
-     *
-     * materi-api.php berada di:
-     * BE/api/materi-api.php
-     *
-     * sehingga dirname(__DIR__) = API
-     */
-    return dirname(__DIR__)
-        . DIRECTORY_SEPARATOR
-        . 'storage'
-        . DIRECTORY_SEPARATOR
-        . 'uploads'
-        . DIRECTORY_SEPARATOR
-        . 'articles';
-}
-
-function getArticleImagePath(?string $fileName): ?string
-{
-    if ($fileName === null || trim($fileName) === '') {
-        return null;
-    }
-
-    return getArticleUploadDirectory()
-        . DIRECTORY_SEPARATOR
-        . basename($fileName);
-}
-
-function getArticleImageUrl(?string $fileName): ?string
-{
-    if ($fileName === null || trim($fileName) === '') {
-        return null;
-    }
-
-    return getApiBaseUrl()
-        . '/materi-api.php?action=image&scope=card&file='
-        . rawurlencode(basename($fileName));
-}
-
-
-function getSlideUploadDirectory(): string
-{
-    return getArticleUploadDirectory()
-        . DIRECTORY_SEPARATOR
-        . 'slides';
-}
-
-function getSlideImagePath(?string $fileName): ?string
-{
-    if ($fileName === null || trim($fileName) === '') {
-        return null;
-    }
-
-    $safeFileName = basename($fileName);
-
-    /*
-     * Lokasi baru.
-     */
-    $slidePath = getSlideUploadDirectory()
-        . DIRECTORY_SEPARATOR
-        . $safeFileName;
-
-    if (is_file($slidePath)) {
-        return $slidePath;
-    }
-
-    /*
-     * Kompatibilitas data lama:
-     * sebelumnya gambar slide pernah disimpan langsung di:
-     * storage/uploads/articles/
-     */
-    $legacyPath = getArticleUploadDirectory()
-        . DIRECTORY_SEPARATOR
-        . $safeFileName;
-
-    if (is_file($legacyPath)) {
-        return $legacyPath;
-    }
-
-    /*
-     * Tetap return lokasi baru untuk debug meskipun file belum ada.
-     */
-    return $slidePath;
-}
-
-
-function getSlideImageUrl(?string $fileName): ?string
-{
-    if ($fileName === null || trim($fileName) === '') {
-        return null;
-    }
-
-    return getApiBaseUrl()
-        . '/materi-api.php?action=image&scope=slide&file='
-        . rawurlencode(basename($fileName));
-}
-
-
-function saveUploadedSlideImage(array $uploadedFile): array
-{
-    $uploadError = isset($uploadedFile['error'])
-        ? (int) $uploadedFile['error']
-        : UPLOAD_ERR_NO_FILE;
-
-    if ($uploadError === UPLOAD_ERR_NO_FILE) {
-        throw new RuntimeException('File gambar slide belum dipilih.');
-    }
-
-    if ($uploadError !== UPLOAD_ERR_OK) {
-        throw new RuntimeException(
-            'Upload gambar slide gagal. Kode error: ' . $uploadError
-        );
-    }
-
-    $temporaryPath = isset($uploadedFile['tmp_name'])
-        ? (string) $uploadedFile['tmp_name']
-        : '';
-
-    if (
-        $temporaryPath === ''
-        || !is_uploaded_file($temporaryPath)
-    ) {
-        throw new RuntimeException(
-            'Temporary file gambar slide tidak valid.'
-        );
-    }
-
-    $fileSize = isset($uploadedFile['size'])
-        ? (int) $uploadedFile['size']
-        : 0;
-
-    $maxFileSize = 3 * 1024 * 1024;
-
-    if ($fileSize <= 0) {
-        throw new RuntimeException(
-            'Ukuran gambar slide tidak valid.'
-        );
-    }
-
-    if ($fileSize > $maxFileSize) {
-        throw new RuntimeException(
-            'Ukuran gambar slide maksimal 3 MB.'
-        );
-    }
-
-    $originalName = isset($uploadedFile['name'])
-        ? (string) $uploadedFile['name']
-        : 'slide-image';
-
-    $extension = strtolower(
-        pathinfo($originalName, PATHINFO_EXTENSION)
-    );
-
-    $allowedExtensions = [
-        'jpg' => 'image/jpeg',
-        'jpeg' => 'image/jpeg',
-        'png' => 'image/png',
-        'webp' => 'image/webp',
-        'svg' => 'image/svg+xml',
-    ];
-
-    if (!isset($allowedExtensions[$extension])) {
-        throw new RuntimeException(
-            'Format gambar slide harus JPG, JPEG, PNG, WEBP, atau SVG.'
-        );
-    }
-
-    $uploadDirectory = getSlideUploadDirectory();
-
-    if (
-        !is_dir($uploadDirectory)
-        && !mkdir($uploadDirectory, 0775, true)
-        && !is_dir($uploadDirectory)
-    ) {
-        throw new RuntimeException(
-            'Folder storage/uploads/articles/slides gagal dibuat.'
-        );
-    }
-
-    if (!is_writable($uploadDirectory)) {
-        throw new RuntimeException(
-            'Folder gambar slide tidak dapat ditulis.'
-        );
-    }
-
-    $storedFileName = bin2hex(random_bytes(16))
-        . '.'
-        . $extension;
-
-    $destination = $uploadDirectory
-        . DIRECTORY_SEPARATOR
-        . $storedFileName;
-
-    if (!move_uploaded_file($temporaryPath, $destination)) {
-        throw new RuntimeException(
-            'Gambar slide gagal disimpan.'
-        );
-    }
-
-    return [
-        'file_name' => $storedFileName,
-        'file_type' => $allowedExtensions[$extension],
-        'file_size' => $fileSize,
-        'file_path' => $destination,
-        'file_url' => getSlideImageUrl($storedFileName),
-    ];
-}
-
-function deleteSlideImageFile(?string $fileName): bool
-{
-    $path = getSlideImagePath($fileName);
-
-    if ($path === null || !is_file($path)) {
-        return false;
-    }
-
-    return @unlink($path);
-}
-
-function getSlideVideoUploadDirectory(): string
-{
-    return getArticleUploadDirectory()
-        . DIRECTORY_SEPARATOR
-        . 'videos';
-}
-
-function getSlideVideoPath(?string $fileName): ?string
-{
-    if ($fileName === null || trim($fileName) === '') {
-        return null;
-    }
-
-    return getSlideVideoUploadDirectory()
-        . DIRECTORY_SEPARATOR
-        . basename($fileName);
-}
-
-function getSlideVideoUrl(?string $fileName): ?string
-{
-    if ($fileName === null || trim($fileName) === '') {
-        return null;
-    }
-
-    return getApiBaseUrl()
-        . '/materi-api.php?action=video&file='
-        . rawurlencode(basename($fileName));
-}
-
-function saveUploadedSlideVideo(array $uploadedFile): array
-{
-    $uploadError = isset($uploadedFile['error'])
-        ? (int) $uploadedFile['error']
-        : UPLOAD_ERR_NO_FILE;
-
-    if ($uploadError === UPLOAD_ERR_NO_FILE) {
-        throw new RuntimeException('File video belum dipilih.');
-    }
-
-    if ($uploadError !== UPLOAD_ERR_OK) {
-        throw new RuntimeException(
-            'Upload video gagal. Kode error: ' . $uploadError
-        );
-    }
-
-    $temporaryPath = isset($uploadedFile['tmp_name'])
-        ? (string) $uploadedFile['tmp_name']
-        : '';
-
-    if (
-        $temporaryPath === ''
-        || !is_uploaded_file($temporaryPath)
-    ) {
-        throw new RuntimeException(
-            'Temporary file video tidak valid.'
-        );
-    }
-
-    $fileSize = isset($uploadedFile['size'])
-        ? (int) $uploadedFile['size']
-        : 0;
-
-    $maxFileSize = 50 * 1024 * 1024;
-
-    if ($fileSize <= 0) {
-        throw new RuntimeException('Ukuran video tidak valid.');
-    }
-
-    if ($fileSize > $maxFileSize) {
-        throw new RuntimeException(
-            'Ukuran video maksimal 50 MB.'
-        );
-    }
-
-    $originalName = isset($uploadedFile['name'])
-        ? (string) $uploadedFile['name']
-        : 'slide-video';
-
-    $extension = strtolower(
-        pathinfo($originalName, PATHINFO_EXTENSION)
-    );
-
-    $allowedExtensions = [
-        'mp4' => 'video/mp4',
-        'webm' => 'video/webm',
-        'ogg' => 'video/ogg',
-    ];
-
-    if (!isset($allowedExtensions[$extension])) {
-        throw new RuntimeException(
-            'Format video harus MP4, WEBM, atau OGG.'
-        );
-    }
-
-    $uploadDirectory = getSlideVideoUploadDirectory();
-
-    if (
-        !is_dir($uploadDirectory)
-        && !mkdir($uploadDirectory, 0775, true)
-        && !is_dir($uploadDirectory)
-    ) {
-        throw new RuntimeException(
-            'Folder storage/uploads/articles/videos gagal dibuat.'
-        );
-    }
-
-    if (!is_writable($uploadDirectory)) {
-        throw new RuntimeException(
-            'Folder video tidak dapat ditulis.'
-        );
-    }
-
-    $storedFileName = bin2hex(random_bytes(16))
-        . '.'
-        . $extension;
-
-    $destination = $uploadDirectory
-        . DIRECTORY_SEPARATOR
-        . $storedFileName;
-
-    if (!move_uploaded_file($temporaryPath, $destination)) {
-        throw new RuntimeException('Video gagal disimpan.');
-    }
-
-    return [
-        'file_name' => $storedFileName,
-        'file_type' => $allowedExtensions[$extension],
-        'file_size' => $fileSize,
-        'file_path' => $destination,
-        'file_url' => getSlideVideoUrl($storedFileName),
-    ];
-}
-
-function deleteSlideVideoFile(?string $fileName): bool
-{
-    $path = getSlideVideoPath($fileName);
-
-    if ($path === null || !is_file($path)) {
-        return false;
-    }
-
-    return @unlink($path);
-}
-
-function getLocalVideoFileNameFromUrl(?string $videoUrl): ?string
-{
-    if ($videoUrl === null || trim($videoUrl) === '') {
-        return null;
-    }
-
-    $query = parse_url($videoUrl, PHP_URL_QUERY);
-
-    if (!is_string($query) || $query === '') {
-        return null;
-    }
-
-    parse_str($query, $parameters);
-
-    if (
-        ($parameters['action'] ?? null) !== 'video'
-        || empty($parameters['file'])
-    ) {
-        return null;
-    }
-
-    return basename((string) $parameters['file']);
-}
-
-function getRequestScheme(): string
-{
-    $forwardedProto = isset($_SERVER['HTTP_X_FORWARDED_PROTO'])
-        ? strtolower(trim((string) $_SERVER['HTTP_X_FORWARDED_PROTO']))
-        : '';
-
-    if ($forwardedProto === 'https') {
-        return 'https';
-    }
-
-    if (
-        isset($_SERVER['HTTPS'])
-        && $_SERVER['HTTPS'] !== ''
-        && strtolower((string) $_SERVER['HTTPS']) !== 'off'
-    ) {
-        return 'https';
-    }
-
-    return 'http';
-}
-
-function getApiBaseUrl(): string
-{
-    $host = isset($_SERVER['HTTP_HOST'])
-        ? trim((string) $_SERVER['HTTP_HOST'])
-        : '127.0.0.1:8000';
-
-    /*
-     * materi-api.php berada di /api/.
-     */
-    return getRequestScheme()
-        . '://'
-        . $host
-        . '/api';
-}
-
-function serveStoredImage(): void
-{
-    $scope = isset($_GET['scope'])
-        ? strtolower(trim((string) $_GET['scope']))
-        : 'card';
-
-    $requestedFile = isset($_GET['file'])
-        ? trim((string) $_GET['file'])
-        : '';
-
-    if ($requestedFile === '') {
-        sendJsonResponse(
-            [
-                'success' => false,
-                'message' => 'Parameter file wajib diisi.',
-            ],
-            400
-        );
-    }
-
-    /*
-     * basename mencegah ../ path traversal.
-     */
-    $fileName = basename($requestedFile);
-
-    if ($fileName !== $requestedFile) {
-        sendJsonResponse(
-            [
-                'success' => false,
-                'message' => 'Nama file tidak valid.',
-            ],
-            400
-        );
-    }
-
-    if ($scope === 'slide') {
-        $filePath = getSlideImagePath($fileName);
-    } else {
-        $filePath = getArticleImagePath($fileName);
-    }
-
-    if (
-        $filePath === null
-        || !is_file($filePath)
-        || !is_readable($filePath)
-    ) {
-        sendJsonResponse(
-            [
-                'success' => false,
-                'message' => 'File gambar tidak ditemukan.',
-                'data' => [
-                    'scope' => $scope,
-                    'file' => $fileName,
-                    'path' => $filePath,
-                ],
-            ],
-            404
-        );
-    }
-
-    $extension = strtolower(
-        pathinfo($fileName, PATHINFO_EXTENSION)
-    );
-
-    $mimeTypes = [
-        'jpg' => 'image/jpeg',
-        'jpeg' => 'image/jpeg',
-        'png' => 'image/png',
-        'webp' => 'image/webp',
-        'svg' => 'image/svg+xml',
-        'webp' => 'image/webp',
-        'gif' => 'image/gif',
-    ];
-
-    $mimeType = $mimeTypes[$extension]
-        ?? 'application/octet-stream';
-
-    /*
-     * Header JSON di awal file dioverride di sini.
-     */
-    header_remove('Content-Type');
-    header('Content-Type: ' . $mimeType);
-    header('Content-Length: ' . (string) filesize($filePath));
-    header('Cache-Control: public, max-age=3600');
-    header('X-Content-Type-Options: nosniff');
-
-    readfile($filePath);
-    exit;
-}
-
-function serveStoredVideo(): void
-{
-    $requestedFile = isset($_GET['file'])
-        ? trim((string) $_GET['file'])
-        : '';
-
-    if ($requestedFile === '') {
-        sendJsonResponse(
-            [
-                'success' => false,
-                'message' => 'Parameter file video wajib diisi.',
-            ],
-            400
-        );
-    }
-
-    $fileName = basename($requestedFile);
-
-    if ($fileName !== $requestedFile) {
-        sendJsonResponse(
-            [
-                'success' => false,
-                'message' => 'Nama file video tidak valid.',
-            ],
-            400
-        );
-    }
-
-    $filePath = getSlideVideoPath($fileName);
-
-    if (
-        $filePath === null
-        || !is_file($filePath)
-        || !is_readable($filePath)
-    ) {
-        sendJsonResponse(
-            [
-                'success' => false,
-                'message' => 'File video tidak ditemukan.',
-            ],
-            404
-        );
-    }
-
-    $extension = strtolower(
-        pathinfo($fileName, PATHINFO_EXTENSION)
-    );
-
-    $mimeTypes = [
-        'mp4' => 'video/mp4',
-        'webm' => 'video/webm',
-        'ogg' => 'video/ogg',
-    ];
-
-    $mimeType = $mimeTypes[$extension]
-        ?? 'application/octet-stream';
-
-    header_remove('Content-Type');
-    header('Content-Type: ' . $mimeType);
-    header('Content-Length: ' . (string) filesize($filePath));
-    header('Accept-Ranges: bytes');
-    header('Cache-Control: public, max-age=3600');
-    header('X-Content-Type-Options: nosniff');
-
-    readfile($filePath);
-    exit;
-}
-
-
-function readCreateMateriRequest(): array
-{
-    $contentType = isset($_SERVER['CONTENT_TYPE'])
-        ? strtolower((string) $_SERVER['CONTENT_TYPE'])
-        : '';
-
-    /*
-     * PRIORITAS 1:
-     * Request dari AdminTutorialCreate.jsx menggunakan FormData.
-     *
-     * FormData:
-     * - payload    = JSON string
-     * - card_image = file gambar
-     *
-     * Untuk multipart/form-data JANGAN mengandalkan php://input.
-     * PHP sudah mem-parsing request ke $_POST dan $_FILES.
-     */
-    if (
-        isset($_POST['payload'])
-        && is_string($_POST['payload'])
-        && trim($_POST['payload']) !== ''
-    ) {
-        $requestData = json_decode(
-            (string) $_POST['payload'],
-            true
-        );
-
-        if (!is_array($requestData)) {
-            sendJsonResponse(
-                [
-                    'success' => false,
-                    'message' => 'Payload multipart bukan JSON yang valid.',
-                    'debug' => [
-                        'content_type' => $contentType,
-                        'post_keys' => array_keys($_POST),
-                        'file_keys' => array_keys($_FILES),
-                    ],
-                ],
-                400
-            );
+    foreach ($sources as $source) {
+        if (!is_array($source)) {
+            continue;
         }
 
-        return $requestData;
-    }
-
-    /*
-     * PRIORITAS 2:
-     * Tetap kompatibel dengan request application/json lama.
-     */
-    $rawBody = file_get_contents('php://input');
-
-    if (
-        is_string($rawBody)
-        && trim($rawBody) !== ''
-    ) {
-        $requestData = json_decode(
-            $rawBody,
-            true
-        );
-
-        if (!is_array($requestData)) {
-            sendJsonResponse(
-                [
-                    'success' => false,
-                    'message' => 'Body request harus berupa JSON yang valid.',
-                    'debug' => [
-                        'content_type' => $contentType,
-                        'body_length' => strlen($rawBody),
-                    ],
-                ],
-                400
-            );
+        foreach ($keys as $key) {
+            if (array_key_exists($key, $source)) {
+                return $source[$key];
+            }
         }
-
-        return $requestData;
     }
 
-    /*
-     * Jika sampai sini:
-     * - payload tidak masuk ke $_POST
-     * - php://input juga kosong
-     *
-     * Biasanya terjadi jika API lama masih aktif, field FormData berbeda,
-     * atau ukuran request melebihi post_max_size.
-     */
-    sendJsonResponse(
-        [
-            'success' => false,
-            'message' => 'Payload request tidak ditemukan.',
-            'debug' => [
-                'content_type' => $contentType,
-                'post_keys' => array_keys($_POST),
-                'file_keys' => array_keys($_FILES),
-                'post_max_size' => ini_get('post_max_size'),
-                'upload_max_filesize' => ini_get('upload_max_filesize'),
-                'content_length' => isset($_SERVER['CONTENT_LENGTH'])
-                    ? (string) $_SERVER['CONTENT_LENGTH']
-                    : null,
-            ],
-        ],
-        400
-    );
+    return $default;
 }
 
-
-function saveUploadedArticleImage(array $uploadedFile): array
+function slugify(string $value): string
 {
-    $uploadError = isset($uploadedFile['error'])
-        ? (int) $uploadedFile['error']
-        : UPLOAD_ERR_NO_FILE;
+    $value = strtolower(trim($value));
+    $value = preg_replace('/[^a-z0-9]+/i', '-', $value) ?? '';
+    return trim($value, '-');
+}
 
-    if ($uploadError === UPLOAD_ERR_NO_FILE) {
-        throw new RuntimeException('File gambar belum dipilih.');
+function normalizeTutorialInput(array $data, array $existing = []): array
+{
+    $descriptions = is_array($data['descriptions'] ?? null) ? $data['descriptions'] : [];
+    $learning = is_array($data['learning_information'] ?? null) ? $data['learning_information'] : [];
+    $page = is_array($data['page_settings'] ?? null) ? $data['page_settings'] : [];
+    $access = is_array($data['access_settings'] ?? null) ? $data['access_settings'] : [];
+    $cta = is_array($data['cta'] ?? null) ? $data['cta'] : [];
+
+    $title = trim((string) firstValue([$data], ['title'], $existing['title'] ?? ''));
+    $slug = trim((string) firstValue([$data], ['slug'], $existing['slug'] ?? ''));
+    if ($slug === '' && $title !== '') {
+        $slug = slugify($title);
     }
 
-    if ($uploadError !== UPLOAD_ERR_OK) {
-        throw new RuntimeException(
-            'Upload gambar gagal. Kode error: ' . $uploadError
-        );
-    }
-
-    $temporaryPath = isset($uploadedFile['tmp_name'])
-        ? (string) $uploadedFile['tmp_name']
-        : '';
-
-    if (
-        $temporaryPath === ''
-        || !is_uploaded_file($temporaryPath)
-    ) {
-        throw new RuntimeException(
-            'Temporary file upload tidak valid.'
-        );
-    }
-
-    $fileSize = isset($uploadedFile['size'])
-        ? (int) $uploadedFile['size']
-        : 0;
-
-    $maxFileSize = 3 * 1024 * 1024;
-
-    if ($fileSize <= 0) {
-        throw new RuntimeException(
-            'Ukuran gambar tidak valid.'
-        );
-    }
-
-    if ($fileSize > $maxFileSize) {
-        throw new RuntimeException(
-            'Ukuran gambar maksimal 3 MB.'
-        );
-    }
-
-    $originalName = isset($uploadedFile['name'])
-        ? (string) $uploadedFile['name']
-        : 'image';
-
-    $extension = strtolower(
-        pathinfo($originalName, PATHINFO_EXTENSION)
-    );
-
-    $allowedExtensions = [
-        'jpg' => 'image/jpeg',
-        'jpeg' => 'image/jpeg',
-        'png' => 'image/png',
-        'svg' => 'image/svg+xml',
+    $values = [
+        'title' => $title,
+        'slug' => $slug,
+        'category' => trim((string) firstValue([$data], ['category'], $existing['category'] ?? 'Umum')),
+        'display_order' => max(1, (int) firstValue([$data, $page], ['display_order', 'displayOrder'], $existing['display_order'] ?? 1)),
+        'short_description' => (string) firstValue([$data, $descriptions], ['short_description', 'shortDescription', 'short'], $existing['short_description'] ?? ''),
+        'full_description' => (string) firstValue([$data, $descriptions], ['full_description', 'fullDescription', 'full'], $existing['full_description'] ?? ''),
+        'difficulty_level' => (string) firstValue([$data, $learning], ['difficulty_level', 'difficultyLevel', 'difficulty'], $existing['difficulty_level'] ?? ''),
+        'estimated_time' => (string) firstValue([$data, $learning], ['estimated_time', 'estimatedTime'], $existing['estimated_time'] ?? ''),
+        'page_order' => max(1, (int) firstValue([$data, $page], ['page_order', 'pageOrder'], $existing['page_order'] ?? 1)),
+        'status' => trim((string) firstValue([$data, $page], ['status'], $existing['status'] ?? 'draft')),
+        'active' => boolInt(firstValue([$data, $page], ['active'], $existing['active'] ?? 1), 1),
+        'show_on_page' => boolInt(firstValue([$data, $page], ['show_on_page', 'showOnPage'], $existing['show_on_page'] ?? 1), 1),
+        'featured' => boolInt(firstValue([$data, $page], ['featured'], $existing['featured'] ?? 0), 0),
+        'comments' => boolInt(firstValue([$data, $page], ['comments'], $existing['comments'] ?? 1), 1),
+        'access_type' => (string) firstValue([$data, $page, $access], ['access_type', 'accessType'], $existing['access_type'] ?? 'Gratis'),
+        'featured_order' => (int) firstValue([$data, $page], ['featured_order', 'featuredOrder'], $existing['featured_order'] ?? 0),
+        'user_level' => (string) firstValue([$data, $access], ['user_level', 'userLevel'], $existing['user_level'] ?? 'semua_pengguna'),
+        'access_requirement' => (string) firstValue([$data, $access], ['access_requirement', 'accessRequirement'], $existing['access_requirement'] ?? ''),
+        'prerequisite' => (string) firstValue([$data, $access], ['prerequisite'], $existing['prerequisite'] ?? ''),
+        'cta_text' => (string) firstValue([$data, $cta], ['cta_text', 'text'], $existing['cta_text'] ?? ''),
+        'cta_target_link' => (string) firstValue([$data, $cta], ['cta_target_link', 'target_link', 'targetLink'], $existing['cta_target_link'] ?? ''),
+        'cta_url_slug' => (string) firstValue([$data, $cta], ['cta_url_slug', 'url_slug', 'urlSlug'], $existing['cta_url_slug'] ?? ''),
+        'publish_schedule' => (string) firstValue([$data, $page], ['publish_schedule', 'publishSchedule'], $existing['publish_schedule'] ?? ''),
+        'price' => max(0, (int) firstValue([$data, $page, $access], ['price', 'material_price', 'materialPrice'], $existing['price'] ?? 0)),
     ];
 
-    if (!isset($allowedExtensions[$extension])) {
-        throw new RuntimeException(
-            'Format gambar harus JPG, JPEG, PNG, WEBP, atau SVG.'
-        );
-    }
-
-    $uploadDirectory = getArticleUploadDirectory();
-
-    if (
-        !is_dir($uploadDirectory)
-        && !mkdir($uploadDirectory, 0775, true)
-        && !is_dir($uploadDirectory)
-    ) {
-        throw new RuntimeException(
-            'Folder storage/uploads/articles gagal dibuat.'
-        );
-    }
-
-    if (!is_writable($uploadDirectory)) {
-        throw new RuntimeException(
-            'Folder storage/uploads/articles tidak dapat ditulis.'
-        );
-    }
-
-    $storedFileName = bin2hex(random_bytes(16))
-        . '.'
-        . $extension;
-
-    $destination = $uploadDirectory
-        . DIRECTORY_SEPARATOR
-        . $storedFileName;
-
-    if (!move_uploaded_file($temporaryPath, $destination)) {
-        throw new RuntimeException(
-            'Gambar gagal disimpan ke storage/uploads/articles.'
-        );
-    }
-
-    return [
-        'file_name' => $storedFileName,
-        'file_type' => $allowedExtensions[$extension],
-        'file_size' => $fileSize,
-        'file_path' => $destination,
-        'file_url' => getArticleImageUrl($storedFileName),
-    ];
+    return $values;
 }
 
-function deleteArticleImageFile(?string $fileName): bool
+function normalizeChapters(array $data): array
 {
-    $path = getArticleImagePath($fileName);
+    $raw = is_array($data['chapters'] ?? null) ? $data['chapters'] : [];
+    $result = [];
 
-    if ($path === null || !is_file($path)) {
-        return false;
-    }
-
-    return @unlink($path);
-}
-
-
-function normalizeRequestChapters(array $requestData): array
-{
-    $rawChapters = isset($requestData['chapters'])
-        && is_array($requestData['chapters'])
-        ? $requestData['chapters']
-        : [];
-
-    $chapters = [];
-
-    foreach ($rawChapters as $index => $chapter) {
+    foreach ($raw as $index => $chapter) {
         if (!is_array($chapter)) {
             continue;
         }
 
-        $clientId = $chapter['id']
-            ?? $chapter['chapter_id']
-            ?? ('chapter-' . ($index + 1));
-
-        $title = trim((string) (
-            $chapter['title']
-            ?? $chapter['chapter_title']
-            ?? ''
-        ));
-
+        $title = trim((string) ($chapter['title'] ?? $chapter['chapter_title'] ?? ''));
         if ($title === '') {
             $title = 'Bab ' . ($index + 1);
         }
 
-        $chapters[] = [
-            'client_id' => (string) $clientId,
-            'order' => isset($chapter['order'])
-                ? max(1, (int) $chapter['order'])
-                : (
-                    isset($chapter['chapter_order'])
-                        ? max(1, (int) $chapter['chapter_order'])
-                        : $index + 1
-                ),
+        $clientId = (string) (
+            $chapter['id'] ??
+            $chapter['chapter_id'] ??
+            $chapter['client_id'] ??
+            ('chapter-' . ($index + 1))
+        );
+
+        $result[] = [
+            'client_id' => $clientId,
+            'order' => max(1, (int) ($chapter['order'] ?? $chapter['chapter_order'] ?? ($index + 1))),
             'title' => $title,
         ];
     }
 
-    if ($chapters === []) {
+    usort($result, static fn (array $a, array $b): int => $a['order'] <=> $b['order']);
+
+    return $result;
+}
+
+function normalizeObjectives(array $data): array
+{
+    $learning = is_array($data['learning_information'] ?? null) ? $data['learning_information'] : [];
+    $raw = $learning['learning_objectives'] ?? $data['learning_objectives'] ?? [];
+    if (!is_array($raw)) {
         return [];
     }
 
-    usort(
-        $chapters,
-        static fn(array $first, array $second): int =>
-            $first['order'] <=> $second['order']
-    );
-
-    foreach ($chapters as $index => &$chapter) {
-        $chapter['order'] = $index + 1;
-    }
-    unset($chapter);
-
-    return $chapters;
+    return array_values(array_filter(
+        array_map(static fn ($item): string => trim((string) $item), $raw),
+        static fn (string $item): bool => $item !== ''
+    ));
 }
 
-
-function normalizeLearningObjectives(array $learning): array
+function normalizeSlides(array $data): array
 {
-    $rawObjectives = isset($learning['learning_objectives'])
-        && is_array($learning['learning_objectives'])
-        ? $learning['learning_objectives']
-        : [];
-
-    $objectives = [];
-
-    foreach ($rawObjectives as $objective) {
-        $value = trim((string) $objective);
-
-        if ($value !== '') {
-            $objectives[] = $value;
-        }
-    }
-
-    return array_values($objectives);
+    return is_array($data['slides'] ?? null) ? $data['slides'] : [];
 }
 
+function fetchTutorialStructure(PDO $database, array $tutorialIds): array
+{
+    $result = [
+        'chapters' => [],
+        'objectives' => [],
+        'slides' => [],
+    ];
 
-function insertTutorialStructure(
-    PDO $database,
-    int $tutorialId,
-    array $chapters,
-    array $learningObjectives,
-    array $slides,
-    string $currentTimestamp
-): void {
-    $chapterStatement = $database->prepare(
-        'INSERT INTO materi_chapters (
-            materi_id,
-            chapter_order,
-            title,
-            created_at,
-            updated_at
-        ) VALUES (
-            :materi_id,
-            :chapter_order,
-            :title,
-            :created_at,
-            :updated_at
-        )'
-    );
+    if ($tutorialIds === []) {
+        return $result;
+    }
 
-    if ($chapters === []) {
-        throw new RuntimeException(
-            'Tutorial harus mempunyai minimal satu Bab.'
+    $placeholders = implode(',', array_fill(0, count($tutorialIds), '?'));
+
+    if (tableExists($database, 'tutorial_chapters')) {
+        $statement = $database->prepare(
+            'SELECT * FROM tutorial_chapters
+             WHERE tutorial_id IN (' . $placeholders . ')
+             ORDER BY tutorial_id ASC, chapter_order ASC, id ASC'
         );
+        $statement->execute($tutorialIds);
+
+        foreach ($statement->fetchAll() as $row) {
+            $tutorialId = (int) $row['tutorial_id'];
+            $row['order'] = (int) ($row['chapter_order'] ?? 1);
+            $result['chapters'][$tutorialId][] = $row;
+        }
     }
 
-    $chapterIdMap = [];
+    if (tableExists($database, 'tutorial_learning_objectives')) {
+        $statement = $database->prepare(
+            'SELECT * FROM tutorial_learning_objectives
+             WHERE tutorial_id IN (' . $placeholders . ')
+             ORDER BY tutorial_id ASC, objective_order ASC, id ASC'
+        );
+        $statement->execute($tutorialIds);
 
-    foreach ($chapters as $index => $chapter) {
-        $chapterStatement->execute([
-            ':materi_id' => $tutorialId,
-            ':chapter_order' => isset($chapter['order'])
-                ? (int) $chapter['order']
-                : $index + 1,
-            ':title' => trim((string) ($chapter['title'] ?? ('Bab ' . ($index + 1)))),
-            ':created_at' => $currentTimestamp,
-            ':updated_at' => $currentTimestamp,
-        ]);
-
-        $databaseChapterId = (int) $database->lastInsertId();
-
-        $clientId = isset($chapter['client_id'])
-            ? (string) $chapter['client_id']
-            : (string) ($chapter['id'] ?? $databaseChapterId);
-
-        $chapterIdMap[$clientId] = $databaseChapterId;
-        $chapterIdMap[(string) $databaseChapterId] = $databaseChapterId;
+        foreach ($statement->fetchAll() as $row) {
+            $tutorialId = (int) $row['tutorial_id'];
+            $objective = trim((string) ($row['objective'] ?? ''));
+            if ($objective !== '') {
+                $result['objectives'][$tutorialId][] = $objective;
+            }
+        }
     }
 
-    $objectiveStatement = $database->prepare(
-        'INSERT INTO materi_learning_objectives (
-            materi_id,
-            objective_order,
-            objective,
-            created_at,
-            updated_at
-        ) VALUES (
-            :materi_id,
-            :objective_order,
-            :objective,
-            :created_at,
-            :updated_at
-        )'
-    );
+    if (tableExists($database, 'tutorial_slides')) {
+        $statement = $database->prepare(
+            'SELECT * FROM tutorial_slides
+             WHERE tutorial_id IN (' . $placeholders . ')
+             ORDER BY tutorial_id ASC, slide_order ASC, id ASC'
+        );
+        $statement->execute($tutorialIds);
 
-    foreach ($learningObjectives as $index => $objective) {
-        $objectiveStatement->execute([
-            ':materi_id' => $tutorialId,
-            ':objective_order' => $index + 1,
-            ':objective' => (string) $objective,
-            ':created_at' => $currentTimestamp,
-            ':updated_at' => $currentTimestamp,
-        ]);
+        foreach ($statement->fetchAll() as $row) {
+            $tutorialId = (int) $row['tutorial_id'];
+            $row['order'] = (int) ($row['slide_order'] ?? 1);
+            $row['body_text'] = (string) ($row['content'] ?? '');
+            $row['allow_copy'] = (bool) ($row['allow_copy'] ?? 0);
+
+            $imageName = trim((string) ($row['image_name'] ?? ''));
+            $row['image_url'] = $imageName !== '' ? materiFileUrl($imageName) : null;
+            $row['image_path'] = $imageName !== '' ? findMateriFile($imageName) : null;
+
+            $result['slides'][$tutorialId][] = $row;
+        }
     }
 
-    $slideStatement = $database->prepare(
-        'INSERT INTO materi_slides (
-            materi_id,
-            chapter_id,
-            slide_order,
-            title,
-            content_type,
-            content,
-            code_title,
-            code_language,
-            code_content,
-            allow_copy,
-            estimated_time,
-            status,
-            image_name,
-            image_type,
-            image_size,
-            video_url,
-            created_at,
-            updated_at
-        ) VALUES (
-            :materi_id,
-            :chapter_id,
-            :slide_order,
-            :title,
-            :content_type,
-            :content,
-            :code_title,
-            :code_language,
-            :code_content,
-            :allow_copy,
-            :estimated_time,
-            :status,
-            :image_name,
-            :image_type,
-            :image_size,
-            :video_url,
-            :created_at,
-            :updated_at
-        )'
-    );
-
-    $chapterSlideCounters = [];
-
-    foreach ($slides as $index => $slide) {
-        if (!is_array($slide)) {
-            continue;
-        }
-
-        $chapterClientId = isset($slide['chapter_id'])
-            && $slide['chapter_id'] !== null
-            && trim((string) $slide['chapter_id']) !== ''
-                ? (string) $slide['chapter_id']
-                : (
-                    isset($slide['chapterId'])
-                    && $slide['chapterId'] !== null
-                    && trim((string) $slide['chapterId']) !== ''
-                        ? (string) $slide['chapterId']
-                        : null
-                );
-
-        if (
-            $chapterClientId === null
-            || !isset($chapterIdMap[$chapterClientId])
-        ) {
-            $slideTitle = isset($slide['title'])
-                && trim((string) $slide['title']) !== ''
-                    ? trim((string) $slide['title'])
-                    : 'Slide ' . ($index + 1);
-
-            throw new RuntimeException(
-                'Materi "' . $slideTitle . '" tidak mempunyai Bab yang valid.'
-            );
-        }
-
-        $chapterId = $chapterIdMap[$chapterClientId];
-
-        if (!isset($chapterSlideCounters[$chapterId])) {
-            $chapterSlideCounters[$chapterId] = 0;
-        }
-
-        $chapterSlideCounters[$chapterId]++;
-        $slideOrder = $chapterSlideCounters[$chapterId];
-
-        $slideImage = isset($slide['uploaded_image'])
-            && is_array($slide['uploaded_image'])
-            ? $slide['uploaded_image']
-            : [];
-
-        if ($slideImage === []) {
-            $imagePayload = isset($slide['image'])
-                && is_array($slide['image'])
-                ? $slide['image']
-                : [];
-
-            $slideImage = [
-                'file_name' => $imagePayload['file_name']
-                    ?? $slide['image_name']
-                    ?? null,
-                'file_type' => $imagePayload['file_type']
-                    ?? $slide['image_type']
-                    ?? null,
-                'file_size' => $imagePayload['file_size']
-                    ?? $slide['image_size']
-                    ?? null,
-            ];
-        }
-
-        $contentType = isset($slide['content_type'])
-            ? strtolower(trim((string) $slide['content_type']))
-            : 'text';
-
-        $videoUrl = isset($slide['uploaded_video_url'])
-            && trim((string) $slide['uploaded_video_url']) !== ''
-                ? trim((string) $slide['uploaded_video_url'])
-                : (
-                    isset($slide['video_url'])
-                    && trim((string) $slide['video_url']) !== ''
-                        ? trim((string) $slide['video_url'])
-                        : null
-                );
-
-        $bodyContent = isset($slide['body_text'])
-            ? (string) $slide['body_text']
-            : (
-                isset($slide['content'])
-                    ? (string) $slide['content']
-                    : null
-            );
-
-        $slideStatement->execute([
-            ':materi_id' => $tutorialId,
-            ':chapter_id' => $chapterId,
-            ':slide_order' => $slideOrder,
-            ':title' => isset($slide['title'])
-                ? trim((string) $slide['title'])
-                : 'Slide ' . ($index + 1),
-            ':content_type' => $contentType,
-            ':content' => $contentType === 'code'
-                ? null
-                : $bodyContent,
-            ':code_title' => $contentType === 'code'
-                && isset($slide['code_title'])
-                && trim((string) $slide['code_title']) !== ''
-                    ? trim((string) $slide['code_title'])
-                    : null,
-            ':code_language' => $contentType === 'code'
-                ? trim((string) ($slide['code_language'] ?? 'text'))
-                : null,
-            ':code_content' => $contentType === 'code'
-                ? (string) ($slide['code_content'] ?? '')
-                : null,
-            ':allow_copy' => $contentType === 'code'
-                ? booleanToInteger($slide['allow_copy'] ?? true, 1)
-                : 0,
-            ':estimated_time' => isset($slide['estimated_time'])
-                ? (string) $slide['estimated_time']
-                : null,
-            ':status' => isset($slide['status'])
-                ? (string) $slide['status']
-                : 'draft',
-            ':image_name' => !empty($slideImage['file_name'])
-                ? (string) $slideImage['file_name']
-                : null,
-            ':image_type' => !empty($slideImage['file_type'])
-                ? (string) $slideImage['file_type']
-                : null,
-            ':image_size' => isset($slideImage['file_size'])
-                && $slideImage['file_size'] !== null
-                    ? (int) $slideImage['file_size']
-                    : null,
-            ':video_url' => $contentType === 'video'
-                ? $videoUrl
-                : null,
-            ':created_at' => $currentTimestamp,
-            ':updated_at' => $currentTimestamp,
-        ]);
-    }
+    return $result;
 }
 
+function enrichTutorialRows(PDO $database, array $rows): array
+{
+    $ids = array_map(static fn (array $row): int => (int) $row['id'], $rows);
+    $structure = fetchTutorialStructure($database, $ids);
+
+    foreach ($rows as &$tutorial) {
+        $id = (int) $tutorial['id'];
+
+        $tutorial['active'] = (bool) ($tutorial['active'] ?? 1);
+        $tutorial['show_on_page'] = (bool) ($tutorial['show_on_page'] ?? 1);
+        $tutorial['featured'] = (bool) ($tutorial['featured'] ?? 0);
+        $tutorial['comments'] = (bool) ($tutorial['comments'] ?? 1);
+        $tutorial['price'] = max(0, (int) ($tutorial['price'] ?? 0));
+
+        $cardImageName = trim((string) ($tutorial['card_image_name'] ?? ''));
+        if ($cardImageName !== '') {
+            $tutorial['card_image_path'] = findMateriFile($cardImageName);
+            $tutorial['card_image_url'] = materiFileUrl($cardImageName);
+        }
+
+        $tutorial['chapters'] = $structure['chapters'][$id] ?? [];
+        $tutorial['learning_objectives'] = $structure['objectives'][$id] ?? [];
+        $tutorial['slides'] = $structure['slides'][$id] ?? [];
+        $tutorial['slide_count'] = count($tutorial['slides']);
+        $tutorial['total_slides'] = count($tutorial['slides']);
+
+        $tutorial['page_settings'] = [
+            'price' => $tutorial['price'],
+            'access_type' => $tutorial['access_type'] ?? null,
+            'active' => $tutorial['active'],
+            'show_on_page' => $tutorial['show_on_page'],
+            'featured' => $tutorial['featured'],
+        ];
+    }
+    unset($tutorial);
+
+    return $rows;
+}
+
+function getMateri(PDO $database): never
+{
+    if (!tableExists($database, 'tutorials')) {
+        throw new RuntimeException('Tabel tutorials tidak ditemukan pada database.');
+    }
+
+    $id = isset($_GET['id']) && ctype_digit((string) $_GET['id'])
+        ? (int) $_GET['id']
+        : null;
+    $slug = trim((string) ($_GET['slug'] ?? ''));
+
+    if ($id !== null) {
+        $statement = $database->prepare('SELECT * FROM tutorials WHERE id = :id LIMIT 1');
+        $statement->execute([':id' => $id]);
+        $row = $statement->fetch();
+
+        if (!$row) {
+            sendJsonResponse(['success' => false, 'message' => 'Materi tidak ditemukan.'], 404);
+        }
+
+        $rows = enrichTutorialRows($database, [$row]);
+        sendJsonResponse(['success' => true, 'data' => $rows[0], 'material' => $rows[0]]);
+    }
+
+    if ($slug !== '') {
+        $statement = $database->prepare('SELECT * FROM tutorials WHERE slug = :slug LIMIT 1');
+        $statement->execute([':slug' => $slug]);
+        $row = $statement->fetch();
+
+        if (!$row) {
+            sendJsonResponse(['success' => false, 'message' => 'Materi tidak ditemukan.'], 404);
+        }
+
+        $rows = enrichTutorialRows($database, [$row]);
+        sendJsonResponse(['success' => true, 'data' => $rows[0], 'material' => $rows[0]]);
+    }
+
+    $rows = $database
+        ->query('SELECT * FROM tutorials ORDER BY display_order ASC, id DESC')
+        ->fetchAll();
+
+    $rows = enrichTutorialRows($database, $rows);
+
+    sendJsonResponse([
+        'success' => true,
+        'message' => 'Data materi berhasil diambil.',
+        'data' => $rows,
+        'materials' => $rows,
+        'total' => count($rows),
+    ]);
+}
+
+function insertFiltered(PDO $database, string $table, array $values): int
+{
+    $columns = tableColumns($database, $table);
+    $filtered = [];
+
+    foreach ($values as $key => $value) {
+        if (isset($columns[$key])) {
+            $filtered[$key] = $value;
+        }
+    }
+
+    if ($filtered === []) {
+        throw new RuntimeException('Tidak ada kolom valid untuk disimpan ke ' . $table . '.');
+    }
+
+    $names = array_keys($filtered);
+    $sql = 'INSERT INTO ' . $table .
+        ' (' . implode(', ', $names) . ')' .
+        ' VALUES (:' . implode(', :', $names) . ')';
+
+    $statement = $database->prepare($sql);
+    $bindings = [];
+    foreach ($filtered as $key => $value) {
+        $bindings[':' . $key] = $value;
+    }
+
+    $statement->execute($bindings);
+    return (int) $database->lastInsertId();
+}
+
+function updateFiltered(PDO $database, string $table, int $id, array $values): void
+{
+    $columns = tableColumns($database, $table);
+    $filtered = [];
+
+    foreach ($values as $key => $value) {
+        if ($key !== 'id' && isset($columns[$key])) {
+            $filtered[$key] = $value;
+        }
+    }
+
+    if ($filtered === []) {
+        return;
+    }
+
+    $set = implode(', ', array_map(
+        static fn (string $key): string => $key . ' = :' . $key,
+        array_keys($filtered)
+    ));
+
+    $statement = $database->prepare(
+        'UPDATE ' . $table . ' SET ' . $set . ' WHERE id = :id'
+    );
+
+    $bindings = [':id' => $id];
+    foreach ($filtered as $key => $value) {
+        $bindings[':' . $key] = $value;
+    }
+
+    $statement->execute($bindings);
+}
 
 function replaceTutorialStructure(
     PDO $database,
     int $tutorialId,
     array $chapters,
-    array $learningObjectives,
+    array $objectives,
     array $slides,
-    string $currentTimestamp
+    bool $replace
 ): void {
-    $deleteSlides = $database->prepare(
-        'DELETE FROM materi_slides
-         WHERE materi_id = :materi_id'
-    );
-    $deleteSlides->execute([
-        ':materi_id' => $tutorialId,
-    ]);
+    $hasAnyStructure =
+        array_key_exists('chapters', $GLOBALS['requestDataForStructure'] ?? []) ||
+        array_key_exists('slides', $GLOBALS['requestDataForStructure'] ?? []) ||
+        array_key_exists('learning_objectives', $GLOBALS['requestDataForStructure'] ?? []) ||
+        array_key_exists('learning_information', $GLOBALS['requestDataForStructure'] ?? []);
 
-    $deleteObjectives = $database->prepare(
-        'DELETE FROM materi_learning_objectives
-         WHERE materi_id = :materi_id'
-    );
-    $deleteObjectives->execute([
-        ':materi_id' => $tutorialId,
-    ]);
-
-    $deleteChapters = $database->prepare(
-        'DELETE FROM materi_chapters
-         WHERE materi_id = :materi_id'
-    );
-    $deleteChapters->execute([
-        ':materi_id' => $tutorialId,
-    ]);
-
-    insertTutorialStructure(
-        $database,
-        $tutorialId,
-        $chapters,
-        $learningObjectives,
-        $slides,
-        $currentTimestamp
-    );
-}
-
-
-function getAllMateri(PDO $database): void
-{
-    $statement = $database->query(
-        'SELECT
-            id,
-            title,
-            slug,
-            category,
-            display_order,
-            short_description,
-            full_description,
-            card_image_name,
-            card_image_type,
-            card_image_size,
-            difficulty_level,
-            estimated_time,
-            page_order,
-            status,
-            active,
-            show_on_page,
-            featured,
-            comments,
-            access_type,
-            featured_order,
-            user_level,
-            access_requirement,
-            prerequisite,
-            cta_text,
-            cta_target_link,
-            cta_url_slug,
-            publish_schedule,
-            created_at,
-            updated_at
-         FROM materi
-         ORDER BY display_order ASC, id DESC'
-    );
-
-    $materi = $statement->fetchAll();
-
-    $chapterStatement = $database->query(
-        'SELECT
-            materi_id AS tutorial_id,
-            id,
-            chapter_order AS "order",
-            title,
-            created_at,
-            updated_at
-         FROM materi_chapters
-         WHERE materi_id IN (SELECT id FROM materi)
-         ORDER BY materi_id ASC, chapter_order ASC, id ASC'
-    );
-
-    $objectiveStatement = $database->query(
-        'SELECT
-            materi_id AS tutorial_id,
-            objective
-         FROM materi_learning_objectives
-         WHERE materi_id IN (SELECT id FROM materi)
-         ORDER BY materi_id ASC, objective_order ASC, id ASC'
-    );
-
-    $slideStatement = $database->query(
-        'SELECT
-            materi_id AS tutorial_id,
-            id,
-            chapter_id,
-            slide_order AS "order",
-            title,
-            content_type,
-            content,
-            code_title,
-            code_language,
-            code_content,
-            allow_copy,
-            estimated_time,
-            status,
-            image_name,
-            image_type,
-            image_size,
-            video_url
-         FROM materi_slides
-         WHERE materi_id IN (SELECT id FROM materi)
-         ORDER BY materi_id ASC, slide_order ASC, id ASC'
-    );
-
-    $chaptersByTutorial = [];
-    while ($row = $chapterStatement->fetch()) {
-        $tutorialId = (int) $row['tutorial_id'];
-        unset($row['tutorial_id']);
-        $chaptersByTutorial[$tutorialId][] = $row;
+    if (!$hasAnyStructure && $replace) {
+        return;
     }
 
-    $objectivesByTutorial = [];
-    while ($row = $objectiveStatement->fetch()) {
-        $objective = trim((string) ($row['objective'] ?? ''));
-        if ($objective !== '') {
-            $objectivesByTutorial[(int) $row['tutorial_id']][] = $objective;
+    if ($replace) {
+        if (tableExists($database, 'tutorial_slides')) {
+            $statement = $database->prepare('DELETE FROM tutorial_slides WHERE tutorial_id = :id');
+            $statement->execute([':id' => $tutorialId]);
+        }
+
+        if (tableExists($database, 'tutorial_learning_objectives')) {
+            $statement = $database->prepare('DELETE FROM tutorial_learning_objectives WHERE tutorial_id = :id');
+            $statement->execute([':id' => $tutorialId]);
+        }
+
+        if (tableExists($database, 'tutorial_chapters')) {
+            $statement = $database->prepare('DELETE FROM tutorial_chapters WHERE tutorial_id = :id');
+            $statement->execute([':id' => $tutorialId]);
         }
     }
 
-    $slidesByTutorial = [];
-    while ($row = $slideStatement->fetch()) {
-        $tutorialId = (int) $row['tutorial_id'];
-        unset($row['tutorial_id']);
-        $slidesByTutorial[$tutorialId][] = $row;
+    $now = gmdate('c');
+    $chapterIdMap = [];
+
+    if (tableExists($database, 'tutorial_chapters')) {
+        foreach ($chapters as $index => $chapter) {
+            $chapterId = insertFiltered($database, 'tutorial_chapters', [
+                'tutorial_id' => $tutorialId,
+                'chapter_order' => (int) ($chapter['order'] ?? ($index + 1)),
+                'title' => (string) ($chapter['title'] ?? ('Bab ' . ($index + 1))),
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+
+            $clientId = (string) ($chapter['client_id'] ?? $chapterId);
+            $chapterIdMap[$clientId] = $chapterId;
+            $chapterIdMap[(string) $chapterId] = $chapterId;
+        }
     }
 
-    foreach ($materi as &$tutorial) {
-        $tutorialId = (int) $tutorial['id'];
-        $chapters = $chaptersByTutorial[$tutorialId] ?? [];
-        $learningObjectives = $objectivesByTutorial[$tutorialId] ?? [];
-        $slides = $slidesByTutorial[$tutorialId] ?? [];
-        unset($chaptersByTutorial[$tutorialId], $objectivesByTutorial[$tutorialId], $slidesByTutorial[$tutorialId]);
-
-        if ($chapters === [] && $slides !== []) {
-            $legacyChapterId = 'legacy-' . $tutorialId;
-
-            $chapters = [
-                [
-                    'id' => $legacyChapterId,
-                    'order' => 1,
-                    'title' => 'Materi',
-                    'virtual' => true,
-                ],
-            ];
-
-            foreach ($slides as &$legacySlide) {
-                if (
-                    !isset($legacySlide['chapter_id'])
-                    || $legacySlide['chapter_id'] === null
-                    || $legacySlide['chapter_id'] === ''
-                ) {
-                    $legacySlide['chapter_id'] = $legacyChapterId;
-                }
-            }
-            unset($legacySlide);
-        } elseif ($chapters !== []) {
-            $firstChapterId = $chapters[0]['id'];
-
-            foreach ($slides as &$unassignedSlide) {
-                if (
-                    !isset($unassignedSlide['chapter_id'])
-                    || $unassignedSlide['chapter_id'] === null
-                    || $unassignedSlide['chapter_id'] === ''
-                ) {
-                    $unassignedSlide['chapter_id'] = $firstChapterId;
-                }
-            }
-            unset($unassignedSlide);
+    if (tableExists($database, 'tutorial_learning_objectives')) {
+        foreach ($objectives as $index => $objective) {
+            insertFiltered($database, 'tutorial_learning_objectives', [
+                'tutorial_id' => $tutorialId,
+                'objective_order' => $index + 1,
+                'objective' => $objective,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
         }
+    }
 
-        foreach ($slides as &$slide) {
-            $slide['body_text'] = isset($slide['content'])
-                ? (string) $slide['content']
-                : '';
+    if (tableExists($database, 'tutorial_slides')) {
+        $chapterCounters = [];
 
-            $slide['allow_copy'] = (bool) ($slide['allow_copy'] ?? 0);
+        foreach ($slides as $index => $slide) {
+            if (!is_array($slide)) {
+                continue;
+            }
 
-            $slideImageName = isset($slide['image_name'])
-                ? (string) $slide['image_name']
-                : null;
-
-            $slide['image_path'] = getSlideImagePath(
-                $slideImageName
+            $chapterClientId = (string) (
+                $slide['chapter_id'] ??
+                $slide['chapterId'] ??
+                ''
             );
 
-            $slide['image_url'] = getSlideImageUrl(
-                $slideImageName
-            );
+            $chapterId = $chapterIdMap[$chapterClientId]
+                ?? (count($chapterIdMap) ? reset($chapterIdMap) : null);
 
-            $slide['image'] = $slideImageName
-                ? [
-                    'file_name' => $slideImageName,
-                    'file_type' => $slide['image_type'] ?? null,
-                    'file_size' => isset($slide['image_size'])
-                        ? (int) $slide['image_size']
-                        : null,
-                    'path' => $slide['image_path'],
-                    'url' => $slide['image_url'],
-                ]
-                : null;
+            if ($chapterId !== null) {
+                if (!isset($chapterCounters[$chapterId])) {
+                    $chapterCounters[$chapterId] = 0;
+                }
+                $chapterCounters[$chapterId]++;
+            }
 
-            $videoUrl = isset($slide['video_url'])
-                ? trim((string) $slide['video_url'])
-                : '';
-            $slide['video_url'] = $videoUrl !== '' ? $videoUrl : null;
-            $slide['video_embed_url'] = $videoUrl !== ''
-                ? normalizeVideoUrlForEmbed($videoUrl)
-                : null;
+            $imageData = [];
+            $imageField = 'slide_image_' . $index;
+
+            if (
+                isset($_FILES[$imageField]) &&
+                is_array($_FILES[$imageField]) &&
+                (int) ($_FILES[$imageField]['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE
+            ) {
+                $imageData = saveUploadedFile(
+                    $_FILES[$imageField],
+                    'slide',
+                    [
+                        'jpg' => 'image/jpeg',
+                        'jpeg' => 'image/jpeg',
+                        'png' => 'image/png',
+                        'webp' => 'image/webp',
+                        'gif' => 'image/gif',
+                        'svg' => 'image/svg+xml',
+                    ],
+                    3 * 1024 * 1024
+                );
+            }
+
+            $videoUrl = trim((string) ($slide['video_url'] ?? $slide['videoUrl'] ?? ''));
+            $videoField = 'slide_video_' . $index;
+
+            if (
+                isset($_FILES[$videoField]) &&
+                is_array($_FILES[$videoField]) &&
+                (int) ($_FILES[$videoField]['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE
+            ) {
+                $videoData = saveUploadedFile(
+                    $_FILES[$videoField],
+                    'video',
+                    [
+                        'mp4' => 'video/mp4',
+                        'webm' => 'video/webm',
+                        'ogg' => 'video/ogg',
+                    ],
+                    50 * 1024 * 1024
+                );
+                $videoUrl = (string) $videoData['file_url'];
+            }
+
+            $existingImage = is_array($slide['image'] ?? null) ? $slide['image'] : [];
+            $imageName =
+                $imageData['file_name'] ??
+                $existingImage['file_name'] ??
+                $slide['image_name'] ??
+                null;
+            $imageType =
+                $imageData['file_type'] ??
+                $existingImage['file_type'] ??
+                $slide['image_type'] ??
+                null;
+            $imageSize =
+                $imageData['file_size'] ??
+                $existingImage['file_size'] ??
+                $slide['image_size'] ??
+                null;
+
+            $contentType = strtolower(trim((string) ($slide['content_type'] ?? $slide['contentType'] ?? 'text')));
+
+            insertFiltered($database, 'tutorial_slides', [
+                'tutorial_id' => $tutorialId,
+                'chapter_id' => $chapterId,
+                'slide_order' => $chapterId !== null
+                    ? ($chapterCounters[$chapterId] ?? ($index + 1))
+                    : ($index + 1),
+                'title' => trim((string) ($slide['title'] ?? ('Materi ' . ($index + 1)))),
+                'content_type' => $contentType,
+                'content' => $contentType === 'code'
+                    ? null
+                    : (string) ($slide['body_text'] ?? $slide['content'] ?? ''),
+                'code_title' => $contentType === 'code' ? ($slide['code_title'] ?? null) : null,
+                'code_language' => $contentType === 'code' ? ($slide['code_language'] ?? 'text') : null,
+                'code_content' => $contentType === 'code' ? ($slide['code_content'] ?? '') : null,
+                'allow_copy' => $contentType === 'code'
+                    ? boolInt($slide['allow_copy'] ?? true, 1)
+                    : 0,
+                'estimated_time' => (string) ($slide['estimated_time'] ?? $slide['estimatedTime'] ?? ''),
+                'status' => (string) ($slide['status'] ?? 'published'),
+                'image_name' => $imageName,
+                'image_type' => $imageType,
+                'image_size' => $imageSize,
+                'video_url' => $videoUrl !== '' ? $videoUrl : null,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
         }
-        unset($slide);
-
-        $tutorial['chapters'] = $chapters;
-        $tutorial['learning_objectives'] = $learningObjectives;
-        $tutorial['slides'] = $slides;
-        $tutorial['slide_count'] = count($slides);
-        $tutorial['card_image_path'] = getCardImagePath($tutorial['card_image_name'] ?? null);
-        $tutorial['card_image_url'] = getCardImageUrl($tutorial['card_image_name'] ?? null);
-        $tutorial['active'] = (bool) ($tutorial['active'] ?? 1);
-        $tutorial['show_on_page'] = (bool) ($tutorial['show_on_page'] ?? 1);
-        $tutorial['featured'] = (bool) ($tutorial['featured'] ?? 0);
-        $tutorial['comments'] = (bool) ($tutorial['comments'] ?? 1);
     }
-    unset($tutorial);
-
-    sendJsonResponse([
-        'success' => true,
-        'message' => 'Data materi berhasil diambil.',
-        'data' => $materi,
-        'total' => count($materi),
-    ]);
 }
 
-function createMateri(PDO $database): void
+function saveMateri(PDO $database, ?int $id = null): never
 {
-    try {
-        $requestData = readCreateMateriRequest();
-    } catch (InvalidArgumentException $error) {
-        sendJsonResponse(
-            [
-                'success' => false,
-                'message' => $error->getMessage(),
-            ],
-            400
-        );
+    $data = readRequestData();
+    $GLOBALS['requestDataForStructure'] = $data;
+
+    $existing = [];
+
+    if ($id !== null) {
+        $statement = $database->prepare('SELECT * FROM tutorials WHERE id = :id LIMIT 1');
+        $statement->execute([':id' => $id]);
+        $existing = $statement->fetch() ?: [];
+
+        if ($existing === []) {
+            sendJsonResponse(['success' => false, 'message' => 'Materi tidak ditemukan.'], 404);
+        }
     }
 
-    $errors = validateMateri($requestData);
+    $values = normalizeTutorialInput($data, $existing);
 
-    if ($errors !== []) {
-        sendJsonResponse(
-            [
-                'success' => false,
-                'message' => 'Data materi belum lengkap.',
-                'errors' => $errors,
-                'data' => null,
-            ],
-            422
-        );
+    if ($values['title'] === '') {
+        sendJsonResponse(['success' => false, 'message' => 'Judul materi wajib diisi.'], 422);
     }
 
-    $descriptions = isset($requestData['descriptions'])
-        && is_array($requestData['descriptions'])
-        ? $requestData['descriptions']
-        : [];
+    if ($values['slug'] === '') {
+        sendJsonResponse(['success' => false, 'message' => 'Slug materi wajib diisi.'], 422);
+    }
 
-    $cardImage = isset($requestData['card_image'])
-        && is_array($requestData['card_image'])
-        ? $requestData['card_image']
-        : [];
+    $now = gmdate('c');
+    $values['updated_at'] = $now;
 
-    $learning = isset($requestData['learning_information'])
-        && is_array($requestData['learning_information'])
-        ? $requestData['learning_information']
-        : [];
-
-    $pageSettings = isset($requestData['page_settings'])
-        && is_array($requestData['page_settings'])
-        ? $requestData['page_settings']
-        : [];
-
-    $accessSettings = isset($requestData['access_settings'])
-        && is_array($requestData['access_settings'])
-        ? $requestData['access_settings']
-        : [];
-
-    $cta = isset($requestData['cta'])
-        && is_array($requestData['cta'])
-        ? $requestData['cta']
-        : [];
-
-    $slides = isset($requestData['slides'])
-        && is_array($requestData['slides'])
-        ? $requestData['slides']
-        : [];
-
-    $chapters = normalizeRequestChapters($requestData);
-    $learningObjectives = normalizeLearningObjectives($learning);
-
-    $uploadedCardImage = null;
-    $uploadedSlideImages = [];
-    $uploadedSlideVideos = [];
+    if ($id === null) {
+        $values['created_at'] = $now;
+    }
 
     if (
-        isset($_FILES['card_image'])
-        && is_array($_FILES['card_image'])
-        && (int) ($_FILES['card_image']['error'] ?? UPLOAD_ERR_NO_FILE)
-            !== UPLOAD_ERR_NO_FILE
+        isset($_FILES['card_image']) &&
+        is_array($_FILES['card_image']) &&
+        (int) ($_FILES['card_image']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE
     ) {
-        try {
-            $uploadedCardImage = saveUploadedArticleImage(
-                $_FILES['card_image']
-            );
-            $cardImage = $uploadedCardImage;
-        } catch (Throwable $error) {
-            sendJsonResponse(
-                [
-                    'success' => false,
-                    'message' => 'Gagal mengupload gambar card materi.',
-                    'errors' => [
-                        'card_image' => $error->getMessage(),
-                    ],
-                ],
-                422
-            );
-        }
+        $cardImage = saveUploadedFile(
+            $_FILES['card_image'],
+            'card',
+            [
+                'jpg' => 'image/jpeg',
+                'jpeg' => 'image/jpeg',
+                'png' => 'image/png',
+                'webp' => 'image/webp',
+                'gif' => 'image/gif',
+                'svg' => 'image/svg+xml',
+            ],
+            3 * 1024 * 1024
+        );
+
+        $values['card_image_name'] = $cardImage['file_name'];
+        $values['card_image_type'] = $cardImage['file_type'];
+        $values['card_image_size'] = $cardImage['file_size'];
+        $values['card_image_path'] = $cardImage['file_path'];
+        $values['card_image_url'] = $cardImage['file_url'];
     }
 
-    /*
-     * Upload gambar setiap slide.
-     *
-     * AdminTutorialCreate.jsx mengirim field:
-     * slide_image_0
-     * slide_image_1
-     * slide_image_2
-     * dst.
-     */
-    foreach ($slides as $index => &$slide) {
-        if (!is_array($slide)) {
-            continue;
-        }
-
-        $uploadField = 'slide_image_' . $index;
-
-        if (
-            isset($_FILES[$uploadField])
-            && is_array($_FILES[$uploadField])
-            && (int) ($_FILES[$uploadField]['error'] ?? UPLOAD_ERR_NO_FILE)
-                !== UPLOAD_ERR_NO_FILE
-        ) {
-            try {
-                $uploaded = saveUploadedSlideImage(
-                    $_FILES[$uploadField]
-                );
-
-                $uploadedSlideImages[] = $uploaded;
-
-                $slide['uploaded_image'] = $uploaded;
-            } catch (Throwable $error) {
-                if (
-                    isset($uploadedCardImage['file_name'])
-                    && $uploadedCardImage['file_name'] !== ''
-                ) {
-                    deleteArticleImageFile(
-                        (string) $uploadedCardImage['file_name']
-                    );
-                }
-
-                foreach ($uploadedSlideImages as $uploadedSlideImage) {
-                    if (isset($uploadedSlideImage['file_name'])) {
-                        deleteSlideImageFile(
-                            (string) $uploadedSlideImage['file_name']
-                        );
-                    }
-                }
-
-                sendJsonResponse(
-                    [
-                        'success' => false,
-                        'message' => 'Gagal mengupload gambar slide.',
-                        'errors' => [
-                            $uploadField => $error->getMessage(),
-                        ],
-                    ],
-                    422
-                );
-            }
-        }
-
-        $videoUploadField = 'slide_video_' . $index;
-
-        if (
-            isset($_FILES[$videoUploadField])
-            && is_array($_FILES[$videoUploadField])
-            && (int) (
-                $_FILES[$videoUploadField]['error']
-                ?? UPLOAD_ERR_NO_FILE
-            ) !== UPLOAD_ERR_NO_FILE
-        ) {
-            try {
-                $uploadedVideo = saveUploadedSlideVideo(
-                    $_FILES[$videoUploadField]
-                );
-
-                $uploadedSlideVideos[] = $uploadedVideo;
-
-                $slide['uploaded_video_url'] =
-                    $uploadedVideo['file_url'];
-            } catch (Throwable $error) {
-                if (
-                    isset($uploadedCardImage['file_name'])
-                    && $uploadedCardImage['file_name'] !== ''
-                ) {
-                    deleteArticleImageFile(
-                        (string) $uploadedCardImage['file_name']
-                    );
-                }
-
-                foreach ($uploadedSlideImages as $uploadedSlideImage) {
-                    if (isset($uploadedSlideImage['file_name'])) {
-                        deleteSlideImageFile(
-                            (string) $uploadedSlideImage['file_name']
-                        );
-                    }
-                }
-
-                foreach ($uploadedSlideVideos as $uploadedSlideVideo) {
-                    if (isset($uploadedSlideVideo['file_name'])) {
-                        deleteSlideVideoFile(
-                            (string) $uploadedSlideVideo['file_name']
-                        );
-                    }
-                }
-
-                sendJsonResponse(
-                    [
-                        'success' => false,
-                        'message' => 'Gagal mengupload video slide.',
-                        'errors' => [
-                            $videoUploadField => $error->getMessage(),
-                        ],
-                    ],
-                    422
-                );
-            }
-        }
-    }
-    unset($slide);
-
-    $currentTimestamp = date(DATE_ATOM);
+    $database->beginTransaction();
 
     try {
-        $database->beginTransaction();
-
-        $statement = $database->prepare(
-            'INSERT INTO materi (
-                title,
-                slug,
-                category,
-                display_order,
-                short_description,
-                full_description,
-                card_image_name,
-                card_image_type,
-                card_image_size,
-                difficulty_level,
-                estimated_time,
-                page_order,
-                status,
-                active,
-                show_on_page,
-                featured,
-                comments,
-                access_type,
-                featured_order,
-                user_level,
-                access_requirement,
-                prerequisite,
-                cta_text,
-                cta_target_link,
-                cta_url_slug,
-                publish_schedule,
-                created_at,
-                updated_at
-            ) VALUES (
-                :title,
-                :slug,
-                :category,
-                :display_order,
-                :short_description,
-                :full_description,
-                :card_image_name,
-                :card_image_type,
-                :card_image_size,
-                :difficulty_level,
-                :estimated_time,
-                :page_order,
-                :status,
-                :active,
-                :show_on_page,
-                :featured,
-                :comments,
-                :access_type,
-                :featured_order,
-                :user_level,
-                :access_requirement,
-                :prerequisite,
-                :cta_text,
-                :cta_target_link,
-                :cta_url_slug,
-                :publish_schedule,
-                :created_at,
-                :updated_at
-            )'
-        );
-
-        $statement->execute([
-            ':title' => trim((string) $requestData['title']),
-            ':slug' => trim((string) $requestData['slug']),
-            ':category' => (string) $requestData['category'],
-            ':display_order' => (int) $requestData['display_order'],
-            ':short_description' => trim(
-                (string) ($descriptions['short_description'] ?? '')
-            ),
-            ':full_description' => trim(
-                (string) ($descriptions['full_description'] ?? '')
-            ),
-            ':card_image_name' => isset($cardImage['file_name'])
-                ? (string) $cardImage['file_name']
-                : null,
-            ':card_image_type' => isset($cardImage['file_type'])
-                ? (string) $cardImage['file_type']
-                : null,
-            ':card_image_size' => isset($cardImage['file_size'])
-                ? (int) $cardImage['file_size']
-                : null,
-            ':difficulty_level' => isset($learning['difficulty_level'])
-                ? (string) $learning['difficulty_level']
-                : null,
-            ':estimated_time' => isset($learning['estimated_time'])
-                ? (string) $learning['estimated_time']
-                : null,
-            ':page_order' => (int) $pageSettings['page_order'],
-            ':status' => isset($pageSettings['status'])
-                ? (string) $pageSettings['status']
-                : 'draft',
-            ':active' => booleanToInteger(
-                $pageSettings['active'] ?? true,
-                1
-            ),
-            ':show_on_page' => booleanToInteger(
-                $pageSettings['show_on_page'] ?? true,
-                1
-            ),
-            ':featured' => booleanToInteger(
-                $pageSettings['featured'] ?? false,
-                0
-            ),
-            ':comments' => booleanToInteger(
-                $pageSettings['comments'] ?? true,
-                1
-            ),
-            ':access_type' => isset($pageSettings['access_type'])
-                ? (string) $pageSettings['access_type']
-                : null,
-            ':featured_order' =>
-                isset($pageSettings['featured_order'])
-                && $pageSettings['featured_order'] !== ''
-                    ? (int) $pageSettings['featured_order']
-                    : null,
-            ':user_level' => isset($accessSettings['user_level'])
-                ? (string) $accessSettings['user_level']
-                : 'semua_pengguna',
-            ':access_requirement' =>
-                isset($accessSettings['access_requirement'])
-                && $accessSettings['access_requirement'] !== ''
-                    ? (string) $accessSettings['access_requirement']
-                    : null,
-            ':prerequisite' =>
-                isset($accessSettings['prerequisite'])
-                && $accessSettings['prerequisite'] !== ''
-                    ? (string) $accessSettings['prerequisite']
-                    : null,
-            ':cta_text' => isset($cta['text'])
-                ? (string) $cta['text']
-                : null,
-            ':cta_target_link' => isset($cta['target_link'])
-                ? (string) $cta['target_link']
-                : null,
-            ':cta_url_slug' => isset($cta['url_slug'])
-                ? (string) $cta['url_slug']
-                : null,
-            ':publish_schedule' =>
-                isset($cta['publish_schedule'])
-                && $cta['publish_schedule'] !== ''
-                    ? (string) $cta['publish_schedule']
-                    : null,
-            ':created_at' => $currentTimestamp,
-            ':updated_at' => $currentTimestamp,
-        ]);
-
-        $tutorialId = (int) $database->lastInsertId();
-
-        insertTutorialStructure(
-            $database,
-            $tutorialId,
-            $chapters,
-            $learningObjectives,
-            $slides,
-            $currentTimestamp
-        );
-
-        $database->commit();
-
-        sendJsonResponse(
-            [
-                'success' => true,
-                'message' => 'Materi berhasil ditambahkan.',
-                'data' => [
-                    'id' => $tutorialId,
-                    'title' => trim((string) $requestData['title']),
-                    'slug' => trim((string) $requestData['slug']),
-                    'category' => (string) $requestData['category'],
-                    'status' => isset($pageSettings['status'])
-                        ? (string) $pageSettings['status']
-                        : 'draft',
-                    'page_order' => (int) $pageSettings['page_order'],
-                    'total_slides' => count($slides),
-                    'total_chapters' => count($chapters),
-                    'total_learning_objectives' => count($learningObjectives),
-                    'uploaded_slide_images' => count($uploadedSlideImages),
-                    'uploaded_slide_videos' => count($uploadedSlideVideos),
-                    'card_image_name' => isset($cardImage['file_name'])
-                        ? (string) $cardImage['file_name']
-                        : null,
-                    'card_image_path' => isset($cardImage['file_name'])
-                        ? getArticleImagePath(
-                            (string) $cardImage['file_name']
-                        )
-                        : null,
-                    'card_image_url' => isset($cardImage['file_name'])
-                        ? getArticleImageUrl(
-                            (string) $cardImage['file_name']
-                        )
-                        : null,
-                    'created_at' => $currentTimestamp,
-                ],
-            ],
-            201
-        );
-    } catch (Throwable $error) {
-        if ($database->inTransaction()) {
-            $database->rollBack();
+        if ($id === null) {
+            $id = insertFiltered($database, 'tutorials', $values);
+        } else {
+            updateFiltered($database, 'tutorials', $id, $values);
         }
-
-        if (
-            isset($uploadedCardImage['file_name'])
-            && $uploadedCardImage['file_name'] !== ''
-        ) {
-            deleteArticleImageFile(
-                (string) $uploadedCardImage['file_name']
-            );
-        }
-
-        foreach ($uploadedSlideImages as $uploadedSlideImage) {
-            if (isset($uploadedSlideImage['file_name'])) {
-                deleteSlideImageFile(
-                    (string) $uploadedSlideImage['file_name']
-                );
-            }
-        }
-
-        foreach ($uploadedSlideVideos as $uploadedSlideVideo) {
-            if (isset($uploadedSlideVideo['file_name'])) {
-                deleteSlideVideoFile(
-                    (string) $uploadedSlideVideo['file_name']
-                );
-            }
-        }
-
-        $errorMessage = strtolower($error->getMessage());
-
-        if (strpos($errorMessage, 'unique') !== false) {
-            sendJsonResponse(
-                [
-                    'success' => false,
-                    'message' => 'Slug sudah digunakan.',
-                    'errors' => [
-                        'slug' => 'Slug sudah digunakan oleh materi lain.',
-                    ],
-                ],
-                409
-            );
-        }
-
-        sendJsonResponse(
-            [
-                'success' => false,
-                'message' => 'Gagal menyimpan materi.',
-                'error' => $error->getMessage(),
-            ],
-            500
-        );
-    }
-}
-
-
-
-function updateMateri(PDO $database): void
-{
-    $tutorialId = isset($_GET['id'])
-        ? filter_var($_GET['id'], FILTER_VALIDATE_INT)
-        : false;
-
-    if ($tutorialId === false || $tutorialId < 1) {
-        sendJsonResponse(
-            [
-                'success' => false,
-                'message' => 'ID materi tidak valid.',
-            ],
-            400
-        );
-    }
-
-    $checkStatement = $database->prepare(
-        'SELECT *
-         FROM materi
-         WHERE id = :id
-         LIMIT 1'
-    );
-
-    $checkStatement->execute([
-        ':id' => $tutorialId,
-    ]);
-
-    $existingTutorial = $checkStatement->fetch();
-
-    if (!$existingTutorial) {
-        sendJsonResponse(
-            [
-                'success' => false,
-                'message' => 'Materi tidak ditemukan.',
-            ],
-            404
-        );
-    }
-
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $requestData = readCreateMateriRequest();
-    } else {
-        $rawBody = file_get_contents('php://input');
-        $requestData = json_decode($rawBody, true);
-
-        if (!is_array($requestData)) {
-            sendJsonResponse(
-                [
-                    'success' => false,
-                    'message' =>
-                        'Body request harus berupa JSON yang valid.',
-                ],
-                400
-            );
-        }
-    }
-
-    $errors = validateMateri($requestData);
-
-    if ($errors !== []) {
-        sendJsonResponse(
-            [
-                'success' => false,
-                'message' => 'Data materi belum lengkap.',
-                'errors' => $errors,
-            ],
-            422
-        );
-    }
-
-    $descriptions = isset($requestData['descriptions'])
-        && is_array($requestData['descriptions'])
-        ? $requestData['descriptions']
-        : [];
-
-    $learning = isset($requestData['learning_information'])
-        && is_array($requestData['learning_information'])
-        ? $requestData['learning_information']
-        : [];
-
-    $pageSettings = isset($requestData['page_settings'])
-        && is_array($requestData['page_settings'])
-        ? $requestData['page_settings']
-        : [];
-
-    $accessSettings = isset($requestData['access_settings'])
-        && is_array($requestData['access_settings'])
-        ? $requestData['access_settings']
-        : [];
-
-    $cta = isset($requestData['cta'])
-        && is_array($requestData['cta'])
-        ? $requestData['cta']
-        : [];
-
-    $slides = isset($requestData['slides'])
-        && is_array($requestData['slides'])
-        ? $requestData['slides']
-        : [];
-
-    $chapters = normalizeRequestChapters($requestData);
-    $learningObjectives = normalizeLearningObjectives($learning);
-
-    $cardImageName = $existingTutorial['card_image_name'] ?? null;
-    $cardImageType = $existingTutorial['card_image_type'] ?? null;
-    $cardImageSize = $existingTutorial['card_image_size'] ?? null;
-
-    $uploadedCardImage = null;
-    $uploadedSlideImages = [];
-    $uploadedSlideVideos = [];
-
-    if (
-        isset($_FILES['card_image'])
-        && is_array($_FILES['card_image'])
-        && (int) ($_FILES['card_image']['error'] ?? UPLOAD_ERR_NO_FILE)
-            !== UPLOAD_ERR_NO_FILE
-    ) {
-        try {
-            $uploadedCardImage = saveUploadedArticleImage(
-                $_FILES['card_image']
-            );
-
-            $cardImageName = $uploadedCardImage['file_name'];
-            $cardImageType = $uploadedCardImage['file_type'];
-            $cardImageSize = $uploadedCardImage['file_size'];
-        } catch (Throwable $error) {
-            sendJsonResponse(
-                [
-                    'success' => false,
-                    'message' => 'Gagal mengupload gambar card.',
-                    'errors' => [
-                        'card_image' => $error->getMessage(),
-                    ],
-                ],
-                422
-            );
-        }
-    } elseif (
-        isset($requestData['card_image'])
-        && is_array($requestData['card_image'])
-    ) {
-        $cardImage = $requestData['card_image'];
-
-        $cardImageName = $cardImage['file_name']
-            ?? $cardImageName;
-        $cardImageType = $cardImage['file_type']
-            ?? $cardImageType;
-        $cardImageSize = $cardImage['file_size']
-            ?? $cardImageSize;
-    }
-
-    foreach ($slides as $index => &$slide) {
-        if (!is_array($slide)) {
-            continue;
-        }
-
-        $imageUploadField = 'slide_image_' . $index;
-
-        if (
-            isset($_FILES[$imageUploadField])
-            && is_array($_FILES[$imageUploadField])
-            && (int) (
-                $_FILES[$imageUploadField]['error']
-                ?? UPLOAD_ERR_NO_FILE
-            ) !== UPLOAD_ERR_NO_FILE
-        ) {
-            try {
-                $uploadedImage = saveUploadedSlideImage(
-                    $_FILES[$imageUploadField]
-                );
-
-                $uploadedSlideImages[] = $uploadedImage;
-                $slide['uploaded_image'] = $uploadedImage;
-            } catch (Throwable $error) {
-                sendJsonResponse(
-                    [
-                        'success' => false,
-                        'message' => 'Gagal mengupload gambar slide.',
-                        'errors' => [
-                            $imageUploadField => $error->getMessage(),
-                        ],
-                    ],
-                    422
-                );
-            }
-        }
-
-        $videoUploadField = 'slide_video_' . $index;
-
-        if (
-            isset($_FILES[$videoUploadField])
-            && is_array($_FILES[$videoUploadField])
-            && (int) (
-                $_FILES[$videoUploadField]['error']
-                ?? UPLOAD_ERR_NO_FILE
-            ) !== UPLOAD_ERR_NO_FILE
-        ) {
-            try {
-                $uploadedVideo = saveUploadedSlideVideo(
-                    $_FILES[$videoUploadField]
-                );
-
-                $uploadedSlideVideos[] = $uploadedVideo;
-                $slide['uploaded_video_url'] =
-                    $uploadedVideo['file_url'];
-            } catch (Throwable $error) {
-                sendJsonResponse(
-                    [
-                        'success' => false,
-                        'message' => 'Gagal mengupload video slide.',
-                        'errors' => [
-                            $videoUploadField => $error->getMessage(),
-                        ],
-                    ],
-                    422
-                );
-            }
-        }
-    }
-    unset($slide);
-
-    $currentTimestamp = date(DATE_ATOM);
-
-    try {
-        $database->beginTransaction();
-
-        $statement = $database->prepare(
-            'UPDATE materi
-             SET
-                title = :title,
-                slug = :slug,
-                category = :category,
-                display_order = :display_order,
-                short_description = :short_description,
-                full_description = :full_description,
-                card_image_name = :card_image_name,
-                card_image_type = :card_image_type,
-                card_image_size = :card_image_size,
-                difficulty_level = :difficulty_level,
-                estimated_time = :estimated_time,
-                page_order = :page_order,
-                status = :status,
-                active = :active,
-                show_on_page = :show_on_page,
-                featured = :featured,
-                comments = :comments,
-                access_type = :access_type,
-                featured_order = :featured_order,
-                user_level = :user_level,
-                access_requirement = :access_requirement,
-                prerequisite = :prerequisite,
-                cta_text = :cta_text,
-                cta_target_link = :cta_target_link,
-                cta_url_slug = :cta_url_slug,
-                publish_schedule = :publish_schedule,
-                updated_at = :updated_at
-             WHERE id = :id'
-        );
-
-        $statement->execute([
-            ':title' => trim((string) $requestData['title']),
-            ':slug' => trim((string) $requestData['slug']),
-            ':category' => (string) $requestData['category'],
-            ':display_order' => (int) $requestData['display_order'],
-            ':short_description' => trim(
-                (string) ($descriptions['short_description'] ?? '')
-            ),
-            ':full_description' => trim(
-                (string) ($descriptions['full_description'] ?? '')
-            ),
-            ':card_image_name' => $cardImageName,
-            ':card_image_type' => $cardImageType,
-            ':card_image_size' => $cardImageSize,
-            ':difficulty_level' => $learning['difficulty_level']
-                ?? $existingTutorial['difficulty_level']
-                ?? null,
-            ':estimated_time' => $learning['estimated_time']
-                ?? $existingTutorial['estimated_time']
-                ?? null,
-            ':page_order' => (int) $pageSettings['page_order'],
-            ':status' => $pageSettings['status']
-                ?? $existingTutorial['status']
-                ?? 'draft',
-            ':active' => booleanToInteger(
-                $pageSettings['active']
-                    ?? $existingTutorial['active']
-                    ?? true,
-                1
-            ),
-            ':show_on_page' => booleanToInteger(
-                $pageSettings['show_on_page']
-                    ?? $existingTutorial['show_on_page']
-                    ?? true,
-                1
-            ),
-            ':featured' => booleanToInteger(
-                $pageSettings['featured']
-                    ?? $existingTutorial['featured']
-                    ?? false,
-                0
-            ),
-            ':comments' => booleanToInteger(
-                $pageSettings['comments']
-                    ?? $existingTutorial['comments']
-                    ?? true,
-                1
-            ),
-            ':access_type' => $pageSettings['access_type']
-                ?? $existingTutorial['access_type']
-                ?? null,
-            ':featured_order' =>
-                isset($pageSettings['featured_order'])
-                && $pageSettings['featured_order'] !== ''
-                    ? (int) $pageSettings['featured_order']
-                    : ($existingTutorial['featured_order'] ?? null),
-            ':user_level' => $accessSettings['user_level']
-                ?? $existingTutorial['user_level']
-                ?? 'semua_pengguna',
-            ':access_requirement' => array_key_exists(
-                'access_requirement',
-                $accessSettings
-            )
-                ? (
-                    $accessSettings['access_requirement'] !== ''
-                        ? (string) $accessSettings['access_requirement']
-                        : null
-                )
-                : ($existingTutorial['access_requirement'] ?? null),
-            ':prerequisite' => array_key_exists(
-                'prerequisite',
-                $accessSettings
-            )
-                ? (
-                    $accessSettings['prerequisite'] !== ''
-                        ? (string) $accessSettings['prerequisite']
-                        : null
-                )
-                : ($existingTutorial['prerequisite'] ?? null),
-            ':cta_text' => $cta['text']
-                ?? $existingTutorial['cta_text']
-                ?? null,
-            ':cta_target_link' => $cta['target_link']
-                ?? $existingTutorial['cta_target_link']
-                ?? null,
-            ':cta_url_slug' => $cta['url_slug']
-                ?? $existingTutorial['cta_url_slug']
-                ?? null,
-            ':publish_schedule' => array_key_exists(
-                'publish_schedule',
-                $cta
-            )
-                ? (
-                    $cta['publish_schedule'] !== ''
-                        ? (string) $cta['publish_schedule']
-                        : null
-                )
-                : ($existingTutorial['publish_schedule'] ?? null),
-            ':updated_at' => $currentTimestamp,
-            ':id' => $tutorialId,
-        ]);
 
         replaceTutorialStructure(
             $database,
-            $tutorialId,
-            $chapters,
-            $learningObjectives,
-            $slides,
-            $currentTimestamp
+            $id,
+            normalizeChapters($data),
+            normalizeObjectives($data),
+            normalizeSlides($data),
+            $existing !== []
         );
 
         $database->commit();
-
-        if (
-            $uploadedCardImage !== null
-            && !empty($existingTutorial['card_image_name'])
-            && $existingTutorial['card_image_name'] !== $cardImageName
-        ) {
-            deleteArticleImageFile(
-                (string) $existingTutorial['card_image_name']
-            );
-        }
-
-        sendJsonResponse(
-            [
-                'success' => true,
-                'message' => 'Materi berhasil diperbarui.',
-                'data' => [
-                    'id' => $tutorialId,
-                    'title' => trim((string) $requestData['title']),
-                    'slug' => trim((string) $requestData['slug']),
-                    'category' => (string) $requestData['category'],
-                    'display_order' => (int) $requestData['display_order'],
-                    'status' => $pageSettings['status']
-                        ?? $existingTutorial['status']
-                        ?? 'draft',
-                    'page_order' => (int) $pageSettings['page_order'],
-                    'total_slides' => count($slides),
-                    'total_chapters' => count($chapters),
-                    'total_learning_objectives' => count($learningObjectives),
-                    'uploaded_slide_images' =>
-                        count($uploadedSlideImages),
-                    'uploaded_slide_videos' =>
-                        count($uploadedSlideVideos),
-                    'card_image_name' => $cardImageName,
-                    'card_image_url' => getArticleImageUrl(
-                        $cardImageName
-                    ),
-                    'created_at' => $existingTutorial['created_at'],
-                    'updated_at' => $currentTimestamp,
-                ],
-            ],
-            200
-        );
     } catch (Throwable $error) {
         if ($database->inTransaction()) {
             $database->rollBack();
         }
-
-        if (
-            isset($uploadedCardImage['file_name'])
-            && $uploadedCardImage['file_name'] !== ''
-        ) {
-            deleteArticleImageFile(
-                (string) $uploadedCardImage['file_name']
-            );
-        }
-
-        foreach ($uploadedSlideImages as $uploadedSlideImage) {
-            if (isset($uploadedSlideImage['file_name'])) {
-                deleteSlideImageFile(
-                    (string) $uploadedSlideImage['file_name']
-                );
-            }
-        }
-
-        foreach ($uploadedSlideVideos as $uploadedSlideVideo) {
-            if (isset($uploadedSlideVideo['file_name'])) {
-                deleteSlideVideoFile(
-                    (string) $uploadedSlideVideo['file_name']
-                );
-            }
-        }
-
-        $errorMessage = strtolower($error->getMessage());
-
-        if (strpos($errorMessage, 'unique') !== false) {
-            sendJsonResponse(
-                [
-                    'success' => false,
-                    'message' => 'Slug sudah digunakan.',
-                ],
-                409
-            );
-        }
-
-        sendJsonResponse(
-            [
-                'success' => false,
-                'message' => 'Gagal memperbarui materi.',
-                'error' => $error->getMessage(),
-            ],
-            500
-        );
+        throw $error;
     }
+
+    $statement = $database->prepare('SELECT * FROM tutorials WHERE id = :id LIMIT 1');
+    $statement->execute([':id' => $id]);
+    $row = $statement->fetch();
+
+    $rows = enrichTutorialRows($database, [$row]);
+
+    sendJsonResponse([
+        'success' => true,
+        'message' => $existing === []
+            ? 'Materi berhasil dibuat.'
+            : 'Materi berhasil diperbarui.',
+        'data' => $rows[0],
+        'material' => $rows[0],
+    ], $existing === [] ? 201 : 200);
 }
 
-
-
-function deleteMateri(PDO $database): void
+function deleteMateri(PDO $database, int $id): never
 {
-    $tutorialId = isset($_GET['id'])
-        ? filter_var($_GET['id'], FILTER_VALIDATE_INT)
-        : false;
+    $statement = $database->prepare('SELECT id FROM tutorials WHERE id = :id LIMIT 1');
+    $statement->execute([':id' => $id]);
 
-    if ($tutorialId === false || $tutorialId < 1) {
-        sendJsonResponse(
-            [
-                'success' => false,
-                'message' => 'ID materi tidak valid.',
-                'errors' => [
-                    'id' => 'Parameter id wajib berupa angka positif.',
-                ],
-            ],
-            400
-        );
+    if (!$statement->fetchColumn()) {
+        sendJsonResponse(['success' => false, 'message' => 'Materi tidak ditemukan.'], 404);
     }
 
-    $checkStatement = $database->prepare(
-        'SELECT id, title, slug, card_image_name
-         FROM materi
-         WHERE id = :id
-         LIMIT 1'
-    );
-
-    $checkStatement->execute([
-        ':id' => $tutorialId,
-    ]);
-
-    $tutorial = $checkStatement->fetch();
-
-    if (!$tutorial) {
-        sendJsonResponse(
-            [
-                'success' => false,
-                'message' => 'Materi tidak ditemukan.',
-                'data' => null,
-            ],
-            404
-        );
-    }
-
-    $slideImageStatement = $database->prepare(
-        'SELECT image_name, video_url
-         FROM materi_slides
-         WHERE materi_id = :materi_id'
-    );
-
-    $slideImageStatement->execute([
-        ':materi_id' => $tutorialId,
-    ]);
-
-    $slideMediaRows = $slideImageStatement->fetchAll();
-
-    $slideImageNames = array_values(
-        array_filter(
-            array_map(
-                static fn(array $row): ?string =>
-                    isset($row['image_name'])
-                    && trim((string) $row['image_name']) !== ''
-                        ? (string) $row['image_name']
-                        : null,
-                $slideMediaRows
-            )
-        )
-    );
-
-    $slideVideoNames = array_values(
-        array_filter(
-            array_map(
-                static fn(array $row): ?string =>
-                    getLocalVideoFileNameFromUrl(
-                        isset($row['video_url'])
-                            ? (string) $row['video_url']
-                            : null
-                    ),
-                $slideMediaRows
-            )
-        )
-    );
+    $database->beginTransaction();
 
     try {
-        $database->beginTransaction();
-
-        $deleteSlides = $database->prepare(
-            'DELETE FROM materi_slides
-             WHERE materi_id = :materi_id'
-        );
-
-        $deleteSlides->execute([
-            ':materi_id' => $tutorialId,
-        ]);
-
-        $deletedSlides = $deleteSlides->rowCount();
-
-        $deleteTutorial = $database->prepare(
-            'DELETE FROM materi
-             WHERE id = :id'
-        );
-
-        $deleteTutorial->execute([
-            ':id' => $tutorialId,
-        ]);
-
-        if ($deleteTutorial->rowCount() < 1) {
-            $database->rollBack();
-
-            sendJsonResponse(
-                [
-                    'success' => false,
-                    'message' => 'Materi gagal dihapus karena data tidak ditemukan.',
-                    'data' => null,
-                ],
-                404
-            );
+        foreach (
+            [
+                'tutorial_slides',
+                'tutorial_learning_objectives',
+                'tutorial_chapters',
+            ] as $table
+        ) {
+            if (tableExists($database, $table)) {
+                $statement = $database->prepare(
+                    'DELETE FROM ' . $table . ' WHERE tutorial_id = :id'
+                );
+                $statement->execute([':id' => $id]);
+            }
         }
+
+        $statement = $database->prepare('DELETE FROM tutorials WHERE id = :id');
+        $statement->execute([':id' => $id]);
 
         $database->commit();
-
-        $imageDeleted = deleteArticleImageFile(
-            isset($tutorial['card_image_name'])
-                ? (string) $tutorial['card_image_name']
-                : null
-        );
-
-        $deletedSlideImages = 0;
-
-        foreach ($slideImageNames as $slideImageName) {
-            if (deleteSlideImageFile($slideImageName)) {
-                $deletedSlideImages++;
-            }
-        }
-
-        $deletedSlideVideos = 0;
-
-        foreach ($slideVideoNames as $slideVideoName) {
-            if (deleteSlideVideoFile($slideVideoName)) {
-                $deletedSlideVideos++;
-            }
-        }
-
-        sendJsonResponse(
-            [
-                'success' => true,
-                'message' => 'Materi berhasil dihapus.',
-                'data' => [
-                    'id' => (int) $tutorial['id'],
-                    'title' => (string) $tutorial['title'],
-                    'slug' => (string) $tutorial['slug'],
-                    'deleted_slides' => $deletedSlides,
-                    'card_image_deleted' => $imageDeleted,
-                    'slide_images_deleted' => $deletedSlideImages,
-                    'slide_videos_deleted' => $deletedSlideVideos,
-                ],
-            ],
-            200
-        );
-    } catch (PDOException $error) {
+    } catch (Throwable $error) {
         if ($database->inTransaction()) {
             $database->rollBack();
         }
+        throw $error;
+    }
 
-        sendJsonResponse(
-            [
-                'success' => false,
-                'message' => 'Gagal menghapus materi.',
-                'error' => $error->getMessage(),
+    sendJsonResponse([
+        'success' => true,
+        'message' => 'Materi berhasil dihapus.',
+    ]);
+}
+
+try {
+    if (
+        ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' &&
+        ($_GET['action'] ?? '') === 'health'
+    ) {
+        $database = getDatabaseConnection();
+
+        sendJsonResponse([
+            'success' => true,
+            'api' => 'materi-api.php',
+            'version' => MATERI_API_VERSION,
+            'database' => [
+                'tutorials' => tableExists($database, 'tutorials'),
+                'tutorial_chapters' => tableExists($database, 'tutorial_chapters'),
+                'tutorial_learning_objectives' => tableExists($database, 'tutorial_learning_objectives'),
+                'tutorial_slides' => tableExists($database, 'tutorial_slides'),
             ],
-            500
+            'supports' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        ]);
+    }
+
+    $database = getDatabaseConnection();
+
+    if (!tableExists($database, 'tutorials')) {
+        throw new RuntimeException(
+            'Tabel tutorials tidak ditemukan. API ini tidak mengubah atau me-rename tabel database.'
         );
     }
-}
 
+    $method = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 
-function validateMateri(array $data): array
-{
-    $errors = [];
-
-    if (trim((string) ($data['title'] ?? '')) === '') {
-        $errors['title'] = 'Kolom ini belum diisi.';
+    if ($method === 'GET') {
+        getMateri($database);
     }
 
-    if (trim((string) ($data['slug'] ?? '')) === '') {
-        $errors['slug'] = 'Kolom ini belum diisi.';
+    if ($method === 'POST') {
+        $id = isset($_GET['id']) && ctype_digit((string) $_GET['id'])
+            ? (int) $_GET['id']
+            : null;
+        saveMateri($database, $id);
     }
 
-    if (trim((string) ($data['category'] ?? '')) === '') {
-        $errors['category'] = 'Kolom ini belum diisi.';
-    }
+    if (in_array($method, ['PUT', 'PATCH'], true)) {
+        $id = isset($_GET['id']) && ctype_digit((string) $_GET['id'])
+            ? (int) $_GET['id']
+            : 0;
 
-    if (
-        !isset($data['display_order'])
-        || (int) $data['display_order'] < 1
-    ) {
-        $errors['display_order'] = 'Kolom ini belum diisi.';
-    }
-
-    $descriptions = isset($data['descriptions'])
-        && is_array($data['descriptions'])
-        ? $data['descriptions']
-        : [];
-
-    if (
-        trim((string) ($descriptions['short_description'] ?? '')) === ''
-    ) {
-        $errors['short_description'] = 'Kolom ini belum diisi.';
-    }
-
-    if (
-        trim((string) ($descriptions['full_description'] ?? '')) === ''
-    ) {
-        $errors['full_description'] = 'Kolom ini belum diisi.';
-    }
-
-    $pageSettings = isset($data['page_settings'])
-        && is_array($data['page_settings'])
-        ? $data['page_settings']
-        : [];
-
-    if (
-        !isset($pageSettings['page_order'])
-        || (int) $pageSettings['page_order'] < 1
-    ) {
-        $errors['page_order'] = 'Kolom ini belum diisi.';
-    }
-
-    $learning = isset($data['learning_information'])
-        && is_array($data['learning_information'])
-        ? $data['learning_information']
-        : [];
-
-    if (
-        isset($learning['learning_objectives'])
-        && !is_array($learning['learning_objectives'])
-    ) {
-        $errors['learning_objectives'] =
-            'Tujuan pembelajaran harus berupa array.';
-    }
-
-    $chapters = isset($data['chapters'])
-        && is_array($data['chapters'])
-        ? $data['chapters']
-        : [];
-
-    if ($chapters === []) {
-        $errors['chapters'] =
-            'Tutorial harus mempunyai minimal satu Bab.';
-    }
-
-    $chapterIds = [];
-
-    foreach ($chapters as $index => $chapter) {
-        if (!is_array($chapter)) {
-            $errors['chapters_' . $index] =
-                'Format data bab tidak valid.';
-            continue;
+        if ($id <= 0) {
+            sendJsonResponse(['success' => false, 'message' => 'Parameter id wajib diisi.'], 400);
         }
 
-        $chapterId = $chapter['id']
-            ?? $chapter['chapter_id']
-            ?? ('chapter-' . ($index + 1));
-
-        $chapterIds[] = (string) $chapterId;
-
-        if (
-            trim((string) (
-                $chapter['title']
-                ?? $chapter['chapter_title']
-                ?? ''
-            )) === ''
-        ) {
-            $errors['chapters_' . $index . '_title'] =
-                'Judul bab wajib diisi.';
-        }
+        saveMateri($database, $id);
     }
 
-    $slides = isset($data['slides']) && is_array($data['slides'])
-        ? $data['slides']
-        : [];
+    if ($method === 'DELETE') {
+        $id = isset($_GET['id']) && ctype_digit((string) $_GET['id'])
+            ? (int) $_GET['id']
+            : 0;
 
-    if ($slides === []) {
-        $errors['slides'] =
-            'Daftar materi harus mempunyai minimal satu slide.';
+        if ($id <= 0) {
+            sendJsonResponse(['success' => false, 'message' => 'Parameter id wajib diisi.'], 400);
+        }
+
+        deleteMateri($database, $id);
     }
 
-    $allowedContentTypes = [
-        'text',
-        'text_image',
-        'image',
-        'video',
-        'code',
-    ];
-
-    foreach ($slides as $index => $slide) {
-        if (!is_array($slide)) {
-            $errors['slides_' . $index] =
-                'Format data slide tidak valid.';
-            continue;
-        }
-
-        if (trim((string) ($slide['title'] ?? '')) === '') {
-            $errors['slides_' . $index . '_title'] =
-                'Judul slide wajib diisi.';
-        }
-
-        $contentType = strtolower(
-            trim((string) ($slide['content_type'] ?? 'text'))
-        );
-
-        if (!in_array($contentType, $allowedContentTypes, true)) {
-            $errors['slides_' . $index . '_content_type'] =
-                'Tipe konten slide tidak valid.';
-        }
-
-        if (
-            $contentType === 'code'
-            && trim((string) ($slide['code_content'] ?? '')) === ''
-        ) {
-            $errors['slides_' . $index . '_code_content'] =
-                'Isi code wajib diisi untuk tipe Code Block.';
-        }
-
-        $slideChapterId = $slide['chapter_id']
-            ?? $slide['chapterId']
-            ?? null;
-
-        if (
-            $slideChapterId === null
-            || trim((string) $slideChapterId) === ''
-        ) {
-            $errors['slides_' . $index . '_chapter_id'] =
-                'Setiap materi wajib berada di dalam Bab.';
-            continue;
-        }
-
-        if (
-            !in_array(
-                (string) $slideChapterId,
-                $chapterIds,
-                true
-            )
-        ) {
-            $errors['slides_' . $index . '_chapter_id'] =
-                'Bab untuk materi tidak ditemukan.';
-        }
-    }
-
-    return $errors;
-}
-
-
-function sendJsonResponse(array $response, int $statusCode = 200): void
-{
-    http_response_code($statusCode);
-
-    echo json_encode(
-        $response,
-        JSON_UNESCAPED_UNICODE
-    );
-
-    exit;
+    sendJsonResponse([
+        'success' => false,
+        'message' => 'Method tidak diizinkan.',
+    ], 405);
+} catch (Throwable $error) {
+    sendJsonResponse([
+        'success' => false,
+        'message' => 'Terjadi kesalahan pada server.',
+        'error' => $error->getMessage(),
+        'api_version' => MATERI_API_VERSION,
+    ], 500);
 }

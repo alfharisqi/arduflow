@@ -858,7 +858,8 @@ function getStoredProjectFiles(
 }
 
 function buildStoredZip(
-    array $files
+    array $files,
+    string $projectRoot
 ): string {
     $centralDirectory = '';
     $zip = '';
@@ -882,6 +883,22 @@ function buildStoredZip(
             $file['file_path']
             ?? ''
         );
+
+        if ($path === '' || !is_file($path)) {
+            $storedName = sanitizeStoredFileName(
+                (string) (
+                    $file['file_name']
+                    ?? basename((string) ($file['file_url'] ?? ''))
+                )
+            );
+
+            if ($storedName !== '') {
+                $path = rtrim(
+                    (string) projectStorage($projectRoot)['path'],
+                    DIRECTORY_SEPARATOR
+                ) . DIRECTORY_SEPARATOR . $storedName;
+            }
+        }
 
         if (
             $path === ''
@@ -1038,13 +1055,15 @@ function buildStoredZip(
 }
 
 function sendProjectZipDownload(
-    array $row
+    array $row,
+    string $projectRoot
 ): never {
     $zipContent =
         buildStoredZip(
             getStoredProjectFiles(
                 $row
-            )
+            ),
+            $projectRoot
         );
 
     if ($zipContent === '') {
@@ -2947,7 +2966,8 @@ try {
                 ) === 'download'
             ) {
                 sendProjectZipDownload(
-                    $row
+                    $row,
+                    $projectRoot
                 );
             }
 

@@ -164,6 +164,23 @@ function normalizeSlide(slide, index) {
 }
 
 function normalizeTutorial(item) {
+  const price = Math.max(
+    0,
+    Number(
+      item?.price ??
+        item?.material_price ??
+        item?.materialPrice ??
+        item?.page_settings?.price ??
+        0
+    ) || 0
+  );
+
+  const accessType =
+    item?.access_type ||
+    item?.accessType ||
+    item?.page_settings?.access_type ||
+    (price > 0 ? 'Premium' : 'Gratis');
+
   /*
    * =====================================================
    * CHAPTER / BAB
@@ -448,10 +465,16 @@ function normalizeTutorial(item) {
       item?.prerequisite ||
       '',
 
-    accessType:
-      item?.access_type ||
-      item?.accessType ||
-      '',
+    accessType,
+
+    price,
+
+    isPremium:
+      String(accessType)
+        .trim()
+        .toLowerCase()
+        .includes('premium') ||
+      price > 0,
 
     /*
      * =====================================================

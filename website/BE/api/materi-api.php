@@ -105,6 +105,21 @@ function tableColumns(PDO $database, string $table): array
     return $columns;
 }
 
+function ensureMateriCommerceColumns(PDO $database): void
+{
+    if (!tableExists($database, 'tutorials')) {
+        return;
+    }
+
+    $columns = tableColumns($database, 'tutorials');
+
+    if (!isset($columns['price'])) {
+        $database->exec(
+            'ALTER TABLE tutorials ADD COLUMN price INTEGER NOT NULL DEFAULT 0'
+        );
+    }
+}
+
 function resolveDatabasePath(string $projectRoot, string $path): string
 {
     $path = trim($path);
@@ -163,6 +178,8 @@ function getDatabaseConnection(): PDO
         'PRAGMA busy_timeout = ' .
         max(5000, (int) ($config['sqlite']['busy_timeout_ms'] ?? 5000))
     );
+
+    ensureMateriCommerceColumns($database);
 
     return $database;
 }
