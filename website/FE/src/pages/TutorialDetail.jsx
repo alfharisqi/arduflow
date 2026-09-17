@@ -1511,7 +1511,7 @@ export function TutorialDetail() {
 
   if (isPremiumMaterial && !hasMaterialAccess) {
     return (
-      <main className="tutorial-material-page">
+      <main className="tutorial-material-page is-purchase-page">
         <div className="tutorial-material-shell">
           <div className="tutorial-material-back-wrap">
             <a className="tutorial-material-back-link" href="/materi#semua-materi">
@@ -1520,18 +1520,25 @@ export function TutorialDetail() {
           </div>
 
           <section className="tutorial-material-purchase" aria-labelledby="material-purchase-title">
-            <img src={tutorialImage} alt={tutorial.title || 'Materi ArduFlow'} />
-            <div>
+            <div className="tutorial-material-purchase__visual">
+              <img src={tutorialImage} alt={tutorial.title || 'Materi ArduFlow'} />
               <span>Materi Premium</span>
+            </div>
+            <div className="tutorial-material-purchase__content">
+              <p className="tutorial-material-purchase__eyebrow">ARDUFLOW LEARNING</p>
               <h1 id="material-purchase-title">{tutorial.title}</h1>
-              <p>
+              <p className="tutorial-material-purchase__description">
                 {isCheckingAccess
                   ? 'Memeriksa status pembelian materi...'
                   : pendingTransaction
                     ? 'Transaksi sedang menunggu pembayaran atau persetujuan admin.'
                     : 'Beli materi ini untuk membuka seluruh bab dan isi pembelajaran.'}
               </p>
-              <strong>{formatMaterialPrice(tutorial.price)}</strong>
+              <div className="tutorial-material-purchase__price">
+                <span>Harga materi</span>
+                <strong>{formatMaterialPrice(tutorial.price)}</strong>
+                <small>Akses aktif setelah pembayaran disetujui admin.</small>
+              </div>
               <div className="tutorial-material-purchase__actions">
                 <a className="tutorial-material-btn is-light" href="/materi">Kembali</a>
                 <button
