@@ -582,6 +582,7 @@ function ProjectReview({
   isSubmitting,
   inputRef,
   isProjectOwner = false,
+  canReview = true,
   ownerReplyDrafts = {},
   ownerReplyEditingId = "",
   ownerReplyError = "",
@@ -599,7 +600,7 @@ function ProjectReview({
   onSubmit,
 }) {
   const roundedAverage = Math.min(5, Math.max(0, Number(average) || 0));
-  const formVisible = !isProjectOwner && (isEditing || !viewerReview);
+  const formVisible = !isProjectOwner && canReview && (isEditing || !viewerReview);
   const visibleReviews = viewerReview
     ? reviews.filter((review) => review.identity !== viewerReview.identity && review.id !== viewerReview.id)
     : reviews;
@@ -612,7 +613,7 @@ function ProjectReview({
           <span>/ 5</span>
           <small>{count ? `${formatNumber(count)} review` : "Belum ada review"}</small>
         </div>
-        {viewerReview && !isEditing && !isProjectOwner ? (
+        {viewerReview && !isEditing && !isProjectOwner && canReview ? (
           <div className="project-review__actions">
             <button type="button" onClick={onStartEdit}>Edit Review</button>
             <button type="button" onClick={onDelete} disabled={isSubmitting}>Hapus</button>
@@ -656,6 +657,12 @@ function ProjectReview({
       {isProjectOwner ? (
         <p className="project-review__empty">
           Pemilik proyek tidak dapat memberi review pada proyek sendiri.
+        </p>
+      ) : null}
+
+      {!isProjectOwner && !canReview ? (
+        <p className="project-review__empty">
+          Review proyek berbayar hanya dapat diberikan setelah pembelian disetujui.
         </p>
       ) : null}
 
@@ -1170,6 +1177,15 @@ function getProjectPrice(project) {
 function isPaidProject(project) {
   const payment = getProjectPayment(project);
   return Boolean(payment.isPaid || project?.isPaid || getProjectPrice(project) > 0);
+}
+
+function hasPurchasedProjectAccess(project) {
+  return Boolean(
+    project?.hasPurchased ||
+    project?.has_purchased ||
+    project?.viewerAccess?.hasPurchased ||
+    project?.viewerAccess?.has_purchased
+  );
 }
 
 function isTransactionForProject(transaction, project) {
@@ -1982,6 +1998,12 @@ export function ProjectDetail() {
   function handleCommentProject() {
     if (isCurrentUserProjectOwner(project)) return;
 
+    if (isPaidProject(project) && !hasPurchasedProjectAccess(project)) {
+      setReviewError("Review proyek berbayar hanya dapat diberikan setelah pembelian disetujui.");
+      document.querySelector(".project-review")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+
     setIsReviewEditing(true);
     window.setTimeout(() => {
       reviewInputRef.current?.focus();
@@ -2002,6 +2024,11 @@ export function ProjectDetail() {
 
   function handleStartEditReview() {
     if (isCurrentUserProjectOwner(project)) return;
+
+    if (isPaidProject(project) && !hasPurchasedProjectAccess(project)) {
+      setReviewError("Pembelian proyek harus disetujui sebelum review dapat diedit.");
+      return;
+    }
 
     setIsReviewEditing(true);
     setReviewError("");
@@ -2028,6 +2055,11 @@ export function ProjectDetail() {
 
     if (isCurrentUserProjectOwner(project, user)) {
       setReviewError("Pemilik proyek tidak dapat memberi review pada proyek sendiri.");
+      return;
+    }
+
+    if (isPaidProject(project) && !hasPurchasedProjectAccess(project)) {
+      setReviewError("Pembelian proyek harus disetujui sebelum Anda dapat memberi review.");
       return;
     }
 
@@ -2270,6 +2302,7 @@ export function ProjectDetail() {
     project.descriptionHtml || project.description
   );
   const isProjectOwner = isCurrentUserProjectOwner(project);
+  const canReviewProject = !isPaidProject(project) || hasPurchasedProjectAccess(project);
 
   return (
     <main className="project-detail">
@@ -2319,6 +2352,7 @@ export function ProjectDetail() {
           isSubmitting={isSubmittingReview}
           inputRef={reviewInputRef}
           isProjectOwner={isProjectOwner}
+          canReview={canReviewProject}
           ownerReplyDrafts={ownerReplyDrafts}
           ownerReplyEditingId={ownerReplyEditingId}
           ownerReplyError={ownerReplyError}

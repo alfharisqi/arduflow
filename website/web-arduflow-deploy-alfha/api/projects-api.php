@@ -1750,6 +1750,42 @@ function updateProjectRating(
     array $row,
     array $ratingData
 ): array {
+    $projectPayload =
+        getProjectPayload($row);
+
+    $payment =
+        isset($projectPayload['payment'])
+        && is_array($projectPayload['payment'])
+            ? $projectPayload['payment']
+            : [];
+
+    $isPaidProject =
+        filter_var(
+            $payment['isPaid']
+            ?? $projectPayload['isPaid']
+            ?? false,
+            FILTER_VALIDATE_BOOLEAN
+        )
+        || (float) (
+            $payment['price']
+            ?? $projectPayload['price']
+            ?? 0
+        ) > 0;
+
+    if ($isPaidProject) {
+        $viewerAccess =
+            getProjectViewerAccess(
+                $pdo,
+                (int) $row['id']
+            );
+
+        if (!($viewerAccess['hasPurchased'] ?? false)) {
+            throw new InvalidArgumentException(
+                'Review proyek berbayar hanya dapat diberikan setelah pembelian disetujui.'
+            );
+        }
+    }
+
     $value = (int) (
         $ratingData['value']
         ?? $ratingData['rating']
@@ -1790,7 +1826,7 @@ function updateProjectRating(
         );
 
     $payload =
-        getProjectPayload($row);
+        $projectPayload;
 
     $ratings =
         normalizeProjectRatings(
