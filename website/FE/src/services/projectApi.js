@@ -1,4 +1,5 @@
 import { apiEndpoint, backendAssetUrl } from './apiEndpoints.js';
+import { getStoredUserToken } from './authSession.js';
 
 const PROJECT_API_URL = apiEndpoint(
   import.meta.env.VITE_PROJECT_API_URL,
@@ -332,4 +333,72 @@ export async function fetchProjectSubmission(id, params = {}) {
   }
 
   return normalizeProject(payload.data || payload.project || {});
+}
+
+function discussionRequestUrl(projectId, action) {
+  const normalizedId = String(projectId || '').trim();
+  if (!normalizedId) throw new Error('ID proyek tidak tersedia.');
+
+  const url = new URL(PROJECT_API_URL, window.location.origin);
+  url.searchParams.set('id', normalizedId);
+  url.searchParams.set('action', action);
+  return url;
+}
+
+function discussionHeaders(includeBody = false) {
+  const token = getStoredUserToken();
+  return {
+    Accept: 'application/json',
+    ...(includeBody ? { 'Content-Type': 'application/json' } : {}),
+    ...(token ? { Authorization: `Bearer ${token}`, 'X-Auth-Token': token } : {}),
+  };
+}
+
+async function parseDiscussionResponse(response) {
+  const responseText = await response.text();
+  let payload = {};
+  try {
+    payload = responseText ? JSON.parse(responseText) : {};
+  } catch {
+    throw new Error(`Respons diskusi proyek tidak valid. HTTP ${response.status}`);
+  }
+
+  if (!response.ok || payload.success === false) {
+    throw new Error(payload.message || `Gagal memproses diskusi proyek. HTTP ${response.status}`);
+  }
+
+  return payload.data || { threads: [], total: 0, openCount: 0, viewer: {} };
+}
+
+export async function fetchProjectDiscussions(projectId) {
+  const response = await fetch(discussionRequestUrl(projectId, 'discussion').toString(), {
+    method: 'GET',
+    headers: discussionHeaders(),
+  });
+  return parseDiscussionResponse(response);
+}
+
+async function mutateProjectDiscussion(projectId, action, data) {
+  const response = await fetch(discussionRequestUrl(projectId, action).toString(), {
+    method: 'POST',
+    headers: discussionHeaders(true),
+    body: JSON.stringify(data || {}),
+  });
+  return parseDiscussionResponse(response);
+}
+
+export function createProjectDiscussion(projectId, data) {
+  return mutateProjectDiscussion(projectId, 'discussion-thread', data);
+}
+
+export function replyProjectDiscussion(projectId, threadId, message) {
+  return mutateProjectDiscussion(projectId, 'discussion-reply', { threadId, message });
+}
+
+export function updateProjectDiscussionStatus(projectId, threadId, status) {
+  return mutateProjectDiscussion(projectId, 'discussion-status', { threadId, status });
+}
+
+export function acceptProjectDiscussionReply(projectId, threadId, replyId) {
+  return mutateProjectDiscussion(projectId, 'discussion-accept', { threadId, replyId });
 }

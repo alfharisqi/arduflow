@@ -19,6 +19,7 @@ import { fetchUserIdeTokens } from "../services/ideApi.js";
 import { getStoredUser, getStoredUserToken } from "../services/authSession.js";
 import { backendAssetUrl } from "../services/apiEndpoints.js";
 import { NodeSprite } from "../components/NodeSprite.jsx";
+import { ProjectDiscussion } from "../components/projects/ProjectDiscussion.jsx";
 import { getProjectNodeType } from "../config/projectNodes.js";
 import { showArduflowAlert } from "../utils/alerts.js";
 
@@ -2338,6 +2339,7 @@ export function ProjectDetail() {
           onComment={handleCommentProject}
           isProjectOwner={isProjectOwner}
         />
+        <ProjectDiscussion project={project} />
         <ProjectReview
           average={socialStats.averageRating}
           count={socialStats.ratingCount}

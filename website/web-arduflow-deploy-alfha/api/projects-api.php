@@ -2125,6 +2125,202 @@ function getViewerIdentityFromQuery(): array
     ];
 }
 
+function projectDiscussionHeader(string $name): string
+{
+    $serverKey = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
+    $value = $_SERVER[$serverKey] ?? $_SERVER[$name] ?? '';
+    if (is_string($value) && trim($value) !== '') {
+        return trim($value);
+    }
+
+    foreach (['getallheaders', 'apache_request_headers'] as $reader) {
+        if (!function_exists($reader)) continue;
+        $headers = $reader();
+        if (!is_array($headers)) continue;
+        foreach ($headers as $headerName => $headerValue) {
+            if (strcasecmp((string) $headerName, $name) === 0 && is_string($headerValue)) {
+                return trim($headerValue);
+            }
+        }
+    }
+
+    return '';
+}
+
+function projectDiscussionCurrentUser(PDO $pdo, bool $required = false): ?array
+{
+    $token = projectDiscussionHeader('X-Auth-Token');
+    if ($token === '') {
+        $authorization = projectDiscussionHeader('Authorization')
+            ?: (string) ($_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
+        if (preg_match('/Bearer\s+(.+)/i', $authorization, $matches)) {
+            $token = trim($matches[1]);
+        }
+    }
+
+    if ($token !== '') {
+        $tokenHash = hash('sha256', $token);
+        $now = gmdate('Y-m-d\TH:i:s\Z');
+
+        foreach (['user_sessions', 'auth_tokens'] as $table) {
+            $exists = $pdo->prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = :name LIMIT 1");
+            $exists->execute([':name' => $table]);
+            if (!$exists->fetchColumn()) continue;
+
+            $statement = $pdo->prepare(
+                'SELECT u.id, u.name, u.username, u.email
+                 FROM ' . $table . ' AS session
+                 INNER JOIN users AS u ON u.id = session.user_id
+                 WHERE session.token_hash = :token_hash
+                   AND session.expires_at > :now
+                   AND u.deleted_at IS NULL
+                   AND (u.is_active IS NULL OR u.is_active = 1)
+                 LIMIT 1'
+            );
+            $statement->execute([':token_hash' => $tokenHash, ':now' => $now]);
+            $user = $statement->fetch(PDO::FETCH_ASSOC);
+            if (is_array($user)) return $user;
+        }
+    }
+
+    if ($required) {
+        sendJson(401, [
+            'success' => false,
+            'message' => 'Login diperlukan untuk mengikuti diskusi proyek.',
+        ]);
+    }
+
+    return null;
+}
+
+function ensureProjectDiscussionTables(PDO $pdo): void
+{
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS project_discussion_threads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            author_user_id INTEGER NOT NULL,
+            author_name TEXT NOT NULL,
+            category TEXT NOT NULL DEFAULT "question",
+            title TEXT NOT NULL,
+            message TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT "open",
+            accepted_reply_id INTEGER NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (project_id) REFERENCES project_submissions(id),
+            FOREIGN KEY (author_user_id) REFERENCES users(id)
+        )'
+    );
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS project_discussion_replies (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            thread_id INTEGER NOT NULL,
+            project_id INTEGER NOT NULL,
+            author_user_id INTEGER NOT NULL,
+            author_name TEXT NOT NULL,
+            message TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (thread_id) REFERENCES project_discussion_threads(id) ON DELETE CASCADE,
+            FOREIGN KEY (project_id) REFERENCES project_submissions(id),
+            FOREIGN KEY (author_user_id) REFERENCES users(id)
+        )'
+    );
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_project_discussion_threads_project ON project_discussion_threads(project_id, updated_at DESC)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_project_discussion_replies_thread ON project_discussion_replies(thread_id, created_at ASC)');
+}
+
+function projectDiscussionIsOwner(array $projectRow, array $user): bool
+{
+    $payload = json_decode((string) ($projectRow['payload_json'] ?? '{}'), true);
+    if (!is_array($payload)) $payload = [];
+
+    $userId = (int) ($user['id'] ?? 0);
+    $email = strtolower(trim((string) ($user['email'] ?? '')));
+    foreach (['userId', 'user_id', 'ownerId', 'owner_id', 'authorId', 'author_id'] as $key) {
+        if ($userId > 0 && isset($payload[$key]) && (int) $payload[$key] === $userId) return true;
+    }
+    foreach (['email', 'userEmail', 'user_email', 'ownerEmail', 'owner_email', 'authorEmail', 'author_email'] as $key) {
+        if ($email !== '' && isset($payload[$key]) && strtolower(trim((string) $payload[$key])) === $email) return true;
+    }
+
+    return false;
+}
+
+function projectDiscussionThread(PDO $pdo, int $projectId, int $threadId): ?array
+{
+    $statement = $pdo->prepare(
+        'SELECT * FROM project_discussion_threads
+         WHERE id = :id AND project_id = :project_id LIMIT 1'
+    );
+    $statement->execute([':id' => $threadId, ':project_id' => $projectId]);
+    $row = $statement->fetch(PDO::FETCH_ASSOC);
+    return is_array($row) ? $row : null;
+}
+
+function projectDiscussionPayload(PDO $pdo, array $projectRow, ?array $viewer): array
+{
+    $projectId = (int) $projectRow['id'];
+    $viewerId = (int) ($viewer['id'] ?? 0);
+    $projectOwner = $viewer ? projectDiscussionIsOwner($projectRow, $viewer) : false;
+    $threadsStatement = $pdo->prepare(
+        'SELECT * FROM project_discussion_threads
+         WHERE project_id = :project_id ORDER BY updated_at DESC, id DESC'
+    );
+    $threadsStatement->execute([':project_id' => $projectId]);
+    $threads = [];
+
+    while ($thread = $threadsStatement->fetch(PDO::FETCH_ASSOC)) {
+        $replyStatement = $pdo->prepare(
+            'SELECT * FROM project_discussion_replies
+             WHERE thread_id = :thread_id ORDER BY created_at ASC, id ASC'
+        );
+        $replyStatement->execute([':thread_id' => (int) $thread['id']]);
+        $replies = [];
+        while ($reply = $replyStatement->fetch(PDO::FETCH_ASSOC)) {
+            $replyUserId = (int) $reply['author_user_id'];
+            $replies[] = [
+                'id' => $replyUserId > 0 ? (int) $reply['id'] : null,
+                'replyId' => (int) $reply['id'],
+                'authorName' => (string) $reply['author_name'],
+                'message' => (string) $reply['message'],
+                'isMine' => $viewerId > 0 && $viewerId === $replyUserId,
+                'isProjectOwner' => projectDiscussionIsOwner($projectRow, ['id' => $replyUserId, 'email' => '']),
+                'isAccepted' => (int) ($thread['accepted_reply_id'] ?? 0) === (int) $reply['id'],
+                'createdAt' => $reply['created_at'],
+                'updatedAt' => $reply['updated_at'],
+            ];
+        }
+
+        $threadUserId = (int) $thread['author_user_id'];
+        $threads[] = [
+            'id' => (int) $thread['id'],
+            'category' => (string) $thread['category'],
+            'title' => (string) $thread['title'],
+            'message' => (string) $thread['message'],
+            'status' => (string) $thread['status'],
+            'authorName' => (string) $thread['author_name'],
+            'isMine' => $viewerId > 0 && $viewerId === $threadUserId,
+            'isProjectOwner' => projectDiscussionIsOwner($projectRow, ['id' => $threadUserId, 'email' => '']),
+            'canManage' => $viewerId > 0 && ($viewerId === $threadUserId || $projectOwner),
+            'canAcceptReply' => $viewerId > 0 && $viewerId === $threadUserId,
+            'acceptedReplyId' => $thread['accepted_reply_id'] === null ? null : (int) $thread['accepted_reply_id'],
+            'replyCount' => count($replies),
+            'replies' => $replies,
+            'createdAt' => $thread['created_at'],
+            'updatedAt' => $thread['updated_at'],
+        ];
+    }
+
+    return [
+        'threads' => $threads,
+        'total' => count($threads),
+        'openCount' => count(array_filter($threads, fn (array $thread): bool => $thread['status'] === 'open')),
+        'viewer' => ['isAuthenticated' => $viewer !== null, 'isProjectOwner' => $projectOwner],
+    ];
+}
+
 function getProjectViewerAccess(
     PDO $pdo,
     int $projectId
@@ -2973,6 +3169,8 @@ try {
         )
     );
 
+    ensureProjectDiscussionTables($pdo);
+
     $projectId =
         getProjectId();
 
@@ -3005,6 +3203,18 @@ try {
                     $row,
                     $projectRoot
                 );
+            }
+
+            if (($_GET['action'] ?? '') === 'discussion') {
+                sendJson(200, [
+                    'success' => true,
+                    'message' => 'Diskusi proyek berhasil diambil.',
+                    'data' => projectDiscussionPayload(
+                        $pdo,
+                        $row,
+                        projectDiscussionCurrentUser($pdo, false)
+                    ),
+                ]);
             }
 
             sendJson(
@@ -3064,6 +3274,129 @@ try {
     }
 
     if ($method === 'POST') {
+        if (in_array((string) ($_GET['action'] ?? ''), [
+            'discussion-thread',
+            'discussion-reply',
+            'discussion-status',
+            'discussion-accept',
+        ], true)) {
+            if ($projectId === null) {
+                sendJson(422, ['success' => false, 'message' => 'ID proyek wajib diisi.']);
+            }
+
+            $row = findProject($pdo, $projectId);
+            if ($row === null) {
+                sendJson(404, ['success' => false, 'message' => 'Proyek tidak ditemukan.']);
+            }
+
+            $user = projectDiscussionCurrentUser($pdo, true);
+            $body = readJsonBody();
+            $action = (string) $_GET['action'];
+            $now = jakartaNow();
+
+            if ($action === 'discussion-thread') {
+                $title = trim((string) ($body['title'] ?? ''));
+                $message = trim((string) ($body['message'] ?? ''));
+                $category = strtolower(trim((string) ($body['category'] ?? 'question')));
+                $allowedCategories = ['question', 'development', 'modification', 'collaboration', 'technical'];
+
+                if (mb_strlen($title) < 5 || mb_strlen($title) > 120) {
+                    sendJson(422, ['success' => false, 'message' => 'Judul diskusi harus terdiri dari 5 sampai 120 karakter.']);
+                }
+                if (mb_strlen($message) < 10 || mb_strlen($message) > 3000) {
+                    sendJson(422, ['success' => false, 'message' => 'Isi diskusi harus terdiri dari 10 sampai 3000 karakter.']);
+                }
+                if (!in_array($category, $allowedCategories, true)) $category = 'question';
+
+                $statement = $pdo->prepare(
+                    'INSERT INTO project_discussion_threads
+                        (project_id, author_user_id, author_name, category, title, message, status, created_at, updated_at)
+                     VALUES
+                        (:project_id, :author_user_id, :author_name, :category, :title, :message, "open", :created_at, :updated_at)'
+                );
+                $statement->execute([
+                    ':project_id' => $projectId,
+                    ':author_user_id' => (int) $user['id'],
+                    ':author_name' => trim((string) ($user['name'] ?: $user['username'] ?: 'User')),
+                    ':category' => $category,
+                    ':title' => $title,
+                    ':message' => $message,
+                    ':created_at' => $now,
+                    ':updated_at' => $now,
+                ]);
+            } else {
+                $threadId = filter_var($body['threadId'] ?? $_GET['threadId'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+                if ($threadId === false || $threadId === null) {
+                    sendJson(422, ['success' => false, 'message' => 'ID topik diskusi tidak valid.']);
+                }
+                $thread = projectDiscussionThread($pdo, $projectId, (int) $threadId);
+                if ($thread === null) {
+                    sendJson(404, ['success' => false, 'message' => 'Topik diskusi tidak ditemukan.']);
+                }
+
+                if ($action === 'discussion-reply') {
+                    $message = trim((string) ($body['message'] ?? ''));
+                    if (mb_strlen($message) < 2 || mb_strlen($message) > 3000) {
+                        sendJson(422, ['success' => false, 'message' => 'Balasan harus terdiri dari 2 sampai 3000 karakter.']);
+                    }
+                    $statement = $pdo->prepare(
+                        'INSERT INTO project_discussion_replies
+                            (thread_id, project_id, author_user_id, author_name, message, created_at, updated_at)
+                         VALUES
+                            (:thread_id, :project_id, :author_user_id, :author_name, :message, :created_at, :updated_at)'
+                    );
+                    $statement->execute([
+                        ':thread_id' => (int) $threadId,
+                        ':project_id' => $projectId,
+                        ':author_user_id' => (int) $user['id'],
+                        ':author_name' => trim((string) ($user['name'] ?: $user['username'] ?: 'User')),
+                        ':message' => $message,
+                        ':created_at' => $now,
+                        ':updated_at' => $now,
+                    ]);
+                    $pdo->prepare('UPDATE project_discussion_threads SET updated_at = :updated_at WHERE id = :id')
+                        ->execute([':updated_at' => $now, ':id' => (int) $threadId]);
+                }
+
+                if ($action === 'discussion-status') {
+                    $canManage = (int) $thread['author_user_id'] === (int) $user['id']
+                        || projectDiscussionIsOwner($row, $user);
+                    if (!$canManage) {
+                        sendJson(403, ['success' => false, 'message' => 'Anda tidak dapat mengubah status diskusi ini.']);
+                    }
+                    $status = strtolower(trim((string) ($body['status'] ?? '')));
+                    if (!in_array($status, ['open', 'resolved'], true)) {
+                        sendJson(422, ['success' => false, 'message' => 'Status diskusi tidak valid.']);
+                    }
+                    $pdo->prepare('UPDATE project_discussion_threads SET status = :status, updated_at = :updated_at WHERE id = :id')
+                        ->execute([':status' => $status, ':updated_at' => $now, ':id' => (int) $threadId]);
+                }
+
+                if ($action === 'discussion-accept') {
+                    if ((int) $thread['author_user_id'] !== (int) $user['id']) {
+                        sendJson(403, ['success' => false, 'message' => 'Hanya pembuat topik yang dapat menerima jawaban.']);
+                    }
+                    $replyId = filter_var($body['replyId'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+                    $replyStatement = $pdo->prepare('SELECT id FROM project_discussion_replies WHERE id = :id AND thread_id = :thread_id LIMIT 1');
+                    $replyStatement->execute([':id' => $replyId, ':thread_id' => (int) $threadId]);
+                    if (!$replyStatement->fetchColumn()) {
+                        sendJson(404, ['success' => false, 'message' => 'Balasan tidak ditemukan.']);
+                    }
+                    $pdo->prepare(
+                        'UPDATE project_discussion_threads
+                         SET accepted_reply_id = :reply_id, status = "resolved", updated_at = :updated_at
+                         WHERE id = :id'
+                    )->execute([':reply_id' => (int) $replyId, ':updated_at' => $now, ':id' => (int) $threadId]);
+                }
+            }
+
+            sendJson(200, [
+                'success' => true,
+                'message' => 'Diskusi proyek berhasil diperbarui.',
+                'data' => projectDiscussionPayload($pdo, $row, $user),
+            ]);
+        }
+
         if (
             (
                 $_GET['action']
